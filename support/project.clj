@@ -1,4 +1,4 @@
-(defproject cljschangeserver "0.0.1"
+(defproject cljs-livereload "0.1.0-SNAPSHOT"
   :description "ClojureScript Autobuilder/Server which pushes changes to the browser."
   :dependencies
     [[org.clojure/clojure "1.5.1"]

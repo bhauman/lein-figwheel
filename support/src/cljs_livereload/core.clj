@@ -1,12 +1,11 @@
-(ns cljschangeserver.core
+(ns cljs-livereload.core
   (:require
    [compojure.route :refer [files not-found] :as route]
    [compojure.handler :refer [site api]] ; form, query params decode; cookie; session, etc
    [compojure.core :refer [defroutes GET POST DELETE ANY context routes]]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* rate ignore-dotfiles file-filter extensions on-change]]
-   [clojure.core.async :refer [go-loop <!! chan put! sliding-buffer timeout map< mult tap close!
-                               ]]
+   [clojure.core.async :refer [go-loop <!! chan put! sliding-buffer timeout map< mult tap close!]]
    [clojure.string :as string]
    [digest :as digest]
    [clojure.java.io :refer [as-file]]

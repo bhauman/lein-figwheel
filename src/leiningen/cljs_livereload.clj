@@ -1,4 +1,4 @@
-(ns leiningen.devserver
+(ns leiningen.cljs-livereload
   (:refer-clojure :exclude [test])
   (:require
    [fs.core :as fs]
@@ -18,7 +18,7 @@
    [cljsbuild.compiler]
    [cljsbuild.crossover]
    [cljsbuild.util]
-   [cljschangeserver.core]))
+   [cljs-livereload.core]))
 
 (defn- run-local-project [project crossover-path builds requires form]
   (leval/eval-in-project (subproject/make-subproject project crossover-path builds)
@@ -56,7 +56,7 @@
       (config/warn-unsupported-notify-command build))
 
     (run-local-project project crossover-path parsed-builds
-      '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljsbuild.util 'clojure.java.io 'cljschangeserver.core)
+      '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljsbuild.util 'clojure.java.io 'cljs-livereload.core)
       `(do
         (letfn [(copy-crossovers# []
                   (cljsbuild.crossover/copy-crossovers
@@ -68,7 +68,7 @@
           (let [crossover-macro-paths# (cljsbuild.crossover/crossover-macro-paths '~crossovers)
                 builds# (for [opts# '~parsed-builds]
                           [opts# (cljs.env/default-compiler-env (:compiler opts#))])]
-            (let [change-server# (cljschangeserver.core/start-static-server {:js-dirs ~js-dirs})]
+            (let [change-server# (cljs-livereload.core/start-static-server {:js-dirs ~js-dirs})]
               (loop [dependency-mtimes# (repeat (count builds#) {})]
                 (let [builds-mtimes# (map vector builds# dependency-mtimes#)
                       new-dependency-mtimes#
@@ -88,7 +88,8 @@
                   (when ~watch?
                     (when (not= new-dependency-mtimes# dependency-mtimes# )
                       (println "Saving mtimes ...")
-                      (cljschangeserver.core/check-for-changes change-server#)
+                      ;; could deliver mtimes here 
+                      (cljs-livereload.core/check-for-changes change-server#)
                       #_(spit "./.cljsbuild-mtimes" "hello"))                  
                     (Thread/sleep 100)
                     (recur new-dependency-mtimes#))))
@@ -101,10 +102,10 @@
                                    (filter #(= :none (:optimizations %))
                                            (map :compiler (get-in project [:cljsbuild :builds]))))))))
 
-(defn devserver
-  "I don't do a lot."
+(defn cljs-livereload
+  "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & args]
-  (println "Running ClojureScript compiler!")
+  #_(println "Running ClojureScript compiler!")
   #_(println (cljs-change-server-watch-dirs project))
   (let [options (assoc (config/extract-options project)
                   :js-dirs (cljs-change-server-watch-dirs project))
