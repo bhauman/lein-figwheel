@@ -1,4 +1,4 @@
-(ns cljs-livereload.core
+(ns cljs-livereload.client
   (:require
    [goog.net.jsloader :as loader]
    [cljs.reader :refer [read-string]]))
