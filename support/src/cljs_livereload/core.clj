@@ -37,8 +37,8 @@
 (defn server [{:keys [ring-handler server-port] :as server-state}]
   (run-server
    (if ring-handler
-     (routes (GET "/ws" [] (reload-handler server-state)) ring-handler)
-     (routes (GET "/ws" [] (reload-handler server-state))))
+     (routes (GET "/cljs-livereload-ws" [] (reload-handler server-state)) ring-handler)
+     (routes (GET "/cljs-livereload-ws" [] (reload-handler server-state))))
    {:port server-port}))
 
 (defn append-msg [q msg]
