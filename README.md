@@ -1,5 +1,7 @@
 # lein-cljs-livereload
 
+#### Still a work in progress. But that doesn't mean its not awesome.
+
 A Leiningen plugin that builds your ClojureScript via (lein-cljsbuild)
 and then pushes the names of the changed compiled javascript files to
 the browser via a websocket.
