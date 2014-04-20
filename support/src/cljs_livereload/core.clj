@@ -7,8 +7,6 @@
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* rate ignore-dotfiles file-filter extensions on-change]]
    [clojure.core.async :refer [go-loop <!! chan put! sliding-buffer timeout map< mult tap close!]]
    [clojure.string :as string]
-   [digest :as digest]
-   [clojure.java.io :refer [as-file]]
    [fs.core :as fs]))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
