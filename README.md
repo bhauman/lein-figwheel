@@ -44,7 +44,7 @@ resources being served via the compojure `resources` ring handler.
 
 ## Client side usage
 
-WIP
+For now check out the example project in the `example` directory.
 
 
 ## License
