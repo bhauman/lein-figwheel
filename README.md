@@ -42,14 +42,14 @@ Start the auto compiling server
 This will start a server at `http://localhost:8080` with your
 resources being served via the compojure `resources` ring handler.
 
+## Client side usage
 
-
-
+WIP
 
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2014 Bruce Hauman
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the Eclipse Public License either version 1.0 or any
+later version.
