@@ -11,36 +11,15 @@
    [clojure.java.io :refer [as-file]]
    [fs.core :as fs]))
 
-(defn file-contents-changed? [{:keys [file-md5-cache] :as st} filename]
-  (let [check-sum (digest/md5 (as-file filename))]
-    (when (not= (@file-md5-cache
-                 filename) check-sum)
-      (swap! file-md5-cache
-             assoc filename
-             check-sum)
-      true)))
-
-(defn log [{:keys [logger-chan]} & args]
-  (put! logger-chan args))
-
-(defn print-logs [{:keys [logger-chan]}]
-  (go-loop []
-           (when-let [m (<! logger-chan)]
-             #_(println (prn-str m))
-             (recur))))
-
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
   (add-watch file-change-atom
              :message-watch
              (fn [_ _ o n]
                (let [msg (first n)]
-                 (log server-state "sending message")
-                 (log server-state msg)
                  (when msg
-                   (<!! (timeout @compile-wait-time))
-                   (when (and (file-contents-changed? server-state (:local-path msg))
-                              (open? wschannel))
+                   (<!! (timeout compile-wait-time))
+                   (when (open? wschannel)
                      (send! wschannel (prn-str msg)))))))
   
   ;; Keep alive!!
@@ -55,7 +34,7 @@
     (with-channel request channel
       (setup-file-change-sender server-state channel)
       (on-close channel (fn [status]
-                          (log server-state "channel closed: " status))))))
+                          (println "channel closed: " status))))))
 
 (defn server [{:keys [ring-handler server-port] :as server-state}]
   (run-server
@@ -64,83 +43,91 @@
      (routes (GET "/ws" [] (reload-handler server-state))))
    {:port server-port}))
 
-(defn server-relative-path [{:keys [http-server-root]} path]
-  (string/replace-first path (str "resources/" http-server-root) ""))
-
 (defn append-msg [q msg]
   (conj (take 30 q) msg))
 
 (defn send-changed-file [{:keys [file-change-atom] :as st} filename]
-  (log st filename)
-  (log st "putting file on channel")
-  (println "sending changed file:" filename)  
+  (println "sending changed file:" filename)
   (swap! file-change-atom
          append-msg
          {:msg-name :file-changed
           :type :javascript
-          :local-path filename
-          ;; this assumes /resources/public
-          :file (server-relative-path st filename)}))
+          :file filename}))
 
 (defn send-changed-files [server-state files]
-  (mapv (partial send-changed-file server-state)
-        (mapv #(.getPath %) files)))
-
-(defn starts-with? [s prefix]
-  (when s (zero? (.indexOf s prefix))))
-
-(defn ignore-prefixes [prefixes]
-  (if (zero? (count prefixes))
-    (fn [_] true)
-    (fn [file]
-      (reduce (fn [a b] (and a b))
-              (map #(not (starts-with? (.getPath file) %)) prefixes)))))
-
-(defn paths-to-ignore [{:keys [js-dirs ignore-cljs-libs]}]
-  (mapcat
-   (fn [pth]
-     (map #(str pth "/" % "/")
-          (or ignore-cljs-libs [])))
-   (filter (fn [x] (nil? (second (fs/split-ext x)))) js-dirs)))
-
+  (mapv (partial send-changed-file server-state) files))
 
 (defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
   (compile-watcher (-> js-dirs
                        (watcher*)
-                       (file-filter ignore-dotfiles) ;; add filter
-                       (file-filter (extensions :js)) ;; filter by
-                       ;; this is too specific
-                       (file-filter (ignore-prefixes (paths-to-ignore server-state)))
-                       (on-change (partial send-changed-files server-state)))))
+                       (file-filter ignore-dotfiles)
+                       (file-filter (extensions :js)))))
 
-(defn check-for-changes [{:keys [last-pass js-dirs] :as state}]
+(defn make-base-js-file-path [state file-paths]
+  (map (fn [p]
+         (-> p
+             (string/replace-first (str (:output-dir state) "/") "")
+             (string/replace-first #"\.js$" ""))) 
+       file-paths))
+
+(defn make-base-cljs-file-path [file-paths]
+  (map #(string/replace-first % #"\.cljs$" "") 
+       file-paths))
+
+(defn get-changed-dependencies [state js-file-paths cljs-file-paths]
+  (let [js-base (make-base-js-file-path state js-file-paths)
+        cljs-base (make-base-cljs-file-path cljs-file-paths)]
+    (filter (fn [es]  (some (fn [x] (.endsWith x es)) cljs-base)) js-base)))
+
+(defn get-changed-file-paths [old-mtimes new-mtimes]
+  (filter
+   (fn [k]
+     (and (not= (get new-mtimes k)
+                (get old-mtimes k))))
+   (set (keep identity
+              (mapcat keys [old-mtimes new-mtimes])))))
+
+(defn make-server-relative-path [state path]
+  (str (string/replace-first (:output-dir state)
+                             (str "resources/" (:http-server-root state)) "")
+       "/" path ".js"))
+
+(defn check-for-changes [{:keys [last-pass js-dirs] :as state} old-mtimes new-mtimes]
   (binding [wt/*last-pass* last-pass]
     (let [{:keys [updated? changed]} (compile-js-filewatcher state)]
       (when-let [changes (updated?)]
-        #_(println (prn-str changes))
-        (changed changes)))))
-
-#_(check-for-changes ["./resources/public/js/compiled"] last-pass)
+        ;; not super happy with this but it is a way to decern
+        ;; relevant changes with locally available path information
+        (let [changed-file-paths (get-changed-file-paths old-mtimes new-mtimes)
+              changed-clj-file-paths (filter #(= ".clj" (second (fs/split-ext %))) changed-file-paths)
+              changed-cljs-file-paths (filter #(= ".cljs" (second (fs/split-ext %))) changed-file-paths)
+              changed-dependencies (get-changed-dependencies state
+                                                             (map (fn [x] (.getPath x)) changes)
+                                                             (if (not-empty changed-clj-file-paths)
+                                                               (keys new-mtimes) ; reload all relevant files if clj changed
+                                                               changed-cljs-file-paths))
+              changed-js-sr-paths (map (partial make-server-relative-path state)
+                                       changed-dependencies)]
+          (send-changed-files state changed-js-sr-paths))))))
 
 ;; to be used for css reloads
 (defn file-watcher [state] (watcher ["./.cljsbuild-mtimes"]
-                               (rate 500) ;; poll every 500ms
-                               (on-change (fn [_] (check-for-changes state)))))
+                                    (rate 500) ;; poll every 500ms
+                                    (on-change (fn [_] (check-for-changes state)))))
 
-(defn create-initial-state [{:keys [js-dirs ring-handler http-server-root ignore-cljs-libs server-port]}]
-  { :js-dirs js-dirs #_(or js-dirs ["resources/public/js/compiled/examples.js" "resources/public/js/compiled/out"]) ;;XXX for testing
-    :ignore-cljs-libs (or ignore-cljs-libs ["goog" "clojure" "cljs"])
+(defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root ignore-cljs-libs server-port output-dir]}]
+  { :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
+    :output-dir output-dir
     :ring-handler ring-handler
     :server-port (or server-port 8080)
     :last-pass (atom (System/currentTimeMillis))
-    :file-md5-cache (atom {})
-    :compile-wait-time (atom 10)
-    :file-change-atom (atom (list))
-    :logger-chan (chan (sliding-buffer 100))})
+    :compile-wait-time 10
+    :file-change-atom (atom (list))})
 
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
+    (println "Starting server at http://localhost:" (:server-port opts))
     (merge { :http-server (server state)
             ;; we are going to use this for css change reloads
              #_:file-change-watcher #_(file-watcher state)} 
