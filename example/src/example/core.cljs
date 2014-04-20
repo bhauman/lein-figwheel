@@ -24,11 +24,12 @@
 ;; your web inspector.
 (println "this is a reloaded print statement yeppers")
 
-;; Example 1 :  simple crate based app
+;; Example 1:  simple crate based app
 
 ;; Try editing the example below and watch how the live reloading
-;; responds.  This is a rough example meant to quickly demonstrates
-;; what is appropriate to reload and not.
+;; responds.  This is a rough example meant to quickly demonstrate
+;; the reloading behavior. Notice that state is maintained and your
+;; code updates are reflected in the browser.
 
 ;; define atom once
 (lr/defonce ex1-atom (atom {:r 0 :g 0 :b 0}))
