@@ -97,6 +97,7 @@ you can create this `resources/public/livedev.html` file:
     <script type="text/javascript">goog.require("example.core");</script>
   </body>
 </html>
+```
 
 In keeping with the previous examples you would put this into your
 `src/example/core.cljs`:
