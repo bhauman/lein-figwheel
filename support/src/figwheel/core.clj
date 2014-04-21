@@ -116,6 +116,11 @@
 ;; this narrows the files being sent to files that are in the project
 ;; This is no where near as good as getting a dependancy graph and
 ;; pushing the files that are actually needed
+
+;; TODO
+;; we can get the dependencies by noting changes to the output-to file
+;; and pushing the new requirements to the client 
+
 (defn check-for-changes [{:keys [last-pass js-dirs] :as state} old-mtimes new-mtimes]
   (binding [wt/*last-pass* last-pass]
     (let [{:keys [updated? changed]} (compile-js-filewatcher state)]

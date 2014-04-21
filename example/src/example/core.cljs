@@ -119,8 +119,7 @@
 ;; (fw/defonce start-cube (example.cube/stop-and-start-ex3))
 
 ;; IMPORTANT!!!
-;; Here we start the websocket listener and make sure that it is only
-;; created once
+;; Here we start the websocket listener 
 (fw/watch-and-reload
  :jsload-callback (fn []
                     (ex2-restart)
