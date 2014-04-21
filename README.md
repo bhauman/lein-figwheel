@@ -15,7 +15,7 @@ This plugin starts the cljsbuild auto builder, opens a websocket and a
 starts static file server. When you save a cljs file, cljsbuild will
 detect that and compile it and other affected files. It will then pass
 a list those changed files off to the figwheel server. The
-figwheel server will in turn push the paths of the relevant
+figwheel server will in turn push the paths of the **relevant**
 compiled javascript files through a websocket so that the browser can
 reload them.
 
@@ -82,7 +82,7 @@ In your project.clj you need to include figwheel in your dependencies.
 ```
 
 Make sure you have setup an html file to host your cljs. For example
-you can create this `resources/public/livedev.html` file:
+you can create this `resources/public/index.html` file:
 
 ```html
 <!DOCTYPE html>
