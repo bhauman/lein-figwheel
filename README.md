@@ -4,7 +4,7 @@ File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
 
 ![Fig wheel on a drink](http://s3.amazonaws.com/bhauman-blog-images/Fig-Sidecar_Pomegranate-Bistro1-1.jpg)
 
-#### Still a work in progress. But that doesn't mean its not awesome.
+#### Still a work in progress. But that doesn't mean its not a cool garnish.
 
 A Leiningen plugin that builds your ClojureScript and pushes cljs
 changes to the browser.
@@ -32,22 +32,26 @@ of the box, the developer has to take care to make their code reloadable.
 First include lein-figwheel the `:plugins` section of your
 project.clj.
 
-    [lein-figwheel "0.1.0-SNAPSHOT"]
+```clojure
+[lein-figwheel "0.1.0-SNAPSHOT"]
+```
 
 You have to have your lein-cljsbuild configuration set up in your
 project.clj.
 
 Here is an example:
 
-    :cljsbuild {
-      { :builds [ { :id "example" 
-                    :source-paths ["src/"]
-                    :compiler { :output-to "resources/public/js/compiled/example.js"
-                                :output-dir "resources/public/js/compiled/out"
-                                :externs ["resources/public/js/externs/jquery-1.9.js"]
-                                :optimizations :none
-                                :source-map true } } ] } 
-    }
+```clojure
+:cljsbuild {
+  { :builds [ { :id "example" 
+                :source-paths ["src/"]
+                :compiler { :output-to "resources/public/js/compiled/example.js"
+                            :output-dir "resources/public/js/compiled/out"
+                            :externs ["resources/public/js/externs/jquery-1.9.js"]
+                            :optimizations :none
+                            :source-map true } } ] } 
+}
+```
 
 The important part here is that you have to have at least one `build`
 and that build has to have `:optimizations` set to `:none`.
@@ -105,7 +109,7 @@ your `src/example/core.cljs`:
     ;; the callback is optional
     (fw/defonce reloader
       (fw/watch-and-reload
-       :websocket-url ""
+       ;; :websocket-url "ws:localhost:8080/figwheel-ws" optional
        :jsload-callback (fn [] (print "reloaded")))
 
 We are starting the reload watcher and we are wrapping it in a
@@ -116,7 +120,7 @@ do it in a reloadable way where we teardown and the rebuild the
 running system.
 
 This tearing down and rebuilding of the system is simply sane
-lifecycle management and comes baked into Reactjs and Om by proxy.
+lifecycle management and comes baked into Reactjs and Om.
 
 Please check out the example project in the `example` directory.
 
