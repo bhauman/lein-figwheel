@@ -19,13 +19,16 @@ figwheel server will in turn push the paths of the **relevant**
 compiled javascript files through a websocket so that the browser can
 reload them.
 
-There is also a figwheel client that you include in your cljs
+There is also a figwheel client that you need to include into your cljs
 project to start a process which listens for changes and reloads the
 files.
 
-The main motivation for lein-figwheel is to allow for the
-interactive development of ClojureScript. It doesn't provide this out
-of the box, the developer has to take care to make their code reloadable.
+The main motivation for lein-figwheel is to allow for the interactive
+development of ClojureScript. Figwheel doesn't provide this out of the
+box, the developer has to take care to make their code reloadable. 
+
+If you are using React or Om it's not hard to write reloadable code,
+in fact you might already be doing it.
 
 ## Usage
 
