@@ -4,7 +4,7 @@ File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
 
 ![Fig wheel on a drink](http://s3.amazonaws.com/bhauman-blog-images/Fig-Sidecar_Pomegranate-Bistro1-1.jpg)
 
-#### Still a work in progress. But that doesn't mean its not a cool garnish.
+#### Still a work in progress. But that doesn't mean it's not a cool garnish.
 
 A Leiningen plugin that builds your ClojureScript and pushes the
 changes to the browser.
