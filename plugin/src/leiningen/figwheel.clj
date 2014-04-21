@@ -133,7 +133,8 @@
   (let [project (narrow-to-one-build project build-ids)
         live-reload-options (merge
                              {:js-dirs (cljs-change-server-watch-dirs project)
-                              :output-dir (:output-dir (:compiler (first (get-in project [:cljsbuild :builds]))))}
+                              :output-dir (:output-dir (:compiler (first (get-in project [:cljsbuild :builds]))))
+                              :output-to (:output-to (:compiler (first (get-in project [:cljsbuild :builds]))))}
                              (:figwheel project))
         options (config/extract-options project)]
     (when (check-for-valid-options (:cljsbuild project) live-reload-options)

@@ -32,7 +32,7 @@
     (with-channel request channel
       (setup-file-change-sender server-state channel)
       (on-close channel (fn [status]
-                          (println "channel closed: " status))))))
+                          (println "Figwheel: client disconnected " status))))))
 
 (defn server [{:keys [ring-handler server-port] :as server-state}]
   (run-server
@@ -63,9 +63,13 @@
 
 (defn make-base-js-file-path [state file-paths]
   (map (fn [p]
-         (-> p
-             (string/replace-first (str (:output-dir state) "/") "")
-             (string/replace-first #"\.js$" ""))) 
+         (if (= p (:output-to state))
+           (-> p
+               (string/replace-first (str "resources/" (:http-server-root state) "/") "")
+               (string/replace-first #"\.js$" ""))
+           (-> p
+               (string/replace-first (str (:output-dir state) "/") "")
+               (string/replace-first #"\.js$" "")))) 
        file-paths))
 
 (defn make-base-cljs-file-path [file-paths]
@@ -90,6 +94,28 @@
                              (str "resources/" (:http-server-root state)) "")
        "/" path ".js"))
 
+(defn add-main-file [state js-paths]
+  (cons
+   (string/replace-first (:output-to state)
+                         (str "resources/" (:http-server-root state)) "")
+   js-paths))
+
+;; this is a simpler alternative
+(defn or-just-send-all-the-changed-files [state changes]
+  (send-changed-files
+   state
+   (add-main-file
+    state
+    (map (partial make-server-relative-path state)
+         (make-base-js-file-path state
+                                 (filter
+                                  (fn [x] (not= x (:output-to state)))
+                                  (map (fn [x] (.getPath x))
+                                       changes)))))))
+
+;; this narrows the files being sent to files that are in the project
+;; still no where near as good as getting a dependancy graph and
+;; pushing the files that are actually needed
 (defn check-for-changes [{:keys [last-pass js-dirs] :as state} old-mtimes new-mtimes]
   (binding [wt/*last-pass* last-pass]
     (let [{:keys [updated? changed]} (compile-js-filewatcher state)]
@@ -113,10 +139,11 @@
                                       (rate 500) ;; poll every 500ms
                                       (on-change (fn [_] (check-for-changes state)))))
 
-(defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root ignore-cljs-libs server-port output-dir]}]
+(defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root ignore-cljs-libs server-port output-dir output-to]}]
   { :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
+    :output-to output-to
     :ring-handler ring-handler
     :server-port (or server-port 8080)
     :last-pass (atom (System/currentTimeMillis))

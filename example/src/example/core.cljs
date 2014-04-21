@@ -12,9 +12,8 @@
 
 ;; this is commented out because we are invoking it at the bottom of
 ;; this file
-;; (fw/defonce reloader
-;;    (fw/watch-and-reload
-;;       :jsload-callback (fn [] (ex2-reload))))
+;; (fw/watch-and-reload
+;;   :jsload-callback (fn [] (ex2-reload)))
 
 ;; When you are writing reloadable code you have to protect things
 ;; that you don't want defined over and over. For this there is an
@@ -78,7 +77,6 @@
 
 (fw/defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
 
-
 (defn ex2-template [{:keys [r g b]}]
   [:div.example {:style "float: left; margin-left: 50px"}
    [:h4 "Example 2"]
@@ -130,5 +128,6 @@
                     ;; which will reload even for non-local changes
                     ;; (example.cube/stop-and-start-ex3)
                     ))
+
 
 #_(fw/defonce reloader)
