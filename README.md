@@ -11,7 +11,7 @@ changes to the browser.
 
 ### What actually happens
 
-This plugin starts the cljsbuild auto builder, opens a websocket and a
+This plugin starts the cljsbuild auto builder, opens a websocket and
 starts static file server. When you save a cljs file, cljsbuild will
 detect that and compile it and other affected files. It will then pass
 a list those changed files off to the figwheel server. The
@@ -56,7 +56,7 @@ Here is an example:
 The important part here is that you have to have at least one `build`
 and that build has to have `:optimizations` set to `:none`.
 
-The output directory has to be in a directory that is visible by the
+The output directory has to be in a directory that can be served by the
 static webserver. The default for the webserver root is
 "resources/public" so your output files need to be in a subdirectory
 of "resources/public" unless you change the webserver root.
@@ -72,6 +72,9 @@ or optionally give the name of the build
 
 This will start a server at `http://localhost:8080` with your
 resources being served via the compojure `resources` ring handler.
+
+So you can load the a html file thats hosting your ClojureScript app
+by going to `http://localhost:8080/<yourfilename>.html`
 
 ## Client side usage
 
