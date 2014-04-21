@@ -6,7 +6,7 @@ File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
 
 #### Still a work in progress. But that doesn't mean its not a cool garnish.
 
-A Leiningen plugin that builds your ClojureScript and pushes cljs
+A Leiningen plugin that builds your ClojureScript and pushes the
 changes to the browser.
 
 ### What actually happens

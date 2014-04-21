@@ -94,17 +94,38 @@
    ((juxt :output-dir :output-to)
     (:compiler (first (get-in project [:cljsbuild :builds]))))))
 
+(defn optimizations-none? [build]
+  (let [opt (get-in build [:compiler :optimizations])]
+    (or (nil? opt) (= :none opt))))
+
+(defn output-dir-in-resources-root? [build http-server-root]
+  (.startsWith (get-in build [:compiler :output-dir])
+               (str "resources/" (or http-server-root "public"))))
+
 ;; we are only going to work on one build
 ;; still need to narrow this to optimizations none
 (defn narrow-to-one-build [project build-id-args]
   (update-in project [:cljsbuild :builds]
              (fn [builds]
-               (vector
-                (if-let [build (some #(and (= (:id %)
+               (let [opt-none-builds (filter optimizations-none?
+                                             builds)]
+                 (vector
+                  (if-let [build (some #(and (= (:id %)
                                                 (first build-id-args)) %)
-                                     builds)]
-                  build
-                  (first builds))))))
+                                       opt-none-builds)]
+                    build
+                    (first opt-none-builds)))))))
+
+(defn check-for-valid-options [{:keys [builds]} {:keys [http-server-root]}]
+  (let [build (first builds)
+        opts? (and (not (nil? build)) (optimizations-none? build))
+        out-dir? (output-dir-in-resources-root? build http-server-root)]
+    (when-not  opts?
+      (println "Figwheel Config Error - you have build :optimizations set to something other than :none"))
+    (when-not out-dir?
+      (println (str "Figwheel Config Error - your build :output-dir is not below the '"
+                    (str "resources/" (or http-server-root "public")) "' directory.")))
+    (and opts? out-dir?)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
@@ -115,5 +136,6 @@
                               :output-dir (:output-dir (:compiler (first (get-in project [:cljsbuild :builds]))))}
                              (:figwheel project))
         options (config/extract-options project)]
-    (run-compiler project options live-reload-options build-ids)))
+    (when (check-for-valid-options (:cljsbuild project) live-reload-options)
+      (run-compiler project options live-reload-options build-ids))))
 

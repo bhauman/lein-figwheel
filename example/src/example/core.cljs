@@ -11,8 +11,8 @@
 
 ;; this is commented out because we are invoking it at the bottom of
 ;; this file
-;; (lr/defonce reloader
-;;    (lr/watch-and-reload
+;; (fw/defonce reloader
+;;    (fw/watch-and-reload
 ;;       :jsload-callback (fn [] (ex2-reload))))
 
 ;; When you are writing reloadable code you have to protect things
@@ -22,7 +22,7 @@
 ;; go ahead and change this print statement and hit save.
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
-(println "this is a reloaded print statement")
+(println "this is a reloaded print statement, grooovy")
 
 ;; Example 1:  simple crate based app
 
@@ -35,7 +35,6 @@
 (fw/defonce ex1-atom (atom {:r 0 :g 0 :b 0}))
 
 (defn ex1-template [{:keys [r g b]}]
-  (print [r g b])
   [:div.example {:style "float:left;"}
    [:h4 "Example 1"]
    [:div {:style (str "width: 200px; height: 200px; background-color: rgb("r ","g "," b ")")}]
@@ -122,5 +121,4 @@
 (fw/defonce reloader
   (fw/watch-and-reload
    :jsload-callback (fn [] (ex2-restart))))
-
 

@@ -109,9 +109,9 @@
           (send-changed-files state changed-js-sr-paths))))))
 
 ;; to be used for css reloads
-(defn file-watcher [state] (watcher ["./.cljsbuild-mtimes"]
-                                    (rate 500) ;; poll every 500ms
-                                    (on-change (fn [_] (check-for-changes state)))))
+#_(defn file-watcher [state] (watcher ["./.cljsbuild-mtimes"]
+                                      (rate 500) ;; poll every 500ms
+                                      (on-change (fn [_] (check-for-changes state)))))
 
 (defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root ignore-cljs-libs server-port output-dir]}]
   { :js-dirs js-dirs
@@ -125,7 +125,8 @@
 
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
-    (println "Starting server at http://localhost:" (:server-port opts))
+    (println (str "Figwheel: Starting server at http://localhost:" (:server-port opts)))
+    (println (str "Figwheel: Serving files from 'resources/" (:http-server-root state) "'"))
     (merge { :http-server (server state)
             ;; we are going to use this for css change reloads
              #_:file-change-watcher #_(file-watcher state)} 
