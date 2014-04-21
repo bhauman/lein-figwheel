@@ -128,6 +128,3 @@
                     ;; which will reload even for non-local changes
                     ;; (example.cube/stop-and-start-ex3)
                     ))
-
-
-#_(fw/defonce reloader)
