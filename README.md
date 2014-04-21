@@ -77,40 +77,45 @@ resources being served via the compojure `resources` ring handler.
 
 In your project.clj you need to include figwheel in your dependencies.
 
-    [figwheel "0.1.0-SNAPSHOT"]
+```clojure
+[figwheel "0.1.0-SNAPSHOT"]
+```
 
 Make sure you have setup an html file to host your cljs. For example
 you can create this `resources/public/livedev.html` file:
 
-    <!DOCTYPE html>
-    <html>
-      <head>
-      </head>
-      <body>
-        <div id="main-area">
-        </div>
-        <script src="js/compiled/out/goog/base.js" type="text/javascript"></script>
-        <script src="js/compiled/example.js" type="text/javascript"></script>
-        <script type="text/javascript">goog.require("example.core");</script>
-      </body>
-    </html>
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+  </head>
+  <body>
+    <div id="main-area">
+    </div>
+    <script src="js/compiled/out/goog/base.js" type="text/javascript"></script>
+    <script src="js/compiled/example.js" type="text/javascript"></script>
+    <script type="text/javascript">goog.require("example.core");</script>
+  </body>
+</html>
 
-In keeping with the above previous examples you would put this into
-your `src/example/core.cljs`:
+In keeping with the previous examples you would put this into your
+`src/example/core.cljs`:
 
-    (ns example.core
-      (:require
-       [figwheel.client :as fw :include-macros true]))
+```clojure
+(ns example.core
+  (:require
+   [figwheel.client :as fw :include-macros true]))
 
-    (enable-console-print!)
+(enable-console-print!)
 
-    (println "You can change this line an see the changes in the dev console")
+(println "You can change this line an see the changes in the dev console")
 
-    ;; the callback is optional
-    (fw/defonce reloader
-      (fw/watch-and-reload
-       ;; :websocket-url "ws:localhost:8080/figwheel-ws" optional
-       :jsload-callback (fn [] (print "reloaded")))
+;; the callback is optional
+(fw/defonce reloader
+  (fw/watch-and-reload
+    ;; :websocket-url "ws:localhost:8080/figwheel-ws" default
+    :jsload-callback (fn [] (print "reloaded")))
+```
 
 We are starting the reload watcher and we are wrapping it in a
 `defonce`. As this file will be reloaded on change we have to make
