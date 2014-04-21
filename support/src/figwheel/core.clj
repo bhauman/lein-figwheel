@@ -114,7 +114,7 @@
                                        changes)))))))
 
 ;; this narrows the files being sent to files that are in the project
-;; still no where near as good as getting a dependancy graph and
+;; This is no where near as good as getting a dependancy graph and
 ;; pushing the files that are actually needed
 (defn check-for-changes [{:keys [last-pass js-dirs] :as state} old-mtimes new-mtimes]
   (binding [wt/*last-pass* last-pass]
@@ -132,7 +132,8 @@
                                                                changed-cljs-file-paths))
               changed-js-sr-paths (map (partial make-server-relative-path state)
                                        changed-dependencies)]
-          (send-changed-files state changed-js-sr-paths))))))
+          (send-changed-files state
+                              (add-main-file state changed-js-sr-paths)))))))
 
 ;; to be used for css reloads
 #_(defn file-watcher [state] (watcher ["./.cljsbuild-mtimes"]
