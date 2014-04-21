@@ -1,4 +1,6 @@
-# lein-cljs-livereload
+# lein-figwheel
+
+File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
 
 #### Still a work in progress. But that doesn't mean its not awesome.
 
@@ -10,25 +12,25 @@ changes to the browser.
 This plugin starts the cljsbuild auto builder, opens a websocket and a
 starts static file server. When you save a cljs file, cljsbuild will
 detect that and compile it and other affected files. It will then pass
-a list those changed files off to the cljs-livereload server. The
-cljs-livereload server will in turn push the paths of the relevant
+a list those changed files off to the figwheel server. The
+figwheel server will in turn push the paths of the relevant
 compiled javascript files through a websocket so that the browser can
 reload them.
 
-There is also a cljs-livereload client that you include in your cljs
+There is also a figwheel client that you include in your cljs
 project to start a process which listens for changes and reloads the
 files.
 
-The main motivation for lein-cljs-livereload is to allow for the
+The main motivation for lein-figwheel is to allow for the
 interactive development of ClojureScript. It doesn't provide this out
 of the box, the developer has to take care to make their code reloadable.
 
 ## Usage
 
-First include lein-cljs-livereload the `:plugins` section of your
+First include lein-figwheel the `:plugins` section of your
 project.clj.
 
-    [lein-cljs-livereload "0.1.0-SNAPSHOT"]
+    [lein-figwheel "0.1.0-SNAPSHOT"]
 
 You have to have your lein-cljsbuild configuration set up in your
 project.clj.
@@ -53,23 +55,23 @@ static webserver. The default for the webserver root is
 "resources/public" so your output files need to be in a subdirectory
 of "resources/public" unless you change the webserver root.
 
-Start the cljs-livereload server. (This will get the first optimizations
+Start the figwheel server. (This will get the first optimizations
 none build)
 
-    $ lein cljs-livereload
+    $ lein figwheel
 
 or optionally give the name of the build
 
-    $ lein cljs-livereload example
+    $ lein figwheel example
 
 This will start a server at `http://localhost:8080` with your
 resources being served via the compojure `resources` ring handler.
 
 ## Client side usage
 
-In your project.clj you need to include cljs-livereload in your dependencies.
+In your project.clj you need to include figwheel in your dependencies.
 
-    [cljs-livereload "0.1.0-SNAPSHOT"]
+    [figwheel "0.1.0-SNAPSHOT"]
 
 Make sure you have setup an html file to host your cljs. For example
 you can create this `resources/public/livedev.html` file:
@@ -92,15 +94,15 @@ your `src/example/core.cljs`:
 
     (ns example.core
       (:require
-       [cljs-livereload.client :as lr :include-macros true]))
+       [figwheel.client :as fw :include-macros true]))
 
     (enable-console-print!)
 
     (println "You can change this line an see the changes in the dev console")
 
     ;; the callback is optional
-    (lr/defonce reloader
-      (lr/watch-and-reload
+    (fw/defonce reloader
+      (fw/watch-and-reload
        :websocket-url ""
        :jsload-callback (fn [] (print "reloaded")))
 

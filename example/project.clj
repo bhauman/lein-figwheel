@@ -1,5 +1,5 @@
-(defproject cljs-livereload-example "0.1.0-SNAPSHOT"
-  :description "Just an example of using the lein-cljs-livereload plugin"
+(defproject figwheel-example "0.1.0-SNAPSHOT"
+  :description "Just an example of using the lein-figwheel plugin"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -8,10 +8,10 @@
                  [sablono "0.1.5"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
-                 [cljs-livereload "0.1.0-SNAPSHOT"]]
+                 [figwheel "0.1.0-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
-            [lein-cljs-livereload "0.1.0-SNAPSHOT"]]
+            [lein-figwheel "0.1.0-SNAPSHOT"]]
 
   :cljsbuild {
               :builds [{:id "example"
@@ -20,7 +20,7 @@
                                    :output-dir "resources/public/js/compiled/out"
                                    :optimizations :none}}]}
   
-  :cljs-livereload {
-                     :http-server-root "public" ;; assumes "resources"
-                     :server-port 8080 })
+  :figwheel {
+             :http-server-root "public" ;; assumes "resources" 
+             :server-port 8080 })
 

@@ -1,4 +1,4 @@
-(ns cljs-livereload.client
+(ns figwheel.client
   (:require
    [cljs.compiler :refer (munge)])
   (:refer-clojure :exclude (munge defonce)))

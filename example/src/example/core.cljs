@@ -1,6 +1,6 @@
 (ns example.core
   (:require
-   [cljs-livereload.client :as lr :include-macros true]
+   [figwheel.client :as fw :include-macros true]
    [crate.core]))
 
 (enable-console-print!)
@@ -22,7 +22,7 @@
 ;; go ahead and change this print statement and hit save.
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
-(println "this is a reloaded print statement yeppers")
+(println "this is a reloaded print statement")
 
 ;; Example 1:  simple crate based app
 
@@ -32,9 +32,10 @@
 ;; code updates are reflected in the browser.
 
 ;; define atom once
-(lr/defonce ex1-atom (atom {:r 0 :g 0 :b 0}))
+(fw/defonce ex1-atom (atom {:r 0 :g 0 :b 0}))
 
 (defn ex1-template [{:keys [r g b]}]
+  (print [r g b])
   [:div.example {:style "float:left;"}
    [:h4 "Example 1"]
    [:div {:style (str "width: 200px; height: 200px; background-color: rgb("r ","g "," b ")")}]
@@ -43,7 +44,7 @@
    [:input.example-color-select {:type "range" :min 0 :max 255 :value g :data-color "g"}]
    [:div "green: " g]
    [:input.example-color-select {:type "range" :min 0 :max 255 :value b :data-color "b"}]   
-   [:div "this is blue: " b]])
+   [:div "this is a cool blue: " b]])
 
 (defn ex1-render [v]
   (.html (js/$ "#example-1") (crate.core/html 
@@ -64,7 +65,7 @@
     (swap! ex1-atom assoc color v)))
 
 ;; add listeners once
-(lr/defonce example-1-listeners
+(fw/defonce example-1-listeners
   (.on (js/$ "#example-1") "change" ".example-color-select" ex-1-callback))
 
 ;; Example 2: simple crate based app with lifecyle management.
@@ -75,7 +76,7 @@
 ;; the reload function into the :jsreload key in the watcher at the
 ;; bottom of the page
 
-(lr/defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
+(fw/defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
 
 (defn ex2-template [{:keys [r g b]}]
   [:div.example {:style "float: left; margin-left: 50px"}
@@ -113,13 +114,13 @@
   (ex2-start))
 
 ;; start the app once
-(lr/defonce start-ex2 (ex2-start))
+(fw/defonce start-ex2 (ex2-start))
 
 ;; IMPORTANT!!!
 ;; Here we start the websocket listener and make sure that it is only
 ;; created once
-(lr/defonce reloader
-  (lr/watch-and-reload
+(fw/defonce reloader
+  (fw/watch-and-reload
    :jsload-callback (fn [] (ex2-restart))))
 
 

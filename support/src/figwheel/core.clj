@@ -1,4 +1,4 @@
-(ns cljs-livereload.core
+(ns figwheel.core
   (:require
    [compojure.route :refer [files not-found] :as route]
    [compojure.handler :refer [site api]] ; form, query params decode; cookie; session, etc
@@ -37,8 +37,8 @@
 (defn server [{:keys [ring-handler server-port] :as server-state}]
   (run-server
    (if ring-handler
-     (routes (GET "/cljs-livereload-ws" [] (reload-handler server-state)) ring-handler)
-     (routes (GET "/cljs-livereload-ws" [] (reload-handler server-state))))
+     (routes (GET "/figwheel-ws" [] (reload-handler server-state)) ring-handler)
+     (routes (GET "/figwheel-ws" [] (reload-handler server-state))))
    {:port server-port}))
 
 (defn append-msg [q msg]
