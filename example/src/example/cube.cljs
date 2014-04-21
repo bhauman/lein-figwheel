@@ -6,8 +6,8 @@
    [cljs.core.async.macros :refer [go-loop]]
    [figwheel.client :refer [defonce]]))
 
-;; a more advanced example
-;; edit any of this live
+;; A more advanced example using React and Sablono
+;; you can edit any of this live
 
 
 (defonce ex3-atom (atom {:rx 0 :ry 0 :rz 0}))
@@ -93,14 +93,14 @@
 ;; the magic of react here is that this is reloadable by default!!
 (render-ex-3 @ex3-atom)
 
+;; atom watches are as well :)
 (add-watch ex3-atom :renderer (fn [_ _ _ s] (render-ex-3 s)))
 
-;; a better way for reloadability is to hook this into the jsload-callback
+;; a better way for reloadability is to hook this into the :jsload-callback
 ;; this way non local changes will show up
 ;; if you want to use this comment out the lines above and hook this
 ;; reload callback in examples.core
 (defn stop-and-start-ex3 []
-  ;; the magic of react this is reloadable!!
   (render-ex-3 @ex3-atom)
   (add-watch ex3-atom :renderer (fn [_ _ _ s] (render-ex-3 s))))
 
