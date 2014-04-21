@@ -1,7 +1,9 @@
 (ns figwheel.client
   (:require
    [goog.net.jsloader :as loader]
-   [cljs.reader :refer [read-string]]))
+   [cljs.reader :refer [read-string]])
+  (:require-macros
+   [figwheel.client :refer [defonce]]))
 
 (defn js-reload [url callback]
   (.log js/console "Figwheel: reloading javascript file " url)
@@ -29,10 +31,12 @@
       (set! (.-onerror socket) (fn [x] (.log js/console "Figwheel: socket error ")))))
 
 (defn watch-and-reload [& {:keys [retry-count websocket-url jsload-callback] :as opts}]
-  (watch-and-reload* (merge { :retry-count (or retry-count 100)
-                              :jsload-callback (or jsload-callback
-                                                  (fn [url]
-                                                    (.dispatchEvent (.querySelector js/document "body")
-                                                                    (js/CustomEvent. "figwheel.js-reload" (js-obj "detail" url)))))
-                              :websocket-url (or websocket-url "ws:localhost:8080/figwheel-ws") }
-                              opts)))
+  (defonce watch-and-reload-singleton
+    (watch-and-reload* (merge { :retry-count (or retry-count 100)
+                               :jsload-callback (or jsload-callback
+                                                      (fn [url]
+                                                        (.dispatchEvent (.querySelector js/document "body")
+                                                                        (js/CustomEvent. "figwheel.js-reload" (js-obj "detail" url)))))
+                               :websocket-url (or websocket-url "ws:localhost:8080/figwheel-ws") }
+                              opts))))
+

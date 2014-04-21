@@ -123,11 +123,12 @@
 ;; IMPORTANT!!!
 ;; Here we start the websocket listener and make sure that it is only
 ;; created once
-(fw/defonce reloader
-  (fw/watch-and-reload
-   :jsload-callback (fn []
-                      (ex2-restart)
-                      ;; this is a better way to reload the cube example
-                      ;; which will reload even for non-local changes
-                      ;; (example.cube/stop-and-start-ex3)
-                      )))
+(fw/watch-and-reload
+ :jsload-callback (fn []
+                    (ex2-restart)
+                    ;; this is a better way to reload the cube example
+                    ;; which will reload even for non-local changes
+                    ;; (example.cube/stop-and-start-ex3)
+                    ))
+
+#_(fw/defonce reloader)

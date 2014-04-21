@@ -117,24 +117,25 @@ In keeping with the previous examples you would put this into your
 
 (println "You can change this line an see the changes in the dev console")
 
-;; the callback is optional
-(fw/defonce reloader
-  (fw/watch-and-reload
-    ;; :websocket-url "ws:localhost:8080/figwheel-ws" default
-    :jsload-callback (fn [] (print "reloaded")))
+(fw/watch-and-reload
+  ;; :websocket-url "ws:localhost:8080/figwheel-ws" default
+  :jsload-callback (fn [] (print "reloaded"))) ;; optional callback
 ```
 
-We are starting the reload watcher and we are wrapping it in a
-`defonce`. As this file will be reloaded on change we have to make
-sure that when we start 'running processes' or doing anything that
-hooks into the state of the browser, we need to either do it once or
-do it in a reloadable way where we teardown and the rebuild the
-running system.
+The call to `watch-and-reload` is idempotent and can be called many
+times safely. As this file will be reloaded on change we have to make
+sure that when we start 'running processes' or do anything that hooks
+into the state of the browser, it needs to either be done once or done in
+in a reloadable way.
+
+The best way to write reloadable code is to have lifecycle management
+that tares down the previous system and rebuilds a new one before
+injecting the current state.
 
 This tearing down and rebuilding of the system is simply sane
 lifecycle management and comes baked into Reactjs and Om.
 
-Please check out the example project in the `example` directory.
+Please check out the example project in the `example` directory. 
 
 ## Writing reloadable code
 
