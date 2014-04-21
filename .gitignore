@@ -1,4 +1,5 @@
 example/resources/public/js/compiled
+example/target
 support/target
 plugin/target
 /target

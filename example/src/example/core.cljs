@@ -1,6 +1,7 @@
 (ns example.core
   (:require
    [figwheel.client :as fw :include-macros true]
+   [example.cube]
    [crate.core]))
 
 (enable-console-print!)
@@ -77,6 +78,7 @@
 
 (fw/defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
 
+
 (defn ex2-template [{:keys [r g b]}]
   [:div.example {:style "float: left; margin-left: 50px"}
    [:h4 "Example 2"]
@@ -115,10 +117,17 @@
 ;; start the app once
 (fw/defonce start-ex2 (ex2-start))
 
+;; this is a better way to reload the cube example
+;; (fw/defonce start-cube (example.cube/stop-and-start-ex3))
+
 ;; IMPORTANT!!!
 ;; Here we start the websocket listener and make sure that it is only
 ;; created once
 (fw/defonce reloader
   (fw/watch-and-reload
-   :jsload-callback (fn [] (ex2-restart))))
-
+   :jsload-callback (fn []
+                      (ex2-restart)
+                      ;; this is a better way to reload the cube example
+                      ;; which will reload even for non-local changes
+                      ;; (example.cube/stop-and-start-ex3)
+                      )))
