@@ -50,7 +50,7 @@
   (.html (js/$ "#example-1") (crate.core/html 
                               (ex1-template v))))
 
-;; we can bash in a enw listener on reload no problem
+;; we can bash in a new listener on reload no problem
 (add-watch ex1-atom :atom-listen (fn [_ _ _ n] (ex1-render n)))
 
 ;; we can render on reload no problem
@@ -73,7 +73,7 @@
 ;; With this example we implement a crude lifecycle that makes it
 ;; pretty easy to edit almost all of the code in the example except
 ;; for initial state of the ex2-atom. Take note that we are hooking
-;; the reload function into the :jsreload key in the watcher at the
+;; the reload function into the :jsload-callback in the watcher at the
 ;; bottom of the page
 
 (fw/defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
