@@ -52,17 +52,11 @@
   (swap! file-change-atom
          append-msg
          (merge { :type :javascript
-                 :msg-name :file-changed }
+                  :msg-name :file-changed }
                 file-data)))
 
 (defn send-changed-files [server-state files]
   (mapv (partial send-changed-file server-state) files))
-
-(defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
-  (compile-watcher (-> js-dirs
-                       (watcher*)
-                       (file-filter ignore-dotfiles)
-                       (file-filter (extensions :js)))))
 
 (defn make-base-js-file-path [state file-path]
   (-> file-path
@@ -72,17 +66,19 @@
 (defn make-base-cljs-file-path [file-path]
   (string/replace-first file-path #"\.cljs$" "") )
 
-(defn get-changed-dependencies [state js-file-paths cljs-file-paths]
+(defn intersect-compiled-js-and-sources [state js-file-paths cljs-file-paths]
   (let [js-base   (map (partial make-base-js-file-path state) js-file-paths)
         cljs-base (map make-base-cljs-file-path cljs-file-paths)]
     (filter (fn [es] (some (fn [x] (.endsWith x es)) cljs-base)) js-base)))
 
-(defn get-changed-file-paths [old-mtimes new-mtimes]
-  (filter
-   #(not= (get new-mtimes %)
-          (get old-mtimes %))
-   (set (keep identity
-              (mapcat keys [old-mtimes new-mtimes])))))
+(defn get-changed-source-file-paths [old-mtimes new-mtimes]
+  (group-by
+   #(keyword (subs (second (fs/split-ext %)) 1))
+   (filter
+    #(not= (get new-mtimes %)
+           (get old-mtimes %))
+    (set (keep identity
+               (mapcat keys [old-mtimes new-mtimes]))))))
 
 (defn make-server-relative-path [state path]
   (let [base-path (string/replace-first (:output-dir state)
@@ -112,22 +108,48 @@
   { :file (make-server-relative-path st path)
     :namespace (string/join "." (string/split path #"\/")) })
 
-(defn check-for-changes [{:keys [last-pass js-dirs] :as state} old-mtimes new-mtimes]
-  (binding [wt/*last-pass* last-pass]
-    (let [{:keys [updated? changed]} (compile-js-filewatcher state)]
-      (when-let [changes (updated?)]
-        (let [changed-file-paths      (get-changed-file-paths old-mtimes new-mtimes)
-              changed-cljs-file-paths (filter #(= ".cljs" (second (fs/split-ext %))) changed-file-paths)
-              changed-dependencies    (get-changed-dependencies state
-                                                                (map (fn [x] (.getPath x)) changes)
-                                                                changed-cljs-file-paths)
-              changed-js-sr-paths (map (partial make-sendable-file state)
-                                       changed-dependencies)
-              files-to-send (concat (get-dependency-files state) changed-js-sr-paths)]
-          #_(p/pprint changed-js-sr-paths)
-          #_(p/pprint files-to-send)
-          (send-changed-files state
-                              files-to-send))))))
+
+;; watchtower file change detection
+(defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
+  (compile-watcher (-> js-dirs
+                       (watcher*)
+                       (file-filter ignore-dotfiles)
+                       (file-filter (extensions :js)))))
+
+(defn get-changed-compiled-js-files [{:keys [last-pass] :as state}]
+  ;; this uses watchtower change detection
+  (binding [wt/*last-pass* last-pass] 
+    (let [{:keys [updated?]} (compile-js-filewatcher state)]
+      (map (fn [x] (.getPath x)) (updated?)))))
+
+;; I would love to just check the compiled javascript files to see if
+;; they changed and then just send them to the browser. There is a
+;; great simplicity to that strategy. But unfortunately we can't speak
+;; for the reloadability of 3 party libraries. For this reason I am
+;; only realoding files that are in the scope of the current project.
+
+;; I do this in a kinda hacky way where I compare the names of the
+;; changed source files to the changed compiled javascript files.
+
+;; I also treat the 'goog.addDependancy' files as a different case.
+;; These are checked for explicit changes and sent only when the
+;; content changes.
+
+(defn check-for-changes [state old-mtimes new-mtimes]
+  (when-let [changed-compiled-js-files (get-changed-compiled-js-files state)]
+    (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
+          changed-project-files (intersect-compiled-js-and-sources state
+                                                                   changed-compiled-js-files
+                                                                   (if (not-empty (:clj changed-source-file-paths))
+                                                                     (filter #(= ".cljs" (second (fs/split-ext %)))
+                                                                             (keys new-mtimes))
+                                                                     (:cljs changed-source-file-paths)))
+          sendable-files (map (partial make-sendable-file state) changed-project-files)
+          files-to-send  (concat (get-dependency-files state) sendable-files)]
+      #_(p/pprint changed-source-file-paths)
+      #_(p/pprint sendable-files)
+      #_(p/pprint files-to-send)
+      (send-changed-files state files-to-send))))
 
 ;; to be used for css reloads
 #_(defn file-watcher [state] (watcher ["./.cljsbuild-mtimes"]

@@ -99,7 +99,6 @@
 (defn ex2-render [v]
   (.html (js/$ "#example-2") (crate.core/html (ex2-template v))))
 
-
 ;; crude lifecycle management
 (defn ex2-start []
   (add-watch ex2-atom :atom-listen (fn [_ _ _ n]
