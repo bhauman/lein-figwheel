@@ -47,7 +47,7 @@
      (side { :ry 180 :tz translate} (assoc side-css :backgroundColor "blue"))
      (side { :ry 90 :tz translate} (assoc side-css :backgroundColor "green"))
      (side { :ry 270 :tz translate} (assoc side-css :backgroundColor "green"))
-     (side { :rx 90 :tz translate} (assoc side-css :backgroundColor "yellow"))
+     (side { :rx 90 :tz translate} (assoc side-css :backgroundColor "red"))
      (side { :rx 270 :tz translate} (assoc side-css :backgroundColor "yellow"))     ]))
 
 (defn slider [name k]
@@ -78,7 +78,7 @@
                         :border "10px solid #333"}})]
    [:div.controls {:style (clj->js {:marginTop "60px"})}
     (slider "rotateX" :rx)
-    (slider "rotatey" :ry)
+    (slider "rotateY" :ry)
     (slider "rotateZ" :rz)]])
 
 
@@ -103,5 +103,3 @@
 (defn stop-and-start-ex3 []
   (render-ex-3 @ex3-atom)
   (add-watch ex3-atom :renderer (fn [_ _ _ s] (render-ex-3 s))))
-
-

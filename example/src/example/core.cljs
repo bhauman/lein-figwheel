@@ -1,6 +1,8 @@
 (ns example.core
   (:require
    [figwheel.client :as fw :include-macros true]
+   #_[example.client]
+   #_[example.ex2]
    [example.cube]
    [crate.core]))
 
@@ -22,6 +24,7 @@
 ;; go ahead and change this print statement and hit save.
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
+
 (println "this is a reloaded print statement, grooovy")
 
 ;; Example 1:  simple crate based app
@@ -119,7 +122,7 @@
 ;; (fw/defonce start-cube (example.cube/stop-and-start-ex3))
 
 ;; IMPORTANT!!!
-;; Here we start the websocket listener 
+;; Here we start the websocket listener
 (fw/watch-and-reload
  :jsload-callback (fn []
                     (ex2-restart)
@@ -127,3 +130,4 @@
                     ;; which will reload even for non-local changes
                     ;; (example.cube/stop-and-start-ex3)
                     ))
+
