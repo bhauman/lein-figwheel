@@ -1,8 +1,6 @@
 (ns example.core
   (:require
    [figwheel.client :as fw :include-macros true]
-   #_[example.client]
-   #_[example.ex2]
    [example.cube]
    [crate.core]))
 

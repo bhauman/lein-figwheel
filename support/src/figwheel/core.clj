@@ -1,11 +1,10 @@
 (ns figwheel.core
   (:require
-   [compojure.route :refer [files not-found] :as route]
-   [compojure.handler :refer [site api]] ; form, query params decode; cookie; session, etc
-   [compojure.core :refer [defroutes GET POST DELETE ANY context routes]]
+   [compojure.route :as route]
+   [compojure.core :refer [routes GET]]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
-   [watchtower.core :as wt :refer [watcher compile-watcher watcher* rate ignore-dotfiles file-filter extensions on-change]]
-   [clojure.core.async :refer [go-loop <!! chan put! sliding-buffer timeout map< mult tap close!]]
+   [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
+   [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
    [fs.core :as fs]
    [clojure.java.io :refer [as-file]]
@@ -151,12 +150,12 @@
       #_(p/pprint files-to-send)
       (send-changed-files state files-to-send))))
 
-;; to be used for css reloads
-#_(defn file-watcher [state] (watcher ["./.cljsbuild-mtimes"]
-                                      (rate 500) ;; poll every 500ms
-                                      (on-change (fn [_] (check-for-changes state)))))
+(defn initial-check-sums [state]
+  (doseq [df (dependency-files state)]
+    (file-changed? state df))
+  (:file-md5-atom state))
 
-(defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root ignore-cljs-libs server-port output-dir output-to]}]
+(defn create-initial-state [{:keys [js-dirs ring-handler http-server-root server-port output-dir output-to]}]
   { :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
@@ -165,24 +164,21 @@
     :server-port (or server-port 8080)
     :last-pass (atom (System/currentTimeMillis))
     :compile-wait-time 10
-    :file-md5-atom (atom {})
+    :file-md5-atom (initial-check-sums {:output-to output-to
+                                        :output-dir output-dir
+                                        :file-md5-atom (atom {})})
     :file-change-atom (atom (list))})
 
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
     (println (str "Figwheel: Starting server at http://localhost:" (:server-port opts)))
     (println (str "Figwheel: Serving files from 'resources/" (:http-server-root state) "'"))
-    (merge { :http-server (server state)
-            ;; we are going to use this for css change reloads
-             #_:file-change-watcher #_(file-watcher state)} 
-           state)))
+    (assoc state :http-server (server state))))
 
 (defn start-static-server [{:keys [js-dirs http-server-root] :as opts}]
   (let [http-s-root (or http-server-root "public")]
     (start-server (merge opts {:ring-handler (route/resources "/" :root http-s-root)
                                :http-server-root http-s-root}))))
 
-(defn stop-server [{:keys [http-server file-change-watcher] :as server-data}]
-  (http-server)
-  (when file-change-watcher
-    (future-cancel file-change-watcher)))
+(defn stop-server [{:keys [http-server]}]
+  (http-server))
