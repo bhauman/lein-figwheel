@@ -20,6 +20,7 @@
    [cljsbuild.util]
    [figwheel.core]))
 
+;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
   (leval/eval-in-project (subproject/make-subproject project crossover-path builds)
     ; Without an explicit exit, the in-project subprocess seems to just hang for
@@ -132,9 +133,10 @@
   [project & build-ids]
   (let [project (narrow-to-one-build project build-ids)
         live-reload-options (merge
-                             {:js-dirs (cljs-change-server-watch-dirs project)
-                              :output-dir (:output-dir (:compiler (first (get-in project [:cljsbuild :builds]))))
-                              :output-to (:output-to (:compiler (first (get-in project [:cljsbuild :builds]))))}
+                             { :root (:root project)
+                               :js-dirs (cljs-change-server-watch-dirs project)
+                               :output-dir (:output-dir (:compiler (first (get-in project [:cljsbuild :builds]))))
+                               :output-to (:output-to (:compiler (first (get-in project [:cljsbuild :builds]))))}
                              (:figwheel project))
         options (config/extract-options project)]
     (when (check-for-valid-options (:cljsbuild project) live-reload-options)

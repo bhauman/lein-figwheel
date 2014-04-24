@@ -68,7 +68,10 @@
 (defn intersect-compiled-js-and-sources [state js-file-paths cljs-file-paths]
   (let [js-base   (map (partial make-base-js-file-path state) js-file-paths)
         cljs-base (map make-base-cljs-file-path cljs-file-paths)]
-    (filter (fn [es] (some (fn [x] (.endsWith x es)) cljs-base)) js-base)))
+    (filter
+     (fn [es] (some (fn [x] (.endsWith (string/replace x "-" "_") es))
+                   cljs-base))
+     js-base)))
 
 (defn get-changed-source-file-paths [old-mtimes new-mtimes]
   (group-by
@@ -121,6 +124,16 @@
     (let [{:keys [updated?]} (compile-js-filewatcher state)]
       (map (fn [x] (.getPath x)) (updated?)))))
 
+;; I'm putting this check here and it really belongs cljsbuild
+(defn hyphen-warn [{:keys [root]} paths]
+  (let [bad-paths (filter #(< 1 (count (string/split % #"-")))
+                          (map
+                           #(string/replace-first % root "")
+                            paths))]
+    (println "Please use underscores instead of hyphens in your directory and file names")
+    (println "The following source paths have hyphens in them:")
+    (p/pprint bad-paths)))
+
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
 ;; great simplicity to that strategy. But unfortunately we can't speak
@@ -135,6 +148,7 @@
 ;; content changes.
 
 (defn check-for-changes [state old-mtimes new-mtimes]
+  (hyphen-warn state (keys new-mtimes))
   (when-let [changed-compiled-js-files (get-changed-compiled-js-files state)]
     (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
           changed-project-files (intersect-compiled-js-and-sources state
@@ -155,8 +169,9 @@
     (file-changed? state df))
   (:file-md5-atom state))
 
-(defn create-initial-state [{:keys [js-dirs ring-handler http-server-root server-port output-dir output-to]}]
-  { :js-dirs js-dirs
+(defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root server-port output-dir output-to]}]
+  { :root root
+    :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
     :output-to output-to
