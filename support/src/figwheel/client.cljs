@@ -60,5 +60,5 @@
                                                   (.dispatchEvent (.querySelector js/document "body")
                                                                   (js/CustomEvent. "figwheel.js-reload"
                                                                                    (js-obj "detail" url))))
-                                :websocket-url "ws:localhost:8080/figwheel-ws" }
+                                :websocket-url "ws:localhost:3449/figwheel-ws" }
                               opts))))

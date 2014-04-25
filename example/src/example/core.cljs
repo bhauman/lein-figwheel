@@ -23,7 +23,7 @@
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
 
-(println "this is a reloaded print statement, grooovy")
+(println "this is a reloaded print statement, grooovyieerr")
 
 ;; Example 1:  simple crate based app
 

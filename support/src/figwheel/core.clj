@@ -7,8 +7,9 @@
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
    [fs.core :as fs]
-   [clojure.java.io :refer [as-file]]
+   [clojure.java.io :refer [as-file] :as io]
    [digest]
+   [clojure.set :refer [intersection]]
    [clojure.pprint :as p]))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
@@ -57,21 +58,29 @@
 (defn send-changed-files [server-state files]
   (mapv (partial send-changed-file server-state) files))
 
-(defn make-base-js-file-path [state file-path]
+(defn underscore [st]
+  (string/replace st "-" "_"))
+
+(defn ns-to-path [nm]
+  (string/join "/" (string/split nm #"\.")))
+
+(defn path-to-ns [path]
+  (string/join "." (string/split path #"\/")))
+
+(defn get-ns-from-js-file-path [state file-path]
   (-> file-path
       (string/replace-first (str (:output-dir state) "/") "")
-      (string/replace-first #"\.js$" "")))
+      (string/replace-first #"\.js$" "")
+      path-to-ns
+      underscore))
 
-(defn make-base-cljs-file-path [file-path]
-  (string/replace-first file-path #"\.cljs$" "") )
-
-(defn intersect-compiled-js-and-sources [state js-file-paths cljs-file-paths]
-  (let [js-base   (map (partial make-base-js-file-path state) js-file-paths)
-        cljs-base (map make-base-cljs-file-path cljs-file-paths)]
-    (filter
-     (fn [es] (some (fn [x] (.endsWith (string/replace x "-" "_") es))
-                   cljs-base))
-     js-base)))
+(defn get-ns-from-source-file-path [file-path]
+  (with-open [rdr (io/reader file-path)]
+    (-> (java.io.PushbackReader. rdr)
+        read
+        second
+        name
+        underscore)))
 
 (defn get-changed-source-file-paths [old-mtimes new-mtimes]
   (group-by
@@ -82,10 +91,10 @@
     (set (keep identity
                (mapcat keys [old-mtimes new-mtimes]))))))
 
-(defn make-server-relative-path [state path]
-  (let [base-path (string/replace-first (:output-dir state)
-                                        (str "resources/" (:http-server-root state)) "")]
-    (str base-path "/" path ".js")))
+(defn make-server-relative-path [state nm]
+  (-> (:output-dir state)
+      (string/replace-first (str "resources/" (:http-server-root state)) "")
+      (str "/" (ns-to-path nm) ".js")))
 
 (defn file-changed? [{:keys [file-md5-atom]} filepath]
   (let [file (as-file filepath)]
@@ -110,7 +119,6 @@
   { :file (make-server-relative-path st path)
     :namespace (string/join "." (string/split path #"\/")) })
 
-
 ;; watchtower file change detection
 (defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
   (compile-watcher (-> js-dirs
@@ -124,15 +132,20 @@
     (let [{:keys [updated?]} (compile-js-filewatcher state)]
       (map (fn [x] (.getPath x)) (updated?)))))
 
+(defn get-changed-compiled-namespaces [state]
+  (set (mapv (partial get-ns-from-js-file-path state)
+             (get-changed-compiled-js-files state))))
+
 ;; I'm putting this check here and it really belongs cljsbuild
 (defn hyphen-warn [{:keys [root]} paths]
   (let [bad-paths (filter #(< 1 (count (string/split % #"-")))
                           (map
                            #(string/replace-first % root "")
-                            paths))]
-    (println "Please use underscores instead of hyphens in your directory and file names")
-    (println "The following source paths have hyphens in them:")
-    (p/pprint bad-paths)))
+                           paths))]
+    (when (not-empty bad-paths)
+      (println "Please use underscores instead of hyphens in your directory and file names")
+      (println "The following source paths have hyphens in them:")
+      (p/pprint bad-paths))))
 
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
@@ -149,19 +162,22 @@
 
 (defn check-for-changes [state old-mtimes new-mtimes]
   (hyphen-warn state (keys new-mtimes))
-  (when-let [changed-compiled-js-files (get-changed-compiled-js-files state)]
+  (when-let [changed-compiled-ns (get-changed-compiled-namespaces state)]
     (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
-          changed-project-files (intersect-compiled-js-and-sources state
-                                                                   changed-compiled-js-files
-                                                                   (if (not-empty (:clj changed-source-file-paths))
-                                                                     (filter #(= ".cljs" (second (fs/split-ext %)))
-                                                                             (keys new-mtimes))
-                                                                     (:cljs changed-source-file-paths)))
-          sendable-files (map (partial make-sendable-file state) changed-project-files)
+          changed-source-file-ns (set (mapv get-ns-from-source-file-path
+                                            (if (not-empty (:clj changed-source-file-paths))
+                                              (filter #(= ".cljs" (second (fs/split-ext %)))
+                                                      (keys new-mtimes))
+                                              (:cljs changed-source-file-paths))))
+          changed-project-ns (intersection changed-compiled-ns changed-source-file-ns)
+          sendable-files (map (partial make-sendable-file state) changed-project-ns)
           files-to-send  (concat (get-dependency-files state) sendable-files)]
-      #_(p/pprint changed-source-file-paths)
-      #_(p/pprint sendable-files)
-      #_(p/pprint files-to-send)
+      (p/pprint changed-compiled-ns)      
+      (p/pprint changed-source-file-ns)
+      (p/pprint changed-project-ns)      
+      
+      (p/pprint sendable-files)
+      (p/pprint files-to-send)
       (send-changed-files state files-to-send))))
 
 (defn initial-check-sums [state]
@@ -176,7 +192,7 @@
     :output-dir output-dir
     :output-to output-to
     :ring-handler ring-handler
-    :server-port (or server-port 8080)
+    :server-port (or server-port 3449)
     :last-pass (atom (System/currentTimeMillis))
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to
@@ -197,3 +213,5 @@
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
+
+

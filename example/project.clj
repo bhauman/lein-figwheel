@@ -21,6 +21,7 @@
                                    :optimizations :none}}]}
   
   :figwheel {
-             :http-server-root "public" ;; assumes "resources" 
-             :server-port 8080 })
+             :http-server-root "public" ;; default and assumes "resources" 
+             :server-port 3449 ;; default
+             })
 
