@@ -150,11 +150,8 @@
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
 ;; great simplicity to that strategy. But unfortunately we can't speak
-;; for the reloadability of 3 party libraries. For this reason I am
+;; for the reloadability of 3rd party libraries. For this reason I am
 ;; only realoding files that are in the scope of the current project.
-
-;; I do this in a kinda hacky way where I compare the names of the
-;; changed source files to the changed compiled javascript files.
 
 ;; I also treat the 'goog.addDependancy' files as a different case.
 ;; These are checked for explicit changes and sent only when the
@@ -172,12 +169,6 @@
           changed-project-ns (intersection changed-compiled-ns changed-source-file-ns)
           sendable-files (map (partial make-sendable-file state) changed-project-ns)
           files-to-send  (concat (get-dependency-files state) sendable-files)]
-      (p/pprint changed-compiled-ns)      
-      (p/pprint changed-source-file-ns)
-      (p/pprint changed-project-ns)      
-      
-      (p/pprint sendable-files)
-      (p/pprint files-to-send)
       (send-changed-files state files-to-send))))
 
 (defn initial-check-sums [state]
@@ -202,7 +193,7 @@
 
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
-    (println (str "Figwheel: Starting server at http://localhost:" (:server-port opts)))
+    (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
     (println (str "Figwheel: Serving files from 'resources/" (:http-server-root state) "'"))
     (assoc state :http-server (server state))))
 
