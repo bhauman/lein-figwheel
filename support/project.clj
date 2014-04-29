@@ -1,5 +1,5 @@
 (defproject figwheel "0.1.0-SNAPSHOT"
-  :description "ClojureScript Autobuilder/Server which pushes changes to the browser."
+  :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :dependencies
     [[org.clojure/clojure "1.5.1"]
      [org.clojure/clojurescript "0.0-2202"
