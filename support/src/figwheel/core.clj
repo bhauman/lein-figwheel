@@ -47,16 +47,23 @@
 (defn append-msg [q msg]
   (conj (take 30 q) msg))
 
+(defn make-msg [file-data]
+  (merge { :type :javascript
+          :msg-name :file-changed }
+         file-data))
+
 (defn send-changed-file [{:keys [file-change-atom] :as st} file-data]
   (println "sending changed file:" (:file file-data))
-  (swap! file-change-atom
-         append-msg
-         (merge { :type :javascript
-                  :msg-name :file-changed }
-                file-data)))
+  (swap! file-change-atom append-msg (make-msg file-data)))
 
 (defn send-changed-files [server-state files]
   (mapv (partial send-changed-file server-state) files))
+
+(defn send-changed-files2 [{:keys [file-change-atom] :as st} files]
+  (swap! file-change-atom append-msg { :msg-name :files-changed
+                                       :files (mapv make-msg files)})
+  (doseq [f files]
+         (println "sending changed file:" (:file f))))
 
 (defn underscore [st]
   (string/replace st "-" "_"))
@@ -169,7 +176,7 @@
           changed-project-ns (intersection changed-compiled-ns changed-source-file-ns)
           sendable-files (map (partial make-sendable-file state) changed-project-ns)
           files-to-send  (concat (get-dependency-files state) sendable-files)]
-      (send-changed-files state files-to-send))))
+      (send-changed-files2 state files-to-send))))
 
 (defn initial-check-sums [state]
   (doseq [df (dependency-files state)]
@@ -204,5 +211,3 @@
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
-
-

@@ -1,8 +1,10 @@
 (ns figwheel.client
   (:require
    [goog.net.jsloader :as loader]
-   [cljs.reader :refer [read-string]])
+   [cljs.reader :refer [read-string]]
+   [cljs.core.async :refer [put! chan <! map< close! timeout] :as async])
   (:require-macros
+   [cljs.core.async.macros :refer [go go-loop]]
    [figwheel.client :refer [defonce]]))
 
 (defn log [{:keys [debug]} & args]
@@ -17,9 +19,22 @@
   (when (or dependency-file
             ;; IMPORTANT make sure this file is currently provided
             (.isProvided_ js/goog namespace)) 
-    (.log js/console "Figwheel: reloading javascript file :" file )
     (let [deferred (loader/load (add-cache-buster file))]
       (.addCallback deferred  (fn [] (apply callback [file]))))))
+
+(defn reload-js-file [file-msg]
+  (let [out (chan)]
+    (js-reload file-msg (fn [url] (put! out url) (close! out)))
+    out))
+
+(defn reload-js-files [files-msg callback]
+  (go
+   (let [res (<! (async/into [] (async/merge (map reload-js-file (:files files-msg)))))]
+     (when (not-empty res)
+       (.log js/console "Figwheel: loaded files")
+       (.log js/console (clj->js res))
+       (<! (timeout 10)) ;; wait a beat before callback
+       (apply callback [res])))))
 
 (defn figwheel-closure-import-script [src]
   (if (.inHtmlDocument_ js/goog)
@@ -38,8 +53,8 @@
     (let [socket (js/WebSocket. websocket-url)]
       (set! (.-onmessage socket) (fn [msg-str]
                                    (let [msg (read-string (.-data msg-str))]
-                                     (when (= (:msg-name msg) :file-changed)
-                                       (js-reload msg jsload-callback)))))
+                                     (when (= (:msg-name msg) :files-changed)
+                                       (reload-js-files msg jsload-callback)))))
       (set! (.-onopen socket)  (fn [x]
                                  (patch-goog-base)
                                  (.log js/console "Figwheel: socket connection established")))
