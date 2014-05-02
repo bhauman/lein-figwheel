@@ -76,6 +76,7 @@
 
 (defn get-ns-from-js-file-path [state file-path]
   (-> file-path
+      (string/replace "\\" "/")
       (string/replace-first (str (:output-dir state) "/") "")
       (string/replace-first #"\.js$" "")
       path-to-ns
