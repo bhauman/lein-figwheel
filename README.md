@@ -93,11 +93,11 @@ or optionally give the name of the build
 
     $ lein figwheel example
 
-This will start a server at `http://localhost:8080` with your
+This will start a server at `http://localhost:3449` with your
 resources being served via the compojure `resources` ring handler.
 
 So you can load the a html file thats hosting your ClojureScript app
-by going to `http://localhost:8080/<yourfilename>.html`
+by going to `http://localhost:3449/<yourfilename>.html`
 
 ## Client side usage
 
@@ -138,7 +138,7 @@ In keeping with the previous examples you would put this into your
 (println "You can change this line an see the changes in the dev console")
 
 (fw/watch-and-reload
-  ;; :websocket-url "ws:localhost:8080/figwheel-ws" default
+  ;; :websocket-url "ws:localhost:3449/figwheel-ws" default
   :jsload-callback (fn [] (print "reloaded"))) ;; optional callback
 ```
 
