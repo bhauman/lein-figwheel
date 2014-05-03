@@ -99,6 +99,24 @@ resources being served via the compojure `resources` ring handler.
 So you can load the a html file thats hosting your ClojureScript app
 by going to `http://localhost:3449/<yourfilename>.html`
 
+### Server configuration
+
+In your `project.clj` you can add the following configuration parameters:
+
+```clojure
+
+:figwheel {
+   :http-server-root "public" ;; this will be in resources/
+   :port 3449                 ;; default
+
+   ;; no default value if set figwheel detect css file changes and send
+   ;; them to the browser
+   :css-dirs ["resources/public/css"] 
+}
+
+
+```
+
 ## Client side usage
 
 In your project.clj you need to include figwheel in your dependencies.
