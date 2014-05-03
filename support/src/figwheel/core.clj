@@ -14,28 +14,31 @@
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
-  (add-watch file-change-atom
-             :message-watch
-             (fn [_ _ o n]
-               (let [msg (first n)]
-                 (when msg
-                   (<!! (timeout compile-wait-time))
-                   (when (open? wschannel)
-                     (send! wschannel (prn-str msg)))))))
-  
-  ;; Keep alive!!
-  (go-loop []
-           (<! (timeout 5000))
-           (when (open? wschannel)
-             (send! wschannel (prn-str {:msg-name :ping}))
-             (recur))))
+  (let [watch-key (keyword (gensym "message-watch-"))]
+    (add-watch file-change-atom
+               watch-key
+               (fn [_ _ o n]
+                 (let [msg (first n)]
+                   (when msg
+                     (<!! (timeout compile-wait-time))
+                     (when (open? wschannel)
+                       (send! wschannel (prn-str msg)))))))
+    
+    (on-close wschannel (fn [status]
+                          (remove-watch file-change-atom watch-key)
+                          (println "Figwheel: client disconnected " status)))
+    
+    ;; Keep alive!!
+    (go-loop []
+             (<! (timeout 5000))
+             (when (open? wschannel)
+               (send! wschannel (prn-str {:msg-name :ping}))
+               (recur)))))
 
 (defn reload-handler [server-state]
   (fn [request]
     (with-channel request channel
-      (setup-file-change-sender server-state channel)
-      (on-close channel (fn [status]
-                          (println "Figwheel: client disconnected " status))))))
+      (setup-file-change-sender server-state channel))))
 
 (defn server [{:keys [ring-handler server-port] :as server-state}]
   (run-server

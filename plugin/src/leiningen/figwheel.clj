@@ -96,8 +96,7 @@
     (:compiler (first (get-in project [:cljsbuild :builds]))))))
 
 (defn optimizations-none? [build]
-  (let [opt (get-in build [:compiler :optimizations])]
-    (or (nil? opt) (= :none opt))))
+  (= :none (get-in build [:compiler :optimizations])))
 
 (defn output-dir-in-resources-root? [build http-server-root]
   (.startsWith (get-in build [:compiler :output-dir])
