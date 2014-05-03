@@ -34,7 +34,7 @@ See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interac
 
 ## Demo
 
-<iframe width="420" height="315" src="//www.youtube.com/embed/KZjFVdU8VLI" frameborder="0" allowfullscreen></iframe>
+Here is a [live demo of using figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 ## Quick Start
 

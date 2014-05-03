@@ -1,3 +1,6 @@
+## Here is a diagram of the basic functionality of figwheel
+
+```
  +-----------------------------------------+
  |                                         |
  |    Get changed clj/cljs source files    |
@@ -63,3 +66,4 @@
 |                re-render                 |
 |                                          |
 +------------------------------------------+
+```
