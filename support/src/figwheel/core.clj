@@ -175,13 +175,54 @@
           files-to-send  (concat (get-dependency-files state) sendable-files)]
       (send-changed-files state files-to-send))))
 
+
+;; css changes
+
+;; watchtower css file change detection
+(defn compile-css-filewatcher [{:keys [css-dirs] :as server-state}]
+  (compile-watcher (-> css-dirs
+                       (watcher*)
+                       (file-filter ignore-dotfiles)
+                       (file-filter (extensions :css)))))
+
+(defn get-changed-css-files [{:keys [last-pass css-last-pass] :as state}]
+  ;; this uses watchtower change detection
+  (binding [wt/*last-pass* css-last-pass]
+    (let [{:keys [updated?]} (compile-css-filewatcher state)]
+      (map (fn [x] (.getPath x)) (updated?)))))
+
+(defn make-server-relative-css-path [state nm]
+  (string/replace-first nm (str "resources/" (:http-server-root state)) ""))
+
+(defn make-css-file [state path]
+  { :file (make-server-relative-css-path state path)
+    :type :css } )
+
+(defn send-css-files [{:keys [file-change-atom]} files]
+  (swap! file-change-atom append-msg { :msg-name :css-files-changed
+                                      :files files})
+  (doseq [f files]
+    (println "sending changed CSS file:" (:file f))))
+
+(defn check-for-css-changes [state]
+  (when (:css-dirs state)
+    (let [changed-css-files (get-changed-css-files state)]
+      (when (not-empty changed-css-files)
+        (println changed-css-files)
+        (send-css-files state (map (partial make-css-file state) 
+                                   changed-css-files))))))
+
+;; end css changes
+
 (defn initial-check-sums [state]
   (doseq [df (dependency-files state)]
     (file-changed? state df))
   (:file-md5-atom state))
 
-(defn create-initial-state [{:keys [root js-dirs ring-handler http-server-root server-port output-dir output-to]}]
+(defn create-initial-state [{:keys [root js-dirs css-dirs ring-handler http-server-root
+                                    server-port output-dir output-to]}]
   { :root root
+    :css-dirs css-dirs
     :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
@@ -189,6 +230,7 @@
     :ring-handler ring-handler
     :server-port (or server-port 3449)
     :last-pass (atom (System/currentTimeMillis))
+    :css-last-pass (atom (System/currentTimeMillis))   
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to
                                         :output-dir output-dir

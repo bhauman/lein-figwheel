@@ -2,7 +2,8 @@
   (:require
    [goog.net.jsloader :as loader]
    [cljs.reader :refer [read-string]]
-   [cljs.core.async :refer [put! chan <! map< close! timeout] :as async])
+   [cljs.core.async :refer [put! chan <! map< close! timeout] :as async]
+   [clojure.string :as string])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]
    [figwheel.client :refer [defonce]]))
@@ -36,6 +37,68 @@
        (<! (timeout 10)) ;; wait a beat before callback
        (apply callback [res])))))
 
+
+;; CSS reloading -- a bit brittle
+
+(defn current-links []
+  (.call (.. js/Array -prototype -slice) (.getElementsByTagName js/document "link")))
+
+(defn matches-file? [css-path link-href]
+  (= css-path
+     (-> (first (string/split link-href #"\?")) 
+         (string/replace-first (str (.-protocol js/location) "//") "")
+         (string/replace-first (.-host js/location) ""))))
+
+(defn get-correct-link [css-path]
+  (some (fn [l]
+          (when (matches-file? css-path (.-href l)) l))
+        (current-links)))
+
+(defn clone-link [link url]
+  (let [clone (.createElement js/document "link")]
+    (set! (.-rel clone)      "stylesheet")
+    (set! (.-media clone)    (.-media link))
+    (set! (.-disabled clone) (.-disabled link))
+    (set! (.-href clone)     (add-cache-buster url))
+    clone))
+
+(defn create-link [url]
+  (let [link (.createElement js/document "link")]
+    (set! (.-rel link)      "stylesheet")
+    (set! (.-href link)     (add-cache-buster url))
+    link))
+
+(defn add-link-to-doc
+  ([new-link]
+     (.appendChild (aget (.getElementsByTagName js/document "head") 0)
+                   new-link))
+  ([orig-link klone]
+     (let [parent (.-parentNode orig-link)]
+       (if (= orig-link (.-lastChild parent))
+         (.appendChild parent klone)
+         (.insertBefore parent klone (.-nextSibling orig-link)))
+       (go
+        (<! (timeout 200))
+        (.removeChild parent orig-link)))))
+
+(defn reload-css-file [{:keys [file]}]
+  (if-let [link (get-correct-link file)]
+    (add-link-to-doc link (clone-link link file))
+    (add-link-to-doc (create-link file))))
+
+(defn reload-css-files [files-msg jsload-callback]
+  (doseq [f (:files files-msg)]
+    (reload-css-file f))
+  (.log js/console "Figwheel: loaded CSS files")
+  (.log js/console (clj->js (map :file (:files files-msg))))
+  ;; really not sure about this
+  ;; do we really need to call a callback here
+  ;; I think a separate callback for CSS reloads may make
+  ;; sense but I doubt it's needed at all
+  ;; (<! (timeout 100))
+  ;; (jsload-callback nil)
+  )
+
 (defn figwheel-closure-import-script [src]
   (if (.inHtmlDocument_ js/goog)
     (do
@@ -53,8 +116,10 @@
     (let [socket (js/WebSocket. websocket-url)]
       (set! (.-onmessage socket) (fn [msg-str]
                                    (let [msg (read-string (.-data msg-str))]
-                                     (when (= (:msg-name msg) :files-changed)
-                                       (reload-js-files msg jsload-callback)))))
+                                     (condp = (:msg-name msg)
+                                       :files-changed (reload-js-files msg jsload-callback)
+                                       :css-files-changed (reload-css-files msg jsload-callback)
+                                       nil))))
       (set! (.-onopen socket)  (fn [x]
                                  (patch-goog-base)
                                  (.log js/console "Figwheel: socket connection established")))
@@ -77,3 +142,4 @@
                                                                                    (js-obj "detail" url))))
                                 :websocket-url (str "ws:" js/location.host "/figwheel-ws")}
                               opts))))
+

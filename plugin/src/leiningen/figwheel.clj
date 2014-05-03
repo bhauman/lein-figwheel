@@ -87,6 +87,7 @@
                             true))))]
                   (when (not= new-dependency-mtimes# dependency-mtimes#)
                     (figwheel.core/check-for-changes change-server# (first dependency-mtimes#) (first new-dependency-mtimes#)))
+                  (figwheel.core/check-for-css-changes change-server#)
                   (Thread/sleep 100)
                   (recur new-dependency-mtimes#))))))))))
 
