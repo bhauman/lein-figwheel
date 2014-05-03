@@ -104,17 +104,16 @@ by going to `http://localhost:3449/<yourfilename>.html`
 In your `project.clj` you can add the following configuration parameters:
 
 ```clojure
-
 :figwheel {
    :http-server-root "public" ;; this will be in resources/
    :port 3449                 ;; default
 
-   ;; no default value if set figwheel detect css file changes and send
-   ;; them to the browser
+   ;; CSS reloading
+   ;; :css-dirs has no default value 
+   ;; if :css-dirs is set figwheel will detect css file changes and
+   ;; send them to the browser
    :css-dirs ["resources/public/css"] 
 }
-
-
 ```
 
 ## Client side usage
