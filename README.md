@@ -30,6 +30,26 @@ box, the developer has to take care to make their code reloadable.
 If you are using React or Om it's not hard to write reloadable code,
 in fact you might already be doing it.
 
+See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
+
+## Demo
+
+<iframe width="420" height="315" src="//www.youtube.com/embed/KZjFVdU8VLI" frameborder="0" allowfullscreen></iframe>
+
+## Quick Start
+
+You can get started quickly with the flappy bird demo:
+
+    git clone https://github.com/bhauman/flappy-bird-demo.git
+
+then cd into `flappy-bird-demo` and type
+
+    lein figwheel
+
+If you would prefer to greenfield a new project you can use the figwheel leinigen template.
+
+    lein new figwheel hello-world
+
 ## Usage
 
 First include lein-figwheel the `:plugins` section of your
@@ -129,7 +149,7 @@ into the state of the browser, it needs to either be done once or done in
 in a reloadable way.
 
 The best way to write reloadable code is to have lifecycle management
-that tares down the previous system and rebuilds a new one before
+that takes down the previous system and rebuilds a new one before
 injecting the current state.
 
 This tearing down and rebuilding of the system is simply sane
@@ -139,7 +159,7 @@ Please check out the example project in the `example` directory.
 
 ## Writing reloadable code
 
-
+Still working on writing this ...
 
 ## License
 
