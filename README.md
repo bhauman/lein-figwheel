@@ -38,6 +38,8 @@ Here is a [live demo of using figwheel](https://www.youtube.com/watch?v=KZjFVdU8
 
 ## Quick Start
 
+Make sure you have the [latest version of leinigen installed](https://github.com/technomancy/leiningen#installation).
+
 You can get started quickly with the flappy bird demo:
 
     git clone https://github.com/bhauman/flappy-bird-demo.git
@@ -52,14 +54,22 @@ If you would prefer to greenfield a new project you can use the figwheel leinige
 
 ## Usage
 
-First include lein-figwheel the `:plugins` section of your
-project.clj.
+First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
+[org.clojure/clojurescript "0.0-2197"] ;; has to be at least 2197 or greater
+[figwheel "0.1.0-SNAPSHOT"]            ;; needed for figwheel client
+```
+
+Then include lein-figwheel along with lein-cljsbuild the `:plugins`
+section of your project.clj.
+
+```clojure
+[lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
 [lein-figwheel "0.1.0-SNAPSHOT"]
 ```
 
-You have to have your lein-cljsbuild configuration set up in your
+You also need to have your lein-cljsbuild configuration set up in your
 project.clj.
 
 Here is an example:
