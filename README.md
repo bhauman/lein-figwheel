@@ -61,7 +61,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 [figwheel "0.1.0-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
-Then include lein-figwheel along with lein-cljsbuild the `:plugins`
+Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
 section of your project.clj.
 
 ```clojure
@@ -69,8 +69,8 @@ section of your project.clj.
 [lein-figwheel "0.1.0-SNAPSHOT"]
 ```
 
-You also need to have your lein-cljsbuild configuration set up in your
-project.clj.
+You also need to have your `lein-cljsbuild` configuration set up in your
+`project.clj`.
 
 Here is an example:
 
@@ -89,10 +89,11 @@ Here is an example:
 The important part here is that you have to have at least one `build`
 and that build has to have `:optimizations` set to `:none`.
 
-The output directory has to be in a directory that can be served by the
-static webserver. The default for the webserver root is
+The output directory has to be in a directory that can be served by
+the static webserver. The default for the webserver root is
 "resources/public" so your output files need to be in a subdirectory
-of "resources/public" unless you change the webserver root.
+"resources/public" unless you change the webserver root. For now the
+webserver root has to be in a subdirectory of `resources`.
 
 Start the figwheel server. (This will get the first optimizations
 none build)
