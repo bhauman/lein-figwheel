@@ -9,6 +9,35 @@ File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
 A Leiningen plugin that builds your ClojureScript and pushes the
 changes to the browser.
 
+If you write reloadable code, figwheel can facilitate automated live
+interactive programming **figwheel**. This is different than
+interactive programming in the browser-repl where you need to cherry
+pick which changes to send and which processes to start, etc.
+
+The inclusion of a **static file server** also allows you to get a decent
+ClojureScript development environment up and running pretty quickly.
+
+Figwheel's connection is pretty darn robust. I have had sessions last
+days. You can use figwheel as a repl if you consider the browser
+console a valid output container and don't mind doing print lines.
+
+Figwheel also has **live CSS reloading**.
+
+An interesting feature that figwheel provides is **message broadcast**.
+All the browsers that connect the figwheel server all get code updates
+at the same time. You can connect to the figwheel from several
+browsers and they all will get updated. This means you can see code
+and CSS changes take place in real time on your phone and in your
+laptop browser simultaneously.
+
+The broadcast of live code updates can have interesting applications.
+You could have a classroom of kids directly interact with a game that
+you are working on together.
+
+## Demo
+
+Here is a [live demo of using figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
+
 ### What actually happens
 
 This plugin starts the cljsbuild auto builder, opens a websocket and
@@ -32,9 +61,7 @@ in fact you might already be doing it.
 
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
-## Demo
 
-Here is a [live demo of using figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 ## Quick Start
 
