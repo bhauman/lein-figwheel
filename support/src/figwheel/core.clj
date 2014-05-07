@@ -162,7 +162,8 @@
 ;; content changes.
 
 (defn check-for-changes [state old-mtimes new-mtimes]
-  (hyphen-warn state (keys new-mtimes))
+  ;; taking this out until I have a better approach
+  #_(hyphen-warn state (keys new-mtimes))
   (when-let [changed-compiled-ns (get-changed-compiled-namespaces state)]
     (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
           changed-source-file-ns (set (mapv get-ns-from-source-file-path
