@@ -10,7 +10,7 @@ A Leiningen plugin that builds your ClojureScript and pushes the
 changes to the browser.
 
 If you write reloadable code, figwheel can facilitate automated live
-interactive programming **figwheel**. This is different than
+interactive programming. This is different than
 interactive programming in the browser-repl where you need to cherry
 pick which changes to send and which processes to start, etc.
 
