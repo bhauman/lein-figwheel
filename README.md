@@ -9,30 +9,31 @@ File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
 A Leiningen plugin that builds your ClojureScript and pushes the
 changes to the browser.
 
+See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
+
 If you write reloadable code, figwheel can facilitate automated live
-interactive programming. This is different than
-interactive programming in the browser-repl where you need to cherry
-pick which changes to send and which processes to start, etc.
+interactive programming. Every time you save your ClojureScript source
+file the changes are sent to the browser so you can see the affects of
+modifying your code in real time.  This is different than interactive
+programming in the browser-repl where you need to cherry pick which
+changes to send and which processes to start, etc.
 
-The inclusion of a **static file server** also allows you to get a decent
-ClojureScript development environment up and running pretty quickly.
+The inclusion of a **static file server** allows you to get a decent
+ClojureScript development environment up and running quickly.
 
-Figwheel's connection is pretty darn robust. I have had sessions last
-days. You can use figwheel as a repl if you consider the browser
-console a valid output container and don't mind doing print lines.
+Figwheel's connection is fairly robust. I have experienced figwheel
+sessions that have lasted for days through multiple OS sleeps. You can
+also use figwheel like a Repl if you are OK with using `print` to output
+the evaluation results to the browser console.
 
 Figwheel also has **live CSS reloading**.
 
-An interesting feature that figwheel provides is **message broadcast**.
-All the browsers that connect the figwheel server all get code updates
-at the same time. You can connect to the figwheel from several
-browsers and they all will get updated. This means you can see code
-and CSS changes take place in real time on your phone and in your
-laptop browser simultaneously.
-
-The broadcast of live code updates can have interesting applications.
-You could have a classroom of kids directly interact with a game that
-you are working on together.
+Figwheel broadcasts changes to all connected clients. This means you
+can see code and CSS changes take place in real time on your phone and
+in your laptop browser simultaneously. The broadcast of live code
+updates can have interesting applications. You could have a whole
+classroom directly interacting with a game that is being worked on
+live from the front of the room or even remotely.
 
 ## Demo
 
@@ -41,16 +42,16 @@ Here is a [live demo of using figwheel](https://www.youtube.com/watch?v=KZjFVdU8
 ### What actually happens
 
 This plugin starts the cljsbuild auto builder, opens a websocket and
-starts static file server. When you save a cljs file, cljsbuild will
-detect that and compile it and other affected files. It will then pass
-a list those changed files off to the figwheel server. The
-figwheel server will in turn push the paths of the **relevant**
+starts static file server. When you save a ClojureScript file,
+cljsbuild will detect that and compile it and other affected files. It
+will then pass a list those changed files off to the figwheel server.
+The figwheel server will in turn push the paths of the **relevant**
 compiled javascript files through a websocket so that the browser can
 reload them.
 
-There is also a figwheel client that you need to include into your cljs
-project to start a process which listens for changes and reloads the
-files.
+There is also a figwheel client that you need to include into your
+ClojreScript project to start a process which listens for changes and
+reloads the files.
 
 The main motivation for lein-figwheel is to allow for the interactive
 development of ClojureScript. Figwheel doesn't provide this out of the
@@ -58,10 +59,6 @@ box, the developer has to take care to make their code reloadable.
 
 If you are using React or Om it's not hard to write reloadable code,
 in fact you might already be doing it.
-
-See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
-
-
 
 ## Quick Start
 
