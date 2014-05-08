@@ -176,7 +176,6 @@
           files-to-send  (concat (get-dependency-files state) sendable-files)]
       (send-changed-files state files-to-send))))
 
-
 ;; css changes
 
 ;; watchtower css file change detection
@@ -209,7 +208,6 @@
   (when (:css-dirs state)
     (let [changed-css-files (get-changed-css-files state)]
       (when (not-empty changed-css-files)
-        (println changed-css-files)
         (send-css-files state (map (partial make-css-file state) 
                                    changed-css-files))))))
 
