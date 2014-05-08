@@ -28,7 +28,7 @@ the evaluation results to the browser console.
 
 Figwheel also has **live CSS reloading**.
 
-Figwheel broadcasts changes to all connected clients. This means you
+Figwheel **broadcasts** changes to all connected clients. This means you
 can see code and CSS changes take place in real time on your phone and
 in your laptop browser simultaneously. The broadcast of live code
 updates can have interesting applications. You could have a whole
@@ -72,7 +72,13 @@ then cd into `flappy-bird-demo` and type
 
     lein figwheel
 
-If you would prefer to greenfield a new project you can use the figwheel leinigen template.
+You can now goto `localhost:3449/index.html` and open up
+`src/flappy_bird_demo/core.cljs` with your favorite editor and start
+coding. Make sure you open your browser's development console so you
+can get feedback about code reloads.
+
+If you would prefer to greenfield a new project you can use the
+figwheel leinigen template.
 
     lein new figwheel hello-world
 
@@ -195,14 +201,16 @@ In keeping with the previous examples you would put this into your
 ```
 
 The call to `watch-and-reload` is idempotent and can be called many
-times safely. As this file will be reloaded on change we have to make
-sure that when we start 'running processes' or do anything that hooks
-into the state of the browser, it needs to either be done once or done in
-in a reloadable way.
+times safely. 
 
-The best way to write reloadable code is to have lifecycle management
-that takes down the previous system and rebuilds a new one before
-injecting the current state.
+Whole files will be reloaded on change so we have to make sure that
+when we start 'running processes' or do anything that hooks into the
+state of the browser, it needs to either be done once or done in in a
+reloadable way.
+
+The least complicated way to write reloadable code is to implement a
+lifecycle pattern that takes down the previous system and rebuilds a
+new one before injecting the current state.
 
 This tearing down and rebuilding of the system is simply sane
 lifecycle management and comes baked into Reactjs and Om.
