@@ -79,12 +79,13 @@
       underscore))
 
 (defn get-ns-from-source-file-path [file-path]
-  (with-open [rdr (io/reader file-path)]
-    (-> (java.io.PushbackReader. rdr)
-        read
-        second
-        name
-        underscore)))
+  (when (.exists (as-file file-path))
+    (with-open [rdr (io/reader file-path)]
+      (-> (java.io.PushbackReader. rdr)
+          read
+          second
+          name
+          underscore))))
 
 (defn get-changed-source-file-paths [old-mtimes new-mtimes]
   (group-by
@@ -166,7 +167,7 @@
   #_(hyphen-warn state (keys new-mtimes))
   (when-let [changed-compiled-ns (get-changed-compiled-namespaces state)]
     (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
-          changed-source-file-ns (set (mapv get-ns-from-source-file-path
+          changed-source-file-ns (set (keep get-ns-from-source-file-path
                                             (if (not-empty (:clj changed-source-file-paths))
                                               (filter #(= ".cljs" (second (fs/split-ext %)))
                                                       (keys new-mtimes))
