@@ -88,7 +88,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojurescript "0.0-2197"] ;; has to be at least 2197 or greater
-[figwheel "0.1.0-SNAPSHOT"]            ;; needed for figwheel client
+[figwheel "0.1.2-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -96,7 +96,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
-[lein-figwheel "0.1.0-SNAPSHOT"]
+[lein-figwheel "0.1.2-SNAPSHOT"]
 ```
 
 You also need to have your `lein-cljsbuild` configuration set up in your
@@ -162,7 +162,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.1.0-SNAPSHOT"]
+[figwheel "0.1.2-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
