@@ -11,7 +11,7 @@
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.1.278.0-76b25b-alpha"]
    ;; devserver
-   [fs "1.1.2"]
+   [me.raynes/fs "1.4.4"]
    [ring "1.2.1"] 
    [http-kit "2.1.16"]
    [compojure "1.1.6"]
