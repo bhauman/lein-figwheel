@@ -1,4 +1,4 @@
-(defproject figwheel "0.1.2-SNAPSHOT"
+(defproject figwheel "0.1.2-2173-SNAPSHOT"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -7,7 +7,7 @@
         :url "https://github.com/bhauman/lein-figwheel"}  
   :dependencies
   [[org.clojure/clojure "1.6.0"]
-   [org.clojure/clojurescript "0.0-2202"
+   [org.clojure/clojurescript "0.0-2173"
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.1.278.0-76b25b-alpha"]
    ;; devserver

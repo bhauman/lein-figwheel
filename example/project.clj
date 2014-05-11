@@ -4,14 +4,14 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2202"]
+                 [org.clojure/clojurescript "0.0-2173"]
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
-                 [figwheel "0.1.2-SNAPSHOT"]]
+                 [figwheel "0.1.2-2173-SNAPSHOT"]]
 
-  :plugins [[lein-cljsbuild "1.0.3"]
-            [lein-figwheel "0.1.2-SNAPSHOT"]]
+  :plugins [[lein-cljsbuild "1.0.2"]
+            [lein-figwheel "0.1.2-2173-SNAPSHOT"]]
 
   :cljsbuild {
               :builds [{:id "example"

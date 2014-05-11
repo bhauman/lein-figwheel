@@ -66,8 +66,9 @@
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
           (let [crossover-macro-paths# (cljsbuild.crossover/crossover-macro-paths '~crossovers)
-                builds# (for [opts# '~parsed-builds]
-                          [opts# (cljs.env/default-compiler-env (:compiler opts#))])]
+                builds# (map vector '~parsed-builds (repeatedly cljs.env/default-compiler-env))
+                #_(for [opts# '~parsed-builds]
+                    [opts# (cljs.env/default-compiler-env (:compiler opts#))])]
             (let [change-server# (figwheel.core/start-static-server ~live-reload-options)]
               (loop [dependency-mtimes# (repeat (count builds#) {})]
                 (let [builds-mtimes# (map vector builds# dependency-mtimes#)
