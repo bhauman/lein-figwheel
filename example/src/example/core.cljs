@@ -23,7 +23,7 @@
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
 
-(println "this is a reloaded print statement, grooovy")
+(println "this is a reloaded print statement, grooovyier")
 
 ;; Example 1:  simple crate based app
 
@@ -40,14 +40,14 @@
    [:h4 "Example 1"]
    [:div {:style (str "width: 200px; height: 200px; background-color: rgb("r ","g "," b ")")}]
    [:input.example-color-select {:type "range" :min 0 :max 255 :value r :data-color "r"}]
-   [:div "red: " r]   
+   [:div "red: " r]
    [:input.example-color-select {:type "range" :min 0 :max 255 :value g :data-color "g"}]
    [:div "green: " g]
-   [:input.example-color-select {:type "range" :min 0 :max 255 :value b :data-color "b"}]   
+   [:input.example-color-select {:type "range" :min 0 :max 255 :value b :data-color "b"}]
    [:div "this is a cool blue: " b]])
 
 (defn ex1-render [v]
-  (.html (js/$ "#example-1") (crate.core/html 
+  (.html (js/$ "#example-1") (crate.core/html
                               (ex1-template v))))
 
 ;; we can bash in a new listener on reload no problem
@@ -83,10 +83,10 @@
    [:h4 "Example 2"]
    [:div {:style (str "width: 200px; height: 200px; background-color: rgb("r ","g "," b ")")}]
    [:input.example-color-select {:type "range" :min 0 :max 255 :value r :data-color "r"}]
-   [:div "red: " r]   
+   [:div "red: " r]
    [:input.example-color-select {:type "range" :min 0 :max 255 :value g :data-color "g"}]
-   [:div "this is greener: " g]      
-   [:input.example-color-select {:type "range" :min 0 :max 255 :value b :data-color "b"}]   
+   [:div "this is greener: " g]
+   [:input.example-color-select {:type "range" :min 0 :max 255 :value b :data-color "b"}]
    [:div "this is blue: " b]])
 
 (defn ex-2-callback [e]
