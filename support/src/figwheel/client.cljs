@@ -8,9 +8,10 @@
    [cljs.core.async.macros :refer [go go-loop]]
    [figwheel.client :refer [defonce]]))
 
-(def log-style "color:rgb(0,128,0);")
+(defn log [_message]
+  (.log js/console _message)) ;; can't have styling in light table logs
 
-(defn log [{:keys [debug]} & args]
+(defn dlog [{:keys [debug]} & args]
   (when debug
     (.log js/console (to-array args))))
 
@@ -39,8 +40,8 @@
   (go
    (let [res (<! (load-all-js-files files))]
      (when (not-empty res)
-       (.log js/console "%cFigwheel: loading these files" log-style )
-       (.log js/console (clj->js res))
+       (log "Figwheel: loaded these files")
+       (log (prn-str res))
        (<! (timeout 10)) ;; wait a beat before callback
        (apply callback [res])))))
 
@@ -95,8 +96,8 @@
 (defn reload-css-files [files-msg jsload-callback]
   (doseq [f (:files files-msg)]
     (reload-css-file f))
-  (.log js/console "%cFigwheel: loaded CSS files" log-style)
-  (.log js/console (clj->js (map :file (:files files-msg))))
+  (log "Figwheel: loaded CSS files")
+  (log (prn-str (map :file (:files files-msg))))
   ;; really not sure about this
   ;; do we really need to call a callback here
   ;; I think a separate callback for CSS reloads may make
@@ -118,7 +119,7 @@
   (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) figwheel-closure-import-script))
 
 (defn watch-and-reload* [{:keys [retry-count websocket-url jsload-callback] :as opts}]
-    (.log js/console "%cFigwheel: trying to open cljs reload socket" log-style)  
+    (log "Figwheel: trying to open cljs reload socket")  
     (let [socket (js/WebSocket. websocket-url)]
       (set! (.-onmessage socket) (fn [msg-str]
                                    (let [msg (read-string (.-data msg-str))]
@@ -128,16 +129,16 @@
                                        nil))))
       (set! (.-onopen socket)  (fn [x]
                                  (patch-goog-base)
-                                 (.log js/console "%cFigwheel: socket connection established" log-style)))
+                                 (log "Figwheel: socket connection established")))
       (set! (.-onclose socket) (fn [x]
-                                 (log opts "Figwheel: socket closed or failed to open")
+                                 (dlog opts "Figwheel: socket closed or failed to open")
                                  (when (> retry-count 0)
                                    (.setTimeout js/window
                                                 (fn []
                                                   (watch-and-reload*
                                                    (assoc opts :retry-count (dec retry-count))))
                                                 2000))))
-      (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))))
+      (set! (.-onerror socket) (fn [x] (dlog opts "Figwheel: socket error ")))))
 
 (defn watch-and-reload [& {:keys [retry-count websocket-url jsload-callback] :as opts}]
   (defonce watch-and-reload-singleton
