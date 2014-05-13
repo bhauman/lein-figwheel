@@ -1,6 +1,7 @@
 (ns figwheel.core
   (:require
    [compojure.route :as route]
+   [cljs.compiler]
    [compojure.core :refer [routes GET]]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
@@ -122,7 +123,7 @@
 
 (defn make-sendable-file [st path]
   { :file (make-server-relative-path st path)
-    :namespace (string/join "." (string/split path #"\/")) })
+    :namespace (cljs.compiler/munge path)})
 
 ;; watchtower file change detection
 (defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
