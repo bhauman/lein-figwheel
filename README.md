@@ -84,6 +84,8 @@ figwheel leinigen template.
 
 ## Usage
 
+#### For ClojureScript > 0.0-2197
+
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
@@ -98,6 +100,27 @@ section of your project.clj.
 [lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
 [lein-figwheel "0.1.2-SNAPSHOT"]
 ```
+
+#### For ClojureScript 0.0-2014 - 0.0-2173
+
+For now this is needed for Light Table compatability:
+
+First make sure you include the following `:dependencies` in your `project.clj` file.
+
+```clojure
+[org.clojure/clojurescript "0.0-2173"] ;; has to be between 2014 - 2197
+[figwheel "0.1.2-2173-SNAPSHOT"]            ;; needed for figwheel client
+```
+
+Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
+section of your project.clj.
+
+```clojure
+[lein-cljsbuild "1.0.2"] ;; 1.0.2 is a requirement
+[lein-figwheel "0.1.2-2173-SNAPSHOT"]
+```
+
+#### Configure lein cljsbuild
 
 You also need to have your `lein-cljsbuild` configuration set up in your
 `project.clj`.
