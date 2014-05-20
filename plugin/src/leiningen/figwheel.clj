@@ -17,7 +17,7 @@
    [clojure.java.io :as io]
    [cljsbuild.compiler]
    [cljsbuild.crossover]
-   [cljsbuild.util]
+   [cljsbuild.util :as util]
    [figwheel.core]))
 
 ;; well this is private in the leiningen.cljsbuild ns
@@ -38,58 +38,61 @@
            (System/exit 1))))
     requires))
 
-(defn run-compiler [project {:keys [crossover-path crossovers builds]} live-reload-options build-ids]
-  (doseq [build-id build-ids]
-    (if (empty? (filter #(= (:id %) build-id) builds))
-      (throw (Exception. (str "Unknown build identifier: " build-id)))))
+(defn run-compiler [project {:keys [crossover-path crossovers builds]} live-reload-options]
   (println "Compiling ClojureScript.")
   ; If crossover-path does not exist before eval-in-project is called,
   ; the files it contains won't be classloadable, for some reason.
   (when (not-empty crossovers)
     (println "\033[31mWARNING: lein-cljsbuild crossovers are deprecated, and will be removed in future versions. See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
     (fs/mkdirs crossover-path))
-  (let [filtered-builds (if (empty? build-ids)
-                          builds
-                          (filter #(some #{(:id %)} build-ids) builds))
-        parsed-builds (map config/parse-notify-command filtered-builds)]
-    (doseq [build parsed-builds]
-      (config/warn-unsupported-warn-on-undeclared build)
-      (config/warn-unsupported-notify-command build))
+  (let [parsed-builds (list (config/parse-notify-command (first builds)))]
+    (config/warn-unsupported-warn-on-undeclared (first parsed-builds))
+    (config/warn-unsupported-notify-command (first parsed-builds))
     (run-local-project project crossover-path parsed-builds
-      '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljsbuild.util 'clojure.java.io 'figwheel.core)
+     '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'clojure.java.io 'figwheel.core)
       `(do
-        (letfn [(copy-crossovers# []
-                  (cljsbuild.crossover/copy-crossovers
+         (letfn [(copy-crossovers# []
+                   (cljsbuild.crossover/copy-crossovers
                     ~crossover-path
                     '~crossovers))]
           (when (not-empty '~crossovers)
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
           (let [crossover-macro-paths# (cljsbuild.crossover/crossover-macro-paths '~crossovers)
-                builds# (for [opts# '~parsed-builds]
-                          [opts# (cljs.env/default-compiler-env (:compiler opts#))])]
-            (let [change-server# (figwheel.core/start-static-server ~live-reload-options)]
-              (loop [dependency-mtimes# (repeat (count builds#) {})]
-                (let [builds-mtimes# (map vector builds# dependency-mtimes#)
-                      new-dependency-mtimes#
-                      (doall
-                       (for [[[build# compiler-env#] mtimes#] builds-mtimes#]
-                         (binding [cljs.env/*compiler* compiler-env#]
-                           (cljsbuild.compiler/run-compiler
-                            (:source-paths build#)
-                            ~crossover-path
-                            crossover-macro-paths#
-                            (:compiler build#)
-                            (:parsed-notify-command build#)
-                            (:incremental build#)
-                            (:assert build#)
-                            mtimes#
-                            true))))]
-                  (when (not= new-dependency-mtimes# dependency-mtimes#)
-                    (figwheel.core/check-for-changes change-server# (first dependency-mtimes#) (first new-dependency-mtimes#)))
-                  (figwheel.core/check-for-css-changes change-server#)
-                  (Thread/sleep 100)
-                  (recur new-dependency-mtimes#))))))))))
+                [build# compiler-env#] (first (for [opts# '~parsed-builds]
+                                                [opts# (cljs.env/default-compiler-env (:compiler opts#))]))
+                change-server# (figwheel.core/start-static-server ~live-reload-options)]
+            (loop [dependency-mtimes# {}]
+              (let [new-dependency-mtimes#
+                    (try
+                      (let [new-mtimes# (binding [cljs.env/*compiler* compiler-env#]
+                                          (cljsbuild.compiler/run-compiler
+                                           (:source-paths build#)
+                                           ~crossover-path
+                                           crossover-macro-paths#
+                                           (:compiler build#)
+                                           (:parsed-notify-command build#)
+                                           (:incremental build#)
+                                           (:assert build#)
+                                           dependency-mtimes#
+                                           false))]
+                        (when (not= dependency-mtimes# new-mtimes#)
+                          (figwheel.core/check-for-changes change-server# dependency-mtimes# new-mtimes#))
+                        new-mtimes#)
+                      (catch Throwable e#
+                        (clj-stacktrace.repl/pst+ e#)
+                        ;; this is a total crap hack
+                        ;; just trying to delay re-writing a 
+                        ;; portion of cljsbuild until I understand
+                        ;; more about how lein figwheel should work
+                        (figwheel.core/get-dependency-mtimes
+                                (:source-paths build#)
+                                ~crossover-path
+                                crossover-macro-paths#
+                                (:compiler build#))))]
+                (figwheel.core/check-for-css-changes change-server#)
+                (Thread/sleep 100)
+                (recur new-dependency-mtimes#)))))))))
 
 (defn cljs-change-server-watch-dirs [project]
   (vec
@@ -105,14 +108,14 @@
 
 ;; we are only going to work on one build
 ;; still need to narrow this to optimizations none
-(defn narrow-to-one-build [project build-id-args]
+(defn narrow-to-one-build [project build-id]
   (update-in project [:cljsbuild :builds]
              (fn [builds]
                (let [opt-none-builds (filter optimizations-none?
                                              builds)]
                  (vector
                   (if-let [build (some #(and (= (:id %)
-                                                (first build-id-args)) %)
+                                                build-id) %)
                                        opt-none-builds)]
                     build
                     (first opt-none-builds)))))))
@@ -121,6 +124,10 @@
   (let [build (first builds)
         opts? (and (not (nil? build)) (optimizations-none? build))
         out-dir? (output-dir-in-resources-root? build http-server-root)]
+    (when (nil? build)
+      (throw (Exception.
+              (str "No cljsbuild specified. You could have mistyped the build
+                    id or failed to specify build in your cljsbuild configuration in you project.clj"))))
     (when-not  opts?
       (println "Figwheel Config Error - you have build :optimizations set to something other than :none"))
     (when-not out-dir?
@@ -131,14 +138,16 @@
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
-  (let [project (narrow-to-one-build project build-ids)
+  (let [build-id (first build-ids)
+        project (narrow-to-one-build project build-id)
+        current-build (first (get-in project [:cljsbuild :builds]))
         live-reload-options (merge
                              { :root (:root project)
                                :js-dirs (cljs-change-server-watch-dirs project)
-                               :output-dir (:output-dir (:compiler (first (get-in project [:cljsbuild :builds]))))
-                               :output-to (:output-to (:compiler (first (get-in project [:cljsbuild :builds]))))}
+                               :output-dir (:output-dir (:compiler current-build))
+                               :output-to (:output-to (:compiler current-build))}
                              (:figwheel project))
         options (config/extract-options project)]
     (when (check-for-valid-options (:cljsbuild project) live-reload-options)
-      (run-compiler project options live-reload-options build-ids))))
+      (run-compiler project options live-reload-options))))
 

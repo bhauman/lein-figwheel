@@ -10,7 +10,7 @@
    [org.clojure/clojurescript "0.0-2202"
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.1.278.0-76b25b-alpha"]
-   ;; devserver
+   [cljsbuild "1.0.3"]
    [me.raynes/fs "1.4.4"]
    [http-kit "2.1.16"]
    [compojure "1.1.7"]
