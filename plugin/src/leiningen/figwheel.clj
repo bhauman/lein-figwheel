@@ -85,6 +85,7 @@
                         ;; just trying to delay duplicating a 
                         ;; portion of cljsbuild until I understand
                         ;; more about how lein figwheel should work
+                        (figwheel.core/compile-error-occured change-server# e#)
                         (figwheel.core/get-dependency-mtimes
                                 (:source-paths build#)
                                 ~crossover-path

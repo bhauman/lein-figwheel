@@ -12,6 +12,8 @@
    [digest]
    [cljsbuild.util :as util]
    [clojure.set :refer [intersection]]
+   [clj-stacktrace.core :refer [parse-exception]]
+   [clj-stacktrace.repl :refer [pst-on]]
    [clojure.pprint :as p]))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
@@ -218,6 +220,17 @@
                                    changed-css-files))))))
 
 ;; end css changes
+
+;; compile error occured
+
+(defn compile-error-occured [{:keys [file-change-atom]} exception]
+  (let [parsed-exception (parse-exception exception)
+        formatted-exception (let [out (java.io.ByteArrayOutputStream.)]
+                              (pst-on (io/writer out) false exception)
+                              (.toString out))]
+      (swap! file-change-atom append-msg { :msg-name :compile-failed
+                                           :exception-data parsed-exception
+                                           :formatted-exception formatted-exception })))
 
 (defn initial-check-sums [state]
   (doseq [df (dependency-files state)]

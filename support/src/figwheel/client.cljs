@@ -105,6 +105,9 @@
   ;; (jsload-callback nil)
   )
 
+(defn compile-failed [fail-msg compile-fail-callback]
+  (compile-fail-callback (dissoc fail-msg :msg-name)))
+
 (defn figwheel-closure-import-script [src]
   (if (.inHtmlDocument_ js/goog)
     (do
@@ -117,14 +120,16 @@
   (set! (.-provide js/goog) (.-exportPath_ js/goog))
   (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) figwheel-closure-import-script))
 
-(defn watch-and-reload* [{:keys [retry-count websocket-url jsload-callback] :as opts}]
+(defn watch-and-reload* [{:keys [retry-count websocket-url jsload-callback on-compile-fail] :as opts}]
     (.log js/console "%cFigwheel: trying to open cljs reload socket" log-style)  
     (let [socket (js/WebSocket. websocket-url)]
       (set! (.-onmessage socket) (fn [msg-str]
                                    (let [msg (read-string (.-data msg-str))]
+                                     #_(.log js/console (prn-str msg))
                                      (condp = (:msg-name msg)
-                                       :files-changed (reload-js-files msg jsload-callback)
+                                       :files-changed     (reload-js-files msg jsload-callback)
                                        :css-files-changed (reload-css-files msg jsload-callback)
+                                       :compile-failed    (compile-failed msg on-compile-fail)
                                        nil))))
       (set! (.-onopen socket)  (fn [x]
                                  (patch-goog-base)
@@ -144,11 +149,27 @@
                   (js/CustomEvent. "figwheel.js-reload"
                                    (js-obj "detail" url))))
 
+(defn get-essential-messages [ed]
+  (when ed
+    (cons (select-keys ed [:message :class])
+          (get-essential-messages (:cause ed)))))
+
+(defn error-msg-format [{:keys [message class]}] (str class " : " message))
+
+(def format-messages (comp (partial map error-msg-format) get-essential-messages))
+
+(defn default-on-compile-fail [{:keys [formatted-exception exception-data] :as ed}]
+  (.log js/console "%cFigwheel: Compile Exception" log-style)
+  (doseq [msg (format-messages exception-data)]
+    (.log js/console msg))
+  ed)
+
 (defn watch-and-reload-with-opts [opts]
   (defonce watch-and-reload-singleton
     (watch-and-reload*
      (merge { :retry-count 100 
               :jsload-callback default-jsload-callback
+              :on-compile-fail default-on-compile-fail
               :websocket-url (str "ws://" js/location.host "/figwheel-ws")}
             opts))))
 
