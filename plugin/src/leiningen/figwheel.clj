@@ -59,8 +59,8 @@
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
           (let [crossover-macro-paths# (cljsbuild.crossover/crossover-macro-paths '~crossovers)
-                [build# compiler-env#] (first (for [opts# '~parsed-builds]
-                                                [opts# (cljs.env/default-compiler-env (:compiler opts#))]))
+                build# (first '~parsed-builds)
+                compiler-env# (cljs.env/default-compiler-env (:compiler build#)) 
                 change-server# (figwheel.core/start-static-server ~live-reload-options)]
             (loop [dependency-mtimes# {}]
               (let [new-dependency-mtimes#
@@ -82,7 +82,7 @@
                       (catch Throwable e#
                         (clj-stacktrace.repl/pst+ e#)
                         ;; this is a total crap hack
-                        ;; just trying to delay re-writing a 
+                        ;; just trying to delay duplicating a 
                         ;; portion of cljsbuild until I understand
                         ;; more about how lein figwheel should work
                         (figwheel.core/get-dependency-mtimes
