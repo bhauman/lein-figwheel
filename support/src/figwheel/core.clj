@@ -80,13 +80,16 @@
       underscore))
 
 (defn get-ns-from-source-file-path [file-path]
-  (when (.exists (as-file file-path))
-    (with-open [rdr (io/reader file-path)]
-      (-> (java.io.PushbackReader. rdr)
-          read
-          second
-          name
-          underscore))))
+  (try
+    (when (.exists (as-file file-path))
+      (with-open [rdr (io/reader file-path)]
+        (-> (java.io.PushbackReader. rdr)
+            read
+            second
+            name
+            underscore)))
+    (catch java.lang.RuntimeException e
+      nil)))
 
 (defn get-changed-source-file-paths [old-mtimes new-mtimes]
   (group-by
