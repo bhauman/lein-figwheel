@@ -139,13 +139,19 @@
                                                 2000))))
       (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))))
 
-(defn watch-and-reload [& {:keys [retry-count websocket-url jsload-callback] :as opts}]
+(defn default-jsload-callback [url]
+  (.dispatchEvent (.querySelector js/document "body")
+                  (js/CustomEvent. "figwheel.js-reload"
+                                   (js-obj "detail" url))))
+
+(defn watch-and-reload-with-opts [opts]
   (defonce watch-and-reload-singleton
-    (watch-and-reload* (merge { :retry-count 100 
-                                :jsload-callback (fn [url]
-                                                  (.dispatchEvent (.querySelector js/document "body")
-                                                                  (js/CustomEvent. "figwheel.js-reload"
-                                                                                   (js-obj "detail" url))))
-                                :websocket-url (str "ws:" js/location.host "/figwheel-ws")}
-                              opts))))
+    (watch-and-reload*
+     (merge { :retry-count 100 
+              :jsload-callback default-jsload-callback
+              :websocket-url (str "ws:" js/location.host "/figwheel-ws")}
+            opts))))
+
+(defn watch-and-reload [& opts]
+  (watch-and-reload-with-opts opts))
 
