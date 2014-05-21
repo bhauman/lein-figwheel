@@ -20,3 +20,4 @@ pom.xml.asc
 .lein-repl-history
 .nrepl-port
 .lein-classpath
+config.ru
