@@ -219,7 +219,7 @@ In keeping with the previous examples you would put this into your
 (println "You can change this line an see the changes in the dev console")
 
 (fw/watch-and-reload
-  ;; :websocket-url "ws:localhost:3449/figwheel-ws" default
+  ;; :websocket-url "ws://localhost:3449/figwheel-ws" default
   :jsload-callback (fn [] (print "reloaded"))) ;; optional callback
 ```
 
