@@ -199,7 +199,7 @@
   (defonce watch-and-reload-singleton
     (watch-and-reload*
      (merge { :retry-count 100 
-              :jsload-callback default-jsload-callback ;; *** deprecated
+              :jsload-callback default-on-jsload ;; *** deprecated
               :on-jsload (or (:jsload-callback opts) default-on-jsload)
               :on-cssload default-on-cssload
               :before-jsload default-before-load
@@ -208,5 +208,7 @@
               :websocket-url (str "ws://" js/location.host "/figwheel-ws")}
             opts))))
 
-(defn watch-and-reload [& opts]
+;; This takes keyword arguments
+(defn watch-and-reload
+  [& {:keys [] :as opts}]
   (watch-and-reload-with-opts opts))
