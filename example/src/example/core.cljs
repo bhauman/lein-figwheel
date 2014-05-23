@@ -16,8 +16,7 @@
 ;;   :jsload-callback (fn [] (ex2-reload)))
 
 ;; When you are writing reloadable code you have to protect things
-;; that you don't want defined over and over. For this there is an
-;; included `defonce` macro.
+;; that you don't want defined over and over.
 
 ;; go ahead and change this print statement and hit save.
 ;; You should see the changed statement printed out in the console of
@@ -33,7 +32,7 @@
 ;; code updates are reflected in the browser.
 
 ;; define atom once
-(fw/defonce ex1-atom (atom {:r 0 :g 0 :b 0}))
+(defonce ex1-atom (atom {:r 0 :g 0 :b 0}))
 
 (defn ex1-template [{:keys [r g b]}]
   [:div.example {:style "float:left;"}
@@ -65,7 +64,7 @@
     (swap! ex1-atom assoc color v)))
 
 ;; add listeners once
-(fw/defonce example-1-listeners
+(defonce example-1-listeners
   (.on (js/$ "#example-1") "change" ".example-color-select" ex-1-callback))
 
 ;; Example 2: simple crate based app with lifecyle management.
@@ -76,7 +75,7 @@
 ;; the reload function into the :jsload-callback in the watcher at the
 ;; bottom of the page
 
-(fw/defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
+(defonce ex2-atom (atom {:r 0 :g 0 :b 0}))
 
 (defn ex2-template [{:keys [r g b]}]
   [:div.example {:style "float: left; margin-left: 50px"}
@@ -113,10 +112,10 @@
   (ex2-start))
 
 ;; start the app once
-(fw/defonce start-ex2 (ex2-start))
+(defonce start-ex2 (ex2-start))
 
 ;; this is a better way to reload the cube example
-;; (fw/defonce start-cube (example.cube/stop-and-start-ex3))
+;; (defonce start-cube (example.cube/stop-and-start-ex3))
 
 ;; IMPORTANT!!!
 ;; Here we start the websocket listener

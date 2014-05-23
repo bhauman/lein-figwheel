@@ -8,10 +8,10 @@
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
-                 [figwheel "0.1.2-SNAPSHOT"]]
+                 [figwheel "0.1.3-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
-            [lein-figwheel "0.1.2-SNAPSHOT"]]
+            [lein-figwheel "0.1.3-SNAPSHOT"]]
 
   :cljsbuild {
               :builds [{:id "example"
