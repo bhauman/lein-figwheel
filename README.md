@@ -13,7 +13,7 @@ See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interac
 
 If you write reloadable code, figwheel can facilitate automated live
 interactive programming. Every time you save your ClojureScript source
-file the changes are sent to the browser so you can see the affects of
+file the changes are sent to the browser so you can see the effects of
 modifying your code in real time.  This is different than interactive
 programming in the browser-repl where you need to cherry pick which
 changes to send and which processes to start, etc.
@@ -50,7 +50,7 @@ compiled javascript files through a websocket so that the browser can
 reload them.
 
 There is also a figwheel client that you need to include into your
-ClojreScript project to start a process which listens for changes and
+ClojureScript project to start a process which listens for changes and
 reloads the files.
 
 The main motivation for lein-figwheel is to allow for the interactive
