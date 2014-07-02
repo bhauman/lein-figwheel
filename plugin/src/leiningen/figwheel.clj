@@ -136,12 +136,21 @@
                     (str "resources/" (or http-server-root "public")) "' directory.")))
     (and opts? out-dir?)))
 
+(defn normalize-dir [dir]
+  (if (and dir (< 1 (count dir)) (re-matches #".*\/$" dir)) 
+    (subs dir 0 (dec (count dir)))
+    dir))
+
+(defn normalize-build [build]
+  (-> build
+      (update-in [:compiler :output-dir] normalize-dir)))
+
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
   (let [build-id (first build-ids)
         project (narrow-to-one-build project build-id)
-        current-build (first (get-in project [:cljsbuild :builds]))
+        current-build (normalize-build (first (get-in project [:cljsbuild :builds])))
         live-reload-options (merge
                              { :root (:root project)
                                :js-dirs (cljs-change-server-watch-dirs project)
