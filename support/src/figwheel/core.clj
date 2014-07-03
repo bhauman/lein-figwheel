@@ -1,8 +1,9 @@
 (ns figwheel.core
   (:require
-   [compojure.route :as route]
    [cljs.compiler]
+   [compojure.route :as route]
    [compojure.core :refer [routes GET]]
+   [ring.util.response :refer [resource-response]]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
@@ -263,7 +264,11 @@
 
 (defn start-static-server [{:keys [js-dirs http-server-root] :as opts}]
   (let [http-s-root (or http-server-root "public")]
-    (start-server (merge opts {:ring-handler (route/resources "/" :root http-s-root)
+    (start-server (merge opts {:ring-handler
+                               (routes
+                                (GET "/" [] (resource-response "index.html" {:root http-s-root}))
+                                (route/resources "/" :root http-s-root)
+                                (route/not-found "<h1>Page not found</h1>"))
                                :http-server-root http-s-root}))))
 
 (defn stop-server [{:keys [http-server]}]
