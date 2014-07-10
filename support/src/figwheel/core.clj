@@ -49,7 +49,10 @@
    (if ring-handler
      (routes (GET "/figwheel-ws" [] (reload-handler server-state)) ring-handler)
      (routes (GET "/figwheel-ws" [] (reload-handler server-state))))
-   {:port server-port}))
+   {:port server-port
+    
+
+    }))
 
 (defn append-msg [q msg]
   (conj (take 30 q) msg))
@@ -263,7 +266,7 @@
 
 (defn start-static-server [{:keys [js-dirs http-server-root] :as opts}]
   (let [http-s-root (or http-server-root "public")]
-    (start-server (merge opts {:ring-handler (route/resources "/" :root http-s-root)
+    (start-server (merge opts {:ring-handler (route/resources "/" {:root http-s-root})
                                :http-server-root http-s-root}))))
 
 (defn stop-server [{:keys [http-server]}]
