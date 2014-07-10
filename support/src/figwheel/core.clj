@@ -49,10 +49,7 @@
    (if ring-handler
      (routes (GET "/figwheel-ws" [] (reload-handler server-state)) ring-handler)
      (routes (GET "/figwheel-ws" [] (reload-handler server-state))))
-   {:port server-port
-    
-
-    }))
+   {:port server-port}))
 
 (defn append-msg [q msg]
   (conj (take 30 q) msg))
