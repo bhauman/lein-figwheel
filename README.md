@@ -240,6 +240,26 @@ lifecycle management and comes baked into Reactjs and Om.
 
 Please check out the example project in the `example` directory. 
 
+### Using your own server
+
+You do not have to use the figwheel server to host your app and its
+static assets. You can use your own server. 
+
+To use your own server simply navigate to your server url for the page
+that is hosting your ClojureScript app.
+
+In this case, you have to let the figwheel client know where figwheel
+websocket is.
+
+Like so:
+
+```
+(fw/watch-and-reload
+  :websocket-url   "ws://localhost:3449/figwheel-ws"
+  :jsload-callback (fn [] (print "reloaded")))
+```
+
+
 ## Writing reloadable code
 
 Still working on writing this ...
