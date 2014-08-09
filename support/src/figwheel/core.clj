@@ -8,14 +8,34 @@
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
-   [fs.core :as fs]
+
    [clojure.java.io :refer [as-file] :as io]
    [digest]
-   [cljsbuild.util :as util]
+   #_[cljsbuild.util :as util]
    [clojure.set :refer [intersection]]
+   [clojure.java.io :as io]
    [clj-stacktrace.core :refer [parse-exception]]
    [clj-stacktrace.repl :refer [pst-on]]
    [clojure.pprint :as p]))
+
+;; get rid of fs dependancy
+
+(defn split-ext
+  "Returns a vector of `[name extension]`."
+  [path]
+  (let [base (.getName (io/file path))
+        i (.lastIndexOf base ".")]
+    (if (pos? i)
+      [(subs base 0 i) (subs base i)]
+      [base nil])))
+
+(defn mod-time
+  "Return file modification time."
+  [path]
+  (.lastModified (io/file path)))
+
+
+
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
@@ -97,7 +117,7 @@
 
 (defn get-changed-source-file-paths [old-mtimes new-mtimes]
   (group-by
-   #(keyword (subs (second (fs/split-ext %)) 1))
+   #(keyword (subs (second (split-ext %)) 1))
    (filter
     #(not= (get new-mtimes %)
            (get old-mtimes %))
@@ -177,7 +197,7 @@
     (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
           changed-source-file-ns (set (keep get-ns-from-source-file-path
                                             (if (not-empty (:clj changed-source-file-paths))
-                                              (filter #(= ".cljs" (second (fs/split-ext %)))
+                                              (filter #(= ".cljs" (second (split-ext %)))
                                                       (keys new-mtimes))
                                               (:cljs changed-source-file-paths))))
           changed-project-ns (intersection changed-compiled-ns changed-source-file-ns)
@@ -258,6 +278,7 @@
 
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
+    (println "DEV VERSIONING 2")
     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
     (println (str "Figwheel: Serving files from 'resources/" (:http-server-root state) "'"))
     (assoc state :http-server (server state))))
@@ -276,11 +297,14 @@
 
 ;; utils
 
+;; get rid of dependancy on 
+
+
 (defn get-mtimes [paths]
   (into {}
-    (map (fn [path] [path (fs/mod-time path)]) paths)))
+    (map (fn [path] [path (mod-time path)]) paths)))
 
-(defn get-dependency-mtimes [cljs-paths crossover-path crossover-macro-paths compiler-options]
+#_(defn get-dependency-mtimes [cljs-paths crossover-path crossover-macro-paths compiler-options]
   (let [macro-files (map :absolute crossover-macro-paths)
         clj-files-in-cljs-paths
           (into {}
