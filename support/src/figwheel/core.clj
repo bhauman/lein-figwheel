@@ -36,7 +36,6 @@
 
 
 
-
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
   (let [watch-key (keyword (gensym "message-watch-"))]
@@ -297,26 +296,43 @@
 
 ;; utils
 
-;; get rid of dependancy on 
+;; get rid of dependancy on cljsbuild.util here
 
+(defn- filter-by-ext [types files]
+  (let [ext #(nth (re-matches #".+\.([^\.]+)$" %) 1)]
+    (filter #(types (ext %)) files)))
+
+(defn find-files [dir types]
+  ; not using fs because it's slow for listing directories; 40ms vs 1ms for
+  ; ~typical `cljsbuild auto` scanning
+  (letfn [(files-in-dir [dir]
+            (let [fs (.listFiles dir)]
+              (->> (.listFiles dir)
+                   (remove #(.isHidden %))
+                   (mapcat #(if (.isFile %)
+                              [%]
+                              (files-in-dir %))))))]
+    (->> (files-in-dir (io/file dir))
+      (map #(.getAbsolutePath %))
+      (filter-by-ext types))))
 
 (defn get-mtimes [paths]
   (into {}
     (map (fn [path] [path (mod-time path)]) paths)))
 
-#_(defn get-dependency-mtimes [cljs-paths crossover-path crossover-macro-paths compiler-options]
+(defn get-dependency-mtimes [cljs-paths crossover-path crossover-macro-paths compiler-options]
   (let [macro-files (map :absolute crossover-macro-paths)
         clj-files-in-cljs-paths
           (into {}
             (for [cljs-path cljs-paths]
-              [cljs-path (util/find-files cljs-path #{"clj"})]))
-        cljs-files (mapcat #(util/find-files % #{"cljs"})
+              [cljs-path (find-files cljs-path #{"clj"})]))
+        cljs-files (mapcat #(find-files % #{"cljs"})
                            (if crossover-path
                              (conj cljs-paths crossover-path)
                              cljs-paths))
         lib-paths (:libs compiler-options)
         js-files (->> (or lib-paths [])
-                      (mapcat #(util/find-files % #{"js"}))
+                      (mapcat #(find-files % #{"js"}))
                                         ; Don't include js files in output-dir or our output file itself,
                                         ; both possible if :libs is set to [""] (a cljs compiler workaround to
                                         ; load all libraries without enumerating them, see
