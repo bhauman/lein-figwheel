@@ -29,13 +29,6 @@
       [(subs base 0 i) (subs base i)]
       [base nil])))
 
-(defn mod-time
-  "Return file modification time."
-  [path]
-  (.lastModified (io/file path)))
-
-
-
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
   (let [watch-key (keyword (gensym "message-watch-"))]
@@ -83,7 +76,7 @@
   (swap! file-change-atom append-msg { :msg-name :files-changed
                                        :files (mapv make-msg files)})
   (doseq [f files]
-         (println "sending changed file:" (:file f))))
+         (println "notifying browser that file changed: " (:file f))))
 
 (defn underscore [st]
   (string/replace st "-" "_"))
@@ -277,7 +270,6 @@
 
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
-    (println "DEV VERSIONING 2")
     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
     (println (str "Figwheel: Serving files from 'resources/" (:http-server-root state) "'"))
     (assoc state :http-server (server state))))
@@ -294,53 +286,3 @@
 (defn stop-server [{:keys [http-server]}]
   (http-server))
 
-;; utils
-
-;; get rid of dependancy on cljsbuild.util here
-
-(defn- filter-by-ext [types files]
-  (let [ext #(nth (re-matches #".+\.([^\.]+)$" %) 1)]
-    (filter #(types (ext %)) files)))
-
-(defn find-files [dir types]
-  ; not using fs because it's slow for listing directories; 40ms vs 1ms for
-  ; ~typical `cljsbuild auto` scanning
-  (letfn [(files-in-dir [dir]
-            (let [fs (.listFiles dir)]
-              (->> (.listFiles dir)
-                   (remove #(.isHidden %))
-                   (mapcat #(if (.isFile %)
-                              [%]
-                              (files-in-dir %))))))]
-    (->> (files-in-dir (io/file dir))
-      (map #(.getAbsolutePath %))
-      (filter-by-ext types))))
-
-(defn get-mtimes [paths]
-  (into {}
-    (map (fn [path] [path (mod-time path)]) paths)))
-
-(defn get-dependency-mtimes [cljs-paths crossover-path crossover-macro-paths compiler-options]
-  (let [macro-files (map :absolute crossover-macro-paths)
-        clj-files-in-cljs-paths
-          (into {}
-            (for [cljs-path cljs-paths]
-              [cljs-path (find-files cljs-path #{"clj"})]))
-        cljs-files (mapcat #(find-files % #{"cljs"})
-                           (if crossover-path
-                             (conj cljs-paths crossover-path)
-                             cljs-paths))
-        lib-paths (:libs compiler-options)
-        js-files (->> (or lib-paths [])
-                      (mapcat #(find-files % #{"js"}))
-                                        ; Don't include js files in output-dir or our output file itself,
-                                        ; both possible if :libs is set to [""] (a cljs compiler workaround to
-                                        ; load all libraries without enumerating them, see
-                                        ; http://dev.clojure.org/jira/browse/CLJS-526)
-                      (remove #(.startsWith ^String % (:output-dir compiler-options)))
-                      (remove #(.endsWith ^String % (:output-to compiler-options))))
-        macro-mtimes (get-mtimes macro-files)
-        clj-mtimes (get-mtimes (mapcat second clj-files-in-cljs-paths))
-        cljs-mtimes (get-mtimes cljs-files)
-        js-mtimes (get-mtimes js-files)]
-    (merge macro-mtimes clj-mtimes cljs-mtimes js-mtimes)))
