@@ -8,8 +8,6 @@
    [cljs.core.async.macros :refer [go go-loop]]
    [figwheel.client :refer [defonce]]))
 
-(def log-style "color:rgb(0,128,0);")
-
 (defn log [{:keys [debug]} & args]
   (when debug
     (.log js/console (to-array args))))
@@ -57,7 +55,7 @@
    (let [files'  (add-request-urls opts files) 
          res     (<! (load-all-js-files files'))]
      (when (not-empty res)
-       (.log js/console "%cFigwheel: loaded these files" log-style )
+       (.debug js/console "Figwheel: loaded these files")
        (.log js/console (prn-str (map :file res)))
        (<! (timeout 10)) ;; wait a beat before callback
        (apply on-jsload [res])))))
@@ -142,7 +140,7 @@
 (defn watch-and-reload* [{:keys [retry-count websocket-url
                                  jsload-callback
                                  on-compile-fail] :as opts}]
-    (.log js/console "%cFigwheel: trying to open cljs reload socket" log-style)  
+    (.debug js/console "Figwheel: trying to open cljs reload socket")  
     (let [socket (js/WebSocket. websocket-url)]
       (set! (.-onmessage socket) (fn [msg-str]
                                    (let [msg (read-string (.-data msg-str))]
@@ -154,7 +152,7 @@
                                        nil))))
       (set! (.-onopen socket)  (fn [x]
                                  (patch-goog-base)
-                                 (.log js/console "%cFigwheel: socket connection established" log-style)))
+                                 (.debug js/console "Figwheel: socket connection established")))
       (set! (.-onclose socket) (fn [x]
                                  (log opts "Figwheel: socket closed or failed to open")
                                  (when (> retry-count 0)
@@ -180,18 +178,18 @@
 (def format-messages (comp (partial map error-msg-format) get-essential-messages))
 
 (defn default-on-compile-fail [{:keys [formatted-exception exception-data] :as ed}]
-  (.log js/console "%cFigwheel: Compile Exception" log-style)
+  (.debug js/console "Figwheel: Compile Exception")
   (doseq [msg (format-messages exception-data)]
     (.log js/console msg))
   ed)
 
 (defn default-before-load [files]
-  (.log js/console "%cFigwheel: loading files" log-style)
+  (.debug js/console "Figwheel: loading files")
   #_(.log js/console (prn-str (mapv :file files)))
   files)
 
 (defn default-on-cssload [files]
-  (.log js/console "%cFigwheel: loaded CSS files" log-style)
+  (.debug js/console "Figwheel: loaded CSS files")
   (.log js/console (prn-str (map :file files)))
   files)
 
