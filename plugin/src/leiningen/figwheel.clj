@@ -18,7 +18,7 @@
    [cljsbuild.compiler]
    [cljsbuild.crossover]
    [cljsbuild.util :as util]
-   [figwheel.core]))
+   [figwheel.core :refer [resource-paths-pattern-str]]))
 
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
@@ -131,9 +131,11 @@
 (defn optimizations-none? [build]
   (= :none (get-in build [:compiler :optimizations])))
 
-(defn output-dir-in-resources-root? [build http-server-root]
-  (.startsWith (get-in build [:compiler :output-dir])
-               (str "resources/" (or http-server-root "public"))))
+(defn resources-pattern-str [opts]
+  (resource-paths-pattern-str (update-in opts [:http-server-root] (fn [x] (or x "public")))))
+
+(defn output-dir-in-resources-root? [{:keys [output-dir] :as opts}]
+  (re-matches (re-pattern (str (resources-pattern-str opts) ".*")) output-dir))
 
 ;; we are only going to work on one build
 ;; still need to narrow this to optimizations none
@@ -149,10 +151,10 @@
                     build
                     (first opt-none-builds)))))))
 
-(defn check-for-valid-options [{:keys [builds]} {:keys [http-server-root]}]
+(defn check-for-valid-options [{:keys [builds]} {:keys [http-server-root] :as opts}]
   (let [build (first builds)
         opts? (and (not (nil? build)) (optimizations-none? build))
-        out-dir? (output-dir-in-resources-root? build http-server-root)]
+        out-dir? (output-dir-in-resources-root? opts)]
     (when (nil? build)
       (throw (Exception.
               (str "No cljsbuild specified. You could have mistyped the build
@@ -160,8 +162,8 @@
     (when-not  opts?
       (println "Figwheel Config Error - you have build :optimizations set to something other than :none"))
     (when-not out-dir?
-      (println (str "Figwheel Config Error - your build :output-dir is not below the '"
-                    (str "resources/" (or http-server-root "public")) "' directory.")))
+      (println (str "Figwheel Config Error - your build :output-dir is not in a resources directory."))
+      (println (str "It should match this pattern: " (resources-pattern-str opts))))
     (and opts? out-dir?)))
 
 (defn normalize-dir [dir]
@@ -179,13 +181,16 @@
   (let [build-id (first build-ids)
         project (narrow-to-one-build project build-id)
         current-build (normalize-build (first (get-in project [:cljsbuild :builds])))
+        options (config/extract-options project)
+        ;; live-reload-options has to be serializable and readable
+        ;; because it is serialized in the macro above
         live-reload-options (merge
                              { :root (:root project)
+                               :resource-paths (vec (:resource-paths project)) ;; make this a vector for the reader
                                :js-dirs (cljs-change-server-watch-dirs project)
                                :output-dir (:output-dir (:compiler current-build))
                                :output-to (:output-to (:compiler current-build))}
-                             (:figwheel project))
-        options (config/extract-options project)]
+                             (:figwheel project))]
     (when (check-for-valid-options (:cljsbuild project) live-reload-options)
       (run-compiler project options live-reload-options))))
 

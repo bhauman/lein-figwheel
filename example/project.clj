@@ -13,6 +13,8 @@
   :plugins [[lein-cljsbuild "1.0.3"]
             [lein-figwheel "0.1.4-SNAPSHOT"]]
 
+  :resource-paths ["resources" "other_resources"]
+  
   :cljsbuild {
               :builds [{:id "example"
                         :source-paths ["src"]
@@ -23,5 +25,6 @@
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
+             :css-dirs ["resources/public/css"]
              })
 

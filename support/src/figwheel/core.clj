@@ -11,7 +11,6 @@
 
    [clojure.java.io :refer [as-file] :as io]
    [digest]
-   #_[cljsbuild.util :as util]
    [clojure.set :refer [intersection]]
    [clojure.java.io :as io]
    [clj-stacktrace.core :refer [parse-exception]]
@@ -116,10 +115,24 @@
     (set (keep identity
                (mapcat keys [old-mtimes new-mtimes]))))))
 
+(defn resource-paths [{:keys [root resource-paths]}]
+  (mapv #(string/replace-first % (str root "/") "") resource-paths))
+
+(defn resource-paths-pattern-str [state]
+  (str "(" (string/join "|" (resource-paths state)) ")"
+        "/" (:http-server-root state)))
+
+(def resource-paths-pattern (comp re-pattern resource-paths-pattern-str))
+
+(defn server-relative-root-path [state]
+  (string/replace-first
+   (:output-dir state)
+   (resource-paths-pattern state) ""))
+
 (defn make-server-relative-path [state nm]
-  (-> (:output-dir state)
-      (string/replace-first (str "resources/" (:http-server-root state)) "")
-      (str "/" (ns-to-path nm) ".js")))
+  (str
+   (server-relative-root-path state)
+   "/" (ns-to-path nm) ".js"))
 
 (defn file-changed? [{:keys [file-md5-atom]} filepath]
   (let [file (as-file filepath)]
@@ -137,7 +150,7 @@
   (keep
    #(when (file-changed? st %)
       { :dependency-file true
-        :file (string/replace-first % (str "resources/" http-server-root) "")})
+        :file (string/replace-first % (resource-paths-pattern st) "")})
    (dependency-files st)))
 
 (defn make-sendable-file [st path]
@@ -161,17 +174,6 @@
   (set (mapv (partial get-ns-from-js-file-path state)
              (get-changed-compiled-js-files state))))
 
-;; I'm putting this check here and it really belongs cljsbuild
-(defn hyphen-warn [{:keys [root]} paths]
-  (let [bad-paths (filter #(< 1 (count (string/split % #"-")))
-                          (map
-                           #(string/replace-first % root "")
-                           paths))]
-    (when (not-empty bad-paths)
-      (println "Please use underscores instead of hyphens in your directory and file names")
-      (println "The following source paths have hyphens in them:")
-      (p/pprint bad-paths))))
-
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
 ;; great simplicity to that strategy. But unfortunately we can't speak
@@ -179,12 +181,10 @@
 ;; only realoding files that are in the scope of the current project.
 
 ;; I also treat the 'goog.addDependancy' files as a different case.
-;; These are checked for explicit changes and sent only when the
+;; These are checked for explicit changes and sent only when their
 ;; content changes.
 
 (defn check-for-changes [state old-mtimes new-mtimes]
-  ;; taking this out until I have a better approach
-  #_(hyphen-warn state (keys new-mtimes))
   (when-let [changed-compiled-ns (get-changed-compiled-namespaces state)]
     (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
           changed-source-file-ns (set (keep get-ns-from-source-file-path
@@ -213,7 +213,7 @@
       (map (fn [x] (.getPath x)) (updated?)))))
 
 (defn make-server-relative-css-path [state nm]
-  (string/replace-first nm (str "resources/" (:http-server-root state)) ""))
+  (string/replace-first nm (resource-paths-pattern state) ""))
 
 (defn make-css-file [state path]
   { :file (make-server-relative-css-path state path)
@@ -250,9 +250,11 @@
     (file-changed? state df))
   (:file-md5-atom state))
 
-(defn create-initial-state [{:keys [root js-dirs css-dirs ring-handler http-server-root
+(defn create-initial-state [{:keys [root resource-paths
+                                    js-dirs css-dirs ring-handler http-server-root
                                     server-port output-dir output-to]}]
   { :root root
+    :resource-paths resource-paths
     :css-dirs css-dirs
     :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
@@ -271,7 +273,7 @@
 (defn start-server [{:keys [js-dirs ring-handler] :as opts}]
   (let [state (create-initial-state opts)]
     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
-    (println (str "Figwheel: Serving files from 'resources/" (:http-server-root state) "'"))
+    (println (str "Figwheel: Serving files from '" (resource-paths-pattern-str state) "'"))
     (assoc state :http-server (server state))))
 
 (defn start-static-server [{:keys [js-dirs http-server-root] :as opts}]
@@ -285,4 +287,3 @@
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
-
