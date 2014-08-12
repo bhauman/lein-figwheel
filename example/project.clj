@@ -13,6 +13,8 @@
   :plugins [[lein-cljsbuild "1.0.3"]
             [lein-figwheel "0.1.4-SNAPSHOT"]]
 
+  :source-paths ["src"] 
+  
   :resource-paths ["resources" "other_resources"]
   
   :cljsbuild {
@@ -26,5 +28,6 @@
              :http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
+             :ring-handler example.server/handler
              })
 

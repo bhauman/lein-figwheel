@@ -9,7 +9,6 @@
 ;; A more advanced example using React and Sablono
 ;; you can edit any of this live
 
-
 (defonce ex3-atom (atom {:rx 0 :ry 0 :rz 0}))
 
 (defn css-transform [{:keys [rx ry rz tx ty tz]}]

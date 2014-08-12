@@ -65,7 +65,7 @@
                 cljs-paths# (:source-paths build#)
                 compiler-options# (:compiler build#)                
                 compiler-env# (cljs.env/default-compiler-env compiler-options#) 
-                change-server# (figwheel.core/start-static-server ~live-reload-options)]
+                change-server# (figwheel.core/start-server ~live-reload-options)]
             ;; added the following functions to help with error reporting.
             (letfn [(get-mtimes# [paths#]
                       (into {}
@@ -171,26 +171,35 @@
     (subs dir 0 (dec (count dir)))
     dir))
 
-(defn normalize-build [build]
-  (-> build
-      (update-in [:compiler :output-dir] normalize-dir)))
+(defn normalize-output-dir [opts]
+  (update-in opts [:output-dir] normalize-dir))
+
+(defn ensure-key-is [f k opts]
+  (if (k opts)
+    (update-in opts [k] f)
+    opts))
+
+(defn prep-options [opts]
+  (->> opts
+       normalize-output-dir
+       (ensure-key-is str :ring-handler)
+       (ensure-key-is vec :css-dirs)
+       (ensure-key-is vec :resource-paths)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
-  (let [build-id (first build-ids)
-        project (narrow-to-one-build project build-id)
-        current-build (normalize-build (first (get-in project [:cljsbuild :builds])))
-        options (config/extract-options project)
-        ;; live-reload-options has to be serializable and readable
-        ;; because it is serialized in the macro above
-        live-reload-options (merge
-                             { :root (:root project)
-                               :resource-paths (vec (:resource-paths project)) ;; make this a vector for the reader
-                               :js-dirs (cljs-change-server-watch-dirs project)
-                               :output-dir (:output-dir (:compiler current-build))
-                               :output-to (:output-to (:compiler current-build))}
-                             (:figwheel project))]
-    (when (check-for-valid-options (:cljsbuild project) live-reload-options)
-      (run-compiler project options live-reload-options))))
+  (let [project (narrow-to-one-build project (first build-ids))
+        current-build (first (get-in project [:cljsbuild :builds]))
+        figwheel-options (prep-options
+                          (merge
+                           (select-keys project [:root :resource-paths])
+                           { :js-dirs (cljs-change-server-watch-dirs project)
+                             :output-dir (:output-dir (:compiler current-build))
+                             :output-to (:output-to (:compiler current-build)) }
+                           (:figwheel project)))]
+    (when (check-for-valid-options (:cljsbuild project) figwheel-options)
+      (run-compiler project
+                    (config/extract-options project)
+                    figwheel-options))))
 

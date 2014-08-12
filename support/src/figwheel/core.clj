@@ -56,11 +56,14 @@
     (with-channel request channel
       (setup-file-change-sender server-state channel))))
 
-(defn server [{:keys [ring-handler server-port] :as server-state}]
+(defn server [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
   (run-server
-   (if ring-handler
-     (routes (GET "/figwheel-ws" [] (reload-handler server-state)) ring-handler)
-     (routes (GET "/figwheel-ws" [] (reload-handler server-state))))
+   (routes
+    (GET "/figwheel-ws" [] (reload-handler server-state))
+    (route/resources "/" :root http-server-root)
+    (or ring-handler (fn [r] false))
+    (GET "/" [] (resource-response "index.html" {:root http-server-root}))
+    (route/not-found "<h1>Page not found</h1>"))
    {:port server-port}))
 
 (defn append-msg [q msg]
@@ -270,20 +273,17 @@
                                         :file-md5-atom (atom {})})
     :file-change-atom (atom (list))})
 
-(defn start-server [{:keys [js-dirs ring-handler] :as opts}]
-  (let [state (create-initial-state opts)]
+(defn resolve-ring-handler [{:keys [ring-handler] :as opts}]
+  (when ring-handler (require (symbol (namespace (symbol ring-handler)))))
+  (assoc opts :ring-handler
+         (when ring-handler
+           (eval (symbol ring-handler)))))
+
+(defn start-server [opts]
+  (let [state (create-initial-state (resolve-ring-handler opts))]
     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
     (println (str "Figwheel: Serving files from '" (resource-paths-pattern-str state) "'"))
     (assoc state :http-server (server state))))
-
-(defn start-static-server [{:keys [js-dirs http-server-root] :as opts}]
-  (let [http-s-root (or http-server-root "public")]
-    (start-server (merge opts {:ring-handler
-                               (routes
-                                (GET "/" [] (resource-response "index.html" {:root http-s-root}))
-                                (route/resources "/" :root http-s-root)
-                                (route/not-found "<h1>Page not found</h1>"))
-                               :http-server-root http-s-root}))))
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
