@@ -37,7 +37,7 @@ live from the front of the room or even remotely.
 
 ## Demo
 
-Here is a [live demo of using figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
+Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 ### What actually happens
 
@@ -55,7 +55,7 @@ reloads the files.
 
 The main motivation for lein-figwheel is to allow for the interactive
 development of ClojureScript. Figwheel doesn't provide this out of the
-box, the developer has to take care to make their code reloadable. 
+box, **the developer has to take care to make their code reloadable**. 
 
 If you are using React or Om it's not hard to write reloadable code,
 in fact you might already be doing it.
@@ -90,7 +90,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojurescript "0.0-2197"] ;; has to be at least 2197 or greater
-[figwheel "0.1.3-SNAPSHOT"]            ;; needed for figwheel client
+[figwheel "0.1.4-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -98,12 +98,10 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
-[lein-figwheel "0.1.3-SNAPSHOT"]
+[lein-figwheel "0.1.4-SNAPSHOT"]
 ```
 
 #### For ClojureScript 0.0-2014 - 0.0-2173
-
-For now this is needed for Light Table compatability:
 
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
@@ -172,12 +170,17 @@ In your `project.clj` you can add the following configuration parameters:
    :http-server-root "public" ;; this will be in resources/
    :port 3449                 ;; default
 
-   ;; CSS reloading
+   ;; CSS reloading (optional)
    ;; :css-dirs has no default value 
    ;; if :css-dirs is set figwheel will detect css file changes and
    ;; send them to the browser
-   :css-dirs ["resources/public/css"] 
-}
+   :css-dirs ["resources/public/css"]
+
+   ;; Server Ring Handler (optional)
+   ;; if you want to embed a ring handler into the figwheel http-kit
+   ;; server
+   :ring-handler example.server/handler 
+} 
 ```
 
 ## Client side usage
