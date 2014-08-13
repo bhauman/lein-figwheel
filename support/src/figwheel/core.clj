@@ -118,12 +118,16 @@
     (set (keep identity
                (mapcat keys [old-mtimes new-mtimes]))))))
 
+(defn norm-path [p]
+  (string/replace p  "\\" "/"))
+
 (defn resource-paths [{:keys [root resource-paths]}]
-  (mapv #(string/replace-first % (str root "/") "") resource-paths))
+  (mapv #(string/replace-first (norm-path %)
+                               (str (norm-path root) "/") "") resource-paths))
 
 (defn resource-paths-pattern-str [state]
-  (str "(" (string/join "|" (resource-paths state)) ")"
-        "/" (:http-server-root state)))
+  (str "(" (string/join "|" (resource-paths state)) ")/"
+       (:http-server-root state)))
 
 (def resource-paths-pattern (comp re-pattern resource-paths-pattern-str))
 
