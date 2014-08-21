@@ -137,19 +137,26 @@
 (defn output-dir-in-resources-root? [{:keys [output-dir] :as opts}]
   (re-matches (re-pattern (str (resources-pattern-str opts) ".*")) output-dir))
 
+(defn map-to-vec-builds [builds]
+  (if (map? builds)
+    (vec (map (fn [[k v]] (assoc v :id k)) builds))
+    builds))
+
 ;; we are only going to work on one build
 ;; still need to narrow this to optimizations none
 (defn narrow-to-one-build [project build-id]
   (update-in project [:cljsbuild :builds]
-             (fn [builds]
-               (let [opt-none-builds (filter optimizations-none?
-                                             builds)]
-                 (vector
-                  (if-let [build (some #(and (= (:id %)
-                                                build-id) %)
-                                       opt-none-builds)]
-                    build
-                    (first opt-none-builds)))))))
+             (comp
+              (fn [builds]
+                (let [opt-none-builds (filter optimizations-none?
+                                              builds)]
+                  (vector
+                   (if-let [build (some #(and (= (:id %)
+                                                 build-id) %)
+                                        opt-none-builds)]
+                     build
+                     (first opt-none-builds)))))
+              map-to-vec-builds)))
 
 (defn check-for-valid-options [{:keys [builds]} {:keys [http-server-root] :as opts}]
   (let [build (first builds)

@@ -18,11 +18,11 @@
   :resource-paths ["resources" "other_resources"]
   
   :cljsbuild {
-              :builds [{:id "example"
-                        :source-paths ["src"]
-                        :compiler {:output-to "resources/public/js/compiled/example.js"
-                                   :output-dir "resources/public/js/compiled/out"
-                                   :optimizations :none}}]}
+              :builds [{ :id "example"
+                         :source-paths ["src"]
+                         :compiler { :output-to "resources/public/js/compiled/example.js"
+                                     :output-dir "resources/public/js/compiled/out"
+                                     :optimizations :none}}]}
   
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
