@@ -56,23 +56,15 @@
     (with-channel request channel
       (setup-file-change-sender server-state channel))))
 
-<<<<<<< Updated upstream
-(defn server [{:keys [ring-handler server-port http-server-root ring-handler friendly-urls?] :as server-state}]
-=======
 (defn server [{:keys [ring-handler server-port http-server-root ring-handler friendly-url?]
                :as server-state}]
->>>>>>> Stashed changes
   (run-server
    (routes
     (GET "/figwheel-ws" [] (reload-handler server-state))
     (route/resources "/" :root http-server-root)
     (or ring-handler (fn [r] false))
     (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-<<<<<<< Updated upstream
-    (if friendly-urls?
-=======
     (if friendly-url?
->>>>>>> Stashed changes
       (GET "/*" [] (resource-response "index.html" {:root http-server-root}))
       (route/not-found "<h1>Page not found</h1>")))
    {:port server-port}))
@@ -268,11 +260,7 @@
     (file-changed? state df))
   (:file-md5-atom state))
 
-<<<<<<< Updated upstream
-(defn create-initial-state [{:keys [root resource-paths friendly-urls?
-=======
 (defn create-initial-state [{:keys [root resource-paths friendly-url?
->>>>>>> Stashed changes
                                     js-dirs css-dirs ring-handler http-server-root
                                     server-port output-dir output-to]}]
   { :root root
@@ -288,7 +276,6 @@
     :last-pass (atom (System/currentTimeMillis))
     :css-last-pass (atom (System/currentTimeMillis))   
     :compile-wait-time 10
-    :friendly-urls? (or friendly-urls? false)
     :file-md5-atom (initial-check-sums {:output-to output-to
                                         :output-dir output-dir
                                         :file-md5-atom (atom {})})
