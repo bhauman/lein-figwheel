@@ -188,7 +188,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.1.3-SNAPSHOT"]
+[figwheel "0.1.4-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
