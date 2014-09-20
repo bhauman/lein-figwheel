@@ -262,6 +262,20 @@ Like so:
   :jsload-callback (fn [] (print "reloaded")))
 ```
 
+Note that you will still need to run the figwheel server in addition to 
+your development app server if you wish to continue utilizing figwheel.
+
+For example, you could run figwheel in one terminal...
+
+```
+$ lein figwheel
+```
+
+and run your app server of choice in another...
+
+```
+$ lein ring server
+```
 
 ## Writing reloadable code
 
