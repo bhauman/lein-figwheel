@@ -168,7 +168,7 @@ In your `project.clj` you can add the following configuration parameters:
 ```clojure
 :figwheel {
    :http-server-root "public" ;; this will be in resources/
-   :port 3449                 ;; default
+   :server-port 3449          ;; default
 
    ;; CSS reloading (optional)
    ;; :css-dirs has no default value 
