@@ -179,7 +179,7 @@ In your `project.clj` you can add the following configuration parameters:
    ;; Server Ring Handler (optional)
    ;; if you want to embed a ring handler into the figwheel http-kit
    ;; server
-   :ring-handler example.server/handler 
+   :ring-handler "example.server/handler" 
 } 
 ```
 
