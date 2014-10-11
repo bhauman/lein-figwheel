@@ -14,7 +14,7 @@
 
 (defn reload-host [{:keys [websocket-url]}]
   (-> websocket-url
-      (string/replace-first #"^ws:" "")
+      (string/replace-first #"^wss?:" "")
       (string/replace-first #"^//" "")
       (string/split #"/")
       first))
