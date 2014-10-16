@@ -279,6 +279,64 @@ $ lein ring server
 
 ## Writing reloadable code
 
+Figwheel relies on having files that can be reloaded. 
+
+Reloading works beautifully on referentioally transparent code and
+code that only defines behavior without bundling state with the
+behavior. 
+
+There are several coding patterns to look out for when writing
+reloadable code. 
+
+There is actually one pattern to look out for, and all others are a
+variation of this pattern.
+
+The problematic pattern is top level definitions that have local
+state.
+
+```clojure
+(def state (atom {}))
+```
+
+The `state` definition above is holding an atom that has local state.
+Every time the file that holds this definition gets reloaded the state
+defenition will be redefined and the state it holds will be reset back
+to the original state. But with figwheel we are wanting to change our
+programs while maintaining the state of the running program.
+
+The way to fix this is to use `defonce`
+
+```clojure
+(defonce state (atom {}))
+```
+
+This will fix most situations where you have code that is relying on a
+definition that has local state. Keep in mind though that if you
+change the code that is wrapped in a `defonce` you won't see the
+changes (unless of course you change name). 
+
+You also need to look out for common setup code that hooks into the browser
+
+Often you will see statements like this at the bottom of a file.
+
+```clojure
+(.click ($ "a.button") (fn [e] (print "clicked button")))
+```
+
+Every time this file gets loaded a new listener will get added to all
+the anchor tags with a "button" class. This is obviously not what we
+want to happen.
+
+This code is very problematic and points to the why using the browser
+APIs directly has always been really difficult.
+
+If you want to build things this 'traditional' way and have reloadable
+code we need to create `setup` and `teardown` functions to be invoked
+on code reload.
+
+The `teardown` function will need 
+
+
 Still working on writing this ...
 
 ## License

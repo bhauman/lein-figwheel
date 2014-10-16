@@ -2,18 +2,9 @@
   (:refer-clojure :exclude [test])
   (:require
    [fs.core :as fs]
-   [leiningen.clean :as lclean]
    [leiningen.cljsbuild.config :as config]
-   [leiningen.cljsbuild.jar :as jar]
    [leiningen.cljsbuild.subproject :as subproject]
-   [leiningen.compile :as lcompile]
    [leiningen.core.eval :as leval]
-   [leiningen.core.main :as lmain]
-   [leiningen.help :as lhelp]
-   [leiningen.jar :as ljar]
-   [leiningen.test :as ltest]
-   [leiningen.trampoline :as ltrampoline]
-   [robert.hooke :as hooke]
    [clojure.java.io :as io]
    [cljsbuild.compiler]
    [cljsbuild.crossover]
@@ -123,57 +114,83 @@
                   (Thread/sleep 100)
                   (recur new-dependency-mtimes#))))))))))
 
-(defn cljs-change-server-watch-dirs [project]
+(defn cljs-change-server-watch-dirs
+  "Given a project spec will return a vector of Javascript directories that need to be watched"
+  [project]
   (vec
    ((juxt :output-dir :output-to)
     (:compiler (first (get-in project [:cljsbuild :builds]))))))
 
-(defn optimizations-none? [build]
+(defn optimizations-none?
+  "returns true if a build has :optimizations set to :none"
+  [build]
   (= :none (get-in build [:compiler :optimizations])))
 
-(defn resources-pattern-str [opts]
+(defn resources-pattern-str
+  "returns a regex pattern that will match a directory that is a
+  resource directory or is below a recources directory."
+  [opts]
   (resource-paths-pattern-str (update-in opts [:http-server-root] (fn [x] (or x "public")))))
 
-(defn output-dir-in-resources-root? [{:keys [output-dir] :as opts}]
-  (re-matches (re-pattern (str (resources-pattern-str opts) ".*")) output-dir))
+(defn output-dir-in-resources-root?
+  "Check if the build output directory is in or below any of the configured resources directories."
+  [{:keys [output-dir] :as opts}]
+  (and output-dir
+       (re-matches (re-pattern (str (resources-pattern-str opts) ".*")) output-dir)))
 
-(defn map-to-vec-builds [builds]
+(defn map-to-vec-builds
+  "Cljsbuild allows a builds to be specified as maps. We accomodate that with this function
+   to normalize the map back to the standard vector specification. The key is placed into the
+   build under the :id key."
+  [builds]
   (if (map? builds)
-    (vec (map (fn [[k v]] (assoc v :id k)) builds))
+    (vec (map (fn [[k v]] (assoc v :id (name k))) builds))
     builds))
 
 ;; we are only going to work on one build
 ;; still need to narrow this to optimizations none
-(defn narrow-to-one-build [project build-id]
+(defn narrow-to-one-build
+  "Filters builds to the chosen build-id or if no build id specified returns the first
+   build with optimizations set to none."
+  [project build-id]
   (update-in project [:cljsbuild :builds]
              (comp
               (fn [builds]
-                (let [opt-none-builds (filter optimizations-none?
-                                              builds)]
-                  (vector
-                   (if-let [build (some #(and (= (:id %)
-                                                 build-id) %)
-                                        opt-none-builds)]
-                     build
-                     (first opt-none-builds)))))
+                (vector
+                 (if build-id
+                   (some #(and (= (:id %) build-id) %) builds)
+                   (first (filter optimizations-none? builds)))))
               map-to-vec-builds)))
 
-(defn check-for-valid-options [{:keys [builds]} {:keys [http-server-root] :as opts}]
+(defn check-for-valid-options
+  "Check for various configuration anomalies."
+  [{:keys [builds]} {:keys [http-server-root] :as opts}]
   (let [build (first builds)
         opts? (and (not (nil? build)) (optimizations-none? build))
         out-dir? (output-dir-in-resources-root? opts)]
-    (when (nil? build)
-      (throw (Exception.
-              (str "No cljsbuild specified. You could have mistyped the build
-                    id or failed to specify build in your cljsbuild configuration in you project.clj"))))
-    (when-not  opts?
-      (println "Figwheel Config Error - you have build :optimizations set to something other than :none"))
-    (when-not out-dir?
-      (println (str "Figwheel Config Error - your build :output-dir is not in a resources directory."))
-      (println (str "It should match this pattern: " (resources-pattern-str opts))))
-    (and opts? out-dir?)))
+    (if (nil? build)
+      (list
+       (str "Figwheel: "
+            "No cljsbuild specified. You may have mistyped the build "
+            "id on the command line or failed to specify a build in "
+            "the :cljsbuild section of your project.clj. You need to have "
+            "at least one build with :optimizations set to :none."))
+      (map
+       #(str "Figwheel Config Error (in project.clj) - " %)
+       (filter identity
+               (list
+                (when-not opts?
+                  "you have build :optimizations set to something other than :none")
+                (when-not out-dir?
+                  (str
+                   (if (:output-dir build)
+                     "your build :output-dir is not in a resources directory."
+                     "you have not configured an :output-dir in your build")
+                   (str "\nIt should match this pattern: " (resources-pattern-str opts))))))))))
 
-(defn normalize-dir [dir]
+(defn normalize-dir
+  "If directory ends with '/' then truncate the trailing forward slash."
+  [dir]
   (if (and dir (< 1 (count dir)) (re-matches #".*\/$" dir)) 
     (subs dir 0 (dec (count dir)))
     dir))
@@ -181,17 +198,19 @@
 (defn normalize-output-dir [opts]
   (update-in opts [:output-dir] normalize-dir))
 
-(defn ensure-key-is [f k opts]
-  (if (k opts)
-    (update-in opts [k] f)
-    opts))
+(defn apply-to-key
+  "applies a function to a key, if key is defined."
+  [f k opts]
+  (if (k opts) (update-in opts [k] f) opts))
 
-(defn prep-options [opts]
+(defn prep-options
+  "Normalize various configuration input."
+  [opts]
   (->> opts
        normalize-output-dir
-       (ensure-key-is str :ring-handler)
-       (ensure-key-is vec :css-dirs)
-       (ensure-key-is vec :resource-paths)))
+       (apply-to-key str :ring-handler)
+       (apply-to-key vec :css-dirs)
+       (apply-to-key vec :resource-paths)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
@@ -205,8 +224,10 @@
                              :output-dir (:output-dir (:compiler current-build))
                              :output-to (:output-to (:compiler current-build)) }
                            (:figwheel project)))]
-    (when (check-for-valid-options (:cljsbuild project) figwheel-options)
-      (run-compiler project
-                    (config/extract-options project)
-                    figwheel-options))))
-
+    (let [errors (check-for-valid-options (:cljsbuild project) figwheel-options)]
+      (println (str "Figwheel: focusing on build-id " "'" (:id current-build) "'"))
+      (if (empty? errors)
+        (run-compiler project
+                      (config/extract-options project)
+                      figwheel-options)
+        (mapv println errors)))))
