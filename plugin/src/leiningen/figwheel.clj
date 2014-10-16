@@ -147,20 +147,23 @@
     (vec (map (fn [[k v]] (assoc v :id (name k))) builds))
     builds))
 
+(defn narrow-to-one-build* 
+  "Filters builds to the chosen build-id or if no build id specified returns the first
+   build with optimizations set to none."
+  [ builds build-id]
+  (let [builds (map-to-vec-builds builds)]
+    (vector
+     (if build-id
+       (some #(and (= (:id %) build-id) %) builds)
+       (first (filter optimizations-none? builds))))))
+
 ;; we are only going to work on one build
 ;; still need to narrow this to optimizations none
 (defn narrow-to-one-build
   "Filters builds to the chosen build-id or if no build id specified returns the first
    build with optimizations set to none."
   [project build-id]
-  (update-in project [:cljsbuild :builds]
-             (comp
-              (fn [builds]
-                (vector
-                 (if build-id
-                   (some #(and (= (:id %) build-id) %) builds)
-                   (first (filter optimizations-none? builds)))))
-              map-to-vec-builds)))
+  (update-in project [:cljsbuild :builds] narrow-to-one-build* build-id))
 
 (defn check-for-valid-options
   "Check for various configuration anomalies."
