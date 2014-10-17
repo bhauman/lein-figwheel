@@ -256,7 +256,7 @@ websocket is.
 
 Like so:
 
-```
+```clojure
 (fw/watch-and-reload
   :websocket-url   "ws://localhost:3449/figwheel-ws"
   :jsload-callback (fn [] (print "reloaded")))
@@ -276,6 +276,10 @@ and run your app server of choice in another...
 ```
 $ lein ring server
 ```
+
+## Resources 
+
+[Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading to understand figwheel better even if you aren't using Om.
 
 ## Writing reloadable code
 
@@ -313,9 +317,9 @@ The way to fix this is to use `defonce`
 This will fix most situations where you have code that is relying on a
 definition that has local state. Keep in mind though that if you
 change the code that is wrapped in a `defonce` you won't see the
-changes (unless of course you change name). 
+changes, because the identifier won't be redefined.
 
-You also need to look out for common setup code that hooks into the browser
+You also need to look out for common setup code that hooks into the browser.
 
 Often you will see statements like this at the bottom of a file.
 
@@ -328,11 +332,72 @@ the anchor tags with a "button" class. This is obviously not what we
 want to happen.
 
 This code is very problematic and points to the why using the browser
-APIs directly has always been really difficult.
+APIs directly has always been really difficult. For instance if make
+it so that these hooks are only executed once, like so:
 
-If you want to build things this 'traditional' way and have reloadable
-code we need to create `setup` and `teardown` functions to be invoked
-on code reload.
+```clojure
+(defonce setup-stuff 
+  (do 
+     (.click ($ "a.button") (fn [e] (print "clicked button")))))
+```
+
+When you are live editing code this doesn't work very well. If you
+alter your html template the new "a.button" elements aren't going to
+have the listener bound to them.
+
+You can fix this by using an event delegation strategy as so:
+
+```clojure  
+(defonce setup-stuff 
+  (do 
+     (.on ($ "div#app") "click" "a.button" (fn [e] (print "clicked button")))))
+```
+
+But even with the above strategy you won't be able to edit any of the
+code in the setup up block and see your changes take affect.
+
+If you are not using React and you want to build things this way and
+have reloadable code we need to create `setup` and `teardown`
+functions to be invoked on code reload.  
+
+```clojure  
+(defn setup []
+   (.on ($ "div#app") "click" "a.button" (fn [e] (print "clicked button"))))
+
+(defn teardown []
+   (.off ($ "div#app") "click" "a.button")
+
+;; hook in the  
+(fw/watch-and-reload
+  :jsload-callback (fn [] 
+                      (setup)
+                      (teardown))
+```
+
+Now you can edit the code in the setup and teardown functions and see
+the resulting changes in your application.
+
+In a way you can think of the previous definitions of `setup-stuff` as
+a function that has a local state of sorts. It is altering and storing
+callbacks in the DOM directly and this is why it is so problematic.
+
+This is one of the reasons React is so damn brilliant. You never end
+up storing things directly in the DOM. You just describe what should
+be there and then React takes care of making the appropriate changes.
+For this reason React is a prime candidate for writing reloadable
+code. React components have a lifecycle protocol that embeds setup and
+teardown in each component and invokes them when neccessary.
+
+It is worth repeating that React components don't have local state, it
+just looks like they do. You have to ask for the local state react in
+turn looks this state up in a larger state context and returns it,
+very similar to a State Monad.
+
+
+
+
+
+
 
 The `teardown` function will need 
 
