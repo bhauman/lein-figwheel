@@ -319,6 +319,13 @@ definition that has local state. Keep in mind though that if you
 change the code that is wrapped in a `defonce` you won't see the
 changes, because the identifier won't be redefined.
 
+Complicated object networks wired together with callbacks are also
+problematic. Instantiating these object callback networks and then
+storing them in a global var is yet another version of this problem.
+
+Functions that maintain local state like counters and such are also
+definitions with local state and as such problematic.
+
 You also need to look out for common setup code that hooks into the browser.
 
 Often you will see statements like this at the bottom of a file.
@@ -342,7 +349,7 @@ it so that these hooks are only executed once, like so:
 ```
 
 When you are live editing code this doesn't work very well. If you
-alter your html template the new "a.button" elements aren't going to
+alter your HTML template any new "a.button" elements aren't going to
 have the listener bound to them.
 
 You can fix this by using an event delegation strategy as so:
@@ -382,27 +389,17 @@ a function that has a local state of sorts. It is altering and storing
 callbacks in the DOM directly and this is why it is so problematic.
 
 This is one of the reasons React is so damn brilliant. You never end
-up storing things directly in the DOM. You just describe what should
-be there and then React takes care of making the appropriate changes.
-For this reason React is a prime candidate for writing reloadable
-code. React components have a lifecycle protocol that embeds setup and
-teardown in each component and invokes them when neccessary.
+up storing things directly in the DOM. State is mediated and managed
+for you. You just describe what should be there and then React takes
+care of making the appropriate changes. For this reason React is a
+prime candidate for writing reloadable code. React components already
+have a lifecycle protocol that embeds `setup` and `teardown` in each
+component and invokes them when neccessary.
 
 It is worth repeating that React components don't have local state, it
-just looks like they do. You have to ask for the local state react in
+just looks like they do. You have to ask for the local state and React in
 turn looks this state up in a larger state context and returns it,
 very similar to a State Monad.
-
-
-
-
-
-
-
-The `teardown` function will need 
-
-
-Still working on writing this ...
 
 ## License
 
