@@ -304,7 +304,7 @@ state.
 
 The `state` definition above is holding an atom that has local state.
 Every time the file that holds this definition gets reloaded the state
-defenition will be redefined and the state it holds will be reset back
+definition will be redefined and the state it holds will be reset back
 to the original state. But with figwheel we are wanting to change our
 programs while maintaining the state of the running program.
 
@@ -324,7 +324,7 @@ problematic. Instantiating these object callback networks and then
 storing them in a global var is yet another version of this problem.
 
 Functions that maintain local state like counters and such are also
-definitions with local state and as such problematic.
+definitions with local state and as such are problematic.
 
 You also need to look out for common setup code that hooks into the browser.
 
@@ -339,7 +339,7 @@ the anchor tags with a "button" class. This is obviously not what we
 want to happen.
 
 This code is very problematic and points to the why using the browser
-APIs directly has always been really difficult. For instance if make
+APIs directly has always been really difficult. For instance if we make
 it so that these hooks are only executed once, like so:
 
 ```clojure
@@ -348,7 +348,7 @@ it so that these hooks are only executed once, like so:
      (.click ($ "a.button") (fn [e] (print "clicked button")))))
 ```
 
-When you are live editing code this doesn't work very well. If you
+When you are live editing code, this doesn't work very well. If you
 alter your HTML template any new "a.button" elements aren't going to
 have the listener bound to them.
 
@@ -377,15 +377,15 @@ functions to be invoked on code reload.
 ;; hook in the  
 (fw/watch-and-reload
   :jsload-callback (fn [] 
-                      (setup)
-                      (teardown))
+                      (teardown)
+                      (setup)))
 ```
 
 Now you can edit the code in the setup and teardown functions and see
 the resulting changes in your application.
 
 In a way you can think of the previous definitions of `setup-stuff` as
-a function that has a local state of sorts. It is altering and storing
+functions that have local state of sorts. They are altering and storing
 callbacks in the DOM directly and this is why it is so problematic.
 
 This is one of the reasons React is so damn brilliant. You never end
