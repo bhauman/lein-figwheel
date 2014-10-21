@@ -279,7 +279,7 @@ $ lein ring server
 
 ## Resources 
 
-[Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading to understand figwheel better even if you aren't using Om.
+[Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading if you aren't using Om.
 
 ## Writing reloadable code
 
@@ -319,9 +319,10 @@ definition that has local state. Keep in mind though that if you
 change the code that is wrapped in a `defonce` you won't see the
 changes, because the identifier won't be redefined.
 
-Complicated object networks wired together with callbacks are also
-problematic. Instantiating these object callback networks and then
-storing them in a global var is yet another version of this problem.
+Complicated object networks wired together with callbacks (Backbone,
+Ember, etc.) are also problematic. Instantiating these object callback
+networks and then storing them in a global var is yet another version
+of this problem.
 
 Functions that maintain local state like counters and such are also
 definitions with local state and as such are problematic.
@@ -400,6 +401,18 @@ It is worth repeating that React components don't have local state, it
 just looks like they do. You have to ask for the local state and React in
 turn looks this state up in a larger state context and returns it,
 very similar to a State Monad.
+
+Reloadable code is easy to write if we are very conscious and careful
+about the storage of state, state transitions and side effects. Since
+a great deal of programming complexity stems from complex interactions
+(side effecting events) between things that have local state, it is my
+beief that reloadable code is often simply better code.
+
+
+## More React Advocacy
+
+If you want to do less thinking and write more reliable front end code
+you should really be looking at React, Om etc.    
 
 ## License
 
