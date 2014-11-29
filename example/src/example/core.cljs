@@ -120,6 +120,7 @@
 ;; IMPORTANT!!!
 ;; Here we start the websocket listener
 (fw/watch-and-reload
+ :websocket-url "ws://localhost:3449/figwheel-ws"
  :jsload-callback (fn []
                     (ex2-restart)
                     ;; this is a better way to reload the cube example

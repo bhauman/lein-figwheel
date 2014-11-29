@@ -10,9 +10,13 @@
                  [jayq "2.4.0"]
                  [figwheel "0.1.5-SNAPSHOT"]]
 
-  :plugins [[lein-cljsbuild "1.0.3"]
+  :plugins [[lein-ring "0.8.13"]
+            [lein-cljsbuild "1.0.3"]
             [lein-figwheel "0.1.5-SNAPSHOT"]]
 
+  ;; this is used for testing an external server
+  :ring { :handler example.server/static-server }
+  
   :source-paths ["src"] 
   
   :resource-paths ["resources" "other_resources"]
@@ -28,6 +32,6 @@
              :http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
-             :ring-handler example.server/handler
+             #_:ring-handler #_example.server/handler
              })
 

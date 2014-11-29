@@ -4,11 +4,12 @@
    [compojure.route :as route]
    [compojure.core :refer [routes GET]]
    [ring.util.response :refer [resource-response]]
+   [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
-
+   
    [clojure.java.io :refer [as-file] :as io]
    [digest]
    [clojure.set :refer [intersection]]
@@ -57,14 +58,17 @@
       (setup-file-change-sender server-state channel))))
 
 (defn server [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
-  (run-server
-   (routes
-    (GET "/figwheel-ws" [] (reload-handler server-state))
-    (route/resources "/" {:root http-server-root})
-    (or ring-handler (fn [r] false))
-    (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-    (route/not-found "<h1>Page not found</h1>"))
-   {:port server-port}))
+  (-> (routes
+       (GET "/figwheel-ws" [] (reload-handler server-state))
+       (route/resources "/" {:root http-server-root})
+       (or ring-handler (fn [r] false))
+       (GET "/" [] (resource-response "index.html" {:root http-server-root}))
+       (route/not-found "<h1>Page not found</h1>"))
+      ;; adding cors to support @font-face which has a strange cors handling
+      (cors/wrap-cors
+       :access-control-allow-origin #".*"
+       :access-control-allow-methods [:head :options :get :post :put :delete :patch :trace])
+      (run-server {:port server-port})))
 
 (defn append-msg [q msg]
   (conj (take 30 q) msg))
