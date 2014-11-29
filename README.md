@@ -277,6 +277,23 @@ and run your app server of choice in another...
 $ lein ring server
 ```
 
+#### Mapping figwheel resource paths to your servers resource paths
+
+Somethings you want to load js and css files from your server and your
+server paths are different than figwheel's paths.
+
+You can use the `:url-rewriter` client option to rewrite resource
+request urls. The :url-rewriter config takes a function that recieves
+the resource url and should return a corrected url that points to the
+same resource on your server.
+
+```clojure
+(fw/watch-and-reload
+  :websocket-url   "ws://localhost:3449/figwheel-ws"
+  :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000"))
+  :jsload-callback (fn [] (print "reloaded")))
+```
+
 ## Resources 
 
 [Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading if you aren't using Om.
@@ -285,7 +302,7 @@ $ lein ring server
 
 Figwheel relies on having files that can be reloaded. 
 
-Reloading works beautifully on referentioally transparent code and
+Reloading works beautifully on referentially transparent code and
 code that only defines behavior without bundling state with the
 behavior. 
 
