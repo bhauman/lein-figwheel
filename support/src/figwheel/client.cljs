@@ -137,31 +137,36 @@
   (set! (.-provide js/goog) (.-exportPath_ js/goog))
   (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) figwheel-closure-import-script))
 
+(defn have-websockets? [] (js*  "(\"WebSocket\" in window)"))
+
 (defn watch-and-reload* [{:keys [retry-count websocket-url
                                  jsload-callback
                                  on-compile-fail] :as opts}]
-    (.debug js/console "Figwheel: trying to open cljs reload socket")  
-    (let [socket (js/WebSocket. websocket-url)]
-      (set! (.-onmessage socket) (fn [msg-str]
-                                   (let [msg (read-string (.-data msg-str))]
-                                     #_(.log js/console (prn-str msg))
-                                     (condp = (:msg-name msg)
-                                       :files-changed  (reload-js-files opts msg)
-                                       :css-files-changed (reload-css-files opts msg)
-                                       :compile-failed    (compile-failed msg on-compile-fail)
-                                       nil))))
-      (set! (.-onopen socket)  (fn [x]
-                                 (patch-goog-base)
-                                 (.debug js/console "Figwheel: socket connection established")))
-      (set! (.-onclose socket) (fn [x]
-                                 (log opts "Figwheel: socket closed or failed to open")
-                                 (when (> retry-count 0)
-                                   (.setTimeout js/window
-                                                (fn []
-                                                  (watch-and-reload*
-                                                   (assoc opts :retry-count (dec retry-count))))
-                                                2000))))
-      (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))))
+  (if-not (have-websockets?)
+    (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
+    (do
+      (.debug js/console "Figwheel: trying to open cljs reload socket")
+      (let [socket (js/WebSocket. websocket-url)]
+        (set! (.-onmessage socket) (fn [msg-str]
+                                     (let [msg (read-string (.-data msg-str))]
+                                       #_(.log js/console (prn-str msg))
+                                       (condp = (:msg-name msg)
+                                         :files-changed  (reload-js-files opts msg)
+                                         :css-files-changed (reload-css-files opts msg)
+                                         :compile-failed    (compile-failed msg on-compile-fail)
+                                         nil))))
+        (set! (.-onopen socket)  (fn [x]
+                                   (patch-goog-base)
+                                   (.debug js/console "Figwheel: socket connection established")))
+        (set! (.-onclose socket) (fn [x]
+                                   (log opts "Figwheel: socket closed or failed to open")
+                                   (when (> retry-count 0)
+                                     (.setTimeout js/window
+                                                  (fn []
+                                                    (watch-and-reload*
+                                                     (assoc opts :retry-count (dec retry-count))))
+                                                  2000))))
+        (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))))))
 
 (defn default-on-jsload [url]
   (.dispatchEvent (.querySelector js/document "body")
