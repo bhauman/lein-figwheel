@@ -279,19 +279,18 @@ $ lein ring server
 
 #### Mapping figwheel resource paths to your servers resource paths
 
-Somethings you want to load js and css files from your server and your
-server paths are different than figwheel's paths.
+Somethings you want to load __js__ and __css__ resources from your
+server and your server paths are different than Figwheel's paths.
 
 You can use the `:url-rewriter` client option to rewrite resource
-request urls. The :url-rewriter config takes a function that recieves
-the resource url and should return a corrected url that points to the
-same resource on your server.
+request urls. The `:url-rewriter` config options takes a function that
+recieves the resource url and should return a corrected url that
+points to the same resource on your server.
 
 ```clojure
 (fw/watch-and-reload
   :websocket-url   "ws://localhost:3449/figwheel-ws"
-  :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000"))
-  :jsload-callback (fn [] (print "reloaded")))
+  :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000")))
 ```
 
 ## Resources 
@@ -429,7 +428,9 @@ beief that reloadable code is often simply better code.
 ## More React Advocacy
 
 If you want to do less thinking and write more reliable front end code
-you should really be looking at React, Om etc.    
+you should really be looking at React, Om etc.
+
+OK enough.
 
 ## License
 
