@@ -26,12 +26,14 @@
                          :source-paths ["src"]
                          :compiler { :output-to "resources/public/js/compiled/example.js"
                                      :output-dir "resources/public/js/compiled/out"
+                                     :source-map true
                                      :optimizations :none}}]}
   
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
+             ;; if you want to embed a server in figwheel do it like so:
              #_:ring-handler #_example.server/handler
              })
 
