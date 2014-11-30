@@ -64,10 +64,11 @@
        (or ring-handler (fn [r] false))
        (GET "/" [] (resource-response "index.html" {:root http-server-root}))
        (route/not-found "<h1>Page not found</h1>"))
-      ;; adding cors to support @font-face which has a strange cors handling
+      ;; adding cors to support @font-face which has a strange cors error
+      ;; super promiscuous please don't uses figwheel as a production server :)
       (cors/wrap-cors
        :access-control-allow-origin #".*"
-       :access-control-allow-methods [:head :options :get :post :put :delete :patch :trace])
+       :access-control-allow-methods [:head :options :get])
       (run-server {:port server-port})))
 
 (defn append-msg [q msg]
