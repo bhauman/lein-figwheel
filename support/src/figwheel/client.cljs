@@ -138,6 +138,29 @@
   (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) figwheel-closure-import-script))
 
 (defn have-websockets? [] (js*  "(\"WebSocket\" in window)"))
+(defn have-custom-events? [] (js*  "(\"CustomEvent\" in window)"))
+
+;; handle messages coming over the WebSocket
+;; messages have the following formats
+
+;; files-changed message
+;; { :msg-name :files-changed
+;;   :files    [{:file "/js/compiled/out/example/core.js",
+;;               :type :javascript, 
+;;               :msg-name :file-changed,
+;;               :namespace "example.core" }] }
+
+;; css-files-changed message
+;; there should really only be one file in here at a time
+;; { :msg-name :css-files-changed
+;;   :files    [{:file "/css/core.js",
+;;               :type :javascript }] }
+
+;; compile-failed message
+;; { :msg-name :compile-failed
+;;   :exception-data {:cause { ... lots of exception info ... } }}
+;; the exception data is nested raw info obtained for the compile time
+;; exception
 
 (defn watch-and-reload* [{:keys [retry-count websocket-url
                                  jsload-callback
@@ -166,12 +189,14 @@
                                                     (watch-and-reload*
                                                      (assoc opts :retry-count (dec retry-count))))
                                                   2000))))
-        (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))))))
+        (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))
+        socket))))
 
 (defn default-on-jsload [url]
-  (.dispatchEvent (.querySelector js/document "body")
-                  (js/CustomEvent. "figwheel.js-reload"
-                                   (js-obj "detail" url))))
+  (when (have-custom-events?)
+    (.dispatchEvent (.querySelector js/document "body")
+                    (js/CustomEvent. "figwheel.js-reload"
+                                     (js-obj "detail" url)))))
 
 (defn get-essential-messages [ed]
   (when ed
