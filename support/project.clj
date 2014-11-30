@@ -14,4 +14,6 @@
    [ring-cors "0.1.4"]
    [compojure "1.1.7"]
    [watchtower "0.1.1"]
-   [digest "1.4.3"]])
+   [digest "1.4.3"]]
+
+  :profiles { :test {:dependencies [[clj-stacktrace "0.2.7"]]}})

@@ -57,7 +57,10 @@
     (with-channel request channel
       (setup-file-change-sender server-state channel))))
 
-(defn server [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
+(defn server
+  "This is the server. It is complected and its OK. Its trying to be a basic devel server and
+   also provides the figwheel websocket connection."
+  [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
   (-> (routes
        (GET "/figwheel-ws" [] (reload-handler server-state))
        (route/resources "/" {:root http-server-root})
@@ -71,38 +74,41 @@
        :access-control-allow-methods [:head :options :get])
       (run-server {:port server-port})))
 
-(defn append-msg [q msg]
-  (conj (take 30 q) msg))
+(defn append-msg [q msg] (conj (take 30 q) msg))
 
-(defn make-msg [file-data]
-  (merge { :type :javascript
-           :msg-name :file-changed }
-         file-data))
-
-(defn send-changed-files [{:keys [file-change-atom] :as st} files]
-  (swap! file-change-atom append-msg { :msg-name :files-changed
-                                       :files (mapv make-msg files)})
+(defn send-changed-files
+  "Formats and sends a files-changed message to the file-change-atom.
+   Also reports this event to the console."
+  [{:keys [file-change-atom] :as st} files]
+  (swap! file-change-atom append-msg { ;; this message name isn't good
+                                       :msg-name :files-changed 
+                                       :files files })
   (doseq [f files]
          (println "notifying browser that file changed: " (:file f))))
 
-(defn underscore [st]
-  (string/replace st "-" "_"))
+(defn underscore [s] (string/replace s "-" "_"))
+(defn ns-to-path [nm] (string/replace nm "." "/"))
+(defn path-to-ns [path] (string/replace path "/" "."))
+(defn norm-path
+  "Normalize paths to a forward slash separator to fix windows paths"
+  [p] (string/replace p  "\\" "/"))
 
-(defn ns-to-path [nm]
-  (string/join "/" (string/split nm #"\.")))
-
-(defn path-to-ns [path]
-  (string/join "." (string/split path #"\/")))
-
-(defn get-ns-from-js-file-path [state file-path]
+(defn get-ns-from-js-file-path
+  "Takes a project relative filepath and returns an underscored clojure namespace.
+  .ie /resources/public/js/example/path_finder.js -> example.path_finder
+  this will be the canonical namspace formatting for figwheel"
+  [{:keys [output-dir]} file-path]
   (-> file-path
-      (string/replace "\\" "/")
-      (string/replace-first (str (:output-dir state) "/") "")
+      norm-path
+      (string/replace-first (str output-dir "/") "")
       (string/replace-first #"\.js$" "")
       path-to-ns
       underscore))
 
-(defn get-ns-from-source-file-path [file-path]
+(defn get-ns-from-source-file-path
+  "Takes a project relative file path and returns an underscored clojure namespace.
+  .ie a file that starts with (ns example.path-finder) -> example.path_finder"
+  [file-path]
   (try
     (when (.exists (as-file file-path))
       (with-open [rdr (io/reader file-path)]
@@ -114,7 +120,11 @@
     (catch java.lang.RuntimeException e
       nil)))
 
-(defn get-changed-source-file-paths [old-mtimes new-mtimes]
+(defn get-changed-source-file-paths
+  "Provided old-mtimes and new-mtimes are maps of file paths to mtimes this function
+   returns collection of files that have changed grouped by their file extentions.
+   .ie { :cljs [ ... changed cljs file paths ... ] }"
+  [old-mtimes new-mtimes]
   (group-by
    #(keyword (subs (second (split-ext %)) 1))
    (filter
@@ -123,8 +133,16 @@
     (set (keep identity
                (mapcat keys [old-mtimes new-mtimes]))))))
 
-(defn norm-path [p]
-  (string/replace p  "\\" "/"))
+(defn get-changed-source-file-ns [old-mtimes new-mtimes]
+  "Returns a list of clojure namespaces that have changed."
+  (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
+    (set (keep get-ns-from-source-file-path
+               (if (not-empty (:clj changed-source-file-paths))
+                 ;; we have to send all files if a macro changes right?
+                 ;; need to test this
+                 (filter #(= ".cljs" (second (split-ext %)))
+                         (keys new-mtimes))
+                 (:cljs changed-source-file-paths))))))
 
 (defn resource-paths [{:keys [root resource-paths]}]
   (mapv #(string/replace-first (norm-path %)
@@ -141,12 +159,18 @@
    (:output-dir state)
    (resource-paths-pattern state) ""))
 
-(defn make-server-relative-path [state nm]
+(defn make-server-relative-path
+  "Given the state and a namespace makes a path relative to the server root.
+  This is a path that a client can request. A caveat is that only works on
+  compiled javascript namespaces."
+  [state nm]
   (str
    (server-relative-root-path state)
    "/" (ns-to-path nm) ".js"))
 
-(defn file-changed? [{:keys [file-md5-atom]} filepath]
+(defn file-changed?
+  "Standard md5 check to see if a file actually changed."
+  [{:keys [file-md5-atom]} filepath]  
   (let [file (as-file filepath)]
     (when (.exists file)
       (let [check-sum (digest/md5 file)
@@ -158,16 +182,22 @@
 (defn dependency-files [{:keys [output-to output-dir]}]
    [output-to (str output-dir "/goog/deps.js")])
 
-(defn get-dependency-files [{:keys [http-server-root] :as st}]
+(defn get-dependency-files
+  "Handling dependency files is different they don't have namespaces and their mtimes
+   change on every compile even though their content doesn't. So we only want to include them
+   when they change. This returns map representations that are ready to be sent to the client."
+  [st]
   (keep
    #(when (file-changed? st %)
       { :dependency-file true
-        :file (string/replace-first % (resource-paths-pattern st) "")})
+        :file (string/replace-first % (resource-paths-pattern st) "") })
    (dependency-files st)))
 
-(defn make-sendable-file [st path]
-  { :file (make-server-relative-path st path)
-    :namespace (cljs.compiler/munge path)})
+(defn make-sendable-file
+  "Formats a namespace into a map that is ready to be sent to the client."
+  [st nm]
+  { :file (make-server-relative-path st nm)
+    :namespace (cljs.compiler/munge nm) })
 
 ;; watchtower file change detection
 (defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
@@ -182,7 +212,11 @@
     (let [{:keys [updated?]} (compile-js-filewatcher state)]
       (map (fn [x] (.getPath x)) (updated?)))))
 
-(defn get-changed-compiled-namespaces [state]
+(defn get-changed-compiled-namespaces
+  "Returns a list of clojure namespaces for each javascript file that has changed on disk.
+   The namespace is only determined from the path of the file. This means further filtering
+   is necessary."
+  [state]
   (set (mapv (partial get-ns-from-js-file-path state)
              (get-changed-compiled-js-files state))))
 
@@ -196,18 +230,22 @@
 ;; These are checked for explicit changes and sent only when their
 ;; content changes.
 
-(defn check-for-changes [state old-mtimes new-mtimes]
+;; This is the main API it is currently highly influenced by cljsbuild
+;; expect this to change soon
+
+(defn check-for-changes
+  "This is the main api it should be called when a compile run has completed.
+   It takes the current state of the system and a couple of mtime maps of the form
+   { file-path -> mtime }.
+   If changed have occured a message is appended to the :file-change-atom in state.
+   Consumers of this info can add a listener to the :file-change-atom."
+  [state old-mtimes new-mtimes]
   (when-let [changed-compiled-ns (get-changed-compiled-namespaces state)]
-    (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)
-          changed-source-file-ns (set (keep get-ns-from-source-file-path
-                                            (if (not-empty (:clj changed-source-file-paths))
-                                              (filter #(= ".cljs" (second (split-ext %)))
-                                                      (keys new-mtimes))
-                                              (:cljs changed-source-file-paths))))
-          changed-project-ns (intersection changed-compiled-ns changed-source-file-ns)
-          sendable-files (map (partial make-sendable-file state) changed-project-ns)
-          files-to-send  (concat (get-dependency-files state) sendable-files)]
-      (send-changed-files state files-to-send))))
+    (->> (get-changed-source-file-ns old-mtimes new-mtimes)
+         (intersection changed-compiled-ns)
+         (map (partial make-sendable-file state))
+         (concat (get-dependency-files state))
+         (send-changed-files state))))
 
 ;; css changes
 

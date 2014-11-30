@@ -153,8 +153,8 @@
 ;; css-files-changed message
 ;; there should really only be one file in here at a time
 ;; { :msg-name :css-files-changed
-;;   :files    [{:file "/css/core.js",
-;;               :type :javascript }] }
+;;   :files    [{:file "/css/example.css",
+;;               :type :css }] }
 
 ;; compile-failed message
 ;; { :msg-name :compile-failed
