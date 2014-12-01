@@ -31,6 +31,12 @@
 
 ;; All I can say is I'm sorry about this but, it seems to be the best
 ;; way for me to reuse cljsbuild.
+
+;; this is really deviating from cljsbuild at this point.
+;; need to dig in and probably rewrite this
+
+;; need to get rid of crossovers soon
+
 (defn run-compiler [project {:keys [crossover-path crossovers builds]} live-reload-options]
   (println "Compiling ClojureScript.")
   ; If crossover-path does not exist before eval-in-project is called,
@@ -214,6 +220,8 @@
        (apply-to-key str :ring-handler)
        (apply-to-key vec :css-dirs)
        (apply-to-key vec :resource-paths)))
+
+;; duh!! I should be forcing the optimizations :none option here.
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
