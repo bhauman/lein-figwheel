@@ -9,11 +9,8 @@
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
-   
    [clojure.java.io :refer [as-file] :as io]
    [digest]
-   [clojure.set :refer [intersection]]
-   [clojure.java.io :as io]
    [clj-stacktrace.core :refer [parse-exception]]
    [clj-stacktrace.repl :refer [pst-on]]
    [clojure.pprint :as p]))
@@ -88,22 +85,9 @@
 
 (defn underscore [s] (string/replace s "-" "_"))
 (defn ns-to-path [nm] (string/replace nm "." "/"))
-(defn path-to-ns [path] (string/replace path "/" "."))
 (defn norm-path
   "Normalize paths to a forward slash separator to fix windows paths"
   [p] (string/replace p  "\\" "/"))
-
-(defn get-ns-from-js-file-path
-  "Takes a project relative filepath and returns an underscored clojure namespace.
-  .ie /resources/public/js/example/path_finder.js -> example.path_finder
-  this will be the canonical namspace formatting for figwheel"
-  [{:keys [output-dir]} file-path]
-  (-> file-path
-      norm-path
-      (string/replace-first (str output-dir "/") "")
-      (string/replace-first #"\.js$" "")
-      path-to-ns
-      underscore))
 
 (defn get-ns-from-source-file-path
   "Takes a project relative file path and returns an underscored clojure namespace.
@@ -134,7 +118,8 @@
                (mapcat keys [old-mtimes new-mtimes]))))))
 
 (defn get-changed-source-file-ns [old-mtimes new-mtimes]
-  "Returns a list of clojure namespaces that have changed."
+  "Returns a list of clojure namespaces that have changed. If a .clj source file has changed
+   this returns all namespaces."
   (let [changed-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
     (set (keep get-ns-from-source-file-path
                (if (not-empty (:clj changed-source-file-paths))
@@ -199,27 +184,6 @@
   { :file (make-server-relative-path st nm)
     :namespace (cljs.compiler/munge nm) })
 
-;; watchtower file change detection
-(defn compile-js-filewatcher [{:keys [js-dirs] :as server-state}]
-  (compile-watcher (-> js-dirs
-                       (watcher*)
-                       (file-filter ignore-dotfiles)
-                       (file-filter (extensions :js)))))
-
-(defn get-changed-compiled-js-files [{:keys [last-pass] :as state}]
-  ;; this uses watchtower change detection
-  (binding [wt/*last-pass* last-pass] 
-    (let [{:keys [updated?]} (compile-js-filewatcher state)]
-      (map (fn [x] (.getPath x)) (updated?)))))
-
-(defn get-changed-compiled-namespaces
-  "Returns a list of clojure namespaces for each javascript file that has changed on disk.
-   The namespace is only determined from the path of the file. This means further filtering
-   is necessary."
-  [state]
-  (set (mapv (partial get-ns-from-js-file-path state)
-             (get-changed-compiled-js-files state))))
-
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
 ;; great simplicity to that strategy. But unfortunately we can't speak
@@ -233,6 +197,9 @@
 ;; This is the main API it is currently highly influenced by cljsbuild
 ;; expect this to change soon
 
+;; after reading finally reading the cljsbuild source code, it is
+;; obvious that I was doing way to much work here.
+
 (defn check-for-changes
   "This is the main api it should be called when a compile run has completed.
    It takes the current state of the system and a couple of mtime maps of the form
@@ -240,9 +207,10 @@
    If changed have occured a message is appended to the :file-change-atom in state.
    Consumers of this info can add a listener to the :file-change-atom."
   [state old-mtimes new-mtimes]
-  (when-let [changed-compiled-ns (get-changed-compiled-namespaces state)]
-    (->> (get-changed-source-file-ns old-mtimes new-mtimes)
-         (intersection changed-compiled-ns)
+  (let [changed-source-file-ns (get-changed-source-file-ns old-mtimes new-mtimes)]
+    (p/pprint new-mtimes)
+    (p/pprint changed-source-file-ns)
+    (->> changed-source-file-ns 
          (map (partial make-sendable-file state))
          (concat (get-dependency-files state))
          (send-changed-files state))))
@@ -295,6 +263,9 @@
                                            :exception-data parsed-exception
                                            :formatted-exception formatted-exception })))
 
+(defn compile-warning-occured [{:keys [file-change-atom]} message]
+  (swap! file-change-atom append-msg { :msg-name :compile-warning :message message }))
+
 (defn initial-check-sums [state]
   (doseq [df (dependency-files state)]
     (file-changed? state df))
@@ -312,7 +283,6 @@
     :output-to output-to
     :ring-handler ring-handler
     :server-port (or server-port 3449)
-    :last-pass (atom (System/currentTimeMillis))
     :css-last-pass (atom (System/currentTimeMillis))   
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to

@@ -164,7 +164,8 @@
 
 (defn watch-and-reload* [{:keys [retry-count websocket-url
                                  jsload-callback
-                                 on-compile-fail] :as opts}]
+                                 on-compile-fail
+                                 on-compile-warning] :as opts}]
   (if-not (have-websockets?)
     (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
     (do
@@ -177,6 +178,7 @@
                                          :files-changed  (reload-js-files opts msg)
                                          :css-files-changed (reload-css-files opts msg)
                                          :compile-failed    (compile-failed msg on-compile-fail)
+                                         :compile-warning   (on-compile-warning msg)
                                          nil))))
         (set! (.-onopen socket)  (fn [x]
                                    (patch-goog-base)
@@ -213,6 +215,10 @@
     (.log js/console msg))
   ed)
 
+(defn default-on-compile-warning [{:keys [message] :as w}]
+  (.debug js/console "Figwheel: Compile Warning -" message)
+  w)
+
 (defn default-before-load [files]
   (.debug js/console "Figwheel: loading files")
   #_(.log js/console (prn-str (mapv :file files)))
@@ -232,6 +238,7 @@
               :on-cssload default-on-cssload
               :before-jsload default-before-load
               :on-compile-fail default-on-compile-fail
+              :on-compile-warning default-on-compile-warning
               :url-rewriter identity
               :websocket-url (str "ws://" js/location.host "/figwheel-ws")}
             opts))))

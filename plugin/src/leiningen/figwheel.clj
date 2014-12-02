@@ -9,7 +9,8 @@
    [cljsbuild.compiler]
    [cljsbuild.crossover]
    [cljsbuild.util :as util]
-   [figwheel.core :refer [resource-paths-pattern-str]]))
+   [figwheel.core :refer [resource-paths-pattern-str]]
+   [cljs.analyzer :as ana]))
 
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
@@ -48,7 +49,7 @@
     (config/warn-unsupported-warn-on-undeclared (first parsed-builds))
     (config/warn-unsupported-notify-command (first parsed-builds))
     (run-local-project project crossover-path parsed-builds
-     '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'clojure.java.io 'figwheel.core)
+     '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljs.analyzer 'cljsbuild.util 'clj-stacktrace.repl 'clojure.java.io 'figwheel.core)
      `(do
         (letfn [(copy-crossovers# []
                    (cljsbuild.crossover/copy-crossovers
@@ -90,11 +91,17 @@
                             clj-mtimes# (get-mtimes# (mapcat second clj-files-in-cljs-paths#))
                             cljs-mtimes# (get-mtimes# cljs-files#)
                             js-mtimes# (get-mtimes# js-files#)]
-                        (merge macro-mtimes# clj-mtimes# cljs-mtimes# js-mtimes#)))]
+                        (merge macro-mtimes# clj-mtimes# cljs-mtimes# js-mtimes#)))
+                    (warning-handler# [warning-type# env# extra#]
+                      (when (warning-type# cljs.analyzer/*cljs-warnings*)
+                        (when-let [s# (cljs.analyzer/error-message warning-type# extra#)]
+                          (figwheel.core/compile-warning-occured change-server# (cljs.analyzer/message env# s#)))))]
               (loop [dependency-mtimes# {}]
                 (let [new-dependency-mtimes#
                       (try
-                        (let [new-mtimes# (binding [cljs.env/*compiler* compiler-env#]
+                        (let [new-mtimes# (binding [cljs.env/*compiler* compiler-env#
+                                                    cljs.analyzer/*cljs-warning-handlers*
+                                                    (conj cljs.analyzer/*cljs-warning-handlers* warning-handler#)]
                                             (cljsbuild.compiler/run-compiler
                                              (:source-paths build#)
                                              ~crossover-path
