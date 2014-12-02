@@ -207,13 +207,10 @@
    If changed have occured a message is appended to the :file-change-atom in state.
    Consumers of this info can add a listener to the :file-change-atom."
   [state old-mtimes new-mtimes]
-  (let [changed-source-file-ns (get-changed-source-file-ns old-mtimes new-mtimes)]
-    (p/pprint new-mtimes)
-    (p/pprint changed-source-file-ns)
-    (->> changed-source-file-ns 
-         (map (partial make-sendable-file state))
-         (concat (get-dependency-files state))
-         (send-changed-files state))))
+  (->> (get-changed-source-file-ns old-mtimes new-mtimes) 
+       (map (partial make-sendable-file state))
+       (concat (get-dependency-files state))
+       (send-changed-files state)))
 
 ;; css changes
 
