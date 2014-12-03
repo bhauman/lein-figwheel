@@ -1,5 +1,6 @@
 (ns figwheel.client
   (:require
+   [goog.Uri :as guri]
    [goog.net.jsloader :as loader]
    [cljs.reader :refer [read-string]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
@@ -21,7 +22,7 @@
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
-  (str url "?rel=" (.getTime (js/Date.))))
+  (.makeUnique (guri/parse url)))
 
 (defn js-reload [{:keys [request-url namespace dependency-file] :as msg} callback]
   (if (or dependency-file
