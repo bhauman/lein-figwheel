@@ -9,7 +9,6 @@
    [cljs.core.async.macros :refer [go go-loop]]
    [figwheel.client :refer [defonce]]))
 
-
 (defn log [{:keys [debug]} & args]
   (when debug
     (.log js/console (to-array args))))
@@ -50,22 +49,6 @@
 
 (defn add-request-urls [opts files]
   (map (partial add-request-url opts) files))
-
-(defn reload-js-files [{:keys [before-jsload on-jsload] :as opts} last-message-type {:keys [files] :as msg}]
-  (if (or (:load-warninged-code opts)
-          (not= last-message-type :compile-warning)) 
-    (go
-     (before-jsload files)
-     (let [files'  (add-request-urls opts files) 
-           res     (<! (load-all-js-files files'))]
-       (when (not-empty res)
-         (.debug js/console "Figwheel: loaded these files")
-         (.log js/console (pr-str (map :file res)))
-         (<! (timeout 10)) ;; wait a beat before callback
-         (apply on-jsload [res]))))    
-    (go
-     (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file))
-     0)))
 
 ;; CSS reloading
 
@@ -148,15 +131,16 @@
                                          "-moz-transition: all 0.2s ease-in-out;"
                                          "-o-transition: all 0.2s ease-in-out;"
                                          "transition: all 0.2s ease-in-out;"
-                                         "font-size: 14px;"
+                                         "font-size: 13px;"
+                                         "background: url(https://s3.amazonaws.com/bhauman-blog-images/jira-logo-scaled.png) no-repeat 10px 10px;"
+                                         "border-top: 1px solid #f5f5f5;"
+                                         "box-shadow: 0px 0px 1px #aaaaaa;"
                                          "line-height: 18px;"
-                                         "text-align: center;"
-                                         "color: white;"
+                                         "color: #333;"
                                          "font-family: monospace;"
-                                         "padding: 0px 30px;"
+                                         "padding: 0px 70px;"
                                          "position: fixed;"
                                          "bottom: 0px;"
-                                         "right: 0px;"
                                          "left: 0px;"
                                          "height: 0px;"
                                          "opacity: 0.0;"
@@ -176,29 +160,54 @@
      (set-style c (merge {
                           :paddingTop "10px"
                           :paddingBottom "10px"
+                          :width "100%"
+                          :minHeight "47px"
                           :height "auto"
                           :opacity "1.0" }
                          style))
      (<! (timeout 400)))))
 
+(defn heading [s]
+  (str"<div style=\""
+      "font-size: 26px;"
+      "line-height: 26px;"
+      "margin-bottom: 2px;"
+      "padding-top: 1px;"      
+      "\">"
+      s "</div>"))
+
 (defn display-error [msg]
-  (display-heads-up {:backgroundColor "rgba(204,50,30, 0.95)"} msg))
+  (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
+                    (str (heading "Compile Error") "<div>" msg "</div>")))
 
 (defn display-warning [msg]
-  (display-heads-up {:backgroundColor "rgba(231, 154, 0, 0.95)" } msg))
+  (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
+                    (str (heading "Compile Warning") "<div>" msg "</div>")))
 
 (defn heads-up-append-message [message]
   (let [c (ensure-container "figwheel-heads-up-container")]
-     (set! (.-innerHTML c ) (str (.-innerHTML c) "<br>" message))))
+     (set! (.-innerHTML c ) (str (.-innerHTML c) "<div>" message "</div>"))))
 
 (defn clear-heads-up []
   (go
    (let [c (ensure-container "figwheel-heads-up-container")]
      (set-style c { :opacity "0.0" })
+     (<! (timeout 300))
+     (set-style c { :width "auto"
+                    :height "0px"
+                    :padding "0px 70px"
+                    :borderRadius "0px"
+                    :backgroundColor "transparent" })
      (<! (timeout 200))
-     (set! (.-innerHTML c ) "")
-     (set-style c { :height "0px"
-                    :backgroundColor "transparent" }))))
+     (set! (.-innerHTML c ) ""))))
+
+(defn display-loaded-start []
+  (display-heads-up {:backgroundColor "rgba(211,234,172,1.0)"
+                     :width "67px"
+                     :height "35px"                     
+                     :paddingLeft "0px"
+                     :paddingRight "0px"
+                     :borderRadius "35px" } ""))
 
 (ensure-container "figwheel-heads-up-container")
 #_(warning-circle "This is an error yeppers")
@@ -243,7 +252,7 @@
 ;; exception
 
 (defn watch-and-reload* [{:keys [retry-count websocket-url] :as opts}
-                         msg-channel]
+                         msg-hist-atom]
   (if-not (have-websockets?)
     (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
     (do
@@ -255,7 +264,7 @@
                                        (and (map? msg)
                                             (:msg-name msg)
                                             (not= (:msg-name msg) :ping)
-                                            (put! msg-channel msg)))))
+                                            (swap! msg-hist-atom conj msg)))))
         (set! (.-onopen socket)  (fn [x]
                                    (patch-goog-base)
                                    (.debug js/console "Figwheel: socket connection established")))
@@ -266,7 +275,7 @@
                                                   (fn []
                                                     (watch-and-reload*
                                                      (assoc opts :retry-count (dec retry-count))
-                                                     msg-channel))
+                                                     msg-hist-atom))
                                                   2000))))
         (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))
         socket))))
@@ -276,6 +285,8 @@
     (.dispatchEvent (.querySelector js/document "body")
                     (js/CustomEvent. "figwheel.js-reload"
                                      (js-obj "detail" url)))))
+
+;; exception formatting
 
 (defn get-essential-messages [ed]
   (when ed
@@ -294,18 +305,15 @@
 
 ;; compile failure behavior
 
-(defn compile-failed [opts
-                      {:keys [formatted-exception exception-data] :as fail-msg}
-                      compile-fail-callback]
-  (compile-fail-callback (dissoc fail-msg :msg-name))
-  (display-error (clojure.string/join "<br>" (format-messages exception-data))))
-
-(defn compile-warning [{:keys [on-compile-warning]} last-message-type
-                       {:keys [message] :as msg}]
-  (on-compile-warning msg)
-  (if (= last-message-type :compile-warning)
-    (go (heads-up-append-message message) 1)
-    (display-warning message)))
+(defn reload-js-files [{:keys [before-jsload on-jsload] :as opts} {:keys [files] :as msg}]
+  (go
+   (before-jsload files)
+   (let [files'  (add-request-urls opts files) 
+         res     (<! (load-all-js-files files'))]
+     (when (not-empty res)
+       (.debug js/console "Figwheel: loaded these files")
+       (.log js/console (pr-str (map :file res)))
+       (apply on-jsload [res])))))
 
 (defn default-on-compile-warning [{:keys [message] :as w}]
   (.warn js/console "Figwheel: Compile Warning -" message)
@@ -313,7 +321,6 @@
 
 (defn default-before-load [files]
   (.debug js/console "Figwheel: loading files")
-  #_(.log js/console (pr-str (mapv :file files)))
   files)
 
 (defn default-on-cssload [files]
@@ -321,39 +328,117 @@
   (.log js/console (pr-str (map :file files)))
   files)
 
-(defn message-handler-loop [msg-channel {:keys [on-compile-warning on-compile-fail] :as opts}]
-  (go-loop [last-message-type ::not-a-known-message]
-           (let [msg (<! msg-channel)]
-             (when msg
-               (when (and (not= :compile-warning last-message-type)
-                          (= (:msg-name msg) :files-changed))
-                 (<! (clear-heads-up)))
-               (condp = (:msg-name msg)
-                 :files-changed     (<! (reload-js-files opts last-message-type msg) )
-                 :css-files-changed (reload-css-files opts msg)
-                 :compile-failed    (<! (compile-failed opts msg on-compile-fail))
-                 :compile-warning   (<! (compile-warning opts last-message-type msg))
-                 nil)
-               (recur (:msg-name msg))))))
+;; more powerful state management querying
+
+(defn just-msgs [name-set msg-hist]
+  (filter (comp name-set :msg-name) msg-hist))
+
+(defn reload-file? [msg-hist opts]
+  (or (:load-warninged-code opts)
+      (not= (-> msg-hist first :msg-name) :compile-warning)))
+
+(defn reload-file-state? [msg-hist opts]
+  (and (= (-> msg-hist first :msg-name) :files-changed)
+       (reload-file? (rest msg-hist) opts)))
+
+(defn block-reload-file-state? [msg-hist opts]
+  (and (= (-> msg-hist first :msg-name) :files-changed)
+       (not (reload-file? (rest msg-hist) opts))))
+
+(defn warning-append-state? [msg-hist]
+  (= [:compile-warning :compile-warning] (take 2 (map :msg-name msg-hist))))
+
+(defn warning-state? [msg-hist]
+  (= :compile-warning (-> msg-hist first :msg-name)))
+
+(defn rewarning-state? [msg-hist]
+  (= [:compile-warning :files-changed :compile-warning] (take 3 (map :msg-name msg-hist))))
+
+(defn compile-fail-state? [msg-hist]
+  (= :compile-failed (-> msg-hist first :msg-name)))
+
+(defn compile-refail-state? [msg-hist]
+  (= [:compile-failed :compile-failed] (take 2 (map :msg-name msg-hist))))
+
+(defn file-reloader-plugin [opts]
+  (let [ch (chan)]
+    (go-loop []
+             (let [[msg & msg-hist] (just-msgs #{:files-changed :compile-warning} (<! ch))]
+               (when msg
+                 (when (= (-> msg :msg-name) :files-changed)
+                   (if (reload-file? msg-hist opts)
+                     (<! (reload-js-files opts msg))
+                     (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
+                 (recur))))
+    (fn [msg-hist] (put! ch msg-hist) msg-hist)))
+
+(defn compile-fail-warning-plugin [{:keys [on-compile-warning on-compile-fail]}]
+  (fn [[{:keys [msg-name] :as msg} & _]]
+    (condp = msg-name
+          :compile-warning (on-compile-warning msg)
+          :compile-failed  (on-compile-fail msg)
+          nil)))
+
+(defn heads-up-plugin [opts]
+  (let [ch (chan)]
+    (go-loop []
+             (let [[msg & msg-hist] (just-msgs #{:files-changed :compile-warning :compile-failed} (<! ch))]
+               (when msg
+                 (cond
+                  (reload-file-state? (cons msg msg-hist) opts)
+                  (do (<! (display-loaded-start))
+                      (<! (timeout 400))
+                      (<! (clear-heads-up)))
+
+                  (compile-refail-state? (cons msg msg-hist))
+                  (do
+                    (<! (clear-heads-up))
+                    (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg))))))
+                  
+                  (compile-fail-state? (cons msg msg-hist))
+                  (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg)))))
+
+                  
+                  (warning-append-state? (cons msg msg-hist))
+                  (heads-up-append-message (:message msg))
+
+                  (rewarning-state? (cons msg msg-hist))
+                  (do
+                    (<! (clear-heads-up))
+                    (<! (display-warning (:message msg))))
+
+                  (warning-state? (cons msg msg-hist))
+                  (<! (display-warning (:message msg))))
+                 (recur))))
+    (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
 (defn watch-and-reload-with-opts [opts]
   (defonce watch-and-reload-singleton
-    (let [msg-channel (chan)]
+    (let [msg-hist-atom (atom (list))]
       (let [config (merge { :retry-count 100 
-                           :jsload-callback default-on-jsload ;; *** deprecated
-                           :on-jsload (or (:jsload-callback opts) default-on-jsload)
-                           :on-cssload default-on-cssload
-                           :before-jsload default-before-load
-                           :on-compile-fail default-on-compile-fail
-                           :on-compile-warning default-on-compile-warning
-                           :url-rewriter identity
-                           :websocket-url (str "ws://" js/location.host "/figwheel-ws")
-                           :load-warninged-code false}
-                          opts)]
-        (watch-and-reload* config msg-channel)
-        (message-handler-loop msg-channel config)))))
+                            :jsload-callback default-on-jsload ;; *** deprecated
+                            :on-jsload (or (:jsload-callback opts) default-on-jsload)
+                            :on-cssload default-on-cssload
+                            :before-jsload default-before-load
+                            :on-compile-fail default-on-compile-fail
+                            :on-compile-warning default-on-compile-warning
+                            :url-rewriter identity
+                            :websocket-url (str "ws://" js/location.host "/figwheel-ws")
+                            :load-warninged-code false
+                            :heads-up-display true }
+                          opts)
+            base-plugins { :file-reloader-plugin     file-reloader-plugin
+                           :comp-fail-warning-plugin compile-fail-warning-plugin }
+            plugins      (if (:heads-up-display config)
+                           (assoc base-plugins :heads-up-display-plugin heads-up-plugin)
+                           base-plugins)]
+        (doseq [[k x] plugins]
+          (let [pl (x config)]
+            (add-watch msg-hist-atom k (fn [_ _ _ msg-hist] (pl msg-hist)))))
+        (watch-and-reload* config msg-hist-atom)))))
 
 ;; This takes keyword arguments
 (defn watch-and-reload
   [& {:keys [] :as opts}]
   (watch-and-reload-with-opts opts))
+
