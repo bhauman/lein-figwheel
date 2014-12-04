@@ -211,9 +211,6 @@
                      :paddingRight "0px"
                      :borderRadius "35px" } ""))
 
-(ensure-container "figwheel-heads-up-container")
-#_(warning-circle "This is an error yeppers")
-
 ;; super tricky hack to get goog to load newly required files
 
 (defn figwheel-closure-import-script [src]
@@ -422,6 +419,7 @@
                   (warning-state? msg-names)
                   (<! (display-warning (:message msg))))
                  (recur))))
+    (ensure-container "figwheel-heads-up-container")
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
 (defn watch-and-reload-with-opts [opts]
@@ -454,4 +452,3 @@
 (defn watch-and-reload
   [& {:keys [] :as opts}]
   (watch-and-reload-with-opts opts))
-
