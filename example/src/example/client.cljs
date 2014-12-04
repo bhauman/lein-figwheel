@@ -53,7 +53,7 @@
 ;; CSS reloading
 
 (defn current-links []
-  (.call (.. js/Array -prototype -slice) (.query js/document "link")))
+  (.call (.. js/Array -prototype -slice) (.getElementsByTagName js/document "link")))
 
 (defn truncate-url [url]
   (-> (first (string/split url #"\?")) 
@@ -106,11 +106,13 @@
     (add-link-to-doc (create-link request-url))))
 
 (defn reload-css-files [{:keys [on-cssload] :as opts} files-msg]
+  
   (doseq [f (add-request-urls opts (:files files-msg))]
     (reload-css-file f))
   (go
    (<! (timeout 100))
    (on-cssload (:files files-msg))))
+
 
 ;; heads up display
 
@@ -330,47 +332,56 @@
 
 ;; more powerful state management querying
 
-(defn just-msgs [name-set msg-hist]
-  (filter (comp name-set :msg-name) msg-hist))
+(defn focus-msgs [name-set msg-hist]
+  (cons (first msg-hist) (filter (comp name-set :msg-name) (rest msg-hist))))
 
-(defn reload-file? [msg-hist opts]
+(defn reload-file?* [msg-name opts]
   (or (:load-warninged-code opts)
-      (not= (-> msg-hist first :msg-name) :compile-warning)))
+      (not= msg-name :compile-warning)))
 
-(defn reload-file-state? [msg-hist opts]
-  (and (= (-> msg-hist first :msg-name) :files-changed)
-       (reload-file? (rest msg-hist) opts)))
+(defn reload-file-state? [msg-names opts]
+  (and (= (first msg-names) :files-changed)
+       (reload-file?* (second msg-names) opts)))
 
-(defn block-reload-file-state? [msg-hist opts]
-  (and (= (-> msg-hist first :msg-name) :files-changed)
-       (not (reload-file? (rest msg-hist) opts))))
+(defn block-reload-file-state? [msg-names opts]
+  (and (= (first msg-names) :files-changed)
+       (not (reload-file?* (second msg-names) opts))))
 
-(defn warning-append-state? [msg-hist]
-  (= [:compile-warning :compile-warning] (take 2 (map :msg-name msg-hist))))
+(defn warning-append-state? [msg-names]
+  (= [:compile-warning :compile-warning] (take 2 msg-names)))
 
-(defn warning-state? [msg-hist]
-  (= :compile-warning (-> msg-hist first :msg-name)))
+(defn warning-state? [msg-names]
+  (= :compile-warning (first msg-names)))
 
-(defn rewarning-state? [msg-hist]
-  (= [:compile-warning :files-changed :compile-warning] (take 3 (map :msg-name msg-hist))))
+(defn rewarning-state? [msg-names]
+  (= [:compile-warning :files-changed :compile-warning] (take 3 msg-names)))
 
-(defn compile-fail-state? [msg-hist]
-  (= :compile-failed (-> msg-hist first :msg-name)))
+(defn compile-fail-state? [msg-names]
+  (= :compile-failed (first msg-names)))
 
-(defn compile-refail-state? [msg-hist]
-  (= [:compile-failed :compile-failed] (take 2 (map :msg-name msg-hist))))
+(defn compile-refail-state? [msg-names]
+  (= [:compile-failed :compile-failed] (take 2 msg-names)))
 
 (defn file-reloader-plugin [opts]
   (let [ch (chan)]
     (go-loop []
-             (let [[msg & msg-hist] (just-msgs #{:files-changed :compile-warning} (<! ch))]
-               (when msg
-                 (when (= (-> msg :msg-name) :files-changed)
-                   (if (reload-file? msg-hist opts)
-                     (<! (reload-js-files opts msg))
-                     (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
+             (when-let [msg-hist' (<! ch)]
+               (let [msg-hist (focus-msgs #{:files-changed :compile-warning} (take 3 msg-hist'))
+                     msg-names (map :msg-name msg-hist)
+                     msg (first msg-hist)]
+                 (cond
+                  (reload-file-state? msg-names opts)
+                  (<! (reload-js-files opts msg))
+
+                  (block-reload-file-state? msg-names opts)
+                  (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file)))
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
+
+(defn css-reloader-plugin [opts]
+  (fn [[{:keys [msg-name] :as msg} & _]]
+    (when (= msg-name :css-files-changed)
+      (reload-css-files opts msg))))
 
 (defn compile-fail-warning-plugin [{:keys [on-compile-warning on-compile-fail]}]
   (fn [[{:keys [msg-name] :as msg} & _]]
@@ -382,32 +393,33 @@
 (defn heads-up-plugin [opts]
   (let [ch (chan)]
     (go-loop []
-             (let [[msg & msg-hist] (just-msgs #{:files-changed :compile-warning :compile-failed} (<! ch))]
-               (when msg
+             (when-let [msg-hist' (take 3 (<! ch))]
+               (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
+                     msg-names (map :msg-name msg-hist)
+                     msg (first msg-hist)]
                  (cond
-                  (reload-file-state? (cons msg msg-hist) opts)
+                  (reload-file-state? msg-names opts)
                   (do (<! (display-loaded-start))
                       (<! (timeout 400))
                       (<! (clear-heads-up)))
-
-                  (compile-refail-state? (cons msg msg-hist))
+                  
+                  (compile-refail-state? msg-names)
                   (do
                     (<! (clear-heads-up))
                     (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg))))))
                   
-                  (compile-fail-state? (cons msg msg-hist))
+                  (compile-fail-state? msg-names)
                   (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg)))))
-
                   
-                  (warning-append-state? (cons msg msg-hist))
+                  (warning-append-state? msg-names)
                   (heads-up-append-message (:message msg))
-
-                  (rewarning-state? (cons msg msg-hist))
+                  
+                  (rewarning-state? msg-names)
                   (do
                     (<! (clear-heads-up))
                     (<! (display-warning (:message msg))))
 
-                  (warning-state? (cons msg msg-hist))
+                  (warning-state? msg-names)
                   (<! (display-warning (:message msg))))
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
@@ -428,7 +440,8 @@
                             :heads-up-display true }
                           opts)
             base-plugins { :file-reloader-plugin     file-reloader-plugin
-                           :comp-fail-warning-plugin compile-fail-warning-plugin }
+                           :comp-fail-warning-plugin compile-fail-warning-plugin
+                           :css-reloader-plugin      css-reloader-plugin }
             plugins      (if (:heads-up-display config)
                            (assoc base-plugins :heads-up-display-plugin heads-up-plugin)
                            base-plugins)]
