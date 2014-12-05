@@ -123,13 +123,16 @@
        (doseq [ch children] (.appendChild e ch)) ;; children
        e))
 
-(declare heads-up-config-options** clear-heads-up)
+(declare heads-up-config-options** clear-heads-up figwheel-websocket)
 
 (defn ll [v] (.log js/console v) v)
 
 (defmulti heads-up-event-dispatch (fn [dataset] (.-figwheelEvent dataset)))
 (defmethod heads-up-event-dispatch :default [_]  {})
 (defmethod heads-up-event-dispatch "file-selected" [dataset]
+  (.send figwheel-websocket (pr-str {:figwheel-event "file-selected"
+                                     :file-name (.-fileName dataset)
+                                     :file-line (.-fileLine dataset)}))
   (ll "dispatch worked")
   (ll dataset))
 
@@ -222,14 +225,15 @@
 
 (defn display-error [msg]
   (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
-                    (str (close-link) (heading "Compile Error") "<div>" msg "</div>")))
+                    (str (close-link) (heading "Compile Error") (format-line msg))))
 
 (defn display-warning [msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
                     (str (close-link) (heading "Compile Warning") (format-line msg))))
+
 (defn heads-up-append-message [message]
   (let [c (ensure-container)]
-     (set! (.-innerHTML c ) (str (.-innerHTML c) "<div>" message "</div>"))))
+     (set! (.-innerHTML c ) (str (.-innerHTML c) (format-line message)))))
 
 (defn clear-heads-up []
   (go
@@ -313,6 +317,7 @@
                                             (not= (:msg-name msg) :ping)
                                             (swap! msg-hist-atom conj msg)))))
         (set! (.-onopen socket)  (fn [x]
+                                   (set! figwheel-websocket socket)
                                    (patch-goog-base)
                                    (.debug js/console "Figwheel: socket connection established")))
         (set! (.-onclose socket) (fn [x]
@@ -456,10 +461,10 @@
       (compile-refail-state? msg-names)
       (do
         (<! (clear-heads-up))
-        (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg))))))
+        (<! (display-error (apply str (map format-line (format-messages (:exception-data msg)))))))
       
       (compile-fail-state? msg-names)
-      (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg)))))
+      (<! (display-error (apply str (map format-line (format-messages (:exception-data msg))))))
       
       (warning-append-state? msg-names)
       (heads-up-append-message (:message msg))
@@ -518,7 +523,7 @@
 
 (defn start
   ([opts]
-     (defonce figwheel-websocket
+     (defonce __figwheel-start-once__
        (let [plugins' (:plugins opts) ;; plugins replaces all plugins
              merge-plugins (:merge-plugins opts) ;; merge-plugins merges plugins
              system-options (handle-deprecated-jsload-callback
@@ -534,6 +539,7 @@
                (add-watch msg-hist-atom k (fn [_ _ _ msg-hist] (pl msg-hist))))))
          (open-websocket system-options msg-hist-atom))))
   ([] (start {})))
+
 
 ;; legacy interface
 (def watch-and-reload-with-opts start)

@@ -27,6 +27,8 @@
       [(subs base 0 i) (subs base i)]
       [base nil])))
 
+
+
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
   (let [watch-key (keyword (gensym "message-watch-"))]
@@ -44,8 +46,13 @@
                           (println "Figwheel: client disconnected " status)))
 
     (on-receive wschannel (fn [data]
-                            (println "herer erwer wer wer ")
-                            (println (prn-str (edn/read-string data)))))
+                            (when data
+                              (let [d (edn/read-string data)]
+                                (println (str "Figwheel recieved: " (pr-str d)))
+                                (when (= "file-selected" (:figwheel-event d))
+                                  (.exec (Runtime/getRuntime) (into-array String ["emacsclient" "-n"
+                                                                                  (str "+" (:file-line d))
+                                                                                  (:file-name d)])))))))
     ;; Keep alive!!
     (go-loop []
              (<! (timeout 5000))
