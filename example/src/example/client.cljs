@@ -28,7 +28,7 @@
   (if (or dependency-file
             ;; IMPORTANT make sure this file is currently provided
           (.isProvided_ js/goog namespace))
-    (.addCallback (loader/load (add-cache-buster request-url))
+    (.addCallback (loader/load (add-cache-buster request-url) #js { :cleanupWhenDone true })
                   #(apply callback [msg]))
     (apply callback [msg])))
 
@@ -125,8 +125,7 @@
 
 (defn ensure-container [id]
   (if-not (.querySelector js/document (str "#" id))
-    (-> (.getElementsByTagName js/document "body")
-        (aget 0)
+    (-> (.-body js/document)
         (.appendChild (node :div { :id id
                                     :style
                                     (str "-webkit-transition: all 0.2s ease-in-out;"
@@ -211,6 +210,12 @@
                      :paddingRight "0px"
                      :borderRadius "35px" } ""))
 
+(defn flash-loaded []
+  (go
+   (<! (display-loaded-start))
+   (<! (timeout 400))
+   (<! (clear-heads-up))))
+
 ;; super tricky hack to get goog to load newly required files
 
 (defn figwheel-closure-import-script [src]
@@ -250,8 +255,8 @@
 ;; the exception data is nested raw info obtained for the compile time
 ;; exception
 
-(defn watch-and-reload* [{:keys [retry-count websocket-url] :as opts}
-                         msg-hist-atom]
+(defn open-websocket [{:keys [retry-count retried-count websocket-url] :as opts}
+                               msg-hist-atom]
   (if-not (have-websockets?)
     (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
     (do
@@ -262,26 +267,35 @@
                                        #_(.log js/console (pr-str msg))
                                        (and (map? msg)
                                             (:msg-name msg)
+                                            ;; don't forward pings
                                             (not= (:msg-name msg) :ping)
                                             (swap! msg-hist-atom conj msg)))))
         (set! (.-onopen socket)  (fn [x]
                                    (patch-goog-base)
                                    (.debug js/console "Figwheel: socket connection established")))
         (set! (.-onclose socket) (fn [x]
-                                   (log opts "Figwheel: socket closed or failed to open")
-                                   (when (> retry-count 0)
-                                     (.setTimeout js/window
-                                                  (fn []
-                                                    (watch-and-reload*
-                                                     (assoc opts :retry-count (dec retry-count))
-                                                     msg-hist-atom))
-                                                  2000))))
+                                   (let [retried-count (or retried-count 0)]
+                                     (log opts "Figwheel: socket closed or failed to open")
+                                     (when (> retry-count retried-count)
+                                       (.setTimeout js/window
+                                                    (fn []
+                                                      (open-websocket
+                                                       (assoc opts :retried-count (inc retried-count))
+                                                       msg-hist-atom))
+                                                    ;; linear back off
+                                                    (min 10000 (+ 2000 (* 500 retried-count))))))))
         (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))
         socket))))
 
+;; if you don't configure a :jsload-callback or an :on-jsload callback
+;; this function will dispatch a browser event
+;;
+;; you can listen to this event easily like so:
+;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
+
 (defn default-on-jsload [url]
   (when (have-custom-events?)
-    (.dispatchEvent (.querySelector js/document "body")
+    (.dispatchEvent (.-body js/document)
                     (js/CustomEvent. "figwheel.js-reload"
                                      (js-obj "detail" url)))))
 
@@ -301,8 +315,6 @@
   (doseq [msg (format-messages exception-data)]
     (.log js/console msg))
   ed)
-
-;; compile failure behavior
 
 (defn reload-js-files [{:keys [before-jsload on-jsload] :as opts} {:keys [files] :as msg}]
   (go
@@ -359,11 +371,14 @@
 (defn compile-refail-state? [msg-names]
   (= [:compile-failed :compile-failed] (take 2 msg-names)))
 
+(defn css-loaded-state? [msg-names]
+  (= :css-files-changed (first msg-names)))
+
 (defn file-reloader-plugin [opts]
   (let [ch (chan)]
     (go-loop []
              (when-let [msg-hist' (<! ch)]
-               (let [msg-hist (focus-msgs #{:files-changed :compile-warning} (take 3 msg-hist'))
+               (let [msg-hist (focus-msgs #{:files-changed :compile-warning} msg-hist')
                      msg-names (map :msg-name msg-hist)
                      msg (first msg-hist)]
                  (cond
@@ -390,15 +405,16 @@
 (defn heads-up-plugin [opts]
   (let [ch (chan)]
     (go-loop []
-             (when-let [msg-hist' (take 3 (<! ch))]
+             (when-let [msg-hist' (<! ch)]
                (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
                      msg-names (map :msg-name msg-hist)
                      msg (first msg-hist)]
                  (cond
                   (reload-file-state? msg-names opts)
-                  (do (<! (display-loaded-start))
-                      (<! (timeout 400))
-                      (<! (clear-heads-up)))
+                  (do
+                    (print (take 3 msg-names))
+                    (<! (flash-loaded)))
+
                   
                   (compile-refail-state? msg-names)
                   (do
@@ -417,38 +433,64 @@
                     (<! (display-warning (:message msg))))
 
                   (warning-state? msg-names)
-                  (<! (display-warning (:message msg))))
+                  (<! (display-warning (:message msg)))
+                  
+                  (css-loaded-state? msg-names)
+                  (<! (flash-loaded)))
                  (recur))))
     (ensure-container "figwheel-heads-up-container")
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
-(defn watch-and-reload-with-opts [opts]
-  (defonce watch-and-reload-singleton
-    (let [msg-hist-atom (atom (list))]
-      (let [config (merge { :retry-count 100 
-                            :jsload-callback default-on-jsload ;; *** deprecated
-                            :on-jsload (or (:jsload-callback opts) default-on-jsload)
-                            :on-cssload default-on-cssload
-                            :before-jsload default-before-load
-                            :on-compile-fail default-on-compile-fail
-                            :on-compile-warning default-on-compile-warning
-                            :url-rewriter identity
-                            :websocket-url (str "ws://" js/location.host "/figwheel-ws")
-                            :load-warninged-code false
-                            :heads-up-display true }
-                          opts)
-            base-plugins { :file-reloader-plugin     file-reloader-plugin
-                           :comp-fail-warning-plugin compile-fail-warning-plugin
-                           :css-reloader-plugin      css-reloader-plugin }
-            plugins      (if (:heads-up-display config)
-                           (assoc base-plugins :heads-up-display-plugin heads-up-plugin)
-                           base-plugins)]
-        (doseq [[k x] plugins]
-          (let [pl (x config)]
-            (add-watch msg-hist-atom k (fn [_ _ _ msg-hist] (pl msg-hist)))))
-        (watch-and-reload* config msg-hist-atom)))))
+(defonce config-defaults
+  {:retry-count 100
+   :websocket-url (str "ws://" js/location.host "/figwheel-ws")
+   :load-warninged-code false
+   
+   :on-jsload default-on-jsload
+   :before-jsload default-before-load
+   :url-rewriter identity
 
-;; This takes keyword arguments
-(defn watch-and-reload
-  [& {:keys [] :as opts}]
-  (watch-and-reload-with-opts opts))
+   :on-cssload default-on-cssload
+   
+   :on-compile-fail default-on-compile-fail
+   :on-compile-warning default-on-compile-warning
+   
+   :heads-up-display true })
+
+(defn handle-deprecated-jsload-callback [config]
+  (if (:jsload-callback config)
+    (-> config
+        (assoc  :on-jsload (:jsload-callback config))
+        (dissoc :jsload-callback))
+    config))
+
+(defn base-plugins [system-options]
+  (let [base {:file-reloader-plugin     file-reloader-plugin
+              :comp-fail-warning-plugin compile-fail-warning-plugin
+              :css-reloader-plugin      css-reloader-plugin}]
+    (if (:heads-up-display system-options)
+      (assoc base :heads-up-display-plugin heads-up-plugin)
+      base)))
+
+(defn start
+  ([opts]
+     (defonce figwheel-websocket
+       (let [plugins' (:plugins opts) ;; plugins replaces all plugins
+             merge-plugins (:merge-plugins opts) ;; merge-plugins merges plugins
+             system-options (handle-deprecated-jsload-callback
+                             (merge config-defaults
+                                    (dissoc opts :plugins :merge-plugins)))
+             plugins  (if plugins'
+                        plugins'
+                        (merge (base-plugins system-options) merge-plugins))
+             msg-hist-atom (atom (list))]
+         (doseq [[k plugin] plugins]
+           (when plugin
+             (let [pl (plugin system-options)]
+               (add-watch msg-hist-atom k (fn [_ _ _ msg-hist] (pl msg-hist))))))
+         (open-websocket system-options msg-hist-atom))))
+  ([] (start {})))
+
+;; legacy interface
+(def watch-and-reload-with-opts start)
+(defn watch-and-reload [& {:keys [] :as opts}] (start opts))
