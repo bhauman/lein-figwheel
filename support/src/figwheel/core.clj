@@ -9,6 +9,7 @@
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
+   [clojure.edn :as edn]
    [clojure.java.io :refer [as-file] :as io]
    [digest]
    [clj-stacktrace.core :refer [parse-exception]]
@@ -41,7 +42,10 @@
     (on-close wschannel (fn [status]
                           (remove-watch file-change-atom watch-key)
                           (println "Figwheel: client disconnected " status)))
-    
+
+    (on-receive wschannel (fn [data]
+                            (println "herer erwer wer wer ")
+                            (println (prn-str (edn/read-string data)))))
     ;; Keep alive!!
     (go-loop []
              (<! (timeout 5000))

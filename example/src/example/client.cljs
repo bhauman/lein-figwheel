@@ -123,11 +123,22 @@
        (doseq [ch children] (.appendChild e ch)) ;; children
        e))
 
+(declare heads-up-config-options** clear-heads-up)
 
-(declare heads-up-config-options**)
+(defn ll [v] (.log js/console v) v)
+
+(defmulti heads-up-event-dispatch (fn [dataset] (.-figwheelEvent dataset)))
+(defmethod heads-up-event-dispatch :default [_]  {})
+(defmethod heads-up-event-dispatch "file-selected" [dataset]
+  (ll "dispatch worked")
+  (ll dataset))
+
+(defmethod heads-up-event-dispatch "close-heads-up" [dataset] (clear-heads-up))
 
 (defn heads-up-onclick-handler [event]
-  (.log js/console event))
+  (let [dataset (.. event -target -dataset)]
+    (.preventDefault event)
+    (heads-up-event-dispatch dataset)))
 
 (defn ensure-container []
   (let [cont-id "figwheel-heads-up-container"]
@@ -145,12 +156,13 @@
                                 "line-height: 18px;"
                                 "color: #333;"
                                 "font-family: monospace;"
-                                "padding: 0px 70px;"
+                                "padding: 0px 10px 0px 70px;"
                                 "position: fixed;"
                                 "bottom: 0px;"
                                 "left: 0px;"
                                 "height: 0px;"
                                 "opacity: 0.0;"
+                                "box-sizing: border-box;"
                                 ) })]
         (set! (.-onclick el) heads-up-onclick-handler)
         (-> (.-body js/document)
@@ -162,6 +174,19 @@
    (fn [[k v]]
      (aset (.-style c) (name k) v))
    st-map))
+
+(defn close-link []
+  (str "<a style=\""
+      "float: right;"
+      "font-size: 18px;"
+      "text-decoration: none;"
+      "text-align: right;"
+      "width: 30px;"
+      "height: 30px;"
+      "color: rgba(84,84,84, 0.5);"
+      "\" href=\"#\"  data-figwheel-event=\"close-heads-up\">"
+      "x"
+      "</a>"))
 
 (defn display-heads-up [style msg]
   (go
@@ -186,14 +211,22 @@
       "\">"
       s "</div>"))
 
+(defn file-and-line-number [msg]
+  (when (re-matches #".*at\sline.*" msg)
+    (take 2 (reverse (string/split msg " ")))))
+
+(defn format-line [msg]
+  (if-let [[f ln] (file-and-line-number msg)]
+    (str "<div data-figwheel-event=\"file-selected\" data-file-name=\"" f "\" data-file-line=\"" ln "\">" msg "</div>")
+    (str "<div>" msg "</div>")))
+
 (defn display-error [msg]
   (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
-                    (str (heading "Compile Error") "<div>" msg "</div>")))
+                    (str (close-link) (heading "Compile Error") "<div>" msg "</div>")))
 
 (defn display-warning [msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
-                    (str (heading "Compile Warning") "<div>" msg "</div>")))
-
+                    (str (close-link) (heading "Compile Warning") (format-line msg))))
 (defn heads-up-append-message [message]
   (let [c (ensure-container)]
      (set! (.-innerHTML c ) (str (.-innerHTML c) "<div>" message "</div>"))))
@@ -205,7 +238,7 @@
      (<! (timeout 300))
      (set-style c { :width "auto"
                     :height "0px"
-                    :padding "0px 70px"
+                    :padding "0px 10px 0px 70px"
                     :borderRadius "0px"
                     :backgroundColor "transparent" })
      (<! (timeout 200))
@@ -214,7 +247,7 @@
 (defn display-loaded-start []
   (display-heads-up {:backgroundColor "rgba(211,234,172,1.0)"
                      :width "67px"
-                     :height "35px"                     
+                     :height "67px"                     
                      :paddingLeft "0px"
                      :paddingRight "0px"
                      :borderRadius "35px" } ""))
@@ -348,7 +381,7 @@
   (.log js/console (pr-str (map :file files)))
   files)
 
-;; more powerful state management querying
+;; more flexible state management
 
 (defn focus-msgs [name-set msg-hist]
   (cons (first msg-hist) (filter (comp name-set :msg-name) (rest msg-hist))))
