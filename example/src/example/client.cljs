@@ -123,30 +123,39 @@
        (doseq [ch children] (.appendChild e ch)) ;; children
        e))
 
-(defn ensure-container [id]
-  (if-not (.querySelector js/document (str "#" id))
-    (-> (.-body js/document)
-        (.appendChild (node :div { :id id
-                                    :style
-                                    (str "-webkit-transition: all 0.2s ease-in-out;"
-                                         "-moz-transition: all 0.2s ease-in-out;"
-                                         "-o-transition: all 0.2s ease-in-out;"
-                                         "transition: all 0.2s ease-in-out;"
-                                         "font-size: 13px;"
-                                         "background: url(https://s3.amazonaws.com/bhauman-blog-images/jira-logo-scaled.png) no-repeat 10px 10px;"
-                                         "border-top: 1px solid #f5f5f5;"
-                                         "box-shadow: 0px 0px 1px #aaaaaa;"
-                                         "line-height: 18px;"
-                                         "color: #333;"
-                                         "font-family: monospace;"
-                                         "padding: 0px 70px;"
-                                         "position: fixed;"
-                                         "bottom: 0px;"
-                                         "left: 0px;"
-                                         "height: 0px;"
-                                         "opacity: 0.0;"
-                                         ) })))
-    (.getElementById js/document id)))
+
+(declare heads-up-config-options**)
+
+(defn heads-up-onclick-handler [event]
+  (.log js/console event))
+
+(defn ensure-container []
+  (let [cont-id "figwheel-heads-up-container"]
+    (if-not (.querySelector js/document (str "#" cont-id))
+      (let [el (node :div { :id cont-id
+                           :style
+                           (str "-webkit-transition: all 0.2s ease-in-out;"
+                                "-moz-transition: all 0.2s ease-in-out;"
+                                "-o-transition: all 0.2s ease-in-out;"
+                                "transition: all 0.2s ease-in-out;"
+                                "font-size: 13px;"
+                                "background: url(https://s3.amazonaws.com/bhauman-blog-images/jira-logo-scaled.png) no-repeat 10px 10px;"
+                                "border-top: 1px solid #f5f5f5;"
+                                "box-shadow: 0px 0px 1px #aaaaaa;"
+                                "line-height: 18px;"
+                                "color: #333;"
+                                "font-family: monospace;"
+                                "padding: 0px 70px;"
+                                "position: fixed;"
+                                "bottom: 0px;"
+                                "left: 0px;"
+                                "height: 0px;"
+                                "opacity: 0.0;"
+                                ) })]
+        (set! (.-onclick el) heads-up-onclick-handler)
+        (-> (.-body js/document)
+            (.appendChild el)))
+      (.getElementById js/document cont-id))))
 
 (defn set-style [c st-map]
   (mapv
@@ -156,7 +165,7 @@
 
 (defn display-heads-up [style msg]
   (go
-   (let [c (ensure-container "figwheel-heads-up-container")]
+   (let [c (ensure-container)]
      (set! (.-innerHTML c ) msg)
      (set-style c (merge {
                           :paddingTop "10px"
@@ -186,12 +195,12 @@
                     (str (heading "Compile Warning") "<div>" msg "</div>")))
 
 (defn heads-up-append-message [message]
-  (let [c (ensure-container "figwheel-heads-up-container")]
+  (let [c (ensure-container)]
      (set! (.-innerHTML c ) (str (.-innerHTML c) "<div>" message "</div>"))))
 
 (defn clear-heads-up []
   (go
-   (let [c (ensure-container "figwheel-heads-up-container")]
+   (let [c (ensure-container)]
      (set-style c { :opacity "0.0" })
      (<! (timeout 300))
      (set-style c { :width "auto"
@@ -406,7 +415,7 @@
   (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
         msg-names (map :msg-name msg-hist)
         msg (first msg-hist)]
-    (go 
+    (go
      (cond
       (reload-file-state? msg-names opts)
       (<! (flash-loaded))
@@ -435,11 +444,12 @@
 
 (defn heads-up-plugin [opts]
   (let [ch (chan)]
+    (def heads-up-config-options** opts)
     (go-loop []
              (when-let [msg-hist' (<! ch)]
                (<! (heads-up-plugin-msg-handler opts msg-hist'))
                (recur)))
-    (ensure-container "figwheel-heads-up-container")
+    (ensure-container)
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
 (defonce config-defaults
