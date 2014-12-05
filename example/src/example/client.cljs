@@ -402,42 +402,43 @@
           :compile-failed  (on-compile-fail msg)
           nil)))
 
+(defn heads-up-plugin-msg-handler [opts msg-hist']
+  (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
+        msg-names (map :msg-name msg-hist)
+        msg (first msg-hist)]
+    (go 
+     (cond
+      (reload-file-state? msg-names opts)
+      (<! (flash-loaded))
+      
+      (compile-refail-state? msg-names)
+      (do
+        (<! (clear-heads-up))
+        (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg))))))
+      
+      (compile-fail-state? msg-names)
+      (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg)))))
+      
+      (warning-append-state? msg-names)
+      (heads-up-append-message (:message msg))
+      
+      (rewarning-state? msg-names)
+      (do
+        (<! (clear-heads-up))
+        (<! (display-warning (:message msg))))
+      
+      (warning-state? msg-names)
+      (<! (display-warning (:message msg)))
+      
+      (css-loaded-state? msg-names)
+      (<! (flash-loaded))))))
+
 (defn heads-up-plugin [opts]
   (let [ch (chan)]
     (go-loop []
              (when-let [msg-hist' (<! ch)]
-               (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
-                     msg-names (map :msg-name msg-hist)
-                     msg (first msg-hist)]
-                 (cond
-                  (reload-file-state? msg-names opts)
-                  (do
-                    (print (take 3 msg-names))
-                    (<! (flash-loaded)))
-
-                  
-                  (compile-refail-state? msg-names)
-                  (do
-                    (<! (clear-heads-up))
-                    (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg))))))
-                  
-                  (compile-fail-state? msg-names)
-                  (<! (display-error (clojure.string/join "<br>" (format-messages (:exception-data msg)))))
-                  
-                  (warning-append-state? msg-names)
-                  (heads-up-append-message (:message msg))
-                  
-                  (rewarning-state? msg-names)
-                  (do
-                    (<! (clear-heads-up))
-                    (<! (display-warning (:message msg))))
-
-                  (warning-state? msg-names)
-                  (<! (display-warning (:message msg)))
-                  
-                  (css-loaded-state? msg-names)
-                  (<! (flash-loaded)))
-                 (recur))))
+               (<! (heads-up-plugin-msg-handler opts msg-hist'))
+               (recur)))
     (ensure-container "figwheel-heads-up-container")
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
