@@ -1,7 +1,6 @@
 (ns example.core
   (:require
-   #_[figwheel.client :as fw :include-macros true]
-   [example.client :as fw]
+   [figwheel.client :as fw]
    [example.cube]
    [crate.core]))
 
@@ -13,8 +12,7 @@
 
 (declare ex2-restart)
 
-(fw/start
- {
+(fw/start {
   :websocket-url "ws://localhost:3449/figwheel-ws"
   :on-jsload (fn []
                (ex2-restart)
