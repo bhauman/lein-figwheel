@@ -36,7 +36,8 @@
 (defn heads-up-onclick-handler [event]
   (let [dataset (get-dataset (.. event -target))]
     (.preventDefault event)
-    (heads-up-event-dispatch dataset)))
+    (when dataset
+      (heads-up-event-dispatch dataset))))
 
 (defn ensure-container []
   (let [cont-id "figwheel-heads-up-container"]
@@ -163,5 +164,3 @@
    (<! (display-loaded-start))
    (<! (timeout 400))
    (<! (clear))))
-
-
