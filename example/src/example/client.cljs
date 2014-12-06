@@ -113,7 +113,6 @@
    (<! (timeout 100))
    (on-cssload (:files files-msg))))
 
-
 ;; heads up display
 
 ;; cheap hiccup
@@ -129,17 +128,23 @@
 
 (defmulti heads-up-event-dispatch (fn [dataset] (.-figwheelEvent dataset)))
 (defmethod heads-up-event-dispatch :default [_]  {})
+
 (defmethod heads-up-event-dispatch "file-selected" [dataset]
   (.send figwheel-websocket (pr-str {:figwheel-event "file-selected"
                                      :file-name (.-fileName dataset)
-                                     :file-line (.-fileLine dataset)}))
-  (ll "dispatch worked")
-  (ll dataset))
+                                     :file-line (.-fileLine dataset)})))
 
 (defmethod heads-up-event-dispatch "close-heads-up" [dataset] (clear-heads-up))
 
+(defn ancestor-nodes [el]
+  (iterate (fn [e] (.-parentNode e)) el))
+
+(defn get-dataset [el]
+  (first (keep (fn [x] (when (.. x -dataset -figwheelEvent) (.. x -dataset)))
+               (take 4 (ancestor-nodes el)))))
+
 (defn heads-up-onclick-handler [event]
-  (let [dataset (.. event -target -dataset)]
+  (let [dataset (get-dataset (.. event -target))]
     (.preventDefault event)
     (heads-up-event-dispatch dataset)))
 
@@ -218,14 +223,24 @@
   (when (re-matches #".*at\sline.*" msg)
     (take 2 (reverse (string/split msg " ")))))
 
+(defn file-selector-div [file-name line-number msg]
+  (str "<div data-figwheel-event=\"file-selected\" data-file-name=\""
+       file-name "\" data-file-line=\"" line-number
+       "\">" msg "</div>"))
+
 (defn format-line [msg]
   (if-let [[f ln] (file-and-line-number msg)]
-    (str "<div data-figwheel-event=\"file-selected\" data-file-name=\"" f "\" data-file-line=\"" ln "\">" msg "</div>")
+    (file-selector-div f ln msg)
     (str "<div>" msg "</div>")))
 
-(defn display-error [msg]
-  (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
-                    (str (close-link) (heading "Compile Error") (format-line msg))))
+(declare format-messages)
+
+(defn display-error [exception-data]
+  (let [formatted-messages (format-messages exception-data)
+        [file-name file-line] (first (keep file-and-line-number formatted-messages))
+        msg (apply str (map #(str "<div>" % "</div>") (format-messages exception-data)))]
+    (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
+                      (str (close-link) (heading "Compile Error") (file-selector-div file-name file-line msg)))))
 
 (defn display-warning [msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
@@ -437,6 +452,7 @@
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
+
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= msg-name :css-files-changed)
@@ -461,10 +477,10 @@
       (compile-refail-state? msg-names)
       (do
         (<! (clear-heads-up))
-        (<! (display-error (apply str (map format-line (format-messages (:exception-data msg)))))))
+        (<! (display-error (:exception-data msg))))
       
       (compile-fail-state? msg-names)
-      (<! (display-error (apply str (map format-line (format-messages (:exception-data msg))))))
+      (<! (display-error (:exception-data msg)))
       
       (warning-append-state? msg-names)
       (heads-up-append-message (:message msg))
@@ -539,7 +555,6 @@
                (add-watch msg-hist-atom k (fn [_ _ _ msg-hist] (pl msg-hist))))))
          (open-websocket system-options msg-hist-atom))))
   ([] (start {})))
-
 
 ;; legacy interface
 (def watch-and-reload-with-opts start)

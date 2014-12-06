@@ -27,7 +27,30 @@
       [(subs base 0 i) (subs base i)]
       [base nil])))
 
+(defn read-msg [data]
+  (try
+    (let [msg (edn/read-string data)]
+      (if (and (map? msg) (:figwheel-event msg)) msg {}))
+    (catch Exception e
+      (println "Figwheel: message from client couldn't be read!")
+      {})))
 
+(defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
+  (when open-file-command
+    (if (= open-file-command "emacsclient")
+      ["emacsclient" "-n" (str "+" file-line) file-name] ;; we are emacs aware
+      [open-file-command file-name file-line])))
+
+(defn handle-client-msg [server-state data]
+  (when data
+    (let [msg (read-msg data)]
+      (when-let [command (and (= "file-selected" (:figwheel-event msg))
+                              (get-open-file-command server-state msg))]
+        (try
+          (.exec (Runtime/getRuntime) (into-array String command))
+          (catch Exception e
+            (println "Figwheel: there was a problem running the open file command - " command))
+          )))))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
@@ -45,14 +68,8 @@
                           (remove-watch file-change-atom watch-key)
                           (println "Figwheel: client disconnected " status)))
 
-    (on-receive wschannel (fn [data]
-                            (when data
-                              (let [d (edn/read-string data)]
-                                (println (str "Figwheel recieved: " (pr-str d)))
-                                (when (= "file-selected" (:figwheel-event d))
-                                  (.exec (Runtime/getRuntime) (into-array String ["emacsclient" "-n"
-                                                                                  (str "+" (:file-line d))
-                                                                                  (:file-name d)])))))))
+    (on-receive wschannel (fn [data] (handle-client-msg server-state data)))
+
     ;; Keep alive!!
     (go-loop []
              (<! (timeout 5000))
@@ -281,7 +298,8 @@
 
 (defn create-initial-state [{:keys [root resource-paths
                                     js-dirs css-dirs ring-handler http-server-root
-                                    server-port output-dir output-to]}]
+                                    server-port output-dir output-to
+                                    open-file-command]}]
   { :root root
     :resource-paths resource-paths
     :css-dirs css-dirs
@@ -291,12 +309,15 @@
     :output-to output-to
     :ring-handler ring-handler
     :server-port (or server-port 3449)
+    
     :css-last-pass (atom (System/currentTimeMillis))   
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to
                                         :output-dir output-dir
                                         :file-md5-atom (atom {})})
-    :file-change-atom (atom (list))})
+    :file-change-atom (atom (list))
+    :open-file-command open-file-command
+   })
 
 (defn resolve-ring-handler [{:keys [ring-handler] :as opts}]
   (when ring-handler (require (symbol (namespace (symbol ring-handler)))))
