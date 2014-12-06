@@ -16,8 +16,6 @@
        (doseq [ch children] (.appendChild e ch)) ;; children
        e))
 
-(defn ll [v] (.log js/console v) v)
-
 (defmulti heads-up-event-dispatch (fn [dataset] (.-figwheelEvent dataset)))
 (defmethod heads-up-event-dispatch :default [_]  {})
 
@@ -154,8 +152,8 @@
 
 (defn display-loaded-start []
   (display-heads-up {:backgroundColor "rgba(211,234,172,1.0)"
-                     :width "67px"
-                     :height "67px"                     
+                     :width "68px"
+                     :height "68px"                     
                      :paddingLeft "0px"
                      :paddingRight "0px"
                      :borderRadius "35px" } ""))
@@ -165,7 +163,5 @@
    (<! (display-loaded-start))
    (<! (timeout 400))
    (<! (clear))))
-
-
 
 
