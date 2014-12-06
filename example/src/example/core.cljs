@@ -1,6 +1,7 @@
 (ns example.core
   (:require
-   [figwheel.client :as fw :include-macros true]
+   #_[figwheel.client :as fw :include-macros true]
+   [example.client :as fw]
    [example.cube]
    [crate.core]))
 
@@ -10,10 +11,18 @@
 ;; you must call this function to start the listener that reloads
 ;; the compiled javascript
 
-;; this is commented out because we are invoking it at the bottom of
-;; this file
-;; (fw/watch-and-reload
-;;   :jsload-callback (fn [] (ex2-reload)))
+(declare ex2-restart)
+
+(fw/start
+ {
+  :websocket-url "ws://localhost:3449/figwheel-ws"
+  :on-jsload (fn []
+               (ex2-restart)
+               ;; this is a better way to reload the cube example
+               ;; which will reload even for non-local changes
+               ;; (example.cube/stop-and-start-ex3)
+               )
+  })
 
 ;; When you are writing reloadable code you have to protect things
 ;; that you don't want defined over and over.
@@ -22,7 +31,7 @@
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
 
-(println "This is a reloaded print statement: modify me.")
+(println "This is a reloaded print statement: modify me now.")
 
 ;; Example 1:  simple crate based app
 
@@ -113,17 +122,3 @@
 
 ;; start the app once
 (defonce start-ex2 (ex2-start))
-
-;; this is a better way to reload the cube example
-;; (defonce start-cube (example.cube/stop-and-start-ex3))
-
-;; IMPORTANT!!!
-;; Here we start the websocket listener
-(fw/watch-and-reload
- :websocket-url "ws://localhost:3449/figwheel-ws"
- :jsload-callback (fn []
-                    (ex2-restart)
-                    ;; this is a better way to reload the cube example
-                    ;; which will reload even for non-local changes
-                    ;; (example.cube/stop-and-start-ex3)
-                    ))
