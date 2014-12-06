@@ -34,7 +34,7 @@
                                      :output-dir "resources/public/js/compiled/out"
                                      :source-map true
                                      :optimizations :none}}]}
-  
+
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
