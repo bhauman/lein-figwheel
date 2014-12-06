@@ -386,7 +386,7 @@
      (when (not-empty res)
        (.debug js/console "Figwheel: loaded these files")
        (.log js/console (pr-str (map :file res)))
-       (apply on-jsload [res])))))
+       (js/setTimeout #(apply on-jsload [res]) 10)))))
 
 (defn default-on-compile-warning [{:keys [message] :as w}]
   (.warn js/console "Figwheel: Compile Warning -" message)
