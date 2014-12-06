@@ -58,8 +58,8 @@
      (when (not-empty res)
        (.debug js/console "Figwheel: loaded these files")
        (.log js/console (prn-str (map :file res)))
-       (<! (timeout 10)) ;; wait a beat before callback
-       (apply on-jsload [res])))))
+       ;; wait a beat before running callback outside of go's exception handler.
+       (js/setTimeout #(apply on-jsload [res]) 10)))))
 
 ;; CSS reloading
 
