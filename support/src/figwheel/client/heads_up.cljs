@@ -9,7 +9,8 @@
 (declare clear)
 ;; heads up display
 
-(def clojure-symbol-svg "<?xml version='1.0' encoding='UTF-8' ?>
+(def clojure-symbol-svg
+  "<?xml version='1.0' encoding='UTF-8' ?>
 <!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.1//EN' 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
 <svg width='49px' height='49px' viewBox='0 0 100 99' version='1.1' xmlns='http://www.w3.org/2000/svg' style='position:absolute; top:9px; left: 10px;'>
 <circle fill='rgba(255,255,255,0.5)' cx='49.75' cy='49.5' r='48.5'/>
@@ -118,14 +119,15 @@
 (defn display-heads-up [style msg]
   (go
    (let [c (ensure-container)]
-     (set-content! c msg)
      (set-style! c (merge {
                           :paddingTop "10px"
                           :paddingBottom "10px"
                           :width "100%"
-                          :height "auto"
-                          :opacity "1.0" }
-                         style))
+                           #_:minHeight #_"68px"
+                           :height "auto"
+                           :opacity "1.0" }
+                          style))
+     (set-content! c msg)
      (<! (timeout 400)))))
 
 (defn heading [s]
@@ -191,3 +193,4 @@
    (<! (display-loaded-start))
    (<! (timeout 400))
    (<! (clear))))
+
