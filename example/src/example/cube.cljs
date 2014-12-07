@@ -3,8 +3,7 @@
    [sablono.core :as sab :include-macros true]
    [cljs.core.async :as async])
   (:require-macros
-   [cljs.core.async.macros :refer [go-loop]]
-   [figwheel.client :refer [defonce]]))
+   [cljs.core.async.macros :refer [go-loop]]))
 
 ;; A more advanced example using React and Sablono
 ;; you can edit any of this live
