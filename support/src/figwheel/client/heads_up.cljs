@@ -75,6 +75,7 @@
                                 "height: 0px;"
                                 "opacity: 0.0;"
                                 "box-sizing: border-box;"
+                                "z-index: 10000;"
                                 ) })]
         (set! (.-onclick el) heads-up-onclick-handler)
         (set! (.-innerHTML el) (str clojure-symbol-svg))
