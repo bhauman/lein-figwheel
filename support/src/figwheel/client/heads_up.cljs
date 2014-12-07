@@ -62,7 +62,6 @@
                                 "-o-transition: all 0.2s ease-in-out;"
                                 "transition: all 0.2s ease-in-out;"
                                 "font-size: 13px;"
-                                #_"background: url(https://s3.amazonaws.com/bhauman-blog-images/jira-logo-scaled.png) no-repeat 10px 10px;"
                                 "border-top: 1px solid #f5f5f5;"
                                 "box-shadow: 0px 0px 1px #aaaaaa;"
                                 "line-height: 18px;"
