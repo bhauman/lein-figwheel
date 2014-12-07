@@ -127,13 +127,13 @@ Here is an example:
 
 ```clojure
 :cljsbuild {
-  { :builds [ { :id "example" 
-                :source-paths ["src/"]
-                :compiler { :output-to "resources/public/js/compiled/example.js"
-                            :output-dir "resources/public/js/compiled/out"
-                            :externs ["resources/public/js/externs/jquery-1.9.js"]
-                            :optimizations :none
-                            :source-map true } } ] } 
+  :builds [ { :id "example" 
+              :source-paths ["src/"]
+              :compiler { :output-to "resources/public/js/compiled/example.js"
+                          :output-dir "resources/public/js/compiled/out"
+                          :externs ["resources/public/js/externs/jquery-1.9.js"]
+                          :optimizations :none
+                          :source-map true } } ]
 }
 ```
 
