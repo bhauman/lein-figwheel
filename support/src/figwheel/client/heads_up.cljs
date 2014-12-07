@@ -57,7 +57,7 @@
     (if-not (.querySelector js/document (str "#" cont-id))
       (let [el (node :div { :id cont-id
                            :style
-                           (str "-webkit-transition: all 0.s ease-in-out;"
+                           (str "-webkit-transition: all 0.2s ease-in-out;"
                                 "-moz-transition: all 0.2s ease-in-out;"
                                 "-o-transition: all 0.2s ease-in-out;"
                                 "transition: all 0.2s ease-in-out;"
@@ -123,12 +123,13 @@
                           :paddingTop "10px"
                           :paddingBottom "10px"
                           :width "100%"
-                           #_:minHeight #_"68px"
-                           :height "auto"
-                           :opacity "1.0" }
+                          :minHeight "68px"
+                          :opacity "1.0" }
                           style))
      (set-content! c msg)
-     (<! (timeout 400)))))
+     (<! (timeout 300))
+     (set-style! c {:height "auto"}))))
+
 
 (defn heading [s]
   (str"<div style=\""
@@ -174,6 +175,7 @@
      (<! (timeout 300))
      (set-style! c { :width "auto"
                     :height "0px"
+                    :minHeight "0px"
                     :padding "0px 10px 0px 70px"
                     :borderRadius "0px"
                     :backgroundColor "transparent" })
