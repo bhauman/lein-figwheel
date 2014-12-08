@@ -14,6 +14,8 @@
   an `:open-file-command` option. This should be the name of a script on your
   path that takes a file and a line number. The reccomendation here is to write
   your own script and put it in ~/bin.
+* `:open-file-command` is `emacsclient` aware so you can just provide `"emacsclient"`
+  as an option and it will just work.
 * protection from connecting to another project by mistake
 
 ## 0.1.6-SNAPSHOT
