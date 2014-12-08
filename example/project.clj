@@ -23,17 +23,11 @@
   
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src"]
-                         :compiler { :output-to "resources/public/js/compiled/example.js"
-                                     :output-dir "resources/public/js/compiled/out"
-                                     :source-map true
-                                    :optimizations :none}}
-                       { :id "dev"
                          :source-paths ["src" "../support/src"]
                          :compiler { :output-to "resources/public/js/compiled/example.js"
                                      :output-dir "resources/public/js/compiled/out"
                                      :source-map true
-                                     :optimizations :none}}]}
+                                    :optimizations :none}}]}
 
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
@@ -43,4 +37,3 @@
              ;; if you want to embed a server in figwheel do it like so:
              #_:ring-handler #_example.server/handler
              })
-
