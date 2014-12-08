@@ -1,20 +1,12 @@
 # lein-figwheel
 
-Figwheel builds your code and hots loads it into browser as you are coding!
+Figwheel builds your ClojureScript code and hots loads it into browser as you are coding!
 
 Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
-
-![Fig wheel on a drink](http://s3.amazonaws.com/bhauman-blog-images/Fig-Sidecar_Pomegranate-Bistro1-1.jpg)
-
-#### Still a work in progress. But that doesn't mean it's not a cool garnish.
-
-
-
-A Leiningen plugin that builds your ClojureScript and pushes the
-changes to the browser.
-
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
+
+![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
 If you write reloadable code, figwheel can facilitate automated live
 interactive programming. Every time you save your ClojureScript source
@@ -39,10 +31,6 @@ in your laptop browser simultaneously. The broadcast of live code
 updates can have interesting applications. You could have a whole
 classroom directly interacting with a game that is being worked on
 live from the front of the room or even remotely.
-
-## Demo
-
-Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 ### What actually happens
 
