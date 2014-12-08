@@ -8,22 +8,39 @@ See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interac
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
-If you write reloadable code, figwheel can facilitate automated live
+If you write **reloadable code**, figwheel can facilitate automated live
 interactive programming. Every time you save your ClojureScript source
 file the changes are sent to the browser so you can see the effects of
 modifying your code in real time.  This is different than interactive
 programming in the browser-repl where you need to cherry pick which
 changes to send and which processes to start, etc.
 
+## Features 
+
+#### Static file server
+
 The inclusion of a **static file server** allows you to get a decent
 ClojureScript development environment up and running quickly.
+
+#### Live CSS reloading
+
+Figwheel will reload your CSS live as well.
+
+#### Heads up display
+
+Figwheel has a non-intrusive heads up display that gives you feedback
+on how well your project is compiling. By writing a shell script you
+can click on files in the heads up display and have them open in your
+editor!
+
+#### Robust connection
 
 Figwheel's connection is fairly robust. I have experienced figwheel
 sessions that have lasted for days through multiple OS sleeps. You can
 also use figwheel like a Repl if you are OK with using `print` to output
 the evaluation results to the browser console.
 
-Figwheel also has **live CSS reloading**.
+#### Message broadcast
 
 Figwheel **broadcasts** changes to all connected clients. This means you
 can see code and CSS changes take place in real time on your phone and
@@ -32,26 +49,6 @@ updates can have interesting applications. You could have a whole
 classroom directly interacting with a game that is being worked on
 live from the front of the room or even remotely.
 
-### What actually happens
-
-This plugin starts the cljsbuild auto builder, opens a websocket and
-starts static file server. When you save a ClojureScript file,
-cljsbuild will detect that and compile it and other affected files. It
-will then pass a list those changed files off to the figwheel server.
-The figwheel server will in turn push the paths of the **relevant**
-compiled javascript files through a websocket so that the browser can
-reload them.
-
-There is also a figwheel client that you need to include into your
-ClojureScript project to start a process which listens for changes and
-reloads the files.
-
-The main motivation for lein-figwheel is to allow for the interactive
-development of ClojureScript. Figwheel doesn't provide this out of the
-box, **the developer has to take care to make their code reloadable**. 
-
-If you are using React or Om it's not hard to write reloadable code,
-in fact you might already be doing it.
 
 ## Quick Start
 
@@ -313,6 +310,30 @@ points to the same resource on your server.
 
 [Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading if you aren't using Om.
 
+[Chestnut](https://github.com/plexus/chestnut) is a very complete
+leiningen template that includes figwheel.
+
+### What actually happens
+
+This plugin starts the cljsbuild auto builder, opens a websocket and
+starts static file server. When you save a ClojureScript file,
+cljsbuild will detect that and compile it and other affected files. It
+will then pass a list those changed files off to the figwheel server.
+The figwheel server will in turn push the paths of the **relevant**
+compiled javascript files through a websocket so that the browser can
+reload them.
+
+There is also a figwheel client that you need to include into your
+ClojureScript project to start a process which listens for changes and
+reloads the files.
+
+The main motivation for lein-figwheel is to allow for the interactive
+development of ClojureScript. Figwheel doesn't provide this out of the
+box, **the developer has to take care to make their code reloadable**. 
+
+If you are using React or Om it's not hard to write reloadable code,
+in fact you might already be doing it.
+
 ## Writing reloadable code
 
 Figwheel relies on having files that can be reloaded. 
@@ -447,6 +468,9 @@ If you want to do less thinking and write more reliable front end code
 you should really be looking at React, Om etc.
 
 OK enough.
+
+
+
 
 ## License
 
