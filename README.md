@@ -30,7 +30,7 @@ Figwheel will reload your CSS live as well.
 
 Figwheel has a non-intrusive heads up display that gives you feedback
 on how well your project is compiling. By writing a shell script you
-can click on files in the heads up display and have them open in your
+can click on files in the heads up display and they will open in your
 editor!
 
 #### Robust connection
@@ -54,7 +54,7 @@ live from the front of the room or even remotely.
 
 Make sure you have the [latest version of leinigen installed](https://github.com/technomancy/leiningen#installation).
 
-You can get started quickly with the flappy bird demo:
+You can try figwheel out quickly with the flappy bird demo:
 
     git clone https://github.com/bhauman/flappy-bird-demo.git
 
@@ -74,8 +74,6 @@ figwheel leinigen template.
 
 ## Usage
 
-#### For ClojureScript > 0.0-2197
-
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
@@ -89,23 +87,6 @@ section of your project.clj.
 ```clojure
 [lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
 [lein-figwheel "0.1.7-SNAPSHOT"]
-```
-
-#### For ClojureScript 0.0-2014 - 0.0-2173
-
-First make sure you include the following `:dependencies` in your `project.clj` file.
-
-```clojure
-[org.clojure/clojurescript "0.0-2173"] ;; has to be between 2014 - 2197
-[figwheel "0.1.2-2173-SNAPSHOT"]            ;; needed for figwheel client
-```
-
-Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
-section of your project.clj.
-
-```clojure
-[lein-cljsbuild "1.0.2"] ;; 1.0.2 is a requirement
-[lein-figwheel "0.1.2-2173-SNAPSHOT"]
 ```
 
 #### Configure lein cljsbuild
@@ -345,10 +326,7 @@ behavior.
 There are several coding patterns to look out for when writing
 reloadable code. 
 
-There is actually one pattern to look out for, and all others are a
-variation of this pattern.
-
-The problematic pattern is top level definitions that have local
+One problematic pattern is top level definitions that have local
 state.
 
 ```clojure
