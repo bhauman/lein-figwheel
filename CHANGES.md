@@ -1,3 +1,21 @@
+## 0.1.7-SNAPSHOT
+
+* compile warning notifications forwarded to client
+* block file reload if compile warnings are present
+  (there is still a race condition in cljsbuild that prevents this
+   from working 100% of the time)
+  to overide this use `:load-warninged-code true` in the figwheel client
+* got rid of the `defonce` macro. It is built into cljs
+* added a heads up display to the client!!! You can opt out of this with
+  `:heads-up-display false` in the client config
+* the heads up display 'can' trigger a file to open in your editor, if you do
+  the work to get `emacsclient` or your editor's equivalent working
+  in the `:figwheel` configuration in your `project.clj` you need to include
+  an `:open-file-command` option this should be the name of a script on your
+  path that takes a file and a line number. The reccomendation here is to write
+  your own script and put it in ~/bin.
+* protection from connecting to another project by mistake
+
 ## 0.1.6-SNAPSHOT
 
 * better configuration validation and feedback for configuration errors
