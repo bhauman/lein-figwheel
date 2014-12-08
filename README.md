@@ -1,7 +1,5 @@
 # lein-figwheel
 
-File Eval Gui Loop > FEGL > FEGUIL > "figwheel"
-
 ![Fig wheel on a drink](http://s3.amazonaws.com/bhauman-blog-images/Fig-Sidecar_Pomegranate-Bistro1-1.jpg)
 
 #### Still a work in progress. But that doesn't mean it's not a cool garnish.
@@ -90,7 +88,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojurescript "0.0-2197"] ;; has to be at least 2197 or greater
-[figwheel "0.1.6-SNAPSHOT"]            ;; needed for figwheel client
+[figwheel "0.1.7-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -98,7 +96,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
-[lein-figwheel "0.1.6-SNAPSHOT"]
+[lein-figwheel "0.1.7-SNAPSHOT"]
 ```
 
 #### For ClojureScript 0.0-2014 - 0.0-2173
@@ -179,7 +177,17 @@ In your `project.clj` you can add the following configuration parameters:
    ;; Server Ring Handler (optional)
    ;; if you want to embed a ring handler into the figwheel http-kit
    ;; server
-   :ring-handler example.server/handler 
+   :ring-handler example.server/handler
+
+   ;; To be able to open files in your editor from the heads up display
+   ;; you will need to put a script on your path.
+   ;; that script will have to take a file path and a line number
+   ;; ie.
+   ;;
+   ;; #! /bin/sh
+   ;; emacsclient -n +$2 $1
+   ;;
+   :open-file-command "myfile-opener"
 } 
 ```
 
@@ -188,7 +196,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.1.6-SNAPSHOT"]
+[figwheel "0.1.7-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
@@ -221,12 +229,25 @@ In keeping with the previous examples you would put this into your
 
 (println "You can change this line an see the changes in the dev console")
 
-(fw/watch-and-reload
-  ;; :websocket-url "ws://localhost:3449/figwheel-ws" default
-  :jsload-callback (fn [] (print "reloaded"))) ;; optional callback
+(fw/start {
+  ;; configure a websocket url if yor are using your own server
+  ;; :websocket-url "ws://localhost:3449/figwheel-ws"
+
+  ;; optional callback
+  :on-jsload (fn [] (print "reloaded") 
+
+  ;; The heads up display is enabled by default
+  ;; to disable it: 
+  ;; :heads-up-display false
+
+  ;; when the compiler emits warnings figwheel
+  ;; blocks the loading of files.
+  ;; To disable this behavior:
+  ;; :load-warninged-code true
+})
 ```
 
-The call to `watch-and-reload` is idempotent and can be called many
+The call to `start` is idempotent and can be called many
 times safely. 
 
 Whole files will be reloaded on change so we have to make sure that
@@ -257,7 +278,7 @@ websocket is.
 Like so:
 
 ```clojure
-(fw/watch-and-reload
+(fw/start
   :websocket-url   "ws://localhost:3449/figwheel-ws"
   :jsload-callback (fn [] (print "reloaded")))
 ```
@@ -288,7 +309,7 @@ recieves the resource url and should return a corrected url that
 points to the same resource on your server.
 
 ```clojure
-(fw/watch-and-reload
+(fw/start
   :websocket-url   "ws://localhost:3449/figwheel-ws"
   :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000")))
 ```
@@ -392,7 +413,7 @@ functions to be invoked on code reload.
    (.off ($ "div#app") "click" "a.button")
 
 ;; hook in the  
-(fw/watch-and-reload
+(fw/start
   :jsload-callback (fn [] 
                       (teardown)
                       (setup)))
