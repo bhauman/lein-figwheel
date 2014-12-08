@@ -18,7 +18,8 @@
   as an option and it will just work.
 * protection from connecting to another project by mistake
 * > 46 commits and many more changes
-
+* completely compatible with previous versions of figwheel unless you are using
+  figwheel's `defonce` and not ClojureScripts
 
 ## 0.1.6-SNAPSHOT
 
