@@ -126,6 +126,17 @@
     (heads-up/ensure-container)
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
+(defn enforce-project-plugin [opts]
+  (fn [msg-hist]
+    (when (< 1 (count (set (keep :project-id (take 5 msg-hist)))))
+      (socket/close!)
+      (.error js/console "Figwheel: message received from different project. Shutting socket down.")
+      (when (:heads-up-display opts)
+        (go
+         (<! (timeout 3000))
+         (heads-up/display-system-warning "Connection from different project"
+                                          "Shutting connection down!!!!!"))))))
+
 ;; defaults and configuration
 
 ;; default callbacks
@@ -186,7 +197,8 @@
     config))
 
 (defn base-plugins [system-options]
-  (let [base {:file-reloader-plugin     file-reloader-plugin
+  (let [base {:enforce-project-plugin enforce-project-plugin
+              :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin}]
     (if (:heads-up-display system-options)
@@ -209,8 +221,7 @@
                                     (dissoc opts :plugins :merge-plugins)))
              plugins  (if plugins'
                         plugins'
-                        (merge (base-plugins system-options) merge-plugins))
-             msg-hist-atom (atom (list))]
+                        (merge (base-plugins system-options) merge-plugins))]
          (add-plugins plugins system-options)
          (reloading/patch-goog-base)
          (socket/open system-options))))

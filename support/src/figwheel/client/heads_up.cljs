@@ -141,9 +141,12 @@
     (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
                       (str (close-link) (heading "Compile Error") (file-selector-div file-name file-line msg)))))
 
-(defn display-warning [msg]
+(defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
-                    (str (close-link) (heading "Compile Warning") (format-line msg))))
+                    (str (close-link) (heading header) (format-line msg))))
+
+(defn display-warning [msg]
+  (display-system-warning "Compile Warning" msg))
 
 (defn append-message [message]
   (let [{:keys [content-area-el]} (ensure-container)

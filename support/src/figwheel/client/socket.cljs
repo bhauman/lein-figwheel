@@ -37,6 +37,10 @@
   "Send a end message to the server."
   [msg] (.send @socket-atom (pr-str msg)))
 
+(defn close! []
+  (set! (.-onclose @socket-atom) identity)
+  (.close @socket-atom))
+
 (defn open [{:keys [retry-count retried-count websocket-url] :as opts}]
   (if-not (have-websockets?)
     (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
