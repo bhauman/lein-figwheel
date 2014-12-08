@@ -35,6 +35,9 @@
       (println "Figwheel: message from client couldn't be read!")
       {})))
 
+(defn project-unique-id [{:keys [name version]}]
+  (str name "--" version))
+
 (defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
   (when open-file-command
     (if (= open-file-command "emacsclient")
@@ -51,6 +54,11 @@
           (catch Exception e
             (println "Figwheel: there was a problem running the open file command - " command))
           )))))
+
+(defn message* [opts msg-name data]
+  (merge data
+         { :msg-name msg-name 
+          :project-id (project-unique-id opts)}))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
@@ -74,7 +82,7 @@
     (go-loop []
              (<! (timeout 5000))
              (when (open? wschannel)
-               (send! wschannel (prn-str {:msg-name :ping}))
+               (send! wschannel (prn-str (message* server-state :ping {})))
                (recur)))))
 
 (defn reload-handler [server-state]
@@ -101,13 +109,15 @@
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
+(defn send-message! [{:keys [file-change-atom] :as st} msg-name data]
+  (swap! file-change-atom append-msg
+         (message* st msg-name data)))
+
 (defn send-changed-files
   "Formats and sends a files-changed message to the file-change-atom.
    Also reports this event to the console."
-  [{:keys [file-change-atom] :as st} files]
-  (swap! file-change-atom append-msg { ;; this message name isn't good
-                                       :msg-name :files-changed 
-                                       :files files })
+  [st files]
+  (send-message! st :files-changed {:files files })
   (doseq [f files]
          (println "notifying browser that file changed: " (:file f))))
 
@@ -262,9 +272,8 @@
   { :file (make-server-relative-css-path state path)
     :type :css } )
 
-(defn send-css-files [{:keys [file-change-atom]} files]
-  (swap! file-change-atom append-msg { :msg-name :css-files-changed
-                                      :files files})
+(defn send-css-files [st files]
+  (send-message! st :css-files-changed { :files files })
   (doseq [f files]
     (println "sending changed CSS file:" (:file f))))
 
@@ -279,28 +288,32 @@
 
 ;; compile error occured
 
-(defn compile-error-occured [{:keys [file-change-atom]} exception]
+(defn compile-error-occured [st exception]
   (let [parsed-exception (parse-exception exception)
         formatted-exception (let [out (java.io.ByteArrayOutputStream.)]
                               (pst-on (io/writer out) false exception)
                               (.toString out))]
-      (swap! file-change-atom append-msg { :msg-name :compile-failed
-                                           :exception-data parsed-exception
-                                           :formatted-exception formatted-exception })))
+    (send-message! st :compile-failed
+                   { :exception-data parsed-exception
+                    :formatted-exception formatted-exception })))
 
-(defn compile-warning-occured [{:keys [file-change-atom]} message]
-  (swap! file-change-atom append-msg { :msg-name :compile-warning :message message }))
+(defn compile-warning-occured [st msg]
+  (send-message! st :compile-warning { :message msg }))
 
 (defn initial-check-sums [state]
   (doseq [df (dependency-files state)]
     (file-changed? state df))
   (:file-md5-atom state))
 
-(defn create-initial-state [{:keys [root resource-paths
+(defn create-initial-state [{:keys [root name version resource-paths
                                     js-dirs css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
                                     open-file-command]}]
+  ;; I'm spelling this all out as a reference
   { :root root
+    :name name
+    :version version
+   
     :resource-paths resource-paths
     :css-dirs css-dirs
     :js-dirs js-dirs

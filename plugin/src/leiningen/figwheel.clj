@@ -237,11 +237,11 @@
         current-build (first (get-in project [:cljsbuild :builds]))
         figwheel-options (prep-options
                           (merge
-                           (select-keys project [:root :resource-paths])
                            { :js-dirs (cljs-change-server-watch-dirs project)
                              :output-dir (:output-dir (:compiler current-build))
                              :output-to (:output-to (:compiler current-build)) }
-                           (:figwheel project)))]
+                           (:figwheel project)
+                           (select-keys project [:root :resource-paths :name :version])))]
     (let [errors (check-for-valid-options (:cljsbuild project) figwheel-options)]
       (println (str "Figwheel: focusing on build-id " "'" (:id current-build) "'"))
       (if (empty? errors)
