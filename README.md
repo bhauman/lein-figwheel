@@ -39,9 +39,6 @@ on how well your project is compiling. By writing a shell script you
 can click on files in the heads up display and they will open in your
 editor!
 
-A lot of effort has gone into making the heads up display not
-interfere with your running code.
-
 #### Robust connection
 
 Figwheel's connection is fairly robust. I have experienced figwheel
@@ -436,7 +433,7 @@ Reloadable code is easy to write if we are very conscious and careful
 about the storage of state, state transitions and side effects. Since
 a great deal of programming complexity stems from complex interactions
 (side effecting events) between things that have local state, it is my
-beief that reloadable code is often simply better code.
+belief that reloadable code is often simply better code.
 
 
 ## More React Advocacy
