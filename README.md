@@ -10,14 +10,16 @@ Current version: [lein-figwheel "0.1.7-SNAPSHOT"](https://clojars.org/lein-figwh
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
+## Features 
+
+#### Live code reloading
+
 If you write **reloadable code**, figwheel can facilitate automated live
 interactive programming. Every time you save your ClojureScript source
 file the changes are sent to the browser so you can see the effects of
 modifying your code in real time.  This is different than interactive
 programming in the browser-repl where you need to cherry pick which
 changes to send and which processes to start, etc.
-
-## Features 
 
 #### Static file server
 
@@ -51,7 +53,6 @@ updates can have interesting applications. You could have a whole
 classroom directly interacting with a game that is being worked on
 live from the front of the room or even remotely.
 
-
 ## Quick Start
 
 Make sure you have the [latest version of leinigen installed](https://github.com/technomancy/leiningen#installation).
@@ -79,7 +80,7 @@ figwheel leinigen template.
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojurescript "0.0-2197"] ;; has to be at least 2197 or greater
+[org.clojure/clojurescript "0.0-2411"] ;; has to be at least 2197 or greater
 [figwheel "0.1.7-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
@@ -239,7 +240,9 @@ new one before injecting the current state.
 This tearing down and rebuilding of the system is simply sane
 lifecycle management and comes baked into Reactjs and Om.
 
-Please check out the example project in the `example` directory. 
+Please check out the example project in the `example` directory.
+
+To see all the client side config options [look here](https://github.com/bhauman/lein-figwheel/blob/master/support/src/figwheel/client.cljs#L176).
 
 ### Using your own server
 
@@ -362,7 +365,7 @@ networks and then storing them in a global var is yet another version
 of this problem.
 
 Functions that maintain local state like counters and such are also
-definitions with local state and as such are problematic.
+definitions with local state, and as such are problematic.
 
 You also need to look out for common setup code that hooks into the browser.
 
