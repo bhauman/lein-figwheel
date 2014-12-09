@@ -296,21 +296,14 @@ leiningen template that includes figwheel.
 This plugin starts the cljsbuild auto builder, opens a websocket and
 starts static file server. When you save a ClojureScript file,
 cljsbuild will detect that and compile it and other affected files. It
-will then pass a list those changed files off to the figwheel server.
-The figwheel server will in turn push the paths of the **relevant**
-compiled javascript files through a websocket so that the browser can
-reload them.
-
-There is also a figwheel client that you need to include into your
-ClojureScript project to start a process which listens for changes and
-reloads the files.
+will then pass a list of those changed files off to the figwheel
+server. The figwheel server will in turn push the paths of the
+**relevant** compiled javascript files through a websocket so that the
+browser can reload them.
 
 The main motivation for lein-figwheel is to allow for the interactive
 development of ClojureScript. Figwheel doesn't provide this out of the
 box, **the developer has to take care to make their code reloadable**. 
-
-If you are using React or Om it's not hard to write reloadable code,
-in fact you might already be doing it.
 
 ## Writing reloadable code
 
@@ -319,6 +312,9 @@ Figwheel relies on having files that can be reloaded.
 Reloading works beautifully on referentially transparent code and
 code that only defines behavior without bundling state with the
 behavior. 
+
+If you are using React or Om it's not hard to write reloadable code,
+in fact you might be doing it already.
 
 There are several coding patterns to look out for when writing
 reloadable code. 
