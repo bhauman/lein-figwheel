@@ -1,3 +1,5 @@
+current version: [lein-figwheel "0.1.7-SNAPSHOT"]
+
 # lein-figwheel
 
 Figwheel builds your ClojureScript code and hots loads it into browser as you are coding!
