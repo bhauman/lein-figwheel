@@ -24,7 +24,9 @@ changes to send and which processes to start, etc.
 #### Static file server
 
 The inclusion of a **static file server** allows you to get a decent
-ClojureScript development environment up and running quickly.
+ClojureScript development environment up and running quickly. For
+convenience there is a `:ring-handler` option so you can load a ring
+handler into the figwheel server.
 
 #### Live CSS reloading
 
@@ -36,6 +38,9 @@ Figwheel has a non-intrusive heads up display that gives you feedback
 on how well your project is compiling. By writing a shell script you
 can click on files in the heads up display and they will open in your
 editor!
+
+A lot of effort has gone into making the heads up display not
+interfere with your running code.
 
 #### Robust connection
 
