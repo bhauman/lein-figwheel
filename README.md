@@ -226,16 +226,7 @@ The call to `start` is idempotent and can be called many
 times safely. 
 
 Whole files will be reloaded on change so we have to make sure that
-when we start 'running processes' or do anything that hooks into the
-state of the browser, it needs to either be done once or done in in a
-reloadable way.
-
-The least complicated way to write reloadable code is to implement a
-lifecycle pattern that takes down the previous system and rebuilds a
-new one before injecting the current state.
-
-This tearing down and rebuilding of the system is simply sane
-lifecycle management and comes baked into Reactjs and Om.
+we [write reloadable code](https://github.com/bhauman/lein-figwheel#writing-reloadable-code).
 
 Please check out the example project in the `example` directory.
 
