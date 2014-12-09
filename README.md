@@ -1,5 +1,3 @@
-current version: [lein-figwheel "0.1.7-SNAPSHOT"]
-
 # lein-figwheel
 
 Figwheel builds your ClojureScript code and hots loads it into browser as you are coding!
@@ -7,6 +5,8 @@ Figwheel builds your ClojureScript code and hots loads it into browser as you ar
 Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
+
+Current version: [lein-figwheel "0.1.7-SNAPSHOT"](https://clojars.org/lein-figwheel)
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
@@ -255,9 +255,10 @@ websocket is.
 Like so:
 
 ```clojure
-(fw/start
+(fw/start {
   :websocket-url   "ws://localhost:3449/figwheel-ws"
-  :jsload-callback (fn [] (print "reloaded")))
+  :on-jsload (fn [] (print "reloaded"))
+})
 ```
 
 Note that you will still need to run the figwheel server in addition to 
@@ -286,9 +287,10 @@ recieves the resource url and should return a corrected url that
 points to the same resource on your server.
 
 ```clojure
-(fw/start
+(fw/start {
   :websocket-url   "ws://localhost:3449/figwheel-ws"
-  :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000")))
+  :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000"))
+})
 ```
 
 ## Resources 
@@ -411,10 +413,11 @@ functions to be invoked on code reload.
    (.off ($ "div#app") "click" "a.button")
 
 ;; hook in the  
-(fw/start
-  :jsload-callback (fn [] 
-                      (teardown)
-                      (setup)))
+(fw/start {
+  :on-jsload (fn [] 
+               (teardown)
+               (setup))
+})
 ```
 
 Now you can edit the code in the setup and teardown functions and see
@@ -450,9 +453,6 @@ If you want to do less thinking and write more reliable front end code
 you should really be looking at React, Om etc.
 
 OK enough.
-
-
-
 
 ## License
 
