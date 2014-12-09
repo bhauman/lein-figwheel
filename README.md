@@ -14,7 +14,7 @@ Current version: [lein-figwheel "0.1.7-SNAPSHOT"](https://clojars.org/lein-figwh
 
 #### Live code reloading
 
-If you write **reloadable code**, figwheel can facilitate automated live
+If you write [**reloadable code**](https://github.com/bhauman/lein-figwheel#writing-reloadable-code), figwheel can facilitate automated live
 interactive programming. Every time you save your ClojureScript source
 file the changes are sent to the browser so you can see the effects of
 modifying your code in real time.  This is different than interactive
