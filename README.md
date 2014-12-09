@@ -48,10 +48,7 @@ the evaluation results to the browser console.
 
 Figwheel **broadcasts** changes to all connected clients. This means you
 can see code and CSS changes take place in real time on your phone and
-in your laptop browser simultaneously. The broadcast of live code
-updates can have interesting applications. You could have a whole
-classroom directly interacting with a game that is being worked on
-live from the front of the room or even remotely.
+in your laptop browser simultaneously.
 
 ## Quick Start
 
@@ -201,7 +198,7 @@ In keeping with the previous examples you would put this into your
 ```clojure
 (ns example.core
   (:require
-   [figwheel.client :as fw :include-macros true]))
+   [figwheel.client :as fw]))
 
 (enable-console-print!)
 
