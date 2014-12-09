@@ -132,6 +132,8 @@ resources being served via the compojure `resources` ring handler.
 So you can load the a html file thats hosting your ClojureScript app
 by going to `http://localhost:3449/<yourfilename>.html`
 
+[Cljsbuild has many many more options](https://github.com/emezeske/lein-cljsbuild/blob/master/sample.project.clj)
+
 ### Server configuration
 
 In your `project.clj` you can add the following configuration parameters:
