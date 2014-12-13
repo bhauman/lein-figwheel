@@ -14,6 +14,7 @@
 
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
+  ;; have to merge in the libraries I need into the project
   (leval/eval-in-project (subproject/make-subproject project crossover-path builds)
     ; Without an explicit exit, the in-project subprocess seems to just hang for
     ; around 30 seconds before exiting.  I don't fully understand why...
