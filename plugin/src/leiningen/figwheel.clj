@@ -96,36 +96,36 @@
                       (when (warning-type# cljs.analyzer/*cljs-warnings*)
                         (when-let [s# (cljs.analyzer/error-message warning-type# extra#)]
                           (figwheel.core/compile-warning-occured change-server# (cljs.analyzer/message env# s#)))))]
-              (loop [dependency-mtimes# {}]
-                (let [new-dependency-mtimes#
-                      (try
-                        (let [new-mtimes# (binding [cljs.env/*compiler* compiler-env#
-                                                    cljs.analyzer/*cljs-warning-handlers*
-                                                    (conj cljs.analyzer/*cljs-warning-handlers* warning-handler#)]
-                                            (cljsbuild.compiler/run-compiler
-                                             (:source-paths build#)
-                                             ~crossover-path
-                                             crossover-macro-paths#
-                                             (:compiler build#)
-                                             (:parsed-notify-command build#)
-                                             (:incremental build#)
-                                             (:assert build#)
-                                             dependency-mtimes#
-                                             false))]
-                          (when (not= dependency-mtimes# new-mtimes#)
-                            (figwheel.core/check-for-changes change-server# dependency-mtimes# new-mtimes#))
-                          new-mtimes#)
-                        (catch Throwable e#
-                          (clj-stacktrace.repl/pst+ e#)
-                          ;; this is a total crap hack
-                          ;; just trying to delay duplicating a 
-                          ;; portion of cljsbuild until I understand
-                          ;; more about how lein figwheel should work
-                          (figwheel.core/compile-error-occured change-server# e#)
-                          (get-dependency-mtimes#)))]
-                  (figwheel.core/check-for-css-changes change-server#)
-                  (Thread/sleep 100)
-                  (recur new-dependency-mtimes#))))))))))
+              (let [warning-handlers# (conj cljs.analyzer/*cljs-warning-handlers* warning-handler#)]
+                (loop [dependency-mtimes# {}]
+                  (let [new-dependency-mtimes#
+                        (try
+                          (let [new-mtimes# (binding [cljs.env/*compiler* compiler-env#
+                                                      cljs.analyzer/*cljs-warning-handlers* warning-handlers#]
+                                              (cljsbuild.compiler/run-compiler
+                                               (:source-paths build#)
+                                               ~crossover-path
+                                               crossover-macro-paths#
+                                               (:compiler build#)
+                                               (:parsed-notify-command build#)
+                                               (:incremental build#)
+                                               (:assert build#)
+                                               dependency-mtimes#
+                                               false))]
+                            (when (not= dependency-mtimes# new-mtimes#)
+                              (figwheel.core/check-for-changes change-server# dependency-mtimes# new-mtimes#))
+                            new-mtimes#)
+                          (catch Throwable e#
+                            (clj-stacktrace.repl/pst+ e#)
+                            ;; this is a total crap hack
+                            ;; just trying to delay duplicating a 
+                            ;; portion of cljsbuild until I understand
+                            ;; more about how lein figwheel should work
+                            (figwheel.core/compile-error-occured change-server# e#)
+                            (get-dependency-mtimes#)))]
+                    (figwheel.core/check-for-css-changes change-server#)
+                    (Thread/sleep 100)
+                    (recur new-dependency-mtimes#)))))))))))
 
 (defn cljs-change-server-watch-dirs
   "Given a project spec will return a vector of Javascript directories that need to be watched"
