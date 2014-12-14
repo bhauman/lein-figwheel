@@ -3,10 +3,13 @@
    [sablono.core :as sab :include-macros true]
    [cljs.core.async :as async])
   (:require-macros
-   [cljs.core.async.macros :refer [go-loop]]))
+   [cljs.core.async.macros :refer [go-loop]]
+   [example.other-macros :as o]))
 
 ;; A more advanced example using React and Sablono
 ;; you can edit any of this live
+
+(o/logger (+ 1 2 23))
 
 (defonce ex3-atom (atom {:rx 0 :ry 0 :rz 0}))
 
@@ -20,7 +23,6 @@
                              )]
     { "-webkit-transform" trns
       "transform" trns }))
-
 
 (defn side [trans side-css]
   [:div.side {:style (clj->js

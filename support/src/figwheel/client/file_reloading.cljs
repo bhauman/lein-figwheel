@@ -22,18 +22,20 @@
 (defn js-reload [{:keys [request-url namespace dependency-file] :as msg} callback]
   (if (or dependency-file
             ;; IMPORTANT make sure this file is currently provided
-          (.isProvided_ js/goog namespace))
+          (.isProvided_ js/goog (name namespace)))
     (.addCallback (loader/load (add-cache-buster request-url) #js { :cleanupWhenDone true })
                   #(apply callback [msg]))
     (apply callback [msg])))
 
 (defn reload-js-file [file-msg]
   (let [out (chan)]
-    (js-reload file-msg (fn [url] (put! out url) (close! out)))
+    ;; escape context for better error reporting
+    (js/setTimeout #(js-reload file-msg (fn [url] (put! out url) (close! out))) 10)
     out))
 
-(defn load-all-js-files [files]
+(defn load-all-js-files
   "Returns a chanel with one collection of loaded filenames on it."
+  [files]
   (async/into [] (async/filter< identity (async/merge (mapv reload-js-file files)))))
 
 (defn add-request-url [{:keys [url-rewriter] :as opts} {:keys [file] :as d}]
@@ -54,7 +56,6 @@
        (.debug js/console "Figwheel: loaded these files")
        (.log js/console (pr-str (map :file res)))
        (js/setTimeout #(apply on-jsload [res]) 10)))))
-
 
 ;; CSS reloading
 

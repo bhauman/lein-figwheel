@@ -47,10 +47,8 @@
     (println "\033[31mWARNING: lein-cljsbuild crossovers are deprecated, and will be removed in future versions. See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
     (fs/mkdirs crossover-path))
   (let [parsed-builds (list (config/parse-notify-command (first builds)))]
-    (config/warn-unsupported-warn-on-undeclared (first parsed-builds))
-    (config/warn-unsupported-notify-command (first parsed-builds))
     (run-local-project project crossover-path parsed-builds
-     '(require 'cljsbuild.compiler 'cljsbuild.crossover 'cljs.analyzer 'cljsbuild.util 'clj-stacktrace.repl 'clojure.java.io 'figwheel.core)
+     '(require 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'figwheel.auto-builder)
      `(do
         (letfn [(copy-crossovers# []
                    (cljsbuild.crossover/copy-crossovers
@@ -59,74 +57,10 @@
           (when (not-empty '~crossovers)
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
-          (let [crossover-macro-paths# (cljsbuild.crossover/crossover-macro-paths '~crossovers)
-                build# (first '~parsed-builds)
-                cljs-paths# (:source-paths build#)
-                compiler-options# (:compiler build#)                
-                compiler-env# (cljs.env/default-compiler-env compiler-options#) 
-                change-server# (figwheel.core/start-server ~live-reload-options)]
-            ;; added the following functions to help with error reporting.
-            (letfn [(get-mtimes# [paths#]
-                      (into {}
-                            (map (fn [path#] [path# (.lastModified (io/file path#))]) paths#)))
-                    (get-dependency-mtimes# []
-                      (let [macro-files# (map :absolute crossover-macro-paths#)
-                            clj-files-in-cljs-paths#
-                            (into {}
-                                  (for [cljs-path# cljs-paths#]
-                                    [cljs-path# (cljsbuild.util/find-files cljs-path# #{"clj"})]))
-                            cljs-files# (mapcat #(cljsbuild.util/find-files % #{"cljs"})
-                                                (if ~crossover-path
-                                                  (conj cljs-paths# ~crossover-path)
-                                                  cljs-paths#))
-                            lib-paths# (:libs compiler-options#)
-                            js-files# (->> (or lib-paths# [])
-                                           (mapcat #(cljsbuild.util/find-files % #{"js"}))
-                                          ; Don't include js files in output-dir or our output file itself,
-                                          ; both possible if :libs is set to [""] (a cljs compiler workaround to
-                                          ; load all libraries without enumerating them, see
-                                          ; http://dev.clojure.org/jira/browse/CLJS-526)
-                                           (remove #(.startsWith ^String % (:output-dir compiler-options#)))
-                                           (remove #(.endsWith ^String % (:output-to compiler-options#))))
-                            macro-mtimes# (get-mtimes# macro-files#)
-                            clj-mtimes# (get-mtimes# (mapcat second clj-files-in-cljs-paths#))
-                            cljs-mtimes# (get-mtimes# cljs-files#)
-                            js-mtimes# (get-mtimes# js-files#)]
-                        (merge macro-mtimes# clj-mtimes# cljs-mtimes# js-mtimes#)))
-                    (warning-handler# [warning-type# env# extra#]
-                      (when (warning-type# cljs.analyzer/*cljs-warnings*)
-                        (when-let [s# (cljs.analyzer/error-message warning-type# extra#)]
-                          (figwheel.core/compile-warning-occured change-server# (cljs.analyzer/message env# s#)))))]
-              (let [warning-handlers# (conj cljs.analyzer/*cljs-warning-handlers* warning-handler#)]
-                (loop [dependency-mtimes# {}]
-                  (let [new-dependency-mtimes#
-                        (try
-                          (let [new-mtimes# (binding [cljs.env/*compiler* compiler-env#
-                                                      cljs.analyzer/*cljs-warning-handlers* warning-handlers#]
-                                              (cljsbuild.compiler/run-compiler
-                                               (:source-paths build#)
-                                               ~crossover-path
-                                               crossover-macro-paths#
-                                               (:compiler build#)
-                                               (:parsed-notify-command build#)
-                                               (:incremental build#)
-                                               (:assert build#)
-                                               dependency-mtimes#
-                                               false))]
-                            (when (not= dependency-mtimes# new-mtimes#)
-                              (figwheel.core/check-for-changes change-server# dependency-mtimes# new-mtimes#))
-                            new-mtimes#)
-                          (catch Throwable e#
-                            (clj-stacktrace.repl/pst+ e#)
-                            ;; this is a total crap hack
-                            ;; just trying to delay duplicating a 
-                            ;; portion of cljsbuild until I understand
-                            ;; more about how lein figwheel should work
-                            (figwheel.core/compile-error-occured change-server# e#)
-                            (get-dependency-mtimes#)))]
-                    (figwheel.core/check-for-css-changes change-server#)
-                    (Thread/sleep 100)
-                    (recur new-dependency-mtimes#)))))))))))
+          (let [build# (first '~parsed-builds)]
+            (figwheel.auto-builder/autobuild (:source-paths build#)
+                                             (:compiler build#)
+                                             ~live-reload-options)))))))
 
 (defn cljs-change-server-watch-dirs
   "Given a project spec will return a vector of Javascript directories that need to be watched"

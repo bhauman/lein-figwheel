@@ -238,17 +238,33 @@
 ;; after reading finally reading the cljsbuild source code, it is
 ;; obvious that I was doing way to much work here.
 
+
+(defn notify-cljs-ns-changes [state ns-syms]
+  (->> ns-syms
+       (map (partial make-sendable-file state))
+       (concat (get-dependency-files state))
+       (send-changed-files state)))
+
+;; this functionality should be moved to autobuilder or a new ns
+;; this ns should just be for notifications?
 (defn check-for-changes
   "This is the main api it should be called when a compile run has completed.
    It takes the current state of the system and a couple of mtime maps of the form
    { file-path -> mtime }.
-   If changed have occured a message is appended to the :file-change-atom in state.
+   If changed has occured a message is appended to the :file-change-atom in state.
    Consumers of this info can add a listener to the :file-change-atom."
-  [state old-mtimes new-mtimes]
-  (->> (get-changed-source-file-ns old-mtimes new-mtimes) 
-       (map (partial make-sendable-file state))
-       (concat (get-dependency-files state))
-       (send-changed-files state)))
+  ;; this is the old way which loads all local files if a clj file changes
+  ([state old-mtimes new-mtimes]
+     (notify-cljs-ns-changes state
+                             (get-changed-source-file-ns old-mtimes new-mtimes)))
+  ;; this is the new way where if additional changes are needed they
+  ;; are made explicitely
+  ([state old-mtimes new-mtimes additional-ns]
+     (notify-cljs-ns-changes state
+      (set (concat (map name additional-ns)
+              (keep get-ns-from-source-file-path
+                    (:cljs (get-changed-source-file-paths old-mtimes new-mtimes))))))))
+
 
 ;; css changes
 

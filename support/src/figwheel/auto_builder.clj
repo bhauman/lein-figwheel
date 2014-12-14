@@ -1,5 +1,6 @@
 (ns figwheel.auto-builder
   (:require
+   [clojure.pprint :as p]
    [figwheel.core :as fig]
    [cljs.analyzer]
    [cljs.env]
@@ -14,9 +15,6 @@
           (map (juxt (fn [f] (.getCanonicalPath f))
                (fn [f] (.lastModified f)))
                (map :source-file files)))))
-
-
-
 
 (comment
 
@@ -63,14 +61,19 @@
         warning-handlers (conj cljs.analyzer/*cljs-warning-handlers* warning-handler)
         compiler-env    (cljs.env/default-compiler-env build-options)]
     (reset! server-kill-switch (:http-server figwheel-state'))
+    (p/pprint src-dirs)
+    (p/pprint build-options)
+    (p/pprint figwheel-options)
+    
     (loop [dependency-mtimes {}]
-      (let [new-mtimes (get-dependency-mtimes ["src"] build-options)]
+      (let [new-mtimes (get-dependency-mtimes src-dirs build-options)]
         (when (not= dependency-mtimes new-mtimes)
+          (println "Change detected")
           (try
             ;; this is a good place to have a compile-started callback  
             (binding [cljs.analyzer/*cljs-warning-handlers* warning-handlers]
-              (cbuild/build-source-paths src-dirs build-options compiler-env)
-              (fig/check-for-changes figwheel-state' dependency-mtimes new-mtimes))
+              (let [additional-changed-ns (cbuild/build-source-paths src-dirs build-options compiler-env)]
+                (fig/check-for-changes figwheel-state' dependency-mtimes new-mtimes additional-changed-ns)))
             (catch Throwable e
               (clj-stacktrace.repl/pst+ e) ;; not sure if this is needed
               (fig/compile-error-occured figwheel-state' e))))

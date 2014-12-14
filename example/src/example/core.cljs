@@ -2,7 +2,9 @@
   (:require
    [figwheel.client :as fw]
    [example.cube]
-   [crate.core]))
+   [crate.core])
+  (:require-macros
+   [example.macros :as m]))
 
 (enable-console-print!)
 
@@ -22,6 +24,8 @@
                )
   })
 
+(m/log (+ 1 2 2 3 ))
+
 ;; When you are writing reloadable code you have to protect things
 ;; that you don't want defined over and over.
 
@@ -29,7 +33,7 @@
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
 
-(println "This is a reloaded print statement: modify me.")
+(println "This is a reloaded print statement: modify me now.")
 
 ;; Example 1:  simple crate based app
 
