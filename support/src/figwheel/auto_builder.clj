@@ -16,6 +16,10 @@
                (map :source-file files)))))
 
 
+
+
+(comment
+
   (def options {
                 :output-to "resources/public/js/compiled/example.js"
                 :output-dir "resources/public/js/compiled/out"
@@ -40,9 +44,6 @@
                  :version "0.1.7-SNAPSHOT",
                  :css-dirs ["resources/public/css"],
                  :http-server-root "public"})
-
-(comment
-
   
   (get-dependency-mtimes ["src"] options)
 
