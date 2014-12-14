@@ -1,4 +1,4 @@
-(ns figwheel.core
+(ns figwheel-sidecar.core
   (:require
    [cljs.compiler]
    [compojure.route :as route]

@@ -1,4 +1,4 @@
-(ns figwheel.auto-builder
+(ns figwheel-sidecar.auto-builder
   (:require
    [clojure.pprint :as p]
    [figwheel.core :as fig]
