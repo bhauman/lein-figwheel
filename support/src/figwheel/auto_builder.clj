@@ -53,7 +53,8 @@
 (def server-kill-switch (atom false))
 
 (defn autobuild [src-dirs build-options figwheel-options]
-  (let [figwheel-state' (fig/start-server figwheel-options)
+  (let [figwheel-options' (merge figwheel-options (select-keys build-options [:ouput-dir :output-to]))
+        figwheel-state' (fig/start-server figwheel-options')
         warning-handler (fn [warning-type env extra]
                           (when (warning-type cljs.analyzer/*cljs-warnings*)
                             (when-let [s (cljs.analyzer/error-message warning-type extra)]
@@ -64,11 +65,10 @@
     (p/pprint src-dirs)
     (p/pprint build-options)
     (p/pprint figwheel-options)
-    
+
     (loop [dependency-mtimes {}]
       (let [new-mtimes (get-dependency-mtimes src-dirs build-options)]
         (when (not= dependency-mtimes new-mtimes)
-          (println "Change detected")
           (try
             ;; this is a good place to have a compile-started callback  
             (binding [cljs.analyzer/*cljs-warning-handlers* warning-handlers]

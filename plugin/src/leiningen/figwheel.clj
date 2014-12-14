@@ -44,7 +44,8 @@
   ; If crossover-path does not exist before eval-in-project is called,
   ; the files it contains won't be classloadable, for some reason.
   (when (not-empty crossovers)
-    (println "\033[31mWARNING: lein-cljsbuild crossovers are deprecated, and will be removed in future versions. See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
+    (println "\033[31mWARNING: lein-cljsbuild crossovers are deprecated, and will be removed in future versions.\n
+See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
     (fs/mkdirs crossover-path))
   (let [parsed-builds (list (config/parse-notify-command (first builds)))]
     (run-local-project project crossover-path parsed-builds
@@ -61,13 +62,6 @@
             (figwheel.auto-builder/autobuild (:source-paths build#)
                                              (:compiler build#)
                                              ~live-reload-options)))))))
-
-(defn cljs-change-server-watch-dirs
-  "Given a project spec will return a vector of Javascript directories that need to be watched"
-  [project]
-  (vec
-   ((juxt :output-dir :output-to)
-    (:compiler (first (get-in project [:cljsbuild :builds]))))))
 
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
@@ -87,7 +81,7 @@
        (re-matches (re-pattern (str (resources-pattern-str opts) ".*")) output-dir)))
 
 (defn map-to-vec-builds
-  "Cljsbuild allows a builds to be specified as maps. We accomodate that with this function
+  "Cljsbuild allows a builds to be specified as maps. We acommodate that with this function
    to normalize the map back to the standard vector specification. The key is placed into the
    build under the :id key."
   [builds]
@@ -172,9 +166,6 @@
         current-build (first (get-in project [:cljsbuild :builds]))
         figwheel-options (prep-options
                           (merge
-                           { :js-dirs (cljs-change-server-watch-dirs project)
-                             :output-dir (:output-dir (:compiler current-build))
-                             :output-to (:output-to (:compiler current-build)) }
                            (:figwheel project)
                            (select-keys project [:root :resource-paths :name :version])))]
     (let [errors (check-for-valid-options (:cljsbuild project) figwheel-options)]

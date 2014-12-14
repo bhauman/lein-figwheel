@@ -265,7 +265,6 @@
               (keep get-ns-from-source-file-path
                     (:cljs (get-changed-source-file-paths old-mtimes new-mtimes))))))))
 
-
 ;; css changes
 
 ;; watchtower css file change detection
@@ -322,7 +321,7 @@
   (:file-md5-atom state))
 
 (defn create-initial-state [{:keys [root name version resource-paths
-                                    js-dirs css-dirs ring-handler http-server-root
+                                    css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
                                     open-file-command]}]
   ;; I'm spelling this all out as a reference
@@ -332,7 +331,6 @@
    
     :resource-paths resource-paths
     :css-dirs css-dirs
-    :js-dirs js-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
     :output-to output-to
