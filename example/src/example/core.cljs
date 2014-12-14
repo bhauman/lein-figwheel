@@ -29,7 +29,7 @@
 ;; You should see the changed statement printed out in the console of
 ;; your web inspector.
 
-(println "This is a reloaded print statement: modify me now.")
+(println "This is a reloaded print statement: modify me.")
 
 ;; Example 1:  simple crate based app
 
