@@ -10,8 +10,9 @@
 * create seperate feature testing projects
 * reset from client - mark all files for deletion
 * reset and reload form client
-* look at sending incremental changes th the browser and the interaction with source maps
 * look at cljs.test plugin for client
+* look at sending incremental changes th the browser and the interaction with source maps
+
 
 ##### completed
 * shouldn't reload everything on clj file changes now
