@@ -1,6 +1,6 @@
 # lein-figwheel
 
-Figwheel builds your ClojureScript code and hots loads it into browser as you are coding!
+Figwheel builds your ClojureScript code and hots loads it into the browser as you are coding!
 
 Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
