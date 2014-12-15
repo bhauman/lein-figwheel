@@ -35,22 +35,17 @@
                      (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version]) 
                      (subproject/make-subproject crossover-path builds)
                      #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
-    (print (prn-str (:dependencies project')))
     (leval/eval-in-project project'
-     ;; can remove cljsbuild dep here
-     
-                                        ; Without an explicit exit, the in-project subprocess seems to just hang for
-                                        ; around 30 seconds before exiting.  I don't fully understand why...
      `(try
         (do
           ~form
           (System/exit 0))
-                              (catch cljsbuild.test.TestsFailedException e#
+        (catch cljsbuild.test.TestsFailedException e#
                                         ; Do not print stack trace on test failure
-                                (System/exit 1))
-                              (catch Exception e#
-                                (do
-                                  (.printStackTrace e#)
+          (System/exit 1))
+        (catch Exception e#
+          (do
+            (.printStackTrace e#)
            (System/exit 1))))
      requires)))
 
@@ -190,10 +185,13 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
         figwheel-options (prep-options
                           (merge
                            { :output-dir (-> current-build :compiler :output-dir )
-                            :output-to  (-> current-build :compiler :output-to ) }
+                             :output-to  (-> current-build :compiler :output-to ) }
                            (:figwheel project)
-                           (select-keys project [:root :resource-paths])))]
-    (let [errors (check-for-valid-options (:cljsbuild project) figwheel-options)]
+                           ;; we can get the resource paths from the project
+                           (select-keys project [:resource-paths])))]
+    (let [errors (check-for-valid-options
+                  (:cljsbuild project)
+                  figwheel-options)]
       (println (str "Figwheel: focusing on build-id " "'" (:id current-build) "'"))
       (if (empty? errors)
         (run-compiler project

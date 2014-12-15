@@ -1,8 +1,9 @@
 * cljs.closure.api
 
-* do I use the :root param? It shouldn't be needed
-* :unique-id param
-* handle notify command stuff
+* make sure plugin tests pass
+
+* add assert?
+* resource paths?  better way to handle it eh?
 * start compile message
 
 * look at cljs.test plugin for client

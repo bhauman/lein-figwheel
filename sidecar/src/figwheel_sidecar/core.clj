@@ -173,9 +173,10 @@
                          (keys new-mtimes))
                  (:cljs changed-source-file-paths))))))
 
-(defn resource-paths [{:keys [root resource-paths]}]
+(defn resource-paths [{:keys [resource-paths]}]
   (mapv #(string/replace-first (norm-path %)
-                               (str (norm-path root) "/") "") resource-paths))
+                               (str (norm-path (.getCanonicalPath (io/file ".")))
+                                    "/") "") resource-paths))
 
 (defn resource-paths-pattern-str [state]
   (str "(" (string/join "|" (resource-paths state)) ")/"
@@ -332,9 +333,7 @@
                                     unique-id
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
-  { :root (or root (.getCanonicalPath (io/file ".")))
-
-    :unique-id (or unique-id (project-unique-id)) 
+  { :unique-id (or unique-id (project-unique-id)) 
    
     :resource-paths (or resource-paths ["resources"])
     :css-dirs css-dirs
