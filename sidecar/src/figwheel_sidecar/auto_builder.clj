@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.auto-builder
   (:require
    [clojure.pprint :as p]
-   [figwheel.core :as fig]
+   [figwheel-sidecar.core :as fig]
    [cljs.analyzer]
    [cljs.env]
    [clj-stacktrace.repl]

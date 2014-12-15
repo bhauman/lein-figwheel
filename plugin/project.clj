@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
   :dependencies [[cljsbuild "1.0.3"]
-                 [figwheel "0.1.7-SNAPSHOT"]]
+                 [figwheel-sidecar "0.1.7-SNAPSHOT"]]
 
   :scm { :name "git"
          :url "https://github.com/bhauman/lein-figwheel"}

@@ -27,6 +27,15 @@
       [(subs base 0 i) (subs base i)]
       [base nil])))
 
+;; assumes leiningen 
+(defn project-unique-id []
+  (let [f (io/file "./project.clj")]
+    (or (when (.exists f)
+          (let [[_ name version] (-> f slurp read-string)]
+            (when (and name version)
+              (str name "--" version))))
+        (.getCanonicalPath (io/file ".")))))
+
 (defn read-msg [data]
   (try
     (let [msg (edn/read-string data)]
@@ -34,9 +43,6 @@
     (catch Exception e
       (println "Figwheel: message from client couldn't be read!")
       {})))
-
-(defn project-unique-id [{:keys [name version]}]
-  (str name "--" version))
 
 (defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
   (when open-file-command
@@ -58,7 +64,7 @@
 (defn message* [opts msg-name data]
   (merge data
          { :msg-name msg-name 
-          :project-id (project-unique-id opts)}))
+           :project-id (:unique-id opts)}))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
@@ -323,13 +329,14 @@
 (defn create-initial-state [{:keys [root name version resource-paths
                                     css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
-                                    open-file-command]}]
+                                    unique-id
+                                    open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
-  { :root root
-    :name name
-    :version version
+  { :root (or root (.getCanonicalPath (io/file ".")))
+
+    :unique-id (or unique-id (project-unique-id)) 
    
-    :resource-paths resource-paths
+    :resource-paths (or resource-paths ["resources"])
     :css-dirs css-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir

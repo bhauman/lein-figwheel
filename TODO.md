@@ -1,18 +1,23 @@
 * cljs.closure.api
 
-* clean up parameter passing
-* look at subproject leiningen cljsbuild code and see whats needed
-* seperate project / namespace for client
+* do I use the :root param? It shouldn't be needed
+* :unique-id param
 * handle notify command stuff
 * start compile message
-* reload-non-macro-clj-files flag -> add to cljsbuild as well
+
+* look at cljs.test plugin for client
+
+* clean up parameter passing
+* look at subproject leiningen cljsbuild code and see whats needed
+
 * dynamic env for figwheel.core
 * create seperate feature testing projects
 * reset from client - mark all files for deletion
 * reset and reload form client
-* look at cljs.test plugin for client
-* look at sending incremental changes th the browser and the interaction with source maps
 
+* look at sending incremental changes th the browser and the interaction with source maps
 
 ##### completed
 * shouldn't reload everything on clj file changes now
+* seperate project / namespace for client
+* reload-non-macro-clj-files flag

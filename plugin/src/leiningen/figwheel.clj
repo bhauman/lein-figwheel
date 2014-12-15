@@ -1,6 +1,7 @@
 (ns leiningen.figwheel
   (:refer-clojure :exclude [test])
   (:require
+   [clojure.pprint :as pp]
    [fs.core :as fs]
    [leiningen.cljsbuild.config :as config]
    [leiningen.cljsbuild.subproject :as subproject]
@@ -9,27 +10,49 @@
    [cljsbuild.compiler]
    [cljsbuild.crossover]
    [cljsbuild.util :as util]
-   [figwheel.core :refer [resource-paths-pattern-str]]
+   [figwheel-sidecar.core :refer [resource-paths-pattern-str]]
    [cljs.analyzer :as ana]))
+
+
+(def figwheel-sidecar-version
+  (let [[_ coords version]
+        (-> (or (io/resource "META-INF/leiningen/figwheel-sidecar/figwheel-sidecar/project.clj")
+                ; this should only ever come into play when testing figwheel-sidecar itself
+                "project.clj")
+            slurp
+            read-string)]
+    (assert (= coords 'figwheel-sidecar)
+            (str "Something very wrong, could not find figwheel-sidecar's project.clj, actually found: "
+                 coords))
+    (assert (string? version)
+            (str "Something went wrong, version of figwheel-sidecar is not a string: "
+                 version))
+    version))
 
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
-  ;; have to merge in the libraries I need into the project
-  (leval/eval-in-project (subproject/make-subproject project crossover-path builds)
-    ; Without an explicit exit, the in-project subprocess seems to just hang for
-    ; around 30 seconds before exiting.  I don't fully understand why...
-    `(try
-       (do
-         ~form
-         (System/exit 0))
-       (catch cljsbuild.test.TestsFailedException e#
-         ; Do not print stack trace on test failure
-         (System/exit 1))
-       (catch Exception e#
-         (do
-           (.printStackTrace e#)
+  (let [project' (-> project
+                     (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version]) 
+                     (subproject/make-subproject crossover-path builds)
+                     #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
+    (print (prn-str (:dependencies project')))
+    (leval/eval-in-project project'
+     ;; can remove cljsbuild dep here
+     
+                                        ; Without an explicit exit, the in-project subprocess seems to just hang for
+                                        ; around 30 seconds before exiting.  I don't fully understand why...
+     `(try
+        (do
+          ~form
+          (System/exit 0))
+                              (catch cljsbuild.test.TestsFailedException e#
+                                        ; Do not print stack trace on test failure
+                                (System/exit 1))
+                              (catch Exception e#
+                                (do
+                                  (.printStackTrace e#)
            (System/exit 1))))
-    requires))
+     requires)))
 
 ;; All I can say is I'm sorry about this but, it seems to be the best
 ;; way for me to reuse cljsbuild.
@@ -49,7 +72,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
     (fs/mkdirs crossover-path))
   (let [parsed-builds (list (config/parse-notify-command (first builds)))]
     (run-local-project project crossover-path parsed-builds
-     '(require 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'figwheel.auto-builder)
+     '(require 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'figwheel-sidecar.auto-builder)
      `(do
         (letfn [(copy-crossovers# []
                    (cljsbuild.crossover/copy-crossovers
@@ -59,7 +82,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
           (let [build# (first '~parsed-builds)]
-            (figwheel.auto-builder/autobuild (:source-paths build#)
+            (figwheel-sidecar.auto-builder/autobuild (:source-paths build#)
                                              (:compiler build#)
                                              ~live-reload-options)))))))
 
@@ -166,8 +189,10 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
         current-build (first (get-in project [:cljsbuild :builds]))
         figwheel-options (prep-options
                           (merge
+                           { :output-dir (-> current-build :compiler :output-dir )
+                            :output-to  (-> current-build :compiler :output-to ) }
                            (:figwheel project)
-                           (select-keys project [:root :resource-paths :name :version])))]
+                           (select-keys project [:root :resource-paths])))]
     (let [errors (check-for-valid-options (:cljsbuild project) figwheel-options)]
       (println (str "Figwheel: focusing on build-id " "'" (:id current-build) "'"))
       (if (empty? errors)

@@ -27,7 +27,8 @@
                          :compiler { :output-to "resources/public/js/compiled/example.js"
                                      :output-dir "resources/public/js/compiled/out"
                                      :source-map true
-                                    :optimizations :none}}]}
+                                     ;; :reload-non-macro-clj-files false
+                                     :optimizations :none}}]}
 
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
