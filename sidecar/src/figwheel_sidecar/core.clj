@@ -139,13 +139,14 @@
   .ie a file that starts with (ns example.path-finder) -> example.path_finder"
   [file-path]
   (try
+    
     (when (.exists (as-file file-path))
       (with-open [rdr (io/reader file-path)]
         (-> (java.io.PushbackReader. rdr)
             read
             second
-            name
-            underscore)))
+            #_name
+            #_underscore)))
     (catch java.lang.RuntimeException e
       nil)))
 
@@ -228,8 +229,12 @@
 (defn make-sendable-file
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
-  { :file (ns-to-server-relative-path st nm)
-    :namespace (cljs.compiler/munge nm) })
+  (let [n (-> nm name underscore)]
+    { :file (ns-to-server-relative-path st n)
+      :namespace (cljs.compiler/munge n)
+      :meta-data (meta nm)}
+    ))
+
 
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a

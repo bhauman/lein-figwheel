@@ -18,10 +18,20 @@
       (string/split #"/")
       first))
 
-(defn js-reload [{:keys [request-url namespace dependency-file] :as msg} callback]
-  (if (or dependency-file
-            ;; IMPORTANT make sure this file is currently provided
-          (.isProvided_ js/goog (name namespace)))
+(defonce ns-meta-data (atom {}))
+
+(defn get-meta-data-for-ns [ns]
+  (get ns-meta-data ns))
+
+(defn js-reload [{:keys [request-url namespace dependency-file meta-data] :as msg} callback]
+  (swap! ns-meta-data assoc namespace meta-data)
+  (print (pr-str @ns-meta-data))
+  (if (and
+       (or dependency-file
+           (and meta-data (:figwheel-load meta-data))
+           ;; IMPORTANT make sure this file is currently provided
+           (.isProvided_ js/goog (name namespace)))
+       (not (:figwheel-no-load (or meta-data {}))))
     (.addCallback (loader/load (add-cache-buster request-url) #js { :cleanupWhenDone true })
                   #(apply callback [(assoc msg :loaded-file true)]))
     (apply callback [msg])))
