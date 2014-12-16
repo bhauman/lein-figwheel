@@ -1,6 +1,7 @@
 example/resources/public/js/compiled
 example/target
 support/target
+sidecar/target
 plugin/target
 /target
 /lib

@@ -1,12 +1,14 @@
-* cljs.closure.api
-
+* resource paths?  better way to handle it eh?
 * make sure plugin tests pass
 
+* add basic autobuilding loop to clojurescript-build
+
 * add assert?
-* resource paths?  better way to handle it eh?
+
 * start compile message
 
 * look at cljs.test plugin for client
+* ### look at repl integration 
 
 * clean up parameter passing
 * look at subproject leiningen cljsbuild code and see whats needed
@@ -22,3 +24,4 @@
 * shouldn't reload everything on clj file changes now
 * seperate project / namespace for client
 * reload-non-macro-clj-files flag
+* cljs.closure.api

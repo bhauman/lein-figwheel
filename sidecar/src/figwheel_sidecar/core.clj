@@ -12,6 +12,7 @@
    [clojure.edn :as edn]
    [clojure.java.io :refer [as-file] :as io]
    [digest]
+   [clojurescript-build.api :as bapi]
    [clj-stacktrace.core :refer [parse-exception]]
    [clj-stacktrace.repl :refer [pst-on]]
    [clojure.pprint :as p]))
@@ -173,28 +174,37 @@
                          (keys new-mtimes))
                  (:cljs changed-source-file-paths))))))
 
-(defn resource-paths [{:keys [resource-paths]}]
-  (mapv #(string/replace-first (norm-path %)
-                               (str (norm-path (.getCanonicalPath (io/file ".")))
-                                    "/") "") resource-paths))
 
-(defn resource-paths-pattern-str [state]
-  (str "(" (string/join "|" (resource-paths state)) ")/"
-       (:http-server-root state)))
 
-(def resource-paths-pattern (comp re-pattern resource-paths-pattern-str))
+(let [root (norm-path (.getCanonicalPath (io/file ".")))]
+  (defn relativize-resource-paths
+    "relativize to the local root just in case we have an absolute path"
+    [{:keys [resource-paths]}]
+    (mapv #(string/replace-first (norm-path %)
+                                 (str (norm-path root)
+                                      "/") "") resource-paths)))
 
-(defn server-relative-root-path [state]
-  (string/replace-first
-   (:output-dir state)
-   (resource-paths-pattern state) ""))
+(defn remove-resource-path [{:keys [http-server-root] :as state} path]
+  (let [rp (first (filter (fn [x] (.startsWith path (str x "/" http-server-root)))
+                          (relativize-resource-paths state)))
+        to-remove (str rp "/" http-server-root)]
+    (string/replace path to-remove "")))
+
+(defn ns-to-server-relative-path [{:keys [output-dir] :as state} ns]
+  (let [path (.getPath (bapi/cljs-target-file-from-ns output-dir ns))]
+    (remove-resource-path state path)))
+
+(defn make-serve-from-display [{:keys [http-server-root] :as opts}]
+  (let [paths (relativize-resource-paths opts)]
+    (str "(" (string/join "|" paths) ")/" http-server-root)))
 
 (defn make-server-relative-path
   "Given the state and a namespace makes a path relative to the server root.
   This is a path that a client can request. A caveat is that only works on
   compiled javascript namespaces."
   [state nm]
-  (str
+  (ns-to-server-relative-path state nm)
+  #_(str
    (server-relative-root-path state)
    "/" (ns-to-path nm) ".js"))
 
@@ -220,13 +230,13 @@
   (keep
    #(when (file-changed? st %)
       { :dependency-file true
-        :file (string/replace-first % (resource-paths-pattern st) "") })
+        :file (remove-resource-path st %)})
    (dependency-files st)))
 
 (defn make-sendable-file
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
-  { :file (make-server-relative-path st nm)
+  { :file (ns-to-server-relative-path st nm)
     :namespace (cljs.compiler/munge nm) })
 
 ;; I would love to just check the compiled javascript files to see if
@@ -287,11 +297,8 @@
     (let [{:keys [updated?]} (compile-css-filewatcher state)]
       (map (fn [x] (.getPath x)) (updated?)))))
 
-(defn make-server-relative-css-path [state nm]
-  (string/replace-first nm (resource-paths-pattern state) ""))
-
 (defn make-css-file [state path]
-  { :file (make-server-relative-css-path state path)
+  { :file (remove-resource-path state path)
     :type :css } )
 
 (defn send-css-files [st files]
@@ -361,7 +368,8 @@
 (defn start-server [opts]
   (let [state (create-initial-state (resolve-ring-handler opts))]
     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
-    (println (str "Figwheel: Serving files from '" (resource-paths-pattern-str state) "'"))
+    (println (str "Figwheel: Serving files from '"
+                  (make-serve-from-display state) "'"))
     (assoc state :http-server (server state))))
 
 (defn stop-server [{:keys [http-server]}]

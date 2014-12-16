@@ -4,9 +4,11 @@
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[cljsbuild "1.0.3"]
-                 [figwheel-sidecar "0.1.7-SNAPSHOT"]]
+  :dependencies [[figwheel-sidecar "0.1.7-SNAPSHOT"]
+                 [cljsbuild "1.0.3"]]
 
+  :plugins [[lein-cljsbuild "1.0.3"]]
+  
   :scm { :name "git"
          :url "https://github.com/bhauman/lein-figwheel"}
   :eval-in-leiningen true)

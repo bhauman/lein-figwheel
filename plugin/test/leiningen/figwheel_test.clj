@@ -1,12 +1,8 @@
 (ns leiningen.figwheel-test
   (:require
    [leiningen.figwheel :as fig]
-   [clojure.test :refer [testing is deftest]]))
-
-(deftest test-cljs-change-server-watch-dirs
-  (let [proj {:cljsbuild { :builds [{:compiler { :output-to "there"
-                                                :output-dir "hello" }}] }}]
-    (is ["hello" "there"] (fig/cljs-change-server-watch-dirs proj))))
+   [clojure.java.io :as io]
+   [clojure.test :refer [testing is deftest run-tests]]))
 
 (deftest optimizations-none-test
   (let [build {:compiler {:optimizations :none}}
@@ -19,20 +15,24 @@
     (is (not (fig/optimizations-none? build-no3)))))
 
 (deftest resources-pattern-str-test
-  (is (= "()/public" (fig/resources-pattern-str {})))
-  (is (= "(fine/marty|fine/joe)/public"
-         (fig/resources-pattern-str
-          {:root "hello"
-           :resource-paths ["hello/fine/marty" "hello/fine/joe"]})))
-  (is (= "(fine/marty|fine/joe)/public-like"
-         (fig/resources-pattern-str
-          {:http-server-root "public-like"
-           :root "hello"
-           :resource-paths ["hello/fine/marty" "hello/fine/joe"]}))))
+  (let [root (.getCanonicalPath (io/file "."))]
+    (is (= "()/public" (fig/resources-pattern-str {})))
+    (is (= "(fine/marty|fine/joe)/public"
+           (fig/resources-pattern-str
+            {
+             :resource-paths [  "fine/marty" (str root "/fine/joe")]})))
+    (is (= "(fine/marty|fine/joe)/public-like"
+           (fig/resources-pattern-str
+            {:http-server-root "public-like"
+             
+             :resource-paths [  (str root "/fine/marty") 
+                                (str root "/fine/joe")]})))))
 
 (deftest output-dir-in-resources-root-test
-  (let [opts {:root "/hello"
-              :resource-paths ["/hello/marty" "/hello/joe"]}]
+  (let [root (.getCanonicalPath (io/file "."))
+        opts {:root root
+              :resource-paths [(str root "/marty")
+                               (str root "/joe")]}]
     (is (fig/output-dir-in-resources-root? (assoc opts :output-dir "marty/public/hi")))
     (is (not (fig/output-dir-in-resources-root? (assoc opts :output-dir "marty/something/hi"))))))
 
@@ -64,3 +64,4 @@
   (is (= { :cljsbuild { :builds [{:id "hello"}]} }
          (fig/narrow-to-one-build { :cljsbuild { :builds {:hello {} :there {}}} }
                               "hello"))))
+(run-tests)

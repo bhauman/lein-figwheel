@@ -63,6 +63,7 @@
                (let [msg-hist (focus-msgs #{:files-changed :compile-warning} msg-hist')
                      msg-names (map :msg-name msg-hist)
                      msg (first msg-hist)]
+                 #_(.log js/console (prn-str msg))
                  (cond
                   (reload-file-state? msg-names opts)
                   (<! (reloading/reload-js-files opts msg))

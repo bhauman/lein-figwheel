@@ -7,12 +7,8 @@
    [leiningen.cljsbuild.subproject :as subproject]
    [leiningen.core.eval :as leval]
    [clojure.java.io :as io]
-   [cljsbuild.compiler]
-   [cljsbuild.crossover]
-   [cljsbuild.util :as util]
-   [figwheel-sidecar.core :refer [resource-paths-pattern-str]]
+   [clojure.string :as string]
    [cljs.analyzer :as ana]))
-
 
 (def figwheel-sidecar-version
   (let [[_ coords version]
@@ -86,17 +82,28 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
   [build]
   (= :none (get-in build [:compiler :optimizations])))
 
-(defn resources-pattern-str
-  "returns a regex pattern that will match a directory that is a
-  resource directory or is below a recources directory."
-  [opts]
-  (resource-paths-pattern-str (update-in opts [:http-server-root] (fn [x] (or x "public")))))
+;; checking to see if output dir is in right directory
+(defn norm-path
+  "Normalize paths to a forward slash separator to fix windows paths"
+  [p] (string/replace p  "\\" "/"))
+
+(defn relativize-resource-paths
+  "Relativize to the local root just in case we have an absolute path"
+  [resource-paths]
+  (mapv #(string/replace-first (norm-path %)
+                               (str (norm-path (.getCanonicalPath (io/file ".")))
+                                    "/") "") resource-paths))
+
+(defn make-serve-from-display [{:keys [http-server-root resource-paths] :as opts}]
+  (let [paths (relativize-resource-paths resource-paths)]
+    (str "(" (string/join "|" paths) ")/" http-server-root)))
 
 (defn output-dir-in-resources-root?
   "Check if the build output directory is in or below any of the configured resources directories."
-  [{:keys [output-dir] :as opts}]
+  [{:keys [output-dir resource-paths http-server-root] :as opts}]
   (and output-dir
-       (re-matches (re-pattern (str (resources-pattern-str opts) ".*")) output-dir)))
+       (first (filter (fn [x] (.startsWith output-dir (str x "/" http-server-root)))
+                      (relativize-resource-paths resource-paths)))))
 
 (defn map-to-vec-builds
   "Cljsbuild allows a builds to be specified as maps. We acommodate that with this function
@@ -149,7 +156,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
                    (if (:output-dir build)
                      "your build :output-dir is not in a resources directory."
                      "you have not configured an :output-dir in your build")
-                   (str "\nIt should match this pattern: " (resources-pattern-str opts))))))))))
+                   (str "\nIt should match this pattern: " (make-serve-from-display opts))))))))))
 
 (defn normalize-dir
   "If directory ends with '/' then truncate the trailing forward slash."
