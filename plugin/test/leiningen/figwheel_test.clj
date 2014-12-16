@@ -51,4 +51,4 @@
   (is (= { :cljsbuild { :builds [{:id "hello"}]} }
          (fig/narrow-to-one-build { :cljsbuild { :builds {:hello {} :there {}}} }
                               "hello"))))
-(run-tests)
+
