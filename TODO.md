@@ -1,13 +1,14 @@
-* resource paths?  better way to handle it eh?
+
 * make sure plugin tests pass
 
 * add basic autobuilding loop to clojurescript-build
 
 * add assert?
 
-* start compile message
-
 * look at cljs.test plugin for client
+
+* multiple builds?
+
 * ### look at repl integration 
 
 * clean up parameter passing
@@ -21,6 +22,7 @@
 * look at sending incremental changes th the browser and the interaction with source maps
 
 ##### completed
+* resource paths?  better way to handle it eh?
 * shouldn't reload everything on clj file changes now
 * seperate project / namespace for client
 * reload-non-macro-clj-files flag

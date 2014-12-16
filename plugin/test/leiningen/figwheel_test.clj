@@ -14,23 +14,10 @@
     (is (not (fig/optimizations-none? build-no2)))
     (is (not (fig/optimizations-none? build-no3)))))
 
-(deftest resources-pattern-str-test
-  (let [root (.getCanonicalPath (io/file "."))]
-    (is (= "()/public" (fig/resources-pattern-str {})))
-    (is (= "(fine/marty|fine/joe)/public"
-           (fig/resources-pattern-str
-            {
-             :resource-paths [  "fine/marty" (str root "/fine/joe")]})))
-    (is (= "(fine/marty|fine/joe)/public-like"
-           (fig/resources-pattern-str
-            {:http-server-root "public-like"
-             
-             :resource-paths [  (str root "/fine/marty") 
-                                (str root "/fine/joe")]})))))
-
 (deftest output-dir-in-resources-root-test
   (let [root (.getCanonicalPath (io/file "."))
         opts {:root root
+              :http-server-root "public"
               :resource-paths [(str root "/marty")
                                (str root "/joe")]}]
     (is (fig/output-dir-in-resources-root? (assoc opts :output-dir "marty/public/hi")))

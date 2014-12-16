@@ -255,7 +255,6 @@
 ;; after reading finally reading the cljsbuild source code, it is
 ;; obvious that I was doing way to much work here.
 
-
 (defn notify-cljs-ns-changes [state ns-syms]
   (->> ns-syms
        (map (partial make-sendable-file state))
