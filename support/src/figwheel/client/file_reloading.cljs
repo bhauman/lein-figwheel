@@ -59,7 +59,7 @@
        (js/setTimeout #(apply on-jsload [res]) 10))
      (when (not-empty files-not-loaded)
        (.debug js/console "Figwheel: NOT loading files that haven't been required")
-       (.log js/console (pr-str (map :file files-not-loaded)))))))
+       (.log js/console "not required:" (pr-str (map :file files-not-loaded)))))))
 
 ;; CSS reloading
 
