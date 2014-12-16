@@ -165,8 +165,9 @@
   (.warn js/console "Figwheel: Compile Warning -" message)
   w)
 
+
 (defn default-before-load [files]
-  (.debug js/console "Figwheel: loading files")
+  (.debug js/console "Figwheel: notified of file changes")
   files)
 
 (defn default-on-cssload [files]

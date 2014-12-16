@@ -49,12 +49,17 @@
 (defn reload-js-files [{:keys [before-jsload on-jsload] :as opts} {:keys [files] :as msg}]
   (go
    (before-jsload files)
-   (let [files'  (add-request-urls opts files) 
-         res     (filter :loaded-file (<! (load-all-js-files files')))]
+   (let [files'  (add-request-urls opts files)
+         res'    (<! (load-all-js-files files'))
+         res     (filter :loaded-file res')
+         files-not-loaded  (filter #(not (:loaded-file %)) res')]
      (when (not-empty res)
        (.debug js/console "Figwheel: loaded these files")
        (.log js/console (pr-str (map :file res)))
-       (js/setTimeout #(apply on-jsload [res]) 10)))))
+       (js/setTimeout #(apply on-jsload [res]) 10))
+     (when (not-empty files-not-loaded)
+       (.debug js/console "Figwheel: NOT loading files that haven't been required")
+       (.log js/console (pr-str (map :file files-not-loaded)))))))
 
 ;; CSS reloading
 
