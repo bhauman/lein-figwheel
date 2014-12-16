@@ -5,8 +5,7 @@
    [clojure.string :as string]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
   (:require-macros
-   [cljs.core.async.macros :refer [go go-loop]])
-  )
+   [cljs.core.async.macros :refer [go go-loop]]))
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
@@ -24,7 +23,7 @@
             ;; IMPORTANT make sure this file is currently provided
           (.isProvided_ js/goog (name namespace)))
     (.addCallback (loader/load (add-cache-buster request-url) #js { :cleanupWhenDone true })
-                  #(apply callback [msg]))
+                  #(apply callback [(assoc msg :loaded-file true)]))
     (apply callback [msg])))
 
 (defn reload-js-file [file-msg]
@@ -51,7 +50,7 @@
   (go
    (before-jsload files)
    (let [files'  (add-request-urls opts files) 
-         res     (<! (load-all-js-files files'))]
+         res     (filter :loaded-file (<! (load-all-js-files files')))]
      (when (not-empty res)
        (.debug js/console "Figwheel: loaded these files")
        (.log js/console (pr-str (map :file res)))
