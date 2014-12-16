@@ -24,7 +24,7 @@
                )
   })
 
-(m/log (+ 1 2 2 3))
+(m/log (+ 1 2 2 3 4 5))
 
 ;; When you are writing reloadable code you have to protect things
 ;; that you don't want defined over and over.
@@ -54,7 +54,7 @@
    [:input.example-color-select {:type "range" :min 0 :max 255 :value g :data-color "g"}]
    [:div "green: " g]
    [:input.example-color-select {:type "range" :min 0 :max 255 :value b :data-color "b"}]   
-   [:div "this is a cool blue: " b]])
+   [:div "this is a blue: " b]])
 
 (defn ex1-render [v]
   (.html (js/$ "#example-1") (crate.core/html 

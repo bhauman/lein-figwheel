@@ -1,4 +1,4 @@
-(defproject figwheel-example "0.1.7-SNAPSHOT"
+(defproject figwheel-example "0.2.0-SNAPSHOT"
   :description "Just an example of using the lein-figwheel plugin"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -8,11 +8,11 @@
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
-                 [figwheel "0.1.7-SNAPSHOT"]]
+                 [figwheel "0.2.0-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.3"]
-            [lein-figwheel "0.1.7-SNAPSHOT"]]
+            [lein-figwheel "0.2.0-SNAPSHOT"]]
 
   ;; this is used for testing an external server
   :ring { :handler example.server/static-server }

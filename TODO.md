@@ -2,9 +2,12 @@
 * ### look at repl integration 
 * add basic autobuilding loop to clojurescript-build
 
+* clean up example and template to have basic dev pattern
+  of requiring figwheel in dev mode
+
 * add assert?
 * multiple builds?
-
+  
 * clean up parameter passing
 * look at subproject leiningen cljsbuild code and see whats needed
 
@@ -13,7 +16,7 @@
 
 * html change causes refresh
 * clean from browser is a big win
-##### completed
+  ##### completed
 * resource paths?  better way to handle it eh?
 * shouldn't reload everything on clj file changes now
 * seperate project / namespace for client
