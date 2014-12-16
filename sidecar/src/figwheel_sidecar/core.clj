@@ -174,8 +174,6 @@
                          (keys new-mtimes))
                  (:cljs changed-source-file-paths))))))
 
-
-
 (let [root (norm-path (.getCanonicalPath (io/file ".")))]
   (defn relativize-resource-paths
     "relativize to the local root just in case we have an absolute path"
@@ -190,23 +188,17 @@
         to-remove (str rp "/" http-server-root)]
     (string/replace path to-remove "")))
 
-(defn ns-to-server-relative-path [{:keys [output-dir] :as state} ns]
+(defn ns-to-server-relative-path
+  "Given the state and a namespace makes a path relative to the server root.
+  This is a path that a client can request. A caveat is that only works on
+  compiled javascript namespaces."
+  [{:keys [output-dir] :as state} ns]
   (let [path (.getPath (bapi/cljs-target-file-from-ns output-dir ns))]
     (remove-resource-path state path)))
 
 (defn make-serve-from-display [{:keys [http-server-root] :as opts}]
   (let [paths (relativize-resource-paths opts)]
     (str "(" (string/join "|" paths) ")/" http-server-root)))
-
-(defn make-server-relative-path
-  "Given the state and a namespace makes a path relative to the server root.
-  This is a path that a client can request. A caveat is that only works on
-  compiled javascript namespaces."
-  [state nm]
-  (ns-to-server-relative-path state nm)
-  #_(str
-   (server-relative-root-path state)
-   "/" (ns-to-path nm) ".js"))
 
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
@@ -282,6 +274,8 @@
                     (:cljs (get-changed-source-file-paths old-mtimes new-mtimes))))))))
 
 ;; css changes
+;; this can be moved out of here I think
+;; TODO we don't need to use watchtower anymore
 
 ;; watchtower css file change detection
 (defn compile-css-filewatcher [{:keys [css-dirs] :as server-state}]
