@@ -1,6 +1,7 @@
 (ns figwheel.client.file-reloading
   (:require
    [goog.Uri :as guri]
+   [goog.string]
    [goog.net.jsloader :as loader]
    [clojure.string :as string]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
@@ -23,9 +24,13 @@
 (defn get-meta-data-for-ns [ns]
   (get ns-meta-data ns))
 
+(defn resolve-ns [ns]
+  (str (string/replace-first (.-basePath js/goog) "/goog" "")
+       (string/replace ns "." "/")
+       ".js"))
+
 (defn js-reload [{:keys [request-url namespace dependency-file meta-data] :as msg} callback]
   (swap! ns-meta-data assoc namespace meta-data)
-  (print (pr-str @ns-meta-data))
   (if (and
        (or dependency-file
            (and meta-data (:figwheel-load meta-data))
@@ -79,8 +84,7 @@
 (defn truncate-url [url]
   (-> (first (string/split url #"\?")) 
       (string/replace-first (str (.-protocol js/location) "//") "")
-      (string/replace-first "http://" "")
-      (string/replace-first "https://" "")      
+      (string/replace-first ".*://" "")
       (string/replace-first #"^//" "")         
       (string/replace-first #"[^\/]*" "")))
 
@@ -88,6 +92,9 @@
   (let [trunc-href (truncate-url link-href)]
     (or (= file trunc-href)
         (= (truncate-url request-url) trunc-href))))
+
+#_(defn matches-file-new? [{:keys [file] } link-href]
+    (.endsWith goog.string file (truncate-url link-href)))
 
 (defn get-correct-link [f-data]
   (some (fn [l]
