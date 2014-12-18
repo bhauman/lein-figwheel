@@ -46,10 +46,6 @@
         compiler-env    (cljs.env/default-compiler-env build-options)]
     (reset! server-kill-switch (:http-server figwheel-state'))
 
-    #_(p/pprint src-dirs)
-    #_(p/pprint build-options)
-    #_(p/pprint figwheel-options)
-
     (loop [dependency-mtimes {}]
       (let [new-mtimes (get-dependency-mtimes src-dirs build-options)]
         (when (not= dependency-mtimes new-mtimes)

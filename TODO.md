@@ -1,5 +1,8 @@
 * look at cljs.test plugin for client
+  - going to require an eval to do what I want
+  
 * ### look at repl integration 
+
 * add basic autobuilding loop to clojurescript-build
 
 * clean up example and template to have basic dev pattern
@@ -11,14 +14,8 @@
 * clean up parameter passing
 * look at subproject leiningen cljsbuild code and see whats needed
 
-* dynamic env for figwheel.core
+* dynamic *env* for figwheel.core
 * create seperate feature testing projects
 
-* html change causes refresh
+* html change to cause refresh
 * clean from browser is a big win
-  ##### completed
-* resource paths?  better way to handle it eh?
-* shouldn't reload everything on clj file changes now
-* seperate project / namespace for client
-* reload-non-macro-clj-files flag
-* cljs.closure.api
