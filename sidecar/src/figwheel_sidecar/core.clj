@@ -274,7 +274,7 @@
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
      (notify-cljs-ns-changes state
-      (set (concat (map name additional-ns)
+      (set (concat additional-ns
               (keep get-ns-from-source-file-path
                     (:cljs (get-changed-source-file-paths old-mtimes new-mtimes))))))))
 
