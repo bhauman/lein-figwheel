@@ -52,6 +52,17 @@ Figwheel **broadcasts** changes to all connected clients. This means you
 can see code and CSS changes take place in real time on your phone and
 in your laptop browser simultaneously.
 
+#### Respects dependencies
+
+Figwheel will not load a file that has not been required. It will also
+respond well to new requirements and dependency tree changes.
+
+#### Calculates minimal reload set
+
+Figwheel does its best to only reload what needs to be reloaded. This
+minimizes the surface area of dynamically reloaded code, which in turn
+should increase the stability of the client environment.
+
 ## Quick Start
 
 Make sure you have the [latest version of leinigen installed](https://github.com/technomancy/leiningen#installation).
@@ -159,8 +170,7 @@ In your `project.clj` you can add the following configuration parameters:
    ;; To be able to open files in your editor from the heads up display
    ;; you will need to put a script on your path.
    ;; that script will have to take a file path and a line number
-   ;; ie.
-   ;;
+   ;; ie. in  ~/bin/myfile-opener
    ;; #! /bin/sh
    ;; emacsclient -n +$2 $1
    ;;
