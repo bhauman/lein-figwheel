@@ -1,3 +1,18 @@
+## 0.2.0-SNAPSHOT
+
+* **extremely fast** incremental builds when editing Clojure (.clj) files**
+* you can now call the autobuilder from the repl or your own build script (not documented yet)
+* isolated server and building code into to its own project to so that including
+  the client code doesn't polute projects with clj based deps,
+  the serverand builder code only get's included in the plugin
+* fixed bug where warning handler was getting added over and over in the build loop
+* fixed bug: files that are't required don't get loaded but the console message 
+  was saying that they were
+* if you want to force an unrequired file to get loaded you can now do this
+  `(ns ^:figwheel-load example.core `
+* if you want to prevent a file from being reloaded you can now do this
+  `(ns ^:figwheel-no-load example.setup `
+
 ## 0.1.7-SNAPSHOT
 
 * compile warning notifications forwarded to client
