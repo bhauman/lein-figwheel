@@ -7,8 +7,7 @@
    [leiningen.cljsbuild.subproject :as subproject]
    [leiningen.core.eval :as leval]
    [clojure.java.io :as io]
-   [clojure.string :as string]
-   [cljs.analyzer :as ana]))
+   [clojure.string :as string]))
 
 (def figwheel-sidecar-version
   (let [[_ coords version]
