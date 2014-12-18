@@ -1,10 +1,10 @@
 ## 0.2.0-SNAPSHOT
 
-* **extremely fast** incremental builds when editing Clojure (.clj) files**
+* **extremely fast incremental builds when editing Clojure (.clj) files**
 * you can now call the autobuilder from the repl or your own build script (not documented yet)
 * isolated server and building code into to its own project to so that including
   the client code doesn't polute projects with clj based deps,
-  the serverand builder code only get's included in the plugin
+  the server and builder code only get's included in the plugin
 * fixed bug where warning handler was getting added over and over in the build loop
 * fixed bug: files that are't required don't get loaded but the console message 
   was saying that they were
