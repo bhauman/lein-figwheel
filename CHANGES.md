@@ -1,7 +1,8 @@
 ## 0.2.0-SNAPSHOT
 
 * **extremely fast incremental builds when editing Clojure (.clj) files**
-* you can now call the autobuilder from the repl or your own build script (not documented yet)
+* you can now call the figwheel autobuilder/change-server from the repl or your
+  own build script (not documented yet)
 * isolated server and building code into to its own project to so that including
   the client code doesn't polute projects with clj based deps,
   the server and builder code only get's included in the plugin

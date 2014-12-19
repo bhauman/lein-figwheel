@@ -9,7 +9,7 @@
 ;; A more advanced example using React and Sablono
 ;; you can edit any of this live
 
-(o/logger (+ 1 2 23))
+(o/logger (+ 1 2 23 3))
 
 (defonce ex3-atom (atom {:rx 0 :ry 0 :rz 0}))
 
