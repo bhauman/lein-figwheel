@@ -63,6 +63,12 @@ Figwheel does its best to only reload what needs to be reloaded. This
 minimizes the surface area of dynamically reloaded code, which in turn
 should increase the stability of the client environment.
 
+#### Doesn't load code that is generating warnings
+
+If your ClojureScript code is generating compiler warnings Figwheel
+won't load it. This again if very helpful in keeping the client
+environment stable. This behavior is optional and can be turned off.
+
 ## Quick Start
 
 Make sure you have the [latest version of leinigen installed](https://github.com/technomancy/leiningen#installation).
