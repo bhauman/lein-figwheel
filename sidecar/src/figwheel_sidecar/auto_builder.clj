@@ -36,7 +36,7 @@
 (def server-kill-switch (atom false))
 
 (defn autobuild [src-dirs build-options figwheel-options]
-  (let [figwheel-options' (merge figwheel-options (select-keys build-options [:ouput-dir :output-to]))
+  (let [figwheel-options' (merge figwheel-options (select-keys build-options [:output-dir :output-to]))
         figwheel-state' (fig/start-server figwheel-options')
         warning-handler (fn [warning-type env extra]
                           (when (warning-type cljs.analyzer/*cljs-warnings*)
