@@ -227,7 +227,7 @@ In keeping with the previous examples you would put this into your
   ;; :websocket-url "ws://localhost:3449/figwheel-ws"
 
   ;; optional callback
-  :on-jsload (fn [] (print "reloaded") 
+  :on-jsload (fn [] (print "reloaded"))
 
   ;; The heads up display is enabled by default
   ;; to disable it: 
