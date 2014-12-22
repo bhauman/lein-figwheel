@@ -2,6 +2,7 @@
   (:use figwheel-sidecar.core)
   (:use clojure.test)
   (:require
+   [clojure.string :as string]
    [clojure.java.io :as io]))
 
 (deftest test-utils
@@ -49,6 +50,23 @@
                                  (str "other-resources")
                                  (str "dev-resources")
                                  (str "other-resources-help/dang")] }))
+    ))
+
+
+(defn windows-pather [s]
+  (string/replace s "/" "\\"))
+
+(deftest test-remove-resource-windows-path
+  (let [root (windows-pather (.getCanonicalPath (io/file ".")))
+        st { :http-server-root "public"
+             :resource-paths [(str root "\\resources")
+                              (str root "\\other-resources")
+                              (str root "\\dev-resources")
+                             (str root "\\other-resources-help/dang")]}]
+    (is (= (remove-resource-path st "resources\\public\\js\\example\\core.js")
+           "/js/example/core.js"))
+    (is (= (remove-resource-path st "resources\\public\\css\\style.css")
+           "/css/style.css"))
     ))
 
 #_(run-tests)
