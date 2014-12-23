@@ -43,7 +43,7 @@
                             (when-let [s (cljs.analyzer/error-message warning-type extra)]
                                 (fig/compile-warning-occured figwheel-state' (cljs.analyzer/message env s)))))
         warning-handlers (conj cljs.analyzer/*cljs-warning-handlers* warning-handler)
-        compiler-env    (cljs.env/default-compiler-env build-options)]
+        compiler-env'    (or cljs.env/*compiler* (cljs.env/default-compiler-env build-options))]
     (reset! server-kill-switch (:http-server figwheel-state'))
 
     (loop [dependency-mtimes {}]
@@ -56,7 +56,7 @@
               (println (str "Compiling \"" (:output-to build-options) "\" from " (pr-str src-dirs) "..."))
               (flush)
               (let [started-at (System/currentTimeMillis)
-                    additional-changed-ns (cbuild/build-source-paths src-dirs build-options compiler-env)]
+                    additional-changed-ns (cbuild/build-source-paths src-dirs build-options compiler-env')]
                 (println (green (str "Successfully compiled \"" (:output-to build-options) "\" in " (elapsed started-at) ".")))
                 (fig/check-for-changes figwheel-state' dependency-mtimes new-mtimes additional-changed-ns)))
             (catch Throwable e
