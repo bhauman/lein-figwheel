@@ -26,6 +26,7 @@
 
 (m/log (+ 1 2 2 3 4 5))
 
+
 ;; When you are writing reloadable code you have to protect things
 ;; that you don't want defined over and over.
 
