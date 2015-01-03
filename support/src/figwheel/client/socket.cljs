@@ -41,7 +41,13 @@
   (set! (.-onclose @socket-atom) identity)
   (.close @socket-atom))
 
-(defn open [{:keys [retry-count retried-count websocket-url] :as opts}]
+(defn proper-build-id [build-id msg]
+  (or (nil? build-id)
+      (nil? (:build-id msg))
+      (= (name build-id)
+         (:build-id msg))))
+
+(defn open [{:keys [retry-count retried-count websocket-url build-id] :as opts}]
   (if-not (have-websockets?)
     (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
     (do
@@ -49,11 +55,11 @@
       (let [socket (js/WebSocket. websocket-url)]
         (set! (.-onmessage socket) (fn [msg-str]
                                      (when-let [msg (read-string (.-data msg-str))]
-                                       #_(.log js/console (pr-str msg))
                                        (and (map? msg)
                                             (:msg-name msg)
                                             ;; don't forward pings
                                             (not= (:msg-name msg) :ping)
+                                            (proper-build-id build-id msg)
                                             (swap! message-history-atom
                                                    conj msg)))))
         (set! (.-onopen socket)  (fn [x]
