@@ -16,27 +16,31 @@
       (when-let [s (cljs.analyzer/error-message warning-type extra)]
         (fig/compile-warning-occured figwheel-state (cljs.analyzer/message env s))))))
 
-(defn builder [figwheel-state]
+(defn builder [figwheel-state']
   (let [warning-handlers (conj cljs.analyzer/*cljs-warning-handlers*
-                               (warning-handler figwheel-state))]
-    
-    (fn [{:keys [src-dirs build-options compiler-env old-mtimes new-mtimes] :as state}]
-      (try
-        (binding [cljs.analyzer/*cljs-warning-handlers* warning-handlers]
-          (auto/compile-start state)
-          (let [started-at (System/currentTimeMillis)
-                additional-changed-ns (cbuild/build-source-paths src-dirs
-                                                                 build-options
-                                                                 compiler-env)]
-            (auto/compile-success (assoc state :started-at started-at))
-            (fig/check-for-changes figwheel-state
-                                   old-mtimes
-                                   new-mtimes
-                                   additional-changed-ns)))
-        (catch Throwable e
-          (println (auto/red (str "Compiling \"" (:output-to build-options) "\" failed.")))
-          (clj-stacktrace.repl/pst+ e)
-          (fig/compile-error-occured figwheel-state e))))))
+                               (warning-handler figwheel-state'))]
+    (fn [{:keys [build-options old-mtimes new-mtimes id] :as build}]
+      ;; this is where we are having to handle the seperate builds
+      ;; better to pass the build into figwheel eh?
+      (let [figwheel-state 
+            (merge figwheel-state'
+                   (if id {:build-id id} {})
+                   (select-keys build-options [:output-dir :output-to]))]
+        (try
+          (binding [cljs.analyzer/*cljs-warning-handlers* warning-handlers]
+            (auto/compile-start build)
+            (let [started-at (System/currentTimeMillis)
+                  additional-changed-ns
+                  (:additional-changed-ns (cbuild/build-source-paths* build))]
+              (auto/compile-success (assoc build :started-at started-at))
+              (fig/check-for-changes figwheel-state
+                                     old-mtimes
+                                     new-mtimes
+                                     additional-changed-ns)))
+          (catch Throwable e
+            (println (auto/red (str "Compiling \"" (:output-to build-options) "\" failed.")))
+            (clj-stacktrace.repl/pst+ e)
+            (fig/compile-error-occured figwheel-state e)))))))
 
 (defn autobuild* [builds figwheel-options]
   (let [figwheel-state (fig/start-server figwheel-options)]
