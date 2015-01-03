@@ -62,10 +62,16 @@
             (println "Figwheel: there was a problem running the open file command - " command))
           )))))
 
+(defn add-build-id [{:keys [build-id]} msg]
+  (if build-id
+    (assoc msg :build-id build-id)
+    msg))
+
 (defn message* [opts msg-name data]
   (merge data
-         { :msg-name msg-name 
-           :project-id (:unique-id opts)}))
+         (add-build-id opts
+                       { :msg-name msg-name 
+                         :project-id (:unique-id opts)})))
 
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
                                 wschannel]
@@ -224,7 +230,7 @@
   (keep
    #(when (file-changed? st %)
       { :dependency-file true
-        :file (remove-resource-path st %)})
+        :file (remove-resource-path st %) })
    (dependency-files st)))
 
 (defn make-sendable-file
@@ -233,9 +239,7 @@
   (let [n (-> nm name underscore)]
     { :file (ns-to-server-relative-path st n)
       :namespace (cljs.compiler/munge n)
-      :meta-data (meta nm)}
-    ))
-
+      :meta-data (meta nm) }))
 
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
@@ -332,6 +336,8 @@
   (doseq [df (dependency-files state)]
     (file-changed? state df))
   (:file-md5-atom state))
+
+
 
 (defn create-initial-state [{:keys [root name version resource-paths
                                     css-dirs ring-handler http-server-root
