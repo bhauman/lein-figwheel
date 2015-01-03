@@ -38,13 +38,15 @@
           (clj-stacktrace.repl/pst+ e)
           (fig/compile-error-occured figwheel-state e))))))
 
-(defn autobuild [src-dirs build-options figwheel-options]
-  (let [figwheel-options (merge figwheel-options
-                                (select-keys build-options [:output-dir :output-to]))
-        figwheel-state (fig/start-server figwheel-options)]
+(defn autobuild* [builds figwheel-options]
+  (let [figwheel-state (fig/start-server figwheel-options)]
     (reset! server-kill-switch (:http-server figwheel-state))
-    (auto/autobuild*
-     {:src-dirs src-dirs
-      :build-options build-options
+    (auto/autobuild-blocking*
+     {:builds  builds
       :builder (builder figwheel-state)
       :each-iteration-hook (fn [_] (fig/check-for-css-changes figwheel-state))})))
+
+(defn autobuild [src-dirs build-options figwheel-options]
+  (autobuild* [{:source-paths src-dirs
+                :build-options build-options}]
+              figwheel-options))
