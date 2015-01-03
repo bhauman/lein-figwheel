@@ -20,8 +20,9 @@
               :http-server-root "public"
               :resource-paths [(str root "/marty")
                                (str root "/joe")]}]
-    (is (fig/output-dir-in-resources-root? (assoc opts :output-dir "marty/public/hi")))
-    (is (not (fig/output-dir-in-resources-root? (assoc opts :output-dir "marty/something/hi"))))))
+    (is (fig/output-dir-in-resources-root? {:output-dir "marty/public/hi"} opts))
+    (is (not (fig/output-dir-in-resources-root? {:output-dir "marty/something/hi"}
+                                                opts)))))
 
 (deftest map-to-vec-builds-test
   (is (= [1 2 3 4]
@@ -33,22 +34,29 @@
 
 (deftest narrow-to-one-build*-test
   (is (= [{:id "there"}]
-         (fig/narrow-to-one-build* {:hello {} :there {}} "there")))
+         (fig/narrow-builds* {:hello {} :there {}} ["there"])))
+
+  (is (= [{:id "there"}]
+         (fig/narrow-builds* [{:id :hello} {:id :there}] ["there"])))
+
+  (is (= (set [{:id "there"} {:id "hello"}])
+         (set (fig/narrow-builds* {:hello {} :there {}} ["there" "hello"]))))
   (is (= [{:id "hello"}]
-         (fig/narrow-to-one-build* {:hello {} :there {}} "hello")))
+         (fig/narrow-builds* {:hello {} :there {}} ["hello"])))
   (is (= [{:id "hello" :compiler {:optimizations :none}}]
-         (fig/narrow-to-one-build* [{:id "hello"
-                                     :compiler { :optimizations :none } }
-                                    {:id "there"
-                                     :compiler { :optimizations :none }}]
-                              nil)))
-  (is (= [ nil ]
-         (fig/narrow-to-one-build* [{:id "hello"} {:id "there"}] nil)))
-  (is (= [ nil ]
-         (fig/narrow-to-one-build* [{:id "hello"} {:id "there"}] "bad-id"))))
+         (fig/narrow-builds* [{:id "hello"
+                               :compiler { :optimizations :none } }
+                              {:id "there"
+                               :compiler { :optimizations :none }}]
+                             nil)))
+  (is (= []
+         (fig/narrow-builds* [{:id "hello"} {:id "there"}] nil)))
+  (is (= []
+         (fig/narrow-builds* [{:id "hello"} {:id "there"}] ["bad-id"]))))
 
 (deftest narrow-to-one-build-test
   (is (= { :cljsbuild { :builds [{:id "hello"}]} }
-         (fig/narrow-to-one-build { :cljsbuild { :builds {:hello {} :there {}}} }
-                              "hello"))))
+         (fig/narrow-builds { :cljsbuild { :builds {:hello {} :there {}}} }
+                            ["hello"]))))
 
+(run-tests)
