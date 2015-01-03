@@ -28,6 +28,13 @@
                                      :output-dir "resources/public/js/compiled/out"
                                      :source-map true
                                      ;; :reload-non-macro-clj-files false
+                                    :optimizations :none}}
+                       { :id "example-admin"
+                         :source-paths ["other_src" ]
+                         :compiler { :output-to "resources/public/js/compiled/example_admin.js"
+                                     :output-dir "resources/public/js/compiled/admin"
+                                     :source-map true
+                                     ;; :reload-non-macro-clj-files false
                                      :optimizations :none}}]}
 
   :figwheel {
