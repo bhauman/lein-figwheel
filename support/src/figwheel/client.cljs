@@ -54,8 +54,7 @@
 (defn css-loaded-state? [msg-names]
   (= :css-files-changed (first msg-names)))
 
-;; plugins
-
+;; 
 (defn file-reloader-plugin [opts]
   (let [ch (chan)]
     (go-loop []
