@@ -333,8 +333,10 @@
   (send-message! st :compile-warning { :message msg }))
 
 (defn initial-check-sums [state]
-  (doseq [df (dependency-files state)]
-    (file-changed? state df))
+  (when (and (:output-dir state)
+             (:output-to state))
+    (doseq [df (dependency-files state)]
+      (file-changed? state df)))
   (:file-md5-atom state))
 
 
