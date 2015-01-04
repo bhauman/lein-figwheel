@@ -55,6 +55,7 @@
       (let [socket (js/WebSocket. websocket-url)]
         (set! (.-onmessage socket) (fn [msg-str]
                                      (when-let [msg (read-string (.-data msg-str))]
+                                       #_(.log js/console (prn-str msg))
                                        (and (map? msg)
                                             (:msg-name msg)
                                             ;; don't forward pings
