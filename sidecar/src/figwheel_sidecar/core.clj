@@ -339,8 +339,6 @@
       (file-changed? state df)))
   (:file-md5-atom state))
 
-
-
 (defn create-initial-state [{:keys [root name version resource-paths
                                     css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
@@ -372,12 +370,14 @@
          (when ring-handler
            (eval (symbol ring-handler)))))
 
-(defn start-server [opts]
-  (let [state (create-initial-state (resolve-ring-handler opts))]
-    (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
-    (println (str "Figwheel: Serving files from '"
-                  (make-serve-from-display state) "'"))
-    (assoc state :http-server (server state))))
+(defn start-server
+  ([] (start-server {}))
+  ([opts]
+   (let [state (create-initial-state (resolve-ring-handler opts))]
+     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
+     (println (str "Figwheel: Serving files from '"
+                   (make-serve-from-display state) "'"))
+     (assoc state :http-server (server state)))))
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
