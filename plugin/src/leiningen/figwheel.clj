@@ -59,7 +59,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
     (fs/mkdirs crossover-path))
   (let [parsed-builds (map config/parse-notify-command builds)]
     (run-local-project project crossover-path parsed-builds
-     '(require 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'figwheel-sidecar.auto-builder)
+     '(require 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'figwheel-sidecar.auto-builder 'figwheel-sidecar.core)
      `(do
         (letfn [(copy-crossovers# []
                    (cljsbuild.crossover/copy-crossovers
@@ -68,8 +68,13 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
           (when (not-empty '~crossovers)
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
-          (figwheel-sidecar.auto-builder/autobuild* '~parsed-builds
-                                                    ~figwheel-options))))))
+          (figwheel-sidecar.auto-builder/autobuild*
+           { :builds '~parsed-builds
+             :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})
+          ;; block because call is non blocking core async
+          (loop []
+            (Thread/sleep 30000)
+            (recur)))))))
 
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
