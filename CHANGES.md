@@ -1,3 +1,9 @@
+## 0.2.1-SNAPSHOT
+
+* now supports multiple builds i.e lein figwheel example example-admin
+* refactored figwheel-sidecar/auto-builder and clojurescript-build/auto
+  a bunch to facilitate better reuse
+
 ## 0.2.0-SNAPSHOT
 
 * **extremely fast incremental builds when editing Clojure (.clj) files**
