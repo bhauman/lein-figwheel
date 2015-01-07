@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [test])
   (:require
    [clojure.pprint :as pp]
-   [fs.core :as fs]
    [leiningen.cljsbuild.config :as config]
    [leiningen.cljsbuild.subproject :as subproject]
    [leiningen.core.eval :as leval]
@@ -56,7 +55,7 @@
   (when (not-empty crossovers)
     (println "\033[31mWARNING: lein-cljsbuild crossovers are deprecated, and will be removed in future versions.\n
 See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
-    (fs/mkdirs crossover-path))
+    (.mkdirs (io/file crossover-path)))
   (let [parsed-builds (map config/parse-notify-command builds)]
     (run-local-project project crossover-path parsed-builds
      '(require 'cljsbuild.crossover 'cljsbuild.util 'clj-stacktrace.repl 'figwheel-sidecar.auto-builder 'figwheel-sidecar.core)
