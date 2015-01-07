@@ -326,6 +326,38 @@ points to the same resource on your server.
 })
 ```
 
+### Using figwheel from the REPL
+
+This is still a work in progress. But you can use figwheel from a
+Clojure REPL like so:
+
+```clojure
+(require '[figwheel-sidecar.auto-builder :as fig-auto])
+(require '[figwheel-sidecar.core :as fig])
+(require '[clojurescript-build.auto :as auto])
+
+;; start the figwheel server
+(def figwheel-server
+  (fig/start-server { :css-dirs ["resources/public/css"] }))
+
+(def config {:builds [{ :id "example"
+                        :output-to "resources/public/checkbuild.js"
+                        :output-dir "resources/public/out"
+                        :optimizations :none }]
+             :figwheel-server figwheel-server })
+
+;; start the watching and building process
+;; this will not block and output will appear in the REPL
+(def fig-builder (fig-auto/autobuild* config))
+
+;; you can stop the building process like so:
+(auto/stop-autobuild! fig-builder)
+                                        
+;; you can then restart the watching and building process with a
+;; different config etc.
+
+```
+
 ## Resources 
 
 [Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading if you aren't using Om.
