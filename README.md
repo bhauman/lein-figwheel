@@ -6,7 +6,7 @@ Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
-Current version: [lein-figwheel "0.2.0-SNAPSHOT"](https://clojars.org/lein-figwheel)
+Current version: [lein-figwheel "0.2.1-SNAPSHOT"](https://clojars.org/lein-figwheel)
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
@@ -97,7 +97,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojurescript "0.0-2496"] ;; has to be at least 2202 or greater
-[figwheel "0.2.0-SNAPSHOT"]            ;; needed for figwheel client
+[figwheel "0.2.1-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -105,7 +105,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
-[lein-figwheel "0.2.0-SNAPSHOT"]
+[lein-figwheel "0.2.1-SNAPSHOT"]
 ```
 
 #### Configure lein cljsbuild
@@ -189,7 +189,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.2.0-SNAPSHOT"]
+[figwheel "0.2.1-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
