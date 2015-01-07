@@ -237,6 +237,11 @@ In keeping with the previous examples you would put this into your
   ;; blocks the loading of files.
   ;; To disable this behavior:
   ;; :load-warninged-code true
+
+  ;; if figwheel is watching more than one build
+  ;; it can be helpful to specify a build id for
+  ;; the client to focus on
+  ;; :build-id "example"
 })
 ```
 
@@ -249,6 +254,25 @@ we [write reloadable code](https://github.com/bhauman/lein-figwheel#writing-relo
 Please check out the example project in the `example` directory.
 
 To see all the client side config options [look here](https://github.com/bhauman/lein-figwheel/blob/master/support/src/figwheel/client.cljs#L178).
+
+### Preventing and forcing file reloads
+
+Figwheel normally reloads anyfile that has changed. If you want to
+prevent certain files from being reloaded by figwheel, you can add
+meta-data to the namespace declaration like so:
+
+```clojure
+(ns ^:figwheel-no-load example.core)
+```
+
+Figwheel will not load or reload files that haven't been required by
+your application. If you want to force a file to be loaded and
+reloaded add the follwoing meta-data the namespace declaration of the
+file:
+
+```clojure
+(ns ^:figwheel-load example.core)
+```
 
 ### Using your own server
 
