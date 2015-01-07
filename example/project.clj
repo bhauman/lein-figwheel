@@ -11,7 +11,7 @@
                  [figwheel "0.2.1-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
-            [lein-cljsbuild "1.0.3"]
+            [lein-cljsbuild "1.0.4"]
             [lein-figwheel "0.2.1-SNAPSHOT"]]
 
   ;; this is used for testing an external server
