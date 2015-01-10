@@ -67,13 +67,13 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
           (when (not-empty '~crossovers)
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
-          (figwheel-sidecar.auto-builder/autobuild*
+          (figwheel-sidecar.auto-builder/autobuild-repl
            { :builds '~parsed-builds
              :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})
           ;; block because call is non blocking core async
-          (loop []
-            (Thread/sleep 30000)
-            (recur)))))))
+          #_(loop []
+              (Thread/sleep 30000)
+              (recur)))))))
 
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
