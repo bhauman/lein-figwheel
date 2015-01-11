@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2496"]
+                 [org.clojure/clojurescript "0.0-2676"]
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
@@ -18,17 +18,32 @@
   :ring { :handler example.server/static-server }
   
   :source-paths ["src"] 
+
+  #_:clean-targets #_["resources/public/js/compiled/out"
+                      "resources/public/js/compiled/example.js"
+                      "resources/public/js/compiled/example_admin.js"
+                      "resources/public/js/compiled/admin"]
   
   :resource-paths ["resources" "other_resources"]
 
+  :profiles {
+             :dev {
+                   :dependencies [
+                                  [figwheel-sidecar "0.2.1-SNAPSHOT"]
+                                  ]
+                   }
+             }
+  
   :cljsbuild {
               :builds [{ :id "example"
                          :source-paths ["src" "../support/src"]
                          :compiler { :output-to "resources/public/js/compiled/example.js"
                                      :output-dir "resources/public/js/compiled/out"
                                      :source-map true
+                                     :source-map-timestamp true
+                                     :cache-analysis true
                                      ;; :reload-non-macro-clj-files false
-                                    :optimizations :none}}
+                                     :optimizations :none}}
                        { :id "example-admin"
                          :source-paths ["other_src" ]
                          :compiler { :output-to "resources/public/js/compiled/example_admin.js"
