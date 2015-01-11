@@ -1,4 +1,6 @@
 example/resources/public/js/compiled
+example/figwheel_server_log.txt
+example/figwheel_server.log
 example/target
 support/target
 sidecar/target
@@ -22,3 +24,5 @@ pom.xml.asc
 .nrepl-port
 .lein-classpath
 config.ru
+
+*-init.clj

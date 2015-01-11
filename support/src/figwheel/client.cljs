@@ -54,7 +54,6 @@
 (defn css-loaded-state? [msg-names]
   (= :css-files-changed (first msg-names)))
 
-;; 
 (defn file-reloader-plugin [opts]
   (let [ch (chan)]
     (go-loop []
@@ -71,6 +70,29 @@
                   (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file)))
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
+
+(defn eval-javascript [message]
+  (let [code (:code message)]
+    {:figwheel-event "callback"
+     :callback-name (:callback-name message) 
+     :content (try
+                {:status :success, :value (str (js* "eval(~{code})"))}
+                (catch js/Error e
+                  {:status :exception
+                   :value (pr-str e)
+                   :stacktrace (if (.hasOwnProperty e "stack")
+                                 (.-stack e)
+                                 "No stacktrace available.")})
+                (catch :default e
+                  {:status :exception
+                   :value (pr-str e)
+                   :stacktrace "No stacktrace available."}))}))
+
+(defn repl-plugin [opts]
+  (fn [[{:keys [msg-name] :as msg} & _]]
+    (when (= :repl-eval msg-name)
+      (let [res (eval-javascript msg)]
+        (socket/send! res)))))
 
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
@@ -164,7 +186,6 @@
   (.warn js/console "Figwheel: Compile Warning -" message)
   w)
 
-
 (defn default-before-load [files]
   (.debug js/console "Figwheel: notified of file changes")
   files)
@@ -201,7 +222,8 @@
   (let [base {:enforce-project-plugin enforce-project-plugin
               :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
-              :css-reloader-plugin      css-reloader-plugin}]
+              :css-reloader-plugin      css-reloader-plugin
+              :repl-plugin      repl-plugin}]
     (if (:heads-up-display system-options)
       (assoc base :heads-up-display-plugin heads-up-plugin)
       base)))

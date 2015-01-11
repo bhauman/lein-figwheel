@@ -67,13 +67,18 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
           (when (not-empty '~crossovers)
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
-          (figwheel-sidecar.auto-builder/autobuild*
-           { :builds '~parsed-builds
-             :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})
-          ;; block because call is non blocking core async
-          (loop []
-            (Thread/sleep 30000)
-            (recur)))))))
+          (if (= (:repl ~figwheel-options) false)
+            (do
+              (figwheel-sidecar.auto-builder/autobuild*
+               { :builds '~parsed-builds
+                :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})
+               ;; block because call is non blocking core async
+              (loop []
+                (Thread/sleep 30000)
+                (recur)))
+            (figwheel-sidecar.auto-builder/autobuild-repl
+             { :builds '~parsed-builds
+               :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})))))))
 
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
@@ -119,12 +124,11 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
   [builds build-ids]
   (let [builds (map-to-vec-builds builds)
         ;; ensure string ids
-        builds (map #(update-in % [:id] name) builds)
-        build-ids (set build-ids)]
+        builds (map #(update-in % [:id] name) builds)]
     (vec
      (keep identity
            (if-not (empty? build-ids)
-             (filter #(get build-ids (:id %)) builds)
+             (keep (fn [bid] (first (filter #(= bid (:id %)) builds))) build-ids)
              [(first (filter optimizations-none? builds))])))))
 
 ;; we are only going to work on one build

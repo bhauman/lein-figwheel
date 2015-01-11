@@ -51,16 +51,18 @@
       ["emacsclient" "-n" (str "+" file-line) file-name] ;; we are emacs aware
       [open-file-command file-name file-line])))
 
-(defn handle-client-msg [server-state data]
+(defn handle-client-msg [{:keys [browser-callbacks] :as server-state} data]
   (when data
     (let [msg (read-msg data)]
-      (when-let [command (and (= "file-selected" (:figwheel-event msg))
-                              (get-open-file-command server-state msg))]
-        (try
-          (.exec (Runtime/getRuntime) (into-array String command))
-          (catch Exception e
-            (println "Figwheel: there was a problem running the open file command - " command))
-          )))))
+      (if (= "callback" (:figwheel-event msg))
+        (when-let [cb (get @browser-callbacks (:callback-name msg))]
+          (cb (:content msg)))
+        (when-let [command (and (= "file-selected" (:figwheel-event msg))
+                                (get-open-file-command server-state msg))]
+          (try
+            (.exec (Runtime/getRuntime) (into-array String command))
+            (catch Exception e
+              (println "Figwheel: there was a problem running the open file command - " command))))))))
 
 (defn add-build-id [{:keys [build-id]} msg]
   (if build-id
@@ -73,9 +75,10 @@
                        { :msg-name msg-name 
                          :project-id (:unique-id opts)})))
 
-(defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time] :as server-state}
+(defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time connection-count] :as server-state}
                                 wschannel]
   (let [watch-key (keyword (gensym "message-watch-"))]
+    (swap! connection-count inc)
     (add-watch file-change-atom
                watch-key
                (fn [_ _ o n]
@@ -86,8 +89,9 @@
                        (send! wschannel (prn-str msg)))))))
     
     (on-close wschannel (fn [status]
+                          (swap! connection-count dec)
                           (remove-watch file-change-atom watch-key)
-                          (println "Figwheel: client disconnected " status)))
+                          #_(println "Figwheel: client disconnected " status)))
 
     (on-receive wschannel (fn [data] (handle-client-msg server-state data)))
 
@@ -343,6 +347,8 @@
                                     css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
                                     unique-id
+                                    server-logfile
+                                    repl
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
   { :unique-id (or unique-id (project-unique-id)) 
@@ -354,13 +360,16 @@
     :output-to output-to
     :ring-handler ring-handler
     :server-port (or server-port 3449)
-    
+    :server-logfile server-logfile
+    :repl repl
     :css-last-pass (atom (System/currentTimeMillis))   
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to
                                         :output-dir output-dir
                                         :file-md5-atom (atom {})})
     :file-change-atom (atom (list))
+    :browser-callbacks (atom {})
+    :connection-count (atom 0)
     :open-file-command open-file-command
    })
 
@@ -381,3 +390,4 @@
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
+

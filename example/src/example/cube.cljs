@@ -29,7 +29,6 @@
                       (merge side-css
                                 (css-transform trans)))}])
 
-
 (defn cube [{:keys [size cube-css side-css]}]
   (let [translate (/ size 2)
         base-side-css { :backgroundColor "green"
