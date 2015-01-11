@@ -347,6 +347,8 @@
                                     css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
                                     unique-id
+                                    server-logfile
+                                    repl
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
   { :unique-id (or unique-id (project-unique-id)) 
@@ -358,7 +360,8 @@
     :output-to output-to
     :ring-handler ring-handler
     :server-port (or server-port 3449)
-    
+    :server-logfile server-logfile
+    :repl repl
     :css-last-pass (atom (System/currentTimeMillis))   
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to

@@ -42,6 +42,8 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
+           ;;  :repl true
+           ;;  :server-logfile "tmp/logs/test-server-logfile.log"
              ;; if you want to embed a server in figwheel do it like so:
              #_:ring-handler #_example.server/handler
              })

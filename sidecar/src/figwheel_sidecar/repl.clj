@@ -19,9 +19,6 @@
     (fig/send-message! figwheel-server :repl-eval {:code js :callback-name callback-name})
     (<!! out)))
 
-(defn load-javascript [figwheel-server ns url]
-  (fig/send-message! figwheel-server :repl-load-js {:ns ns :url url}))
-
 ;; limit how long we wait?
 (defn wait-for-connection [{:keys [connection-count]}]
   (when (< @connection-count 1)
@@ -37,14 +34,14 @@
   (-evaluate [_ _ _ js]
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server js))
-  (-load [this ns url]
-    (wait-for-connection figwheel-server)
-    (load-javascript figwheel-server ns url))
+      ;; this is not used for figwheel
+  (-load [this ns url] true)
   (-tear-down [_] true))
 
 (defn repl-env
-  ([figwheel-server build]
-   (assoc (FigwheelEnv. figwheel-server)
+  ([figwheel-server {:keys [id] :as build}]
+   (assoc (FigwheelEnv. (merge figwheel-server
+                               (if id {:build-id id} {})))
           :cljs.env/compiler (:compiler-env build)))
   ([figwheel-server]
    (FigwheelEnv. figwheel-server)))

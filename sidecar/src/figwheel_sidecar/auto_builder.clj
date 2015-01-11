@@ -40,15 +40,26 @@
     :builder (builder figwheel-server)
     :each-iteration-hook (fn [_] (fig/check-for-css-changes figwheel-server))}))
 
+(defn mkdirs [fpath]
+  (let [f (io/file fpath)]
+    (when-let [dir (.getParentFile f)] (.mkdirs dir))))
+
 (defn autobuild-repl [{:keys [builds figwheel-server] :as opts}]
   (let [builds' (mapv auto/prep-build
                       builds)
-        log-writer (io/writer "figwheel_server_log.txt" :append true)]
+        logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
+        _ (mkdirs logfile-path)
+        log-writer (io/writer logfile-path :append true)]
+    (println "Server output being sent to logfile:" logfile-path)
     (binding [*out* log-writer
               *err* log-writer]
+      ;; blocking build to ensure code exists before repl starts
       ((builder figwheel-server) (first builds'))
       (autobuild* {:builds builds'
                    :figwheel-server figwheel-server }))
+    (if (:id (first builds'))
+      (println "Launching ClojureScript REPL for build:" (:id (first builds')))
+      (println "Launching ClojureScript REPL"))
     (fig-repl/repl (first builds') figwheel-server)))
 
 (defn autobuild [src-dirs build-options figwheel-options]

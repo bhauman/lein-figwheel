@@ -37,6 +37,18 @@
          (fig/narrow-builds* {:hello {} :there {}} ["there"])))
 
   (is (= [{:id "there"}]
+         (fig/narrow-builds* {:hello {} :there {}} ["there" "here"])))
+  
+  (is (= [{:id "there"}]
+         (fig/narrow-builds* {:hello {} :there {}} ["here" "there"])))
+    
+  (is (= {:id "there"}
+         (first (fig/narrow-builds* {:hello {} :there {}} ["there" "hello"]))))
+
+  (is (= {:id "hello"}
+         (first (fig/narrow-builds* {:hello {} :there {}} ["hello" "there"]))))
+  
+  (is (= [{:id "there"}]
          (fig/narrow-builds* [{:id :hello} {:id :there}] ["there"])))
 
   (is (= (set [{:id "there"} {:id "hello"}])

@@ -88,14 +88,11 @@
                    :value (pr-str e)
                    :stacktrace "No stacktrace available."}))}))
 
-
 (defn repl-plugin [opts]
-  (fn [msg-hist']
-    (let [msg-hist (focus-msgs #{:repl-eval} msg-hist')
-          msg (first msg-hist)]
-      (when (= :repl-eval (:msg-name msg))
-        (let [res (eval-javascript msg)]
-          (socket/send! res))))))
+  (fn [[{:keys [msg-name] :as msg} & _]]
+    (when (= :repl-eval msg-name)
+      (let [res (eval-javascript msg)]
+        (socket/send! res)))))
 
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
