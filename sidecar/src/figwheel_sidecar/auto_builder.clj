@@ -50,7 +50,7 @@
         logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
         _ (mkdirs logfile-path)
         log-writer (io/writer logfile-path :append true)]
-    (println "Server output being sent to logfile:" logfile-path)
+    (println "Server output being sent to logfile:" logfile-path "\n")
     (binding [*out* log-writer
               *err* log-writer]
       ;; blocking build to ensure code exists before repl starts
@@ -60,6 +60,7 @@
     (if (:id (first builds'))
       (println "Launching ClojureScript REPL for build:" (:id (first builds')))
       (println "Launching ClojureScript REPL"))
+    (println "Prompt will show when figwheel connects to your application")
     (fig-repl/repl (first builds') figwheel-server)))
 
 (defn autobuild [src-dirs build-options figwheel-options]
