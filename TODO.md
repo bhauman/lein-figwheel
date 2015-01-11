@@ -1,15 +1,14 @@
+* remove cljsbuild dependency for good
+
 * look at cljs.test plugin for client
   - going to require an eval to do what I want
   
 * ### look at repl integration 
 
-* add basic autobuilding loop to clojurescript-build
-
 * clean up example and template to have basic dev pattern
   of requiring figwheel in dev mode
 
 * add assert?
-* multiple builds?
   
 * clean up parameter passing
 * look at subproject leiningen cljsbuild code and see whats needed
@@ -18,4 +17,5 @@
 * create seperate feature testing projects
 
 * html change to cause refresh
-* clean from browser is a big win
+* clean and other commands from browser is interesting
+

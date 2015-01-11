@@ -42,11 +42,16 @@
     (load-javascript figwheel-server ns url))
   (-tear-down [_] true))
 
-(defn repl-env [figwheel-server]
-  (FigwheelEnv. figwheel-server))
+(defn repl-env
+  ([figwheel-server build]
+   (assoc (FigwheelEnv. figwheel-server)
+          :cljs.env/compiler (:compiler-env build)))
+  ([figwheel-server]
+   (FigwheelEnv. figwheel-server)))
+
+;; add some repl functions for reloading local clj code
 
 (defn repl [build figwheel-server]
-  (cljs.env/with-compiler-env (:compiler-env build)
-    (cljs.repl/repl* (repl-env figwheel-server)
-                     (assoc (or (:compiler build) (:build-options build))
-                            :warn-on-undeclared false))))
+  (cljs.repl/repl* (repl-env figwheel-server build)
+                   (assoc (or (:compiler build) (:build-options build))
+                          :warn-on-undeclared true)))
