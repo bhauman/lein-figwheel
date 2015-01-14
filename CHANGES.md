@@ -1,3 +1,12 @@
+## 0.2.2-SNAPSHOT
+
+* lein figwheel now launches a repl into your application, this repl shares the
+  compilation environment with the autobuilder, this makes the repl pretty intelligent
+  intelligent about what is loaded in your browser env
+* for a better repl experience launch lein figwheel with rlwrap
+  $ rlwrap lein figwheel
+  you can install rlwrap on OSX with brew: brew install rlwarp
+
 ## 0.2.1-SNAPSHOT
 
 * now supports multiple builds i.e lein figwheel example example-admin
