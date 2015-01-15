@@ -8,7 +8,22 @@
    [clj-stacktrace.repl]
    [clojurescript-build.core :as cbuild]
    [clojurescript-build.auto :as auto]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [cljsbuild.util :as util]))
+
+(defn notify-cljs [command message]
+  (when (seq (:shell command))
+    (try
+      (util/sh (update-in command [:shell] (fn [old] (concat old [message]))))
+      (catch Throwable e
+        (println (auto/red "Error running :notify-command:"))
+        (clj-stacktrace.repl/pst+ e)))))
+
+(defn notify-on-complete [{:keys [build-options parsed-notify-command]}]
+  (let [{:keys [output-to]} build-options]
+    (notify-cljs
+     parsed-notify-command
+     (str "Successfully compiled " output-to))))
 
 (defn check-changes [figwheel-server build]
   (let [{:keys [additional-changed-ns build-options id old-mtimes new-mtimes]} build]
@@ -29,8 +44,9 @@
     (auto/warning (auto/warning-message-handler
                    (partial fig/compile-warning-occured figwheel-server)))
     auto/time-build
-    (auto/after auto/compile-success)    
+    (auto/after auto/compile-success)
     (auto/after (partial check-changes figwheel-server))
+    (auto/after notify-on-complete)
     (auto/error (partial handle-exceptions figwheel-server))
     (auto/before auto/compile-start)))
 
@@ -51,6 +67,7 @@
         _ (mkdirs logfile-path)
         log-writer (io/writer logfile-path :append true)]
     (println "Server output being sent to logfile:" logfile-path "\n")
+
     (binding [*out* log-writer
               *err* log-writer]
       ;; blocking build to ensure code exists before repl starts
