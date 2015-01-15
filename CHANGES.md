@@ -2,10 +2,10 @@
 
 * lein figwheel now launches a REPL into your application, this REPL shares the
   compilation environment with the autobuilder, this makes the REPL pretty darn
-  intelligent about what is loaded in your browser env already
-  for ex. do (in-ns 'your.cljs.namspace) and poke around
+  intelligent about what is loaded in your browser env already.
+  For ex. do `(in-ns 'your.cljs.namespace)` and poke around
 * for a better repl experience launch lein figwheel with rlwrap
-  $ rlwrap lein figwheel
+  `$ rlwrap lein figwheel`
   you can install rlwrap on OSX with brew: brew install rlwarp
 * the repl can be disabled with `:repl false` in the :figwheel config
 * the logefile for figwheel server output can be configured with `:server-logfile` in
