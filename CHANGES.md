@@ -1,8 +1,9 @@
 ## 0.2.2-SNAPSHOT
 
-* lein figwheel now launches a repl into your application, this repl shares the
-  compilation environment with the autobuilder, this makes the repl pretty intelligent
-  intelligent about what is loaded in your browser env
+* lein figwheel now launches a REPL into your application, this REPL shares the
+  compilation environment with the autobuilder, this makes the REPL pretty darn
+  intelligent about what is loaded in your browser env already
+  for ex. do (in-ns 'your.cljs.namspace) and poke around
 * for a better repl experience launch lein figwheel with rlwrap
   $ rlwrap lein figwheel
   you can install rlwrap on OSX with brew: brew install rlwarp

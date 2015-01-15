@@ -1,7 +1,6 @@
 (ns figwheel-sidecar.repl
   (:require
    [cljs.repl]
-   [cljs.util :refer [debug-prn]]
    [cljs.env :as env]
    [clojure.core.async :refer [chan <!! <! put! timeout close! go go-loop]]
    [figwheel-sidecar.core :as fig]))
