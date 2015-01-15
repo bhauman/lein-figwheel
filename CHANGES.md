@@ -6,6 +6,11 @@
 * for a better repl experience launch lein figwheel with rlwrap
   $ rlwrap lein figwheel
   you can install rlwrap on OSX with brew: brew install rlwarp
+* the repl can be disabled with `:repl false` in the :figwheel config
+* the logefile for figwheel server output can be configured with `:server-logfile` in
+  fighweel config  
+* in 0.2.0 figwheel stopped honoring cljsbuild :notify-command, figwheel now honors
+  :notify-command only on successful compiles
 
 ## 0.2.1-SNAPSHOT
 
