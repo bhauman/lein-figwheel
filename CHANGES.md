@@ -6,7 +6,7 @@
   For ex. do `(in-ns 'your.cljs.namespace)` and poke around
 * for a better repl experience launch lein figwheel with rlwrap
   `$ rlwrap lein figwheel`
-  you can install rlwrap on OSX with brew: brew install rlwarp
+  you can install rlwrap on OSX with brew: `brew install rlwrap`
 * the repl can be disabled with `:repl false` in the :figwheel config
 * the logefile for figwheel server output can be configured with `:server-logfile` in
   fighweel config  
