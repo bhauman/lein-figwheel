@@ -9,7 +9,7 @@
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
                  [figwheel "0.2.2-SNAPSHOT"]]
-
+  
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.4"]
             [lein-figwheel "0.2.2-SNAPSHOT"]]
