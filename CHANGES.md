@@ -1,6 +1,6 @@
 ## 0.2.2-SNAPSHOT
 
-* lein figwheel now launches a REPL into your application, this REPL shares the
+* **lein figwheel now launches a REPL into your application**, this REPL shares the
   compilation environment with the autobuilder, this makes the REPL pretty darn
   intelligent about what is loaded in your browser env already.
   For ex. do `(in-ns 'your.cljs.namespace)` and poke around
