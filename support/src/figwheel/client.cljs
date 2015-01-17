@@ -4,7 +4,8 @@
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
    [figwheel.client.heads-up :as heads-up]
-   [figwheel.client.file-reloading :as reloading])
+   [figwheel.client.file-reloading :as reloading]
+   [clojure.string :as string])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
@@ -89,38 +90,36 @@
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
-(defn eval-js [code result-handler]
-  (fn []
-    (try
-      (binding [*print-fn* (fn [& args]
-                             (-> args
-                               console-print
-                               figwheel-repl-print))]
-        (result-handler
-         {:status :success,
-          :value (str (js* "eval(~{code})"))}))
-      (catch js/Error e
-        (result-handler
-         {:status :exception
-          :value (pr-str e)
-          :stacktrace (if (.hasOwnProperty e "stack")
-                      (.-stack e)
-                      "No stacktrace available.")}))
-      (catch :default e
-        (result-handler
-         {:status :exception
-          :value (pr-str e)
-          :stacktrace "No stacktrace available."})))))
+(defn truncate-stack-trace [stack-str]
+  (string/join "\n" (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
+                                (string/split-lines stack-str))))
 
-(defn eval-javascript [message handler]
-  (js/setTimeout
-   (eval-js (:code message) handler)
-   0))
+(defn eval-javascript** [code result-handler]
+  (try
+    (binding [*print-fn* (fn [& args]
+                           (-> args
+                             console-print
+                             figwheel-repl-print))]
+      (result-handler
+       {:status :success,
+        :value (str (js* "eval(~{code})"))}))
+    (catch js/Error e
+      (result-handler
+       {:status :exception
+          :value (pr-str e)
+        :stacktrace (if (.hasOwnProperty e "stack")
+                      (truncate-stack-trace (.-stack e)) 
+                      "No stacktrace available.")}))
+    (catch :default e
+      (result-handler
+       {:status :exception
+        :value (pr-str e)
+        :stacktrace "No stacktrace available."}))))
 
 (defn repl-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
-      (eval-javascript msg
+      (eval-javascript** (:code msg)
                        (fn [res]
                          (socket/send! {:figwheel-event "callback"
                                         :callback-name (:callback-name msg) 
