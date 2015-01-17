@@ -60,25 +60,75 @@
   (let [f (io/file fpath)]
     (when-let [dir (.getParentFile f)] (.mkdirs dir))))
 
+(defn clean-build [{:keys [output-to output-dir] :as build-options}]
+  (when (and output-to output-dir)
+    (let [clean-file (fn [s] (when (.exists s) (.delete s)))]
+      (mapv clean-file (cons (io/file output-to) (reverse (file-seq (io/file output-dir))))))))
+
 (defn autobuild-repl [{:keys [builds figwheel-server] :as opts}]
   (let [builds' (mapv auto/prep-build
                       builds)
         logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
         _ (mkdirs logfile-path)
-        log-writer (io/writer logfile-path :append true)]
+        log-writer (io/writer logfile-path :append true)
+        autobuilder-atom (atom nil)
+        run-autobuilder (fn [figwheel-server builds]
+                          (binding [*out* log-writer
+                                    *err* log-writer]
+                            ;; blocking build to ensure code exists before repl starts
+                            (mapv (builder figwheel-server) builds)
+                            (reset! autobuilder-atom (autobuild* {:builds builds
+                                                                  :figwheel-server figwheel-server }))))
+        build-once       (fn self
+                           ([a b c] (self a b c nil))
+                           ([_ _ _ _]
+                            (mapv (builder figwheel-server) builds')))
+        clean-build-fn   (fn self
+                           ([a b c] (self a b c nil))
+                           ([_ _ _ _]
+                            (mapv clean-build (map :build-options builds'))))
+        stop-autobuilder (fn self
+                           ([a b c] (self a b c nil))
+                           ([_ _ _ _]
+                            (if @autobuilder-atom
+                              (do
+                                (auto/stop-autobuild! @autobuilder-atom)
+                                (reset! autobuilder-atom nil)
+                                (println "Stopped Figwheel autobuild"))
+                              (println "Autobuild not running."))))
+        start-autobuilder (fn self
+                            ([a b c] (self a b c nil))
+                            ([_ _ _ _]
+                             (if-not @autobuilder-atom
+                               (do
+                                 (run-autobuilder figwheel-server builds')
+                                 (println "Started Figwheel autobuilder see:" logfile-path ))
+                               (println "Autobuilder already running."))))
+        reset-autobuilder (fn self
+                              ([a b c] (self a b c nil))
+                              ([_ _ _ _]
+                               (if @autobuilder-atom
+                                 (do
+                                   (auto/stop-autobuild! @autobuilder-atom)
+                                   (mapv clean-build (map :build-options builds'))
+                                   (run-autobuilder figwheel-server builds')
+                                   (println "Restarted Figwheel autobuilder"))
+                                 (println "Autobuild not running."))))
+        special-fns  { 'stop-autobuild stop-autobuilder
+                       'start-autobuild start-autobuilder
+                       'reset-autobuild reset-autobuilder                      
+                       'build-once build-once
+                       'clean-build clean-build-fn}]
+    
     (println "Server output being sent to logfile:" logfile-path "\n")
 
-    (binding [*out* log-writer
-              *err* log-writer]
-      ;; blocking build to ensure code exists before repl starts
-      ((builder figwheel-server) (first builds'))
-      (autobuild* {:builds builds'
-                   :figwheel-server figwheel-server }))
+    (run-autobuilder figwheel-server builds')
+
     (if (:id (first builds'))
       (println "Launching ClojureScript REPL for build:" (:id (first builds')))
       (println "Launching ClojureScript REPL"))
     (println "Prompt will show when figwheel connects to your application")
-    (fig-repl/repl (first builds') figwheel-server)))
+    (fig-repl/repl (first builds') figwheel-server {:special-fns special-fns})))
 
 (defn autobuild [src-dirs build-options figwheel-options]
   (autobuild* {:builds [{:source-paths src-dirs

@@ -53,8 +53,12 @@
 
 ;; add some repl functions for reloading local clj code
 
-(defn repl [build figwheel-server]
-  (cljs.repl/repl* (repl-env figwheel-server build)
-                   (assoc (or (:compiler build) (:build-options build))
-                          :warn-on-undeclared true)))
+(defn repl
+  ([build figwheel-server]
+   (repl build figwheel-server {}))
+  ([build figwheel-server opts]
+   (cljs.repl/repl* (repl-env figwheel-server build)
+                    (merge (assoc (or (:compiler build) (:build-options build))
+                                  :warn-on-undeclared true)
+                           opts))))
 
