@@ -331,7 +331,7 @@
                               (.toString out))]
     (send-message! st :compile-failed
                    { :exception-data parsed-exception
-                    :formatted-exception formatted-exception })))
+                     :formatted-exception formatted-exception })))
 
 (defn compile-warning-occured [st msg]
   (send-message! st :compile-warning { :message msg }))
