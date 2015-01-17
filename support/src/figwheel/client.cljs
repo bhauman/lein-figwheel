@@ -10,6 +10,24 @@
 
 ;; exception formatting
 
+(defn figwheel-repl-print [args]
+  (socket/send! {:figwheel-event "callback"
+                 :callback-name "figwheel-repl-print"
+                 :content args})
+  args)
+
+(defn console-print [args]
+  (.apply (.-log js/console) js/console (into-array args))
+  args)
+
+(defn enable-repl-print! []
+  (set! *print-newline* false)
+  (set! *print-fn*
+        (fn [& args]
+          (-> args
+            console-print
+            figwheel-repl-print))))
+
 (defn get-essential-messages [ed]
   (when ed
     (cons (select-keys ed [:message :class])
@@ -71,28 +89,42 @@
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
-(defn eval-javascript [message]
-  (let [code (:code message)]
-    {:figwheel-event "callback"
-     :callback-name (:callback-name message) 
-     :content (try
-                {:status :success, :value (str (js* "eval(~{code})"))}
-                (catch js/Error e
-                  {:status :exception
-                   :value (pr-str e)
-                   :stacktrace (if (.hasOwnProperty e "stack")
-                                 (.-stack e)
-                                 "No stacktrace available.")})
-                (catch :default e
-                  {:status :exception
-                   :value (pr-str e)
-                   :stacktrace "No stacktrace available."}))}))
+(defn eval-js [code result-handler]
+  (fn []
+    (try
+      (binding [*print-fn* (fn [& args]
+                             (-> args
+                               console-print
+                               figwheel-repl-print))]
+        (result-handler
+         {:status :success,
+          :value (str (js* "eval(~{code})"))}))
+      (catch js/Error e
+        (result-handler
+         {:status :exception
+          :value (pr-str e)
+          :stacktrace (if (.hasOwnProperty e "stack")
+                      (.-stack e)
+                      "No stacktrace available.")}))
+      (catch :default e
+        (result-handler
+         {:status :exception
+          :value (pr-str e)
+          :stacktrace "No stacktrace available."})))))
+
+(defn eval-javascript [message handler]
+  (js/setTimeout
+   (eval-js (:code message) handler)
+   0))
 
 (defn repl-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
-      (let [res (eval-javascript msg)]
-        (socket/send! res)))))
+      (eval-javascript msg
+                       (fn [res]
+                         (socket/send! {:figwheel-event "callback"
+                                        :callback-name (:callback-name msg) 
+                                        :content res}))))))
 
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
@@ -245,6 +277,7 @@
              plugins  (if plugins'
                         plugins'
                         (merge (base-plugins system-options) merge-plugins))]
+         #_(enable-repl-print!)         
          (add-plugins plugins system-options)
          (reloading/patch-goog-base)
          (socket/open system-options))))

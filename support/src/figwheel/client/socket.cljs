@@ -35,7 +35,9 @@
 
 (defn send!
   "Send a end message to the server."
-  [msg] (.send @socket-atom (pr-str msg)))
+  [msg]
+  (when @socket-atom
+    (.send @socket-atom (pr-str msg))))
 
 (defn close! []
   (set! (.-onclose @socket-atom) identity)

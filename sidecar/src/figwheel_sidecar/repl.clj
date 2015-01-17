@@ -1,5 +1,6 @@
 (ns figwheel-sidecar.repl
   (:require
+   [clojure.pprint :as p]
    [cljs.repl]
    [cljs.env :as env]
    [clojure.core.async :refer [chan <!! <! put! timeout close! go go-loop]]
@@ -26,9 +27,14 @@
              (timeout 500)
              (recur))))))
 
+(defn add-repl-print-callback! [{:keys [browser-callbacks]}]
+  (swap! browser-callbacks assoc "figwheel-repl-print"
+         (fn [args] (apply println args))))
+
 (defrecord FigwheelEnv [figwheel-server]
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
+    (add-repl-print-callback! figwheel-server)
     (wait-for-connection figwheel-server))
   (-evaluate [_ _ _ js]
     (wait-for-connection figwheel-server)
