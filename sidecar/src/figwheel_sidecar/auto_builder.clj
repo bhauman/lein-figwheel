@@ -114,7 +114,7 @@
           (clean-build)     ;; deletes compiled cljs target files
     Docs: (doc function-name-here)
     Exit: Control+C or :cljs/quit
- Results: Stored in vars *1, *2, *3, an exception in *e")
+ Results: Stored in vars *1, *2, *3")
 
 (defn autobuild-repl [{:keys [builds figwheel-server] :as opts}]
   (let [builds' (mapv auto/prep-build builds)
