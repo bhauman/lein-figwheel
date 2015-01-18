@@ -3,12 +3,14 @@
    [clojure.pprint :as p]
    [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.repl :as fig-repl]
+   [figwheel-sidecar.config :as config]   
    [cljs.analyzer]
    [cljs.env]
    [clj-stacktrace.repl]
    [clojurescript-build.core :as cbuild]
    [clojurescript-build.auto :as auto]
    [clojure.java.io :as io]
+   [clojure.string :as string]
    [cljsbuild.util :as util]))
 
 (defn notify-cljs [command message]
@@ -56,6 +58,19 @@
     :builder (builder figwheel-server)
     :each-iteration-hook (fn [_] (fig/check-for-css-changes figwheel-server))}))
 
+(defn autobuild-ids [{:keys [all-builds build-ids figwheel-server]}]
+  (let [builds (config/narrow-builds* all-builds build-ids)
+        errors (config/check-config figwheel-server builds)]
+    (if (empty? errors)
+      (do
+        (println (str "Figwheel: focusing on build-ids ("
+                      (string/join " " (map :id builds)) ")"))
+        (autobuild* {:builds builds
+                     :figwheel-server figwheel-server}))
+      (do
+        (mapv println errors)
+        false))))
+
 (defn mkdirs [fpath]
   (let [f (io/file fpath)]
     (when-let [dir (.getParentFile f)] (.mkdirs dir))))
@@ -65,24 +80,28 @@
     ([a b c] (self a b c nil))
     ([_ _ _ _] (f))))
 
-(defn setup-control-fns [builds figwheel-server]
+(defn setup-control-fns [all-builds build-ids figwheel-server]
   (let [logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
         _ (mkdirs logfile-path)
         log-writer (io/writer logfile-path :append true)
-        autobuilder-atom (atom nil)
-
-        build-once*     #(mapv (builder figwheel-server) builds) 
+        autobuilder-atom     (atom nil)
+        focus-ids-atom  (atom build-ids)
+        build-once*     #(mapv (builder figwheel-server)
+                               (config/narrow-builds* all-builds @focus-ids-atom))
         clean-build*    #(do
-                            (mapv cbuild/clean-build (map :build-options builds))
+                           (mapv cbuild/clean-build (map :build-options all-builds))
                             (println "Deleting ClojureScript compilation target files."))
-
-        run-autobuilder (fn [figwheel-server builds]
+        run-autobuilder (fn [figwheel-server build-ids]
                            (binding [*out* log-writer
                                      *err* log-writer]
+                             (reset! focus-ids-atom build-ids)
                              (build-once*)
-                             (reset! autobuilder-atom
-                                     (autobuild* {:builds builds
-                                                  :figwheel-server figwheel-server }))))
+                             (if-not @autobuilder-atom
+                               (when-let [abuild (autobuild-ids
+                                                  { :all-builds all-builds
+                                                    :build-ids build-ids
+                                                    :figwheel-server figwheel-server })]
+                                 (reset! autobuilder-atom abuild)))))
         stop-autobuild*  #(if @autobuilder-atom
                             (do
                               (auto/stop-autobuild! @autobuilder-atom)
@@ -91,7 +110,7 @@
                             (println "Autobuild not running."))
         start-autobuild* #(if-not @autobuilder-atom
                             (do
-                              (run-autobuilder figwheel-server builds)
+                              (run-autobuilder figwheel-server build-ids)
                               (println "Started Figwheel autobuilder see:" logfile-path ))
                             (println "Autobuilder already running."))
         reset-autobuild* #(do
@@ -116,9 +135,10 @@
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3")
 
-(defn autobuild-repl [{:keys [builds figwheel-server] :as opts}]
-  (let [builds' (mapv auto/prep-build builds)
-        control-fns  (setup-control-fns builds' figwheel-server)
+(defn autobuild-repl [{:keys [all-builds build-ids figwheel-server] :as opts}]
+  (let [all-builds'  (mapv auto/prep-build all-builds)
+        builds'      (config/narrow-builds* all-builds' build-ids) 
+        control-fns  (setup-control-fns all-builds' build-ids figwheel-server)
         special-fns  (into {} (map (fn [[k v]] [k (wrap-special-no-args v)]) control-fns))]
 
     ((get control-fns 'start-autobuild))
@@ -134,6 +154,17 @@
   (autobuild* {:builds [{:source-paths src-dirs
                          :build-options build-options}]
                :figwheel-server (fig/start-server figwheel-options)}))
+
+(defn run-autobuilder [{:keys [figwheel-options all-builds build-ids]}]
+  (let [autobuild-options { :all-builds all-builds
+                            :build-ids  build-ids
+                            :figwheel-server (figwheel-sidecar.core/start-server
+                                              figwheel-options)}]
+    (if (= (:repl figwheel-options) false)
+      (when (figwheel-sidecar.auto-builder/autobuild-ids autobuild-options)
+        (loop [] (Thread/sleep 30000) (recur)))
+      (figwheel-sidecar.auto-builder/autobuild-repl autobuild-options))))
+
 
 (comment
   
