@@ -80,8 +80,9 @@
                            (binding [*out* log-writer
                                      *err* log-writer]
                              (build-once*)
-                             (reset! autobuilder-atom (autobuild* {:builds builds
-                                                                   :figwheel-server figwheel-server }))))
+                             (reset! autobuilder-atom
+                                     (autobuild* {:builds builds
+                                                  :figwheel-server figwheel-server }))))
         stop-autobuild*  #(if @autobuilder-atom
                             (do
                               (auto/stop-autobuild! @autobuilder-atom)
@@ -104,16 +105,28 @@
       'build-once      build-once*
       'clean-build     clean-build*}))
 
+(defn repl-function-docs  []
+  "Figwheel Controls:
+          (stop-autobuild)  ;; stops Figwheel autobuilder
+          (start-autobuild) ;; starts Figwheel autobuilder
+          (reset-autobuild) ;; stops, cleans, and starts autobuilder
+          (build-once)      ;; builds source once time
+          (clean-build)     ;; deletes compiled cljs target files
+    Docs: (doc function-name-here)
+    Exit: Control+C or :cljs/quit
+ Results: Stored in vars *1, *2, *3, an exception in *e")
+
 (defn autobuild-repl [{:keys [builds figwheel-server] :as opts}]
   (let [builds' (mapv auto/prep-build builds)
         control-fns  (setup-control-fns builds' figwheel-server)
         special-fns  (into {} (map (fn [[k v]] [k (wrap-special-no-args v)]) control-fns))]
 
     ((get control-fns 'start-autobuild))
-
+    (newline)
     (if (:id (first builds'))
       (println "Launching ClojureScript REPL for build:" (:id (first builds')))
       (println "Launching ClojureScript REPL"))
+    (println (repl-function-docs))
     (println "Prompt will show when figwheel connects to your application")
     (fig-repl/repl (first builds') figwheel-server {:special-fns special-fns})))
 

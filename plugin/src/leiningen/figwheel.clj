@@ -49,7 +49,6 @@
 ;; need to get rid of crossovers soon
 
 (defn run-compiler [project {:keys [crossover-path crossovers builds]} figwheel-options]
-  (println "Compiling ClojureScript.")
   ; If crossover-path does not exist before eval-in-project is called,
   ; the files it contains won't be classloadable, for some reason.
   (when (not-empty crossovers)
@@ -71,7 +70,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
             (do
               (figwheel-sidecar.auto-builder/autobuild*
                { :builds '~parsed-builds
-                :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})
+                 :figwheel-server (figwheel-sidecar.core/start-server ~figwheel-options)})
                ;; block because call is non blocking core async
               (loop []
                 (Thread/sleep 30000)
