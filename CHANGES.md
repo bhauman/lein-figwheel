@@ -3,16 +3,18 @@
 * **lein figwheel now launches a REPL into your application**, this REPL shares the
   compilation environment with the autobuilder, this makes the REPL pretty darn
   intelligent about what is loaded in your browser env already.
-  For ex. do `(in-ns 'your.cljs.namespace)` and poke around
+  For ex. do `(in-ns 'your.cljs.namespace)` and poke around  
 * for a better repl experience launch lein figwheel with rlwrap
   `$ rlwrap lein figwheel`
   you can install rlwrap on OSX with brew: `brew install rlwrap`
+* you can control the autobuild process from the CLJS REPL, no lien reboot
 * the repl can be disabled with `:repl false` in the `:figwheel` config
 * the logfile for figwheel server output can be configured with `:server-logfile` in
   `:figwheel` config  
 * in 0.2.0 figwheel stopped honoring cljsbuild `:notify-command`, figwheel now honors
   `:notify-command` only on successful compiles, this should be especially helpful to
   those who are using `:notify-command` to run tests
+* **requires `org.clojure/clojurescript "0.0-2665"` or greater**
 
 ## 0.2.1-SNAPSHOT
 
