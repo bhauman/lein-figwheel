@@ -13,7 +13,7 @@ Current version: [lein-figwheel "0.2.2-SNAPSHOT"](https://clojars.org/lein-figwh
 clojurescript >= 0.0-2665, and will work even better with the comming
 releases.
 
-lein-figwheel "0.2.2-SNAPSHOT" has a built in ClojureScript REPL that is attached to
+lein-figwheel "0.2.2-SNAPSHOT" has a built-in ClojureScript REPL that is attached to
 your running application. All the instructions below are for "0.2.2-SNAPSHOT"
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
@@ -47,7 +47,7 @@ on how well your project is compiling. By writing a shell script you
 can click on files in the heads up display and they will open in your
 editor!
 
-#### Built in ClojureScript REPL
+#### Built-in ClojureScript REPL
 
 When you launch figwheel it not only starts a live building/reloading
 process but it also optionally launches a CLJS REPL into your running
