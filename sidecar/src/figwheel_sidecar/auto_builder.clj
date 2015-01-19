@@ -3,7 +3,8 @@
    [clojure.pprint :as p]
    [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.repl :as fig-repl]
-   [figwheel-sidecar.config :as config]   
+   [figwheel-sidecar.config :as config]
+   [cljs.repl]
    [cljs.analyzer]
    [cljs.env]
    [clj-stacktrace.repl]
@@ -12,6 +13,7 @@
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.set :refer [intersection]]
+   [clojure.stacktrace :as trace]
    [cljsbuild.util :as util]))
 
 (defn notify-cljs [command message]
@@ -89,6 +91,17 @@
      ;; are we only accepting string ids?
      (f (keep namify args)))))
 
+;; this is temporary until my cljs.repl changes make it to release
+(defn catch-special-fn-errors [special-fn]
+  (fn self
+    ([a b c] (self a b c nil))
+    ([a b form d]
+     (try
+       (special-fn a b form d)
+       (catch Throwable ex
+         (println "Failed to execute special function:" (pr-str (first form)))
+         (trace/print-cause-trace ex 12))))))
+
 (defn setup-control-fns [all-builds build-ids figwheel-server]
   (let [logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
         _ (mkdirs logfile-path)
@@ -97,31 +110,36 @@
                                  :focus-ids  build-ids})
         validate-build-ids (let [bs (set (keep :id all-builds))]
                              (fn [ids]
-                               (or (not-empty (intersection bs (set ids)))
-                                   (println "No such build id"))))
+                               (vec (keep #(if (bs %) % (println "No such build id:" %)) ids))))
         get-ids            (fn [ids]
                              (or (and (empty? ids)
                                       (:focus-ids @state-atom))
                                  (validate-build-ids ids)))
-        builder-fn        (builder figwheel-server)
+        display-focus-ids (fn [ids]
+                            (when (not-empty ids)
+                              (println "Focusing on build ids:" (string/join ", " ids))))
         builder-running? #(:autobuilder @state-atom)
         ;; we are going to take an optiona id here
         build-once*     (fn [ids]
-                          (let [bs (set (get-ids ids))]
-                            (mapv builder-fn
-                                  (filter #(bs (:id %)) all-builds))))
-        clean-build*    (fn [_]
-                          (mapv cbuild/clean-build (map :build-options all-builds))
-                          (println "Deleting ClojureScript compilation target files."))
+                          (let [bs (set (get-ids ids))
+                                builds (filter #(bs (:id %)) all-builds)]
+                            (display-focus-ids (map :id builds))
+                            (mapv auto/build-once builds)))
+        clean-build*    (fn [ids]
+                          (let [bs (set (get-ids ids))
+                                builds (filter #(bs (:id %)) all-builds)]
+                            (display-focus-ids (map :id builds))
+                            (mapv cbuild/clean-build (map :build-options builds))
+                            (println "Deleting ClojureScript compilation target files.")))
         run-autobuilder (fn [figwheel-server build-ids]
-                          (binding [*out* log-writer
-                                    *err* log-writer]
-                            (when-not (builder-running?)
-                              (build-once* build-ids)
+                          (when-not (builder-running?)
+                            (build-once* build-ids)
+                            (binding [*out* log-writer
+                                      *err* log-writer]
                               (when-let [abuild (autobuild-ids
                                                  { :all-builds all-builds
                                                    :build-ids build-ids
-                                                  :figwheel-server figwheel-server })]
+                                                   :figwheel-server figwheel-server })]
                                 (reset! state-atom { :autobuilder abuild
                                                      :focus-ids build-ids})))))
         stop-autobuild*  (fn [_]
@@ -156,11 +174,11 @@
 (defn repl-function-docs  []
   "Figwheel Controls:
           (stop-autobuild)           ;; stops Figwheel autobuilder
-          (start-autobuild [id ...]) ;; starts autobuilder focused on option ids
-          (switch-to-build id ...)   ;; switches  autobuilder
+          (start-autobuild [id ...]) ;; starts autobuilder focused on optional ids
+          (switch-to-build id ...)   ;; switches autobuilder to different build
           (reset-autobuild)          ;; stops, cleans, and starts autobuilder
           (build-once [id ...])      ;; builds source once time
-          (clean-build)              ;; deletes compiled cljs target files
+          (clean-build [id ..])      ;; deletes compiled cljs target files
     Docs: (doc function-name-here)
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3")
@@ -170,14 +188,17 @@
         repl-build   (first (config/narrow-builds* all-builds' build-ids))
         build-ids    (or (not-empty build-ids) [(:id repl-build)]) ;; give a default build-id
         control-fns  (setup-control-fns all-builds' build-ids figwheel-server)
-        special-fns  (into {} (map (fn [[k v]] [k (make-special-fn v)]) control-fns))]
+        special-fns  (into {} (map (fn [[k v]] [k (make-special-fn v)]) control-fns))
+        special-fns  (merge cljs.repl/default-special-fns special-fns)
+        ;; TODO remove this when cljs.repl error catching code makes it to release
+        special-fns  (into {} (map (fn [[k v]] [k (catch-special-fn-errors v)]) special-fns))]
     ((get control-fns 'start-autobuild) build-ids)
     (newline)
     (print "Launching ClojureScript REPL")
     (when-let [id (:id repl-build)] (println " for build:" id))
     (println (repl-function-docs))
     (println "Prompt will show when figwheel connects to your application")
-    ;; it would be cool to switch the repl's build as well is this possible?
+    ;; it would be cool to switch the repl's build as well, is this possible?
     (fig-repl/repl repl-build figwheel-server {:special-fns special-fns})))
 
 (defn autobuild [src-dirs build-options figwheel-options]
