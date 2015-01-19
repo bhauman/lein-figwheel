@@ -142,15 +142,16 @@
                               (mapv println errors))
                             (when-not (builder-running?)
                               (build-once* build-ids)
-                              (binding [*out* log-writer
-                                        *err* log-writer]
-                                (when-let [abuild (autobuild-ids
-                                                   { :all-builds all-builds
-                                                    :build-ids build-ids
-                                                    :figwheel-server figwheel-server })]
-                                  (println "Started Figwheel autobuilder see:" logfile-path )
-                                  (reset! state-atom { :autobuilder abuild
-                                                        :focus-ids build-ids}))))))
+                              (when-let [abuild
+                                         (binding [*out* log-writer
+                                                   *err* log-writer]
+                                           (autobuild-ids
+                                            { :all-builds all-builds
+                                              :build-ids build-ids
+                                              :figwheel-server figwheel-server }))]
+                                (println "Started Figwheel autobuilder see:" logfile-path)
+                                (reset! state-atom { :autobuilder abuild
+                                                     :focus-ids build-ids})))))
         stop-autobuild*  (fn [_]
                            (if (builder-running?)
                              (do
