@@ -1,4 +1,5 @@
 example/resources/public/js/compiled
+example/resources/public/js/prod
 example/figwheel_server_log.txt
 example/figwheel_server.log
 example/target
