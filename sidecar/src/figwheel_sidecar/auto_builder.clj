@@ -61,6 +61,10 @@
     :builder (builder figwheel-server)
     :each-iteration-hook (fn [_] (fig/check-for-css-changes figwheel-server))}))
 
+(defn check-autobuild-config [all-builds build-ids figwheel-server]
+  (let [builds (config/narrow-builds* all-builds build-ids)]
+    (config/check-config figwheel-server builds)))
+
 (defn autobuild-ids [{:keys [all-builds build-ids figwheel-server]}]
   (let [builds (config/narrow-builds* all-builds build-ids)
         errors (config/check-config figwheel-server builds)]
@@ -132,16 +136,21 @@
                             (mapv cbuild/clean-build (map :build-options builds))
                             (println "Deleting ClojureScript compilation target files.")))
         run-autobuilder (fn [figwheel-server build-ids]
-                          (when-not (builder-running?)
-                            (build-once* build-ids)
-                            (binding [*out* log-writer
-                                      *err* log-writer]
-                              (when-let [abuild (autobuild-ids
-                                                 { :all-builds all-builds
-                                                   :build-ids build-ids
-                                                   :figwheel-server figwheel-server })]
-                                (reset! state-atom { :autobuilder abuild
-                                                     :focus-ids build-ids})))))
+                          (if-let [errors (not-empty (check-autobuild-config all-builds build-ids figwheel-server))]
+                            (do
+                              (display-focus-ids build-ids)
+                              (mapv println errors))
+                            (when-not (builder-running?)
+                              (build-once* build-ids)
+                              (binding [*out* log-writer
+                                        *err* log-writer]
+                                (when-let [abuild (autobuild-ids
+                                                   { :all-builds all-builds
+                                                    :build-ids build-ids
+                                                    :figwheel-server figwheel-server })]
+                                  (println "Started Figwheel autobuilder see:" logfile-path )
+                                  (reset! state-atom { :autobuilder abuild
+                                                        :focus-ids build-ids}))))))
         stop-autobuild*  (fn [_]
                            (if (builder-running?)
                              (do
@@ -152,8 +161,7 @@
         start-autobuild* (fn [ids]
                            (if-not (builder-running?)
                              (when-let [build-ids' (not-empty (get-ids ids))]
-                               (run-autobuilder figwheel-server build-ids')
-                               (println "Started Figwheel autobuilder see:" logfile-path ))
+                               (run-autobuilder figwheel-server build-ids'))
                              (println "Autobuilder already running.")))
         switch-to-build*     (fn [ids]
                                (when-not (empty? ids)
@@ -198,7 +206,7 @@
     (when-let [id (:id repl-build)] (println " for build:" id))
     (println (repl-function-docs))
     (println "Prompt will show when figwheel connects to your application")
-    ;; it would be cool to switch the repl's build as well, is this possible?
+    ;; TODO it would be cool to switch the repl's build as well
     (fig-repl/repl repl-build figwheel-server {:special-fns special-fns})))
 
 (defn autobuild [src-dirs build-options figwheel-options]
