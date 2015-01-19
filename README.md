@@ -334,18 +334,21 @@ and run your app server of choice in another...
 $ lein ring server ;; you are using lein-ring
 ```
 
-#### Using the REPL
+#### Using the ClojureScript REPL
 
 When you run `lein figwheel` a REPL will be launched into your application.
 
-This REPL is a little different than other REPLS in that it has live
+You will need to open your application in a browser in order for the
+REPL to connect and show its prompt.
+
+This REPL is a little different than other REPLs in that it has live
 compile information from the build process. This effectively means
 that you will not have to call `(require` or `(load-namesapce` unless
 it is a namespace that isn't in your loaded application's required
 dependencies. In many cases you can just `(in-ns 'my.namespace)` and
 everything you need to access will be there already.
 
-The REPL doesn't currently have built in readline support. To have a
+The REPL doesn't currently have built-in readline support. To have a
 better experience please install **rlwrap**. You can to this on OSX
 using brew: `brew install rlwrap`.
 
@@ -372,12 +375,12 @@ Figwheel Controls:
  (clean-build [id ..])      ;; deletes compiled cljs target files
 ```
 
-These functions are special functions and poke through the
+These functions are special functions that poke through the
 ClojureScript env into the underlying Clojure process. As such you
 can't compose them.
 
 You can think of these functions having an implicit set of build ids
-that they focus on.
+that they operate on.
 
 If you call `(stop-autobuild)` it will stop the figwheel autobuilder.
 
@@ -385,10 +388,14 @@ If you call `(start-autobuild)` it will start the figwheel autobuilder
 with the current implicit build ids.
 
 If you call `(start-autobuild example)` it will start the figwheel
-autobuilder on the provided build id `example`. It will also make this
-build id the implicit build id.
+autobuilder on the provided build id `example`. It will also make
+`[example]` the implicit set of build ids.
 
-All the control functions operate this way.
+`start-autobuild` and `switch-to-build` are the only functions that
+update the build-id set.
+
+`clean-build` and `build-once` both allow you to do one off builds and
+cleans.  They do not alter the implicit build ids.
 
 
 #### Mapping figwheel resource paths to your servers resource paths
