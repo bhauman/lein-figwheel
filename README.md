@@ -13,7 +13,7 @@ Current version: [lein-figwheel "0.2.2-SNAPSHOT"](https://clojars.org/lein-figwh
 clojurescript >= 0.0-2665, and will work even better with the comming
 releases.
 
-lein-figwheel "0.2.2-SNAPSHOT" has a built in REPL that is attached to
+lein-figwheel "0.2.2-SNAPSHOT" has a built in ClojureScript REPL that is attached to
 your running application. All the instructions below are for "0.2.2-SNAPSHOT"
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
@@ -47,15 +47,15 @@ on how well your project is compiling. By writing a shell script you
 can click on files in the heads up display and they will open in your
 editor!
 
-#### Built in REPL
+#### Built in ClojureScript REPL
 
 When you launch figwheel it not only starts a live building/reloading
-process but it also optionally launches a CLJS REPL into your running browser
+process but it also optionally launches a CLJS REPL into your running
 application. This REPL shares compilation information with the
 figwheel builder, so as you change your code the REPL is also aware of
 the code changes. The REPL also has some special built-in control
 functions that allow you to control the auto-building process and
-execute various build tasks without having to stop and rerun figwheel.
+execute various build tasks without having to stop and rerun lein-figwheel.
 
 #### Robust connection
 
@@ -154,8 +154,8 @@ the static webserver. The default for the webserver root is
 "resources/public" unless you change the webserver root. For now the
 webserver root has to be in a subdirectory of `resources`.
 
-Start the figwheel server. (This will get the first optimizations
-none build)
+Start the figwheel server. (This will get the first `:optimizations`
+`:none` build)
 
     $ lein figwheel
 
@@ -342,11 +342,53 @@ This REPL is a little different than other REPLS in that it has live
 compile information from the build process. This effectively means
 that you will not have to call `(require` or `(load-namesapce` unless
 it is a namespace that isn't in your loaded application's required
-dependencies. In many cases you can just `(in-ns my.namespace)` and
+dependencies. In many cases you can just `(in-ns 'my.namespace)` and
 everything you need to access will be there already.
 
+The REPL doesn't currently have built in readline support. To have a
+better experience please install **rlwrap**. You can to this on OSX
+using brew: `brew install rlwrap`.
 
+When `rlwrap` is installed you can now execute lein figwheel as so:
 
+```
+$ rlwrap lein figwheel
+```
+
+This will give you a much nicer REPL experience with history and line
+editing.
+
+##### REPL Figwheel control functions.
+
+The REPL has the following control functions:
+
+```
+Figwheel Controls:
+ (stop-autobuild)           ;; stops Figwheel autobuilder
+ (start-autobuild [id ...]) ;; starts autobuilder focused on optional ids
+ (switch-to-build id ...)   ;; switches autobuilder to different build
+ (reset-autobuild)          ;; stops, cleans, and starts autobuilder
+ (build-once [id ...])      ;; builds source once time
+ (clean-build [id ..])      ;; deletes compiled cljs target files
+```
+
+These functions are special functions and poke through the
+ClojureScript env into the underlying Clojure process. As such you
+can't compose them.
+
+You can think of these functions having an implicit set of build ids
+that they focus on.
+
+If you call `(stop-autobuild)` it will stop the figwheel autobuilder.
+
+If you call `(start-autobuild)` it will start the figwheel autobuilder
+with the current implicit build ids.
+
+If you call `(start-autobuild example)` it will start the figwheel
+autobuilder on the provided build id `example`. It will also make this
+build id the implicit build id.
+
+All the control functions operate this way.
 
 
 #### Mapping figwheel resource paths to your servers resource paths
