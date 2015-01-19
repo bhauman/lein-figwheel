@@ -6,7 +6,15 @@ Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
-Current version: [lein-figwheel "0.2.1-SNAPSHOT"](https://clojars.org/lein-figwheel)
+The last version: [lein-figwheel "0.2.1-SNAPSHOT"](https://clojars.org/lein-figwheel)
+supports clojurescript >= 0.0-2202
+
+Current version: [lein-figwheel "0.2.2-SNAPSHOT"](https://clojars.org/lein-figwheel) requires
+clojurescript >= 0.0-2665, and will work even better with the comming
+releases.
+
+lein-figwheel "0.2.2-SNAPSHOT" has a built in REPL that is attached to
+your running application. All the instructions below are for "0.2.2-SNAPSHOT"
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
@@ -39,6 +47,16 @@ on how well your project is compiling. By writing a shell script you
 can click on files in the heads up display and they will open in your
 editor!
 
+#### Built in REPL
+
+When you launch figwheel it not only starts a live building/reloading
+process but it also optionally launches a CLJS REPL into your running browser
+application. This REPL shares compilation information with the
+figwheel builder, so as you change your code the REPL is also aware of
+the code changes. The REPL also has some special built-in control
+functions that allow you to control the auto-building process and
+execute various build tasks without having to stop and rerun figwheel.
+
 #### Robust connection
 
 Figwheel's connection is fairly robust. I have experienced figwheel
@@ -66,7 +84,7 @@ should increase the stability of the client environment.
 #### Doesn't load code that is generating warnings
 
 If your ClojureScript code is generating compiler warnings Figwheel
-won't load it. This again if very helpful in keeping the client
+won't load it. This, again, is very helpful in keeping the client
 environment stable. This behavior is optional and can be turned off.
 
 ## Quick Start
@@ -96,16 +114,16 @@ figwheel leinigen template.
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojurescript "0.0-2496"] ;; has to be at least 2202 or greater
-[figwheel "0.2.1-SNAPSHOT"]            ;; needed for figwheel client
+[org.clojure/clojurescript "0.0-2665"] ;; has to be at least 2665 or greater
+[figwheel "0.2.2-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-cljsbuild "1.0.3"] ;; 1.0.3 is a requirement
-[lein-figwheel "0.2.1-SNAPSHOT"]
+[lein-cljsbuild "1.0.4"] ;; 1.0.4 is a requirement
+[lein-figwheel "0.2.2-SNAPSHOT"]
 ```
 
 #### Configure lein cljsbuild
@@ -148,7 +166,7 @@ or optionally give the name of the build
 This will start a server at `http://localhost:3449` with your
 resources being served via the compojure `resources` ring handler.
 
-So you can load the a html file thats hosting your ClojureScript app
+So you can load the HTML file thats hosting your ClojureScript app
 by going to `http://localhost:3449/<yourfilename>.html`
 
 [Cljsbuild has many many more options](https://github.com/emezeske/lein-cljsbuild/blob/master/sample.project.clj)
@@ -181,6 +199,13 @@ In your `project.clj` you can add the following configuration parameters:
    ;; emacsclient -n +$2 $1
    ;;
    :open-file-command "myfile-opener"
+
+   ;; if you want to disable the REPL
+   ;; :repl false
+
+   ;; to configure a different figwheel logfile path
+   ;; :server-logfile "tmp/logs/figwheel-logfile.log" 
+   
 } 
 ```
 
@@ -189,7 +214,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.2.1-SNAPSHOT"]
+[figwheel "0.2.2-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
@@ -306,8 +331,23 @@ $ lein figwheel
 and run your app server of choice in another...
 
 ```
-$ lein ring server
+$ lein ring server ;; you are using lein-ring
 ```
+
+#### Using the REPL
+
+When you run `lein figwheel` a REPL will be launched into your application.
+
+This REPL is a little different than other REPLS in that it has live
+compile information from the build process. This effectively means
+that you will not have to call `(require` or `(load-namesapce` unless
+it is a namespace that isn't in your loaded application's required
+dependencies. In many cases you can just `(in-ns my.namespace)` and
+everything you need to access will be there already.
+
+
+
+
 
 #### Mapping figwheel resource paths to your servers resource paths
 
