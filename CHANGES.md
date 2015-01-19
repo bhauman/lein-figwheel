@@ -7,7 +7,7 @@
 * for a better repl experience launch lein figwheel with rlwrap
   `$ rlwrap lein figwheel`
   you can install rlwrap on OSX with brew: `brew install rlwrap`
-* you can control the autobuild process from the CLJS REPL, no lien reboot
+* you can control the autobuild process from the CLJS REPL, no lein reboot
 * the repl can be disabled with `:repl false` in the `:figwheel` config
 * the logfile for figwheel server output can be configured with `:server-logfile` in
   `:figwheel` config  
