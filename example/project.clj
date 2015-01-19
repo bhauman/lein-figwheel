@@ -37,7 +37,14 @@
                          :compiler { :output-to "resources/public/js/compiled/example_admin.js"
                                      :output-dir "resources/public/js/compiled/admin"
                                      :source-map true
-                                     :optimizations :none}}]}
+                                     :optimizations :none
+                                    }}
+                       { :id "example-admin-prod"
+                         :source-paths ["other_src" ]
+                         :compiler { :output-to "resources/public/js/prod/example_admin.js"
+                                     :output-dir "resources/public/js/prod/admin"
+                                     :optimizations :whitespace
+                                    }}]}
 
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
