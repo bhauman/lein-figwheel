@@ -35,7 +35,8 @@
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
     (add-repl-print-callback! figwheel-server)
-    (wait-for-connection figwheel-server))
+    (wait-for-connection figwheel-server)
+    (Thread/sleep 500)) ;; just to help with setup latencies
   (-evaluate [_ _ _ js]
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server js))
