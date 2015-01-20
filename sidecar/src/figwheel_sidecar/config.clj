@@ -1,7 +1,8 @@
 (ns figwheel-sidecar.config
   (:require
    [clojure.string :as string]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.walk :as walk]))
 
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
@@ -99,16 +100,19 @@
     dir))
 
 (defn normalize-output-dir [opts]
-  (update-in opts [:output-dir] normalize-dir))
+  (update-in opts [(if (:build-options opts) :build-options :compiler)  :output-dir] normalize-dir))
 
 (defn normalize-output-dirs [builds]
   (mapv normalize-output-dir builds))
 
+(defn no-seqs [b]
+  (walk/postwalk #(if (seq? %) (vec %) %) b))
+
 (defn prep-builds [builds]
   (-> builds
-    map-to-vec-builds
-    normalize-output-dirs
-    vec))
+      map-to-vec-builds
+      normalize-output-dirs
+      no-seqs))
 
 (defn apply-to-key
   "applies a function to a key, if key is defined."
@@ -119,7 +123,9 @@
   "Normalize various configuration input."
   [opts]
   (->> opts
+       no-seqs
        (apply-to-key str :ring-handler)
-       (apply-to-key vec :css-dirs)
-       (apply-to-key vec :resource-paths)))
+       (apply-to-key str :http-server-root)       
+       (apply-to-key str :open-file-command)
+       (apply-to-key str :server-logfile)))
 
