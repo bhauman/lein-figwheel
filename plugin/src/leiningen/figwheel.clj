@@ -66,8 +66,8 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
   (let [{:keys [crossover-path crossovers builds]} (config/extract-options project)
-        all-builds       (mapv config/parse-notify-command
-                               (fc/prep-builds
+        all-builds       (fc/prep-builds
+                          (mapv config/parse-notify-command
                                 (or (get-in project [:figwheel :builds])
                                     builds)))
         figwheel-options (fc/prep-options
