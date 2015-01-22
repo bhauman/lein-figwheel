@@ -14,7 +14,8 @@
    [clojure.string :as string]
    [clojure.set :refer [intersection]]
    [clojure.stacktrace :as trace]
-   [cljsbuild.util :as util]))
+   [cljsbuild.util :as util]
+   [cemerick.pomegranate :refer [add-dependencies]]))
 
 (defn notify-cljs [command message]
   (when (seq (:shell command))
@@ -106,6 +107,14 @@
          (println "Failed to execute special function:" (pr-str (first form)))
          (trace/print-cause-trace ex 12))))))
 
+(defn add-dep
+  ([a b c] (add-dep a b c nil))
+  ([_ _ [_ dep] _]
+     (binding [*err* *out*]
+       (add-dependencies :coordinates [dep]
+                         :repositories (merge cemerick.pomegranate.aether/maven-central
+                                          {"clojars" "http://clojars.org/repo"})))))
+
 (defn setup-control-fns [all-builds build-ids figwheel-server]
   (let [logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
         _ (mkdirs logfile-path)
@@ -188,6 +197,7 @@
           (reset-autobuild)          ;; stops, cleans, and starts autobuilder
           (build-once [id ...])      ;; builds source once time
           (clean-build [id ..])      ;; deletes compiled cljs target files
+          (add-dep [org.om/om \"0.8.1\"]) ;; add a dependency. very experimental
     Docs: (doc function-name-here)
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3")
@@ -198,7 +208,7 @@
         build-ids    (or (not-empty build-ids) [(:id repl-build)]) ;; give a default build-id
         control-fns  (setup-control-fns all-builds' build-ids figwheel-server)
         special-fns  (into {} (map (fn [[k v]] [k (make-special-fn v)]) control-fns))
-        special-fns  (merge cljs.repl/default-special-fns special-fns)
+        special-fns  (merge cljs.repl/default-special-fns special-fns {'add-dep add-dep})
         ;; TODO remove this when cljs.repl error catching code makes it to release
         special-fns  (into {} (map (fn [[k v]] [k (catch-special-fn-errors v)]) special-fns))]
     ((get control-fns 'start-autobuild) build-ids)
