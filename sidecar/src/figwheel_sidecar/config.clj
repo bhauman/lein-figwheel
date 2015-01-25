@@ -99,11 +99,23 @@
     (subs dir 0 (dec (count dir)))
     dir))
 
-(defn normalize-output-dir [opts]
-  (update-in opts [(if (:build-options opts) :build-options :compiler)  :output-dir] normalize-dir))
+(defn apply-to-key
+  "applies a function to a key, if key is defined."
+  [f k opts]
+  (if (k opts) (update-in opts [k] f) opts))
 
-(defn normalize-output-dirs [builds]
-  (mapv normalize-output-dir builds))
+(defn fix-build-options [build-options]
+  (prn build-options)
+  (->> build-options
+       (apply-to-key normalize-dir :output-dir)
+       (apply-to-key name :main)
+       (apply-to-key name :id)))
+
+(defn fix-build [opts]
+  (update-in opts [(if (:build-options opts) :build-options :compiler)] fix-build-options))
+
+(defn fix-builds [builds]
+  (mapv fix-build builds))
 
 (defn no-seqs [b]
   (walk/postwalk #(if (seq? %) (vec %) %) b))
@@ -111,13 +123,8 @@
 (defn prep-builds [builds]
   (-> builds
       map-to-vec-builds
-      normalize-output-dirs
+      fix-builds
       no-seqs))
-
-(defn apply-to-key
-  "applies a function to a key, if key is defined."
-  [f k opts]
-  (if (k opts) (update-in opts [k] f) opts))
 
 (defn prep-options
   "Normalize various configuration input."
