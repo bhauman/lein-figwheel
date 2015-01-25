@@ -20,12 +20,14 @@
     (<!! out)))
 
 ;; limit how long we wait?
+;; this is really rough we can wait for a the connection atom to
+;; change for the positive
 (defn wait-for-connection [{:keys [connection-count]}]
   (when (< @connection-count 1)
-    (<!! (go-loop []
-           (when (< @connection-count 1)
-             (timeout 500)
-             (recur))))))
+    (loop []
+      (when (< @connection-count 1)
+        (Thread/sleep 500)
+        (recur)))))
 
 (defn add-repl-print-callback! [{:keys [browser-callbacks]}]
   (swap! browser-callbacks assoc "figwheel-repl-print"
