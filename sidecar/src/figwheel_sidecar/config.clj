@@ -105,7 +105,6 @@
   (if (k opts) (update-in opts [k] f) opts))
 
 (defn fix-build-options [build-options]
-  (prn build-options)
   (->> build-options
        (apply-to-key normalize-dir :output-dir)
        (apply-to-key name :main)
