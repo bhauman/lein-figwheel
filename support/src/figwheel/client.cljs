@@ -83,8 +83,8 @@
                  #_(.log js/console (prn-str msg))
                  (cond
                   (reload-file-state? msg-names opts)
-                  (<! (reloading/reload-js-files opts msg))
-
+                  (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
+                  
                   (block-reload-file-state? msg-names opts)
                   (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file)))
                  (recur))))
