@@ -8,6 +8,22 @@
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
+;; super tricky hack to get goog to load newly required files
+
+(declare add-cache-buster)
+
+(defn figwheel-closure-import-script [src]
+  (if (.inHtmlDocument_ js/goog)
+    (do
+      #_(.log js/console "Figwheel: latently loading required file " src )
+      (loader/load (add-cache-buster src))
+      true)
+    false))
+
+(defn patch-goog-base []
+  (set! (.-provide js/goog) (.-exportPath_ js/goog))
+  (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) figwheel-closure-import-script))
+
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
   (.makeUnique (guri/parse url)))
@@ -44,7 +60,10 @@
 (defn reload-js-file [file-msg]
   (let [out (chan)]
     ;; escape context for better error reporting
-    (js/setTimeout #(js-reload file-msg (fn [url] (put! out url) (close! out))) 10)
+    (js/setTimeout #(js-reload file-msg (fn [url]
+                                          (patch-goog-base)
+                                          (put! out url)
+                                          (close! out))) 0)
     out))
 
 (defn load-all-js-files
@@ -140,16 +159,3 @@
    (<! (timeout 100))
    (on-cssload (:files files-msg))))
 
-;; super tricky hack to get goog to load newly required files
-
-(defn figwheel-closure-import-script [src]
-  (if (.inHtmlDocument_ js/goog)
-    (do
-      #_(.log js/console "Figwheel: latently loading required file " src )
-      (loader/load (add-cache-buster src))
-      true)
-    false))
-
-(defn patch-goog-base []
-  (set! (.-provide js/goog) (.-exportPath_ js/goog))
-  (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) figwheel-closure-import-script))
