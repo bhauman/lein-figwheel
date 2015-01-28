@@ -205,8 +205,11 @@
   This is a path that a client can request. A caveat is that only works on
   compiled javascript namespaces."
   [{:keys [output-dir] :as state} ns]
-  (let [path (.getPath (bapi/cljs-target-file-from-ns output-dir ns))]
-    (remove-resource-path state path)))
+  (let [path (.getPath (bapi/cljs-target-file-from-ns output-dir ns))
+        p    (remove-resource-path state path)]
+    (if (not= (first p) \/)
+      (str "/" p)
+      p)))
 
 (defn make-serve-from-display [{:keys [http-server-root] :as opts}]
   (let [paths (relativize-resource-paths opts)]
