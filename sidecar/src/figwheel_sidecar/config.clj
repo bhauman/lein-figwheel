@@ -4,6 +4,15 @@
    [clojure.java.io :as io]
    [clojure.walk :as walk]))
 
+(defn mkdirs [fpath]
+  (let [f (io/file fpath)]
+    (when-let [dir (.getParentFile f)] (.mkdirs dir))))
+
+(defn ensure-output-dirs* [{:keys [build-options compiler]}]
+  (let [{:keys [output-to]} (or build-options compiler)]
+    (when output-to
+      (mkdirs output-to))))
+
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
   [build]
@@ -119,10 +128,15 @@
 (defn no-seqs [b]
   (walk/postwalk #(if (seq? %) (vec %) %) b))
 
+(defn ensure-output-dirs [builds]
+  (mapv ensure-output-dirs* builds)
+  builds)
+
 (defn prep-builds [builds]
   (-> builds
       map-to-vec-builds
       fix-builds
+      ensure-output-dirs
       no-seqs))
 
 (defn prep-options

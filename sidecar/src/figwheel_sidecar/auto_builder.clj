@@ -79,10 +79,6 @@
         (mapv println errors)
         false))))
 
-(defn mkdirs [fpath]
-  (let [f (io/file fpath)]
-    (when-let [dir (.getParentFile f)] (.mkdirs dir))))
-
 (defn namify [arg]
   (if (seq? arg)
     (when (= 'quote (first arg))
@@ -117,7 +113,7 @@
 
 (defn setup-control-fns [all-builds build-ids figwheel-server]
   (let [logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
-        _ (mkdirs logfile-path)
+        _ (config/mkdirs logfile-path)
         log-writer        (io/writer logfile-path :append true)
         state-atom        (atom {:autobuilder nil
                                  :focus-ids  build-ids})
