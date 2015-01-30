@@ -26,7 +26,7 @@
 (defn relativize-resource-paths
   "Relativize to the local root just in case we have an absolute path"
   [resource-paths]
-  (mapv #(string/replace-first (norm-path %)
+  (mapv #(string/replace-first (norm-path (.getCanonicalPath (io/file %)))
                                (str (norm-path (.getCanonicalPath (io/file ".")))
                                     "/") "") resource-paths))
 
