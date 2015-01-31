@@ -17,6 +17,7 @@
 (fw/start {
            :websocket-url "ws://localhost:3449/figwheel-ws"
            :build-id "example"
+           :debug true
            :on-jsload (fn []
                         (ex2-restart)
                ;; this is a better way to reload the cube example

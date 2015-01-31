@@ -3,6 +3,7 @@
    [goog.Uri :as guri]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
+   [figwheel.client.utils :as utils]   
    [figwheel.client.heads-up :as heads-up]
    [figwheel.client.file-reloading :as reloading]
    [clojure.string :as string])
@@ -239,6 +240,8 @@
    
    :on-compile-fail default-on-compile-fail
    :on-compile-warning default-on-compile-warning
+
+   :debug false
    
    :heads-up-display true })
 
@@ -263,7 +266,8 @@
   (doseq [[k plugin] plugins]
     (when plugin
       (let [pl (plugin system-options)]
-        (add-watch socket/message-history-atom k (fn [_ _ _ msg-hist] (pl msg-hist)))))))
+        (add-watch socket/message-history-atom k
+                   (fn [_ _ _ msg-hist] (pl msg-hist)))))))
 
 (defn start
   ([opts]
@@ -276,6 +280,7 @@
              plugins  (if plugins'
                         plugins'
                         (merge (base-plugins system-options) merge-plugins))]
+         (set! utils/*print-debug* (:debug opts))
          #_(enable-repl-print!)         
          (add-plugins plugins system-options)
          (reloading/patch-goog-base)
