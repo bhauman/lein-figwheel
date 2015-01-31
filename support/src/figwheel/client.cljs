@@ -235,6 +235,7 @@
    :on-jsload default-on-jsload
    :before-jsload default-before-load
    :url-rewriter identity
+   :load-from-figwheel true
 
    :on-cssload default-on-cssload
    

@@ -1,5 +1,6 @@
 (ns figwheel.client.file-reloading
   (:require
+   [figwheel.client.utils :as utils]
    [goog.Uri :as guri]
    [goog.string]
    [goog.net.jsloader :as loader]
@@ -11,6 +12,8 @@
 ;; super tricky hack to get goog to load newly required files
 
 (declare add-cache-buster)
+
+(def ^:dynamic *load-from-figwheel* true)
 
 (defn figwheel-closure-import-script [src]
   (if (.inHtmlDocument_ js/goog)
@@ -45,17 +48,61 @@
        (string/replace ns "." "/")
        ".js"))
 
+(def goog-deps-path (str (.-basePath js/goog) "deps.js"))
+
+(defn get-main-file-path
+  "Very unreliable way to get the main js file for reloading. 
+   Fortunately its not the end of the world if this file doesn't 
+   get reloaded."
+  []
+  (let [sel  (str "script[src='" goog-deps-path "']")]
+    (when-let [el (.querySelector js/document sel)]
+      (when-let [el (.-nextElementSibling el)]
+        (.getAttribute el "src")))))
+
+(let [main-file-path (get-main-file-path)]
+  (defn resolve-deps-path [{:keys [file request-url]}]
+    (cond
+      (re-matches #".*goog/deps\.js" file) goog-deps-path
+      (and main-file-path
+           (apply = (mapv #(last (string/split % "/")) [main-file-path file])))
+      main-file-path
+      :else (do
+              (utils/debug-prn (str "No deps match:" file))
+              request-url))))
+
+(defn resolve-url [{:keys [request-url namespace dependency-file] :as msg}]
+  (if (not *load-from-figwheel*)
+    (do
+      (utils/debug-prn "Not loading from figwheel")
+      (if dependency-file
+        (resolve-deps-path msg)
+        (resolve-ns namespace)))
+    request-url))
+
 (defn js-reload [{:keys [request-url namespace dependency-file meta-data] :as msg} callback]
   (swap! ns-meta-data assoc namespace meta-data)
-  (if (and
-       (or dependency-file
-           (and meta-data (:figwheel-load meta-data))
-           ;; IMPORTANT make sure this file is currently provided
+  (let [request-url (resolve-url msg)]
+    (if (and
+         (or dependency-file
+             (and meta-data (:figwheel-load meta-data))
+             ;; IMPORTANT make sure this file is currently provided
            (.isProvided_ js/goog (name namespace)))
-       (not (:figwheel-no-load (or meta-data {}))))
-    (.addCallback (loader/load (add-cache-buster request-url) #js { :cleanupWhenDone true })
-                  #(apply callback [(assoc msg :loaded-file true)]))
-    (apply callback [msg])))
+         (not (:figwheel-no-load (or meta-data {}))))
+      (let [req-url (add-cache-buster request-url)
+            _ (utils/debug-prn (str "FigWheel: Attempting to load " req-url))
+            deferred (loader/load req-url #js { :cleanupWhenDone true })]
+        (.addCallback deferred
+                      #(do
+                         (utils/debug-prn (str "FigWheel: Successfullly loaded " request-url))
+                         (apply callback [(assoc msg :loaded-file true)])))
+        (.addErrback deferred
+                     (fn [eb]
+                       (utils/debug-prn (.-stack eb))
+                       (.error js/console "Figwheel: Error loading file with script tag:" request-url))))
+      (do
+        (utils/debug-prn (str "Figwheel: Not trying to load file " request-url))
+        (apply callback [msg])))))
 
 (defn reload-js-file [file-msg]
   (let [out (chan)]
@@ -80,20 +127,21 @@
 (defn add-request-urls [opts files]
   (map (partial add-request-url opts) files))
 
-(defn reload-js-files [{:keys [before-jsload on-jsload] :as opts} {:keys [files] :as msg}]
+(defn reload-js-files [{:keys [before-jsload on-jsload load-from-figwheel] :as opts} {:keys [files] :as msg}]
   (go
-   (before-jsload files)
-   (let [files'  (add-request-urls opts files)
-         res'    (<! (load-all-js-files files'))
-         res     (filter :loaded-file res')
-         files-not-loaded  (filter #(not (:loaded-file %)) res')]
-     (when (not-empty res)
-       (.debug js/console "Figwheel: loaded these files")
-       (.log js/console (pr-str (map :file res)))
-       (js/setTimeout #(apply on-jsload [res]) 10))
-     (when (not-empty files-not-loaded)
-       (.debug js/console "Figwheel: NOT loading files that haven't been required")
-       (.log js/console "not required:" (pr-str (map :file files-not-loaded)))))))
+    (before-jsload files)
+    (with-redefs [*load-from-figwheel* load-from-figwheel]
+      (let [files'  (add-request-urls opts files)
+            res'    (<! (load-all-js-files files'))
+            res     (filter :loaded-file res')
+            files-not-loaded  (filter #(not (:loaded-file %)) res')]
+        (when (not-empty res)
+          (.debug js/console "Figwheel: loaded these files")
+          (.log js/console (pr-str (map :file res)))
+          (js/setTimeout #(apply on-jsload [res]) 10))
+        (when (not-empty files-not-loaded)
+          (.debug js/console "Figwheel: NOT loading files that haven't been required")
+          (.log js/console "not required:" (pr-str (map :file files-not-loaded))))))))
 
 ;; CSS reloading
 
