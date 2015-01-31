@@ -1,10 +1,7 @@
 (ns figwheel.client.socket
   (:require
+   [figwheel.client.utils :as utils]
    [cljs.reader :refer [read-string]]))
-
-(defn log [{:keys [debug]} & args]
-  (when debug
-    (.log js/console (to-array args))))
 
 (defn have-websockets? [] (js*  "(\"WebSocket\" in window)"))
 
@@ -57,7 +54,7 @@
       (let [socket (js/WebSocket. websocket-url)]
         (set! (.-onmessage socket) (fn [msg-str]
                                      (when-let [msg (read-string (.-data msg-str))]
-                                       #_(.log js/console (prn-str msg))
+                                       (utils/debug-prn msg)
                                        (and (map? msg)
                                             (:msg-name msg)
                                             ;; don't forward pings
@@ -70,7 +67,7 @@
                                    (.debug js/console "Figwheel: socket connection established")))
         (set! (.-onclose socket) (fn [x]
                                    (let [retried-count (or retried-count 0)]
-                                     (log opts "Figwheel: socket closed or failed to open")
+                                     (utils/debug-prn "Figwheel: socket closed or failed to open")
                                      (when (> retry-count retried-count)
                                        (.setTimeout js/window
                                                     (fn []
@@ -78,5 +75,5 @@
                                                        (assoc opts :retried-count (inc retried-count))))
                                                     ;; linear back off
                                                     (min 10000 (+ 2000 (* 500 retried-count))))))))
-        (set! (.-onerror socket) (fn [x] (log opts "Figwheel: socket error ")))
+        (set! (.-onerror socket) (fn [x] (utils/debug-prn "Figwheel: socket error ")))
         socket))))
