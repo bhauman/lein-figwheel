@@ -146,7 +146,8 @@
 ;; CSS reloading
 
 (defn current-links []
-  (.call (.. js/Array -prototype -slice) (.getElementsByTagName js/document "link")))
+  (.call (.. js/Array -prototype -slice)
+         (.getElementsByTagName js/document "link")))
 
 (defn truncate-url [url]
   (-> (first (string/split url #"\?")) 
@@ -160,13 +161,28 @@
     (or (= file trunc-href)
         (= (truncate-url request-url) trunc-href))))
 
-#_(defn matches-file-new? [{:keys [file] } link-href]
-    (.endsWith goog.string file (truncate-url link-href)))
+(defn matches-file-new?
+  [{:keys [file]} link]
+  (when-let [link-href (.-href link)]
+    (let [match-length (count (take-while identity
+                                          (map #(= %1 %2)
+                                               (reverse file)
+                                               (reverse (truncate-url link-href)))))
+          file-name-length (count (last (string/split file "/")))]
+      (when (>= match-length file-name-length) ;; has to match more than the file name length
+        {:link link
+         :link-href link-href
+         :match-length match-length
+         :current-url-length (count (truncate-url link-href))}))))
 
 (defn get-correct-link [f-data]
-  (some (fn [l]
-          (when (matches-file? f-data (.-href l)) l))
-        (current-links)))
+  (when-let [res (first
+                  (sort-by
+                   (fn [{:keys [match-length current-url-length]}]
+                     (- current-url-length match-length))
+                   (keep #(matches-file-new? f-data %)
+                         (current-links))))]
+    (:link res)))
 
 (defn clone-link [link url]
   (let [clone (.createElement js/document "link")]
@@ -191,13 +207,11 @@
        (if (= orig-link (.-lastChild parent))
          (.appendChild parent klone)
          (.insertBefore parent klone (.-nextSibling orig-link)))
-       (go
-        (<! (timeout 200))
-        (.removeChild parent orig-link)))))
+       (js/setTimeout #(.removeChild parent orig-link) 300))))
 
 (defn reload-css-file [{:keys [file request-url] :as f-data}]
   (if-let [link (get-correct-link f-data)]
-    (add-link-to-doc link (clone-link link request-url))
+    (add-link-to-doc link (clone-link link (.-href link)))
     (add-link-to-doc (create-link request-url))))
 
 (defn reload-css-files [{:keys [on-cssload] :as opts} files-msg]
@@ -206,4 +220,3 @@
   (go
    (<! (timeout 100))
    (on-cssload (:files files-msg))))
-
