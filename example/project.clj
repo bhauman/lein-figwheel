@@ -8,19 +8,22 @@
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
-                 [figwheel "0.2.2-SNAPSHOT"]]
+                 [figwheel "0.2.3-SNAPSHOT"]
+                 ;; for development
+                 [figwheel-sidecar "0.2.3-SNAPSHOT"]]
   
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.4"]
-            [lein-figwheel "0.2.2-SNAPSHOT"]]
+            [lein-figwheel "0.2.3-SNAPSHOT"]]
 
   ;; this is used for testing an external server
   :ring { :handler example.server/static-server }
   
   :source-paths ["src"] 
 
-  ;; :clean-targets ["resources/public/js/compiled"]
-  
+  :clean-targets ^{:protect false} ["resources/public/js/compiled/out"
+                                    "resources/public/js/compiled/example.js"]
+
   :resource-paths ["resources" "other_resources"]
 
   :cljsbuild {
