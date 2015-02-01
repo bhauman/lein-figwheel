@@ -12,9 +12,9 @@
    [clojure.edn :as edn]
    [clojure.java.io :refer [as-file] :as io]
    [digest]
-   [clojurescript-build.api :as bapi]
    [clj-stacktrace.core :refer [parse-exception]]
    [clj-stacktrace.repl :refer [pst-on]]
+   [clojurescript-build.api :as cbapi]
    [clojure.pprint :as p]))
 
 ;; get rid of fs dependancy
@@ -149,7 +149,6 @@
   .ie a file that starts with (ns example.path-finder) -> example.path_finder"
   [file-path]
   (try
-    
     (when (.exists (as-file file-path))
       (with-open [rdr (io/reader file-path)]
         (-> (java.io.PushbackReader. rdr)
@@ -186,34 +185,10 @@
                  (:cljs changed-source-file-paths))))))
 
 (let [root (norm-path (.getCanonicalPath (io/file ".")))]
-  (defn relativize-resource-paths
+  (defn remove-root-path 
     "relativize to the local root just in case we have an absolute path"
-    [{:keys [resource-paths]}]
-    (mapv #(string/replace-first (norm-path %)
-                                 (str (norm-path root)
-                                      "/") "") resource-paths)))
-
-(defn remove-resource-path [{:keys [http-server-root] :as state} path]
-  (let [path' (norm-path path)
-        rp (first (filter (fn [x] (.startsWith path' (str x "/" http-server-root)))
-                          (relativize-resource-paths state)))
-        to-remove (str rp "/" http-server-root)]
-    (string/replace path' to-remove "")))
-
-(defn ns-to-server-relative-path
-  "Given the state and a namespace makes a path relative to the server root.
-  This is a path that a client can request. A caveat is that only works on
-  compiled javascript namespaces."
-  [{:keys [output-dir] :as state} ns]
-  (let [path (.getPath (bapi/cljs-target-file-from-ns output-dir ns))
-        p    (remove-resource-path state path)]
-    (if (not= (first p) \/)
-      (str "/" p)
-      p)))
-
-(defn make-serve-from-display [{:keys [http-server-root] :as opts}]
-  (let [paths (relativize-resource-paths opts)]
-    (str "(" (string/join "|" paths) ")/" http-server-root)))
+    [path]
+    (string/replace-first (norm-path path) (str root "/") "")))
 
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
@@ -237,14 +212,14 @@
   (keep
    #(when (file-changed? st %)
       { :dependency-file true
-        :file (remove-resource-path st %) })
+        :file (remove-root-path %) })
    (dependency-files st)))
 
 (defn make-sendable-file
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
   (let [n (-> nm name underscore)]
-    { :file (ns-to-server-relative-path st n)
+    { :file (str (cbapi/cljs-target-file-from-ns (:output-dir st) nm))
       :namespace (cljs.compiler/munge n)
       :meta-data (meta nm) }))
 
@@ -308,7 +283,7 @@
       (map (fn [x] (.getPath x)) (updated?)))))
 
 (defn make-css-file [state path]
-  { :file (remove-resource-path state path)
+  { :file (remove-root-path path)
     :type :css } )
 
 (defn send-css-files [st files]
@@ -355,8 +330,13 @@
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
   { :unique-id (or unique-id (project-unique-id)) 
-   
-    :resource-paths (or resource-paths ["resources"])
+     
+    :resource-paths (or
+                     (and resource-paths
+                          (empty? resource-paths)
+                          ["resources"])
+                     resource-paths
+                     ["resources"])
     :css-dirs css-dirs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
@@ -387,10 +367,7 @@
   ([opts]
    (let [state (create-initial-state (resolve-ring-handler opts))]
      (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
-     (println (str "Figwheel: Serving files from '"
-                   (make-serve-from-display state) "'"))
      (assoc state :http-server (server state)))))
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
-
