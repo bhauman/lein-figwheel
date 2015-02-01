@@ -78,18 +78,24 @@
   (let [build-options (:compiler build')
         opts? (and (not (nil? build-options)) (optimizations-none? build'))
         out-dir? (output-dir-in-resources-root? build-options opts)]
+    ;; this is now a warning
+    (when (and (not out-dir?)
+               (:output-dir build-options))
+      (println
+       (str
+          "Figwheel Config Warning (in project.clj) -- \n"
+          "Your build :output-dir is not in a resources directory.\n"
+          "If you are serving your assets (js, css, etc.) with Figwheel,\n"
+          "they must be on the resource path for the server.\n"
+          (str "Your :output-dir should match this pattern: " (make-serve-from-display opts)))))
     (map
      #(str "Figwheel Config Error (in project.clj) - " %)
      (filter identity
              (list
               (when-not opts?
                 "you have build :optimizations set to something other than :none")
-              (when-not out-dir?
-                (str
-                 (if (:output-dir build-options)
-                   "your build :output-dir is not in a resources directory."
-                   "you have not configured an :output-dir in your build")
-                 (str "\nIt should match this pattern: " (make-serve-from-display opts)))))))))
+              (when-not (:output-dir build-options)
+                "you have not configured an :output-dir in your build"))))))
 
 (defn check-config [figwheel-options builds]
   (if (empty? builds)
@@ -148,4 +154,3 @@
        (apply-to-key str :http-server-root)       
        (apply-to-key str :open-file-command)
        (apply-to-key str :server-logfile)))
-
