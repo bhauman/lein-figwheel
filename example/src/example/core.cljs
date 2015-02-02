@@ -1,6 +1,5 @@
 (ns example.core
   (:require
-   [figwheel.client :as fw]
    [example.cube]
    [crate.core])
   (:require-macros
@@ -14,19 +13,6 @@
 
 (declare ex2-restart)
 
-(fw/start {
-           :websocket-url "ws://localhost:3449/figwheel-ws"
-           :build-id "example"
-           :debug true
-           :load-from-figwheel false
-           :on-jsload (fn []
-                        (ex2-restart)
-               ;; this is a better way to reload the cube example
-               ;; which will reload even for non-local changes
-               ;; (example.cube/stop-and-start-ex3)
-               )
-  })
-
 (m/log (+ 1 2 2 3 4 5))
 
 ;; When you are writing reloadable code you have to protect things
@@ -39,6 +25,8 @@
 (println "This is a reloaded print statement: modify me now.")
 
 ;; Example 1:  simple crate based app
+
+
 
 ;; Try editing the example below and watch how the live reloading
 ;; responds.  This is a rough example meant to quickly demonstrate

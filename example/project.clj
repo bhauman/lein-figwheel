@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2665"]
+                 [org.clojure/clojurescript "0.0-2727"]
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
@@ -21,20 +21,22 @@
   
   :source-paths ["src"] 
 
-  :clean-targets ^{:protect false} ["resources/public/js/compiled/out"
-                                    "resources/public/js/compiled/example.js"]
+  :clean-targets ^{:protect false} ["resources/public/js/out"
+                                    "resources/public/js/example.js"]
 
   :resource-paths ["resources" "other_resources"]
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" "../support/src"]
-                         :compiler { :output-to "resources/public/js/compiled/example.js"
-                                     :output-dir "resources/public/js/compiled/out"
-                                     :source-map true
-                                     :source-map-timestamp true
-                                     :cache-analysis true
-                                     :optimizations :none}}
+                         :source-paths ["src" "dev" "../support/src"]
+                         :compiler {:main example.dev
+                                    :asset-path "js/out"
+                                    :output-to "resources/public/js/example.js"
+                                    :output-dir "resources/public/js/out"
+                                    :source-map true
+                                    :source-map-timestamp true
+                                    :cache-analysis true
+                                    :optimizations :none}}
                        { :id "example-admin"
                          :source-paths ["other_src" ]
                          :compiler { :output-to "resources/public/js/compiled/example_admin.js"
