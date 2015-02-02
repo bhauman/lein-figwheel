@@ -202,40 +202,41 @@
 ;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
 
 (defn default-on-jsload [url]
-  (when (js*  "(\"CustomEvent\" in window)")
+  (when (and (utils/html-env?) (js*  "(\"CustomEvent\" in window)"))
     (.dispatchEvent (.-body js/document)
                     (js/CustomEvent. "figwheel.js-reload"
                                      (js-obj "detail" url)))))
 
-
 (defn default-on-compile-fail [{:keys [formatted-exception exception-data] :as ed}]
-  (.debug js/console "Figwheel: Compile Exception")
+  (utils/log :debug "Figwheel: Compile Exception")
   (doseq [msg (format-messages exception-data)]
-    (.log js/console msg))
+    (utils/log :info msg))
   ed)
 
 (defn default-on-compile-warning [{:keys [message] :as w}]
-  (.warn js/console "Figwheel: Compile Warning -" message)
+  (utils/log :warn (str "Figwheel: Compile Warning - " message))
   w)
 
 (defn default-before-load [files]
-  (.debug js/console "Figwheel: notified of file changes")
+  (utils/log :debug "Figwheel: notified of file changes")
   files)
 
 (defn default-on-cssload [files]
-  (.debug js/console "Figwheel: loaded CSS files")
-  (.log js/console (pr-str (map :file files)))
+  (utils/log :debug "Figwheel: loaded CSS files")
+  (utils/log :info (pr-str (map :file files)))  
   files)
 
 (defonce config-defaults
   {:retry-count 100
-   :websocket-url (str "ws://" js/location.host "/figwheel-ws")
+   :websocket-url (str "ws://"
+                       (if (utils/html-env?) js/location.host "localhost:3449")
+                       "/figwheel-ws")
    :load-warninged-code false
    
    :on-jsload default-on-jsload
    :before-jsload default-before-load
-   :url-rewriter identity
-   :load-from-figwheel true
+
+   :url-rewriter false
 
    :on-cssload default-on-cssload
    
@@ -258,8 +259,15 @@
               :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
-              :repl-plugin      repl-plugin}]
-    (if (:heads-up-display system-options)
+              :repl-plugin      repl-plugin}
+       base  (if (not (.. js/goog inHtmlDocument_)) ;; we are in node?
+               (select-keys base [#_:enforce-project-plugin
+                                  :file-reloader-plugin
+                                  #_:comp-fail-warning-plugin
+                                  #_:repl-plugin])
+               base)]
+    (if (and (:heads-up-display system-options)
+             (utils/html-env?))
       (assoc base :heads-up-display-plugin heads-up-plugin)
       base)))
 

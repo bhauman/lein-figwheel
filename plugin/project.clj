@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[figwheel-sidecar "0.2.2-SNAPSHOT"]]
+  :dependencies [[figwheel-sidecar "0.2.3-SNAPSHOT"]]
 
   :profiles {
     :dev {

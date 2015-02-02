@@ -3,7 +3,13 @@
    [figwheel.client.utils :as utils]
    [cljs.reader :refer [read-string]]))
 
-(defn have-websockets? [] (js*  "(\"WebSocket\" in window)"))
+(defn get-websocket-imp []
+  (cond
+    (utils/html-env?) (aget js/window "WebSocket")
+    (utils/node-env?) (try (js/require "ws")
+                           (catch js/Error e
+                             nil))
+    :else nil))
 
 ;; messages have the following formats
 
@@ -47,11 +53,10 @@
          (:build-id msg))))
 
 (defn open [{:keys [retry-count retried-count websocket-url build-id] :as opts}]
-  (if-not (have-websockets?)
-    (.debug js/console "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets")
+  (if-let [WebSocket (get-websocket-imp)]
     (do
-      (.debug js/console "Figwheel: trying to open cljs reload socket")
-      (let [socket (js/WebSocket. websocket-url)]
+      (utils/log :debug "Figwheel: trying to open cljs reload socket")
+      (let [socket (WebSocket. websocket-url)]
         (set! (.-onmessage socket) (fn [msg-str]
                                      (when-let [msg (read-string (.-data msg-str))]
                                        (utils/debug-prn msg)
@@ -64,16 +69,20 @@
                                                    conj msg)))))
         (set! (.-onopen socket)  (fn [x]
                                    (reset! socket-atom socket)
-                                   (.debug js/console "Figwheel: socket connection established")))
+                                   (utils/log :debug "Figwheel: socket connection established")))
         (set! (.-onclose socket) (fn [x]
                                    (let [retried-count (or retried-count 0)]
                                      (utils/debug-prn "Figwheel: socket closed or failed to open")
                                      (when (> retry-count retried-count)
-                                       (.setTimeout js/window
-                                                    (fn []
-                                                      (open
-                                                       (assoc opts :retried-count (inc retried-count))))
-                                                    ;; linear back off
-                                                    (min 10000 (+ 2000 (* 500 retried-count))))))))
+                                       (js/setTimeout 
+                                        (fn []
+                                          (open
+                                           (assoc opts :retried-count (inc retried-count))))
+                                        ;; linear back off
+                                        (min 10000 (+ 2000 (* 500 retried-count))))))))
         (set! (.-onerror socket) (fn [x] (utils/debug-prn "Figwheel: socket error ")))
-        socket))))
+        socket))
+    (utils/log :debug
+               (if (utils/node-env?)
+                 "Figwheel: Can't start Figwheel!! Please make sure ws is installed\n do -> 'node install ws'"
+                 "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets"))))
