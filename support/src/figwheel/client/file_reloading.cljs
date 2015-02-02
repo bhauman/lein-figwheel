@@ -1,6 +1,6 @@
 (ns figwheel.client.file-reloading
   (:require
-   [figwheel.client.utils :as utils]
+   [figwheel.client.utils :as utils :refer-macros [dev-assert]]
    [goog.Uri :as guri]
    [goog.string]
    [goog.net.jsloader :as loader]
@@ -14,11 +14,16 @@
 (defonce ns-meta-data (atom {}))
 
 ;; this assumes no query string on url
-(defn add-cache-buster [url] (.makeUnique (guri/parse url)))
+(defn add-cache-buster [url]
+  (dev-assert (string? url))
+  (.makeUnique (guri/parse url)))
 
-(defn ns-to-js-file [ns] (str (string/replace ns "." "/") ".js"))
+(defn ns-to-js-file [ns]
+  (dev-assert (string? ns))
+  (str (string/replace ns "." "/") ".js"))
 
 (defn resolve-ns [ns]
+  (dev-assert (string? ns))
   (str (string/replace (.-basePath js/goog) #"(.*)goog/" #(str %2))
        (ns-to-js-file ns)))
 
@@ -41,51 +46,18 @@
   (set! (.-provide js/goog) (.-exportPath_ js/goog))
   (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) reload-file*))
 
-;; may not need to load these deps as we may not be using them
-#_(def goog-deps-path (str (.-basePath js/goog) "deps.js"))
-
-#_(defn get-main-file-path
-  "Very unreliable way to get the main js file for reloading. 
-   Fortunately its not the end of the world if this file doesn't 
-   get reloaded."
-  []
-  (when (utils/html-env?)
-    (let [sel  (str "script[src='" goog-deps-path "']")]
-      (when-let [el (.querySelector js/document sel)]
-        (when-let [el (.-nextElementSibling el)]
-          (.getAttribute el "src"))))))
-
-#_(let [main-file-path (get-main-file-path)]
-  (defn resolve-deps-path [file]
-    (cond
-      (re-matches #".*goog/deps\.js" file) goog-deps-path
-      (and main-file-path
-           (apply = (mapv #(last (string/split % "/")) [main-file-path file])))
-      main-file-path
-      :else (do
-              (utils/debug-prn (str "No deps match:" file))
-              file))))
-
-;; server should add a type to each file
-(defn file-type [{:keys [type dependency-file namespace]}]
-    (cond
-      (= type :css)   :css
-      ;; dependency-file :dependency-file
-      namespace       :namespace))
-
-(defmulti resolve-url file-type)
+(defmulti resolve-url :type)
 
 (defmethod resolve-url :default [{:keys [file]}] file)
 
-#_(defmethod resolve-url :dependency-file [{:keys [file]}]
-    (resolve-deps-path file))
-
 (defmethod resolve-url :namespace [{:keys [namespace]}]
+  (dev-assert (string? namespace))
   (resolve-ns namespace))
 
 (defmulti reload-base utils/host-env?)
 
 (defmethod reload-base :node [request-url callback]
+  (dev-assert (string? request-url) (not (nil? callback)))
   (let [root (string/join "/" (reverse (drop 2 (reverse (string/split js/__dirname "/")))))
         path (str root "/" request-url)]
     (aset (.-cache js/require) path nil)
@@ -95,6 +67,7 @@
                   false)))))
 
 (defmethod reload-base :html [request-url callback]
+  (dev-assert (string? request-url) (not (nil? callback)))  
   (let [deferred (loader/load (add-cache-buster request-url)
                               #js { :cleanupWhenDone true })]
     (.addCallback deferred #(apply callback [true]))
@@ -105,6 +78,9 @@
   ([request-url] (reload-file* request-url identity)))
 
 (defn reload-file [{:keys [request-url] :as file-msg} callback]
+  (dev-assert (string? request-url)
+              (map? file-msg)
+              (not (nil? callback)))
   (utils/debug-prn (str "FigWheel: Attempting to load " request-url))
   (reload-file* request-url
                 (fn [success?]
@@ -121,7 +97,8 @@
    (or dependency-file
        (and meta-data (:figwheel-load meta-data))
        ;; IMPORTANT make sure this file is currently provided
-       (contains? *loaded-libs* namespace) #_(.isProvided_ js/goog (name namespace)))
+       (contains? *loaded-libs* namespace)
+       #_(.isProvided_ js/goog (name namespace)))
    (not (:figwheel-no-load (or meta-data {})))))
 
 (defn js-reload [{:keys [request-url namespace meta-data] :as file-msg} callback]
@@ -154,10 +131,22 @@
 (defn add-request-urls [opts files]
   (map (partial add-request-url opts) files))
 
+(defn eval-body [{:keys [eval-body file]}]
+  (when (and eval-body (string? eval-body))
+    (let [code eval-body]
+      (try
+        (utils/debug-prn (str "Evaling file " file))
+        (js* "eval(~{code})")
+        (catch :default e
+          (utils/log :error (str "Unable to evaluate " file)))))))
+
 (defn reload-js-files [{:keys [before-jsload on-jsload load-from-figwheel] :as opts} {:keys [files] :as msg}]
   (go
     (before-jsload files)
-    (let [files'  (add-request-urls opts (filter #(not (:dependency-file %)) files))
+    ;; evaluate the eval bodies first
+    (doseq [eval-body-file (filter #(:eval-body %) files)]
+      (eval-body eval-body-file))
+    (let [files'  (add-request-urls opts (filter #(not (:eval-body %)) files))
           res'    (<! (load-all-js-files files'))
           res     (filter :loaded-file res')
           files-not-loaded  (filter #(not (:loaded-file %)) res')]
