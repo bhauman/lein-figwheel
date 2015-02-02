@@ -190,19 +190,22 @@
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
 
+
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
   [{:keys [file-md5-atom]} filepath]  
   (let [file (as-file filepath)]
     (when (.exists file)
-      (let [check-sum (digest/md5 file)
-            changed? (not= (get @file-md5-atom filepath)
-                           check-sum)]
-        (swap! file-md5-atom assoc filepath check-sum)
-        changed?))))
+      (let [contents (slurp file)]
+        (when (.contains contents "addDependency")
+          (let [check-sum (digest/md5 contents)
+                changed? (not= (get @file-md5-atom filepath)
+                               check-sum)]
+            (swap! file-md5-atom assoc filepath check-sum)
+            changed?))))))
 
 (defn dependency-files [{:keys [output-to output-dir]}]
-   [output-to (str output-dir "/goog/deps.js")])
+   [output-to (str output-dir "/goog/deps.js") (str output-dir "/cljs_deps.js")])
 
 (defn get-dependency-files
   "Handling dependency files is different they don't have namespaces and their mtimes
@@ -212,7 +215,9 @@
   (keep
    #(when (file-changed? st %)
       { :dependency-file true
-        :file (remove-root-path %) })
+        :type :dependency-update
+        :file (remove-root-path %)
+        :eval-body (slurp %)})
    (dependency-files st)))
 
 (defn make-sendable-file
@@ -221,6 +226,7 @@
   (let [n (-> nm name underscore)]
     { :file (str (cbapi/cljs-target-file-from-ns (:output-dir st) nm))
       :namespace (cljs.compiler/munge n)
+      :type :namespace
       :meta-data (meta nm) }))
 
 ;; I would love to just check the compiled javascript files to see if
