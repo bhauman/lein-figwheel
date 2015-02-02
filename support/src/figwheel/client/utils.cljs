@@ -1,4 +1,6 @@
-(ns figwheel.client.utils)
+(ns ^:figwheel-no-load figwheel.client.utils)
+
+;; don't auto reload this file it will mess up the debug printing
 
 (def ^:dynamic *print-debug* false)
 
