@@ -8,11 +8,7 @@
 # add conditional (utils/dev ) to add assertions to client code
 # add copious tests to client
 
-# repl make sure that cljs.user exists before eval
-
-# change example so a simpler app
-
-DONE # make sure cljs_deps is handled correctly
+# change example to a simpler app
 
 
 

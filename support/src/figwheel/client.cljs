@@ -107,7 +107,7 @@
     (catch js/Error e
       (result-handler
        {:status :exception
-          :value (pr-str e)
+        :value (pr-str e)
         :stacktrace (if (.hasOwnProperty e "stack")
                       (truncate-stack-trace (.-stack e)) 
                       "No stacktrace available.")}))
@@ -117,9 +117,18 @@
         :value (pr-str e)
         :stacktrace "No stacktrace available."}))))
 
+(defn ensure-cljs-user
+  "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
+  []
+  (when-not js/cljs
+    (set! js/cljs #js {}))
+  (when-not (.-user js/cljs)
+    (set! (.-user js/cljs) #js {})))
+
 (defn repl-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
+      (ensure-cljs-user)
       (eval-javascript** (:code msg)
                        (fn [res]
                          (socket/send! {:figwheel-event "callback"
