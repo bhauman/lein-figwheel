@@ -289,8 +289,9 @@
 
 (defn start
   ([opts]
-     (defonce __figwheel-start-once__
-       (let [plugins' (:plugins opts) ;; plugins replaces all plugins
+   (defonce __figwheel-start-once__
+     (js/setTimeout
+      #(let [plugins' (:plugins opts) ;; plugins replaces all plugins
              merge-plugins (:merge-plugins opts) ;; merges plugins
              system-options (handle-deprecated-jsload-callback
                              (merge config-defaults
@@ -302,7 +303,7 @@
          #_(enable-repl-print!)         
          (add-plugins plugins system-options)
          (reloading/patch-goog-base)
-         (socket/open system-options))))
+         (socket/open system-options)))))
   ([] (start {})))
 
 ;; legacy interface
