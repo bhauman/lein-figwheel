@@ -1,6 +1,4 @@
-# get node working well
 # get node working on windows
-# make sure that repl works for node
 
 # if a file changes load its deps
 # given a set of file changes load them in dep order
@@ -9,6 +7,7 @@
 # add copious tests to client
 
 # change example to a simpler app
+
 
 
 

@@ -272,8 +272,8 @@
        base  (if (not (.. js/goog inHtmlDocument_)) ;; we are in node?
                (select-keys base [#_:enforce-project-plugin
                                   :file-reloader-plugin
-                                  #_:comp-fail-warning-plugin
-                                  #_:repl-plugin])
+                                  :comp-fail-warning-plugin
+                                  :repl-plugin])
                base)]
     (if (and (:heads-up-display system-options)
              (utils/html-env?))
