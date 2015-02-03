@@ -5,7 +5,7 @@
    [figwheel-sidecar.repl :as fig-repl]
    [figwheel-sidecar.config :as config]
    [cljs.repl]
-   [cljs.analyzer]
+   [cljs.analyzer :as ana]
    [cljs.env]
    [clj-stacktrace.repl]
    [clojurescript-build.core :as cbuild]
@@ -109,7 +109,21 @@
      (binding [*err* *out*]
        (add-dependencies :coordinates [dep]
                          :repositories (merge cemerick.pomegranate.aether/maven-central
-                                          {"clojars" "http://clojars.org/repo"})))))
+                                              {"clojars" "http://clojars.org/repo"})))))
+
+(defn doc
+  ([repl-env env form]
+   (doc repl-env env form nil))
+  ([repl-env env [_ sym :as form] opts]
+   (if (not (symbol? sym))
+     (print "Must provide bare var to get documentation i.e. (doc clojure.string/join)")
+     (cljs.repl/evaluate-form repl-env
+                              (assoc env :ns (ana/get-namespace ana/*cljs-ns*))
+                              "<cljs repl>"
+                              (with-meta
+                                `(cljs.repl/doc ~sym)
+                                {:merge true :line 1 :column 1})
+                              identity opts))))
 
 (defn setup-control-fns [all-builds build-ids figwheel-server]
   (let [logfile-path (or (:server-logfile figwheel-server) "figwheel_server.log")
@@ -204,7 +218,8 @@
         build-ids    (or (not-empty build-ids) [(:id repl-build)]) ;; give a default build-id
         control-fns  (setup-control-fns all-builds' build-ids figwheel-server)
         special-fns  (into {} (map (fn [[k v]] [k (make-special-fn v)]) control-fns))
-        special-fns  (merge cljs.repl/default-special-fns special-fns {'add-dep add-dep})
+        special-fns  (merge cljs.repl/default-special-fns special-fns {'add-dep add-dep
+                                                                       'doc doc})
         ;; TODO remove this when cljs.repl error catching code makes it to release
         special-fns  (into {} (map (fn [[k v]] [k (catch-special-fn-errors v)]) special-fns))]
     ((get control-fns 'start-autobuild) build-ids)

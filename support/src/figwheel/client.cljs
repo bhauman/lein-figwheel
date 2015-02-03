@@ -6,7 +6,9 @@
    [figwheel.client.utils :as utils]   
    [figwheel.client.heads-up :as heads-up]
    [figwheel.client.file-reloading :as reloading]
-   [clojure.string :as string])
+   [clojure.string :as string]
+   [cljs.repl] ;; to support repl doc
+   )
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
