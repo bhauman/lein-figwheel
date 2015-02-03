@@ -105,7 +105,8 @@
     (binding [*print-fn* (fn [& args]
                            (-> args
                              console-print
-                             figwheel-repl-print))]
+                             figwheel-repl-print))
+              *print-newline* false]
       (when (alters-dependencies? code)
         (reloading/invalidate-dependency-cache!))
       (result-handler
