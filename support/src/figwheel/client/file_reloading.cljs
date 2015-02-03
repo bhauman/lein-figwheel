@@ -13,6 +13,25 @@
 
 (defonce ns-meta-data (atom {}))
 
+;; dependency resolution
+
+#_(defn dependencies []
+  (let [relevant-nms (filter (fn [n]
+                               (and
+                                (not (.startsWith goog.string n "goog"))
+                                (not (.startsWith goog.string n "cljs"))
+                                (not (.startsWith goog.string n "clojure"))))
+                             (js-keys (.. js/goog -dependencies_ -nameToPath)))]
+    (reduce (fn [am nm]
+              (let [pth (aget (.. js/goog -dependencies_ -nameToPath) nm)
+                    reqs (js-keys (aget (.. js/goog -dependencies_ -requires) pth))]
+                (reduce (fn [amm r] (assoc-in amm [r nm] true)) am reqs)))
+            {}
+            relevant-nms)))
+
+#_(defn ns-that-depend-on [nm]
+  (keys (get (dependencies) nm)))
+
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
   (dev-assert (string? url))
