@@ -122,20 +122,20 @@
 (defn ensure-cljs-user
   "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
   []
-  (when-not js/cljs
+  (when-not js/cljs  
     (set! js/cljs #js {}))
   (when-not (.-user js/cljs)
     (set! (.-user js/cljs) #js {})))
 
-(defn repl-plugin [opts]
+(defn repl-plugin [{:keys [build-id] :as opts}]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
       (ensure-cljs-user)
       (eval-javascript** (:code msg)
-                       (fn [res]
-                         (socket/send! {:figwheel-event "callback"
-                                        :callback-name (:callback-name msg) 
-                                        :content res}))))))
+       (fn [res]
+         (socket/send! {:figwheel-event "callback"
+                        :callback-name (:callback-name  msg)
+                        :content res}))))))
 
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]

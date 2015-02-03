@@ -212,6 +212,18 @@
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3")
 
+(defn get-build-choice [choices]
+  (let [choices (set (map name choices))]
+    (loop []
+      (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") > "))
+      (flush)
+      (let [res (read-line)]
+        (if (choices res)
+          res
+          (do
+            (println (str "Error: " res " is not a valid choice"))
+            (recur)))))))
+
 (defn autobuild-repl [{:keys [all-builds build-ids figwheel-server] :as opts}]
   (let [all-builds'  (mapv auto/prep-build all-builds)
         repl-build   (first (config/narrow-builds* all-builds' build-ids))
@@ -223,13 +235,20 @@
         ;; TODO remove this when cljs.repl error catching code makes it to release
         special-fns  (into {} (map (fn [[k v]] [k (catch-special-fn-errors v)]) special-fns))]
     ((get control-fns 'start-autobuild) build-ids)
-    (newline)
-    (print "Launching ClojureScript REPL")
-    (when-let [id (:id repl-build)] (println " for build:" id))
-    (println (repl-function-docs))
-    (println "Prompt will show when figwheel connects to your application")
     ;; TODO it would be cool to switch the repl's build as well
-    (fig-repl/repl repl-build figwheel-server {:special-fns special-fns})))
+    (loop [build repl-build]
+      (newline)
+      (print "Launching ClojureScript REPL")
+      (when-let [id (:id build)] (println " for build:" id))
+      (println (repl-function-docs))
+      (println "Prompt will show when figwheel connects to your application")
+      
+      (fig-repl/repl build figwheel-server {:special-fns special-fns})
+      (println "\nStart CLJS repl on another build? (Ctrl+D to exit)")
+      (let [chosen-build-id (get-build-choice
+                             (keep :id (filter config/optimizations-none? all-builds')))
+            chosen-build (first (filter #(= (name (:id %)) chosen-build-id) all-builds'))]
+        (recur chosen-build)))))
 
 (defn autobuild [src-dirs build-options figwheel-options]
   (autobuild* {:builds [{:source-paths src-dirs
