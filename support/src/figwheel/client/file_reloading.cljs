@@ -105,13 +105,21 @@
   (dev-assert (all? namespace-file-map? files))
   (sort topo-compare-file-msg files))
 
+(defn store-meta-data-for-files! [files]
+  (dev-assert (all? namespace-file-map? files))
+  ;; store meta data
+  (doseq [{:keys [namespace meta-data]}
+          (filter #(and (:meta-data %) (:namespace %)) files)]
+    (swap! ns-meta-data assoc namespace meta-data)))
+
 (defn expand-files-to-include-deps [file-msgs]
   (dev-assert (all? namespace-file-map? file-msgs))
+  (store-meta-data-for-files! file-msgs)
   (let [current-ns    (set (map :namespace file-msgs))
         dependent-ns  (set (mapcat ns-that-depend-on current-ns))
         additional-ns (difference dependent-ns current-ns)
         additional-files (map (fn [x] { :namespace x
-                                       :meta-data nil
+                                       :meta-data (get @ns-meta-data x)
                                        :file (resolve-ns x)
                                        :type :namespace }) additional-ns)]
     (topo-sort-files (concat (set file-msgs)
@@ -205,8 +213,8 @@
        #_(.isProvided_ js/goog (name namespace)))
    (not (:figwheel-no-load (or meta-data {})))))
 
-(defn js-reload [{:keys [request-url namespace meta-data] :as file-msg} callback]
-  (when meta-data (swap! ns-meta-data assoc namespace meta-data))
+(defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
+  (dev-assert (namespace-file-map? file-msg))
   (if (reload-file? file-msg)
     (reload-file file-msg callback)
     (do
