@@ -3,7 +3,7 @@
    [clojure.pprint :as p]
    [cljs.repl]
    [cljs.env :as env]
-   [clojure.core.async :refer [chan <!! <! put! timeout close! go go-loop]]
+   [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
    [figwheel-sidecar.core :as fig]))
 
 (defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
@@ -17,7 +17,12 @@
                      (close! out)))]
     (swap! browser-callbacks assoc callback-name callback)
     (fig/send-message! figwheel-server :repl-eval {:code js :callback-name callback-name})
-    (<!! out)))
+    (let [[v ch] (alts!! [out (timeout 8000)])]
+      (if (= ch out)
+        v
+        {:status :exception
+         :value "Eval timed out!"
+         :stacktrace "No stacktrace available."}))))
 
 ;; limit how long we wait?
 ;; this is really rough we can wait for a the connection atom to
