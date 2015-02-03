@@ -5,32 +5,117 @@
    [goog.string]
    [goog.net.jsloader :as loader]
    [clojure.string :as string]
+   [clojure.set :refer [difference]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
-(declare reload-file*)
+(declare reload-file* resolve-ns)
 
 (defonce ns-meta-data (atom {}))
 
 ;; dependency resolution
 
-#_(defn dependencies []
-  (let [relevant-nms (filter (fn [n]
-                               (and
-                                (not (.startsWith goog.string n "goog"))
-                                (not (.startsWith goog.string n "cljs"))
-                                (not (.startsWith goog.string n "clojure"))))
-                             (js-keys (.. js/goog -dependencies_ -nameToPath)))]
-    (reduce (fn [am nm]
-              (let [pth (aget (.. js/goog -dependencies_ -nameToPath) nm)
-                    reqs (js-keys (aget (.. js/goog -dependencies_ -requires) pth))]
-                (reduce (fn [amm r] (assoc-in amm [r nm] true)) am reqs)))
-            {}
-            relevant-nms)))
+(defonce dependency-cache (atom {}))
 
-#_(defn ns-that-depend-on [nm]
-  (keys (get (dependencies) nm)))
+(defn all? [pred coll]
+  (reduce #(and %1 %2) true (map pred coll)))
+
+(defn namespace-file-map? [m]
+  (or
+   (and (map? m)
+        (string? (:namespace m))
+        (string? (:file m))
+        (= (:type m)
+           :namespace))
+    (do
+      (println "Error not namespace-file-map" (pr-str m))
+      false)))
+
+(defn not-start [n pre]
+  (dev-assert (string? n) (string? pre))
+  (not (.startsWith goog.string n pre)))
+
+(defn invalidate-dependency-cache! []
+  (reset! dependency-cache {}))
+
+(defn relevant-nms []
+  (filter (fn [n]
+            (dev-assert (string? n))
+            (reduce #(and %1 (not-start n %2)) true ["goog" "cljs" "clojure"]))
+          (js-keys (.. js/goog -dependencies_ -nameToPath))))
+
+(defn dependencies* []
+  (dev-assert (map? @dependency-cache))
+  (reduce (fn [acc-map nm]
+            (let [pth (aget (.. js/goog -dependencies_ -nameToPath) nm)
+                  reqs (js-keys (aget (.. js/goog -dependencies_ -requires) pth))]
+              (reduce (fn [amm r] (assoc-in amm [r nm] true)) acc-map reqs)))
+            {}
+            (relevant-nms)))
+
+(defn dependencies []
+  (dev-assert (map? @dependency-cache))
+  (if (not-empty @dependency-cache)
+    @dependency-cache
+    (let [deps (dependencies*)]
+      (dev-assert (map? deps))
+      (reset! dependency-cache deps)
+      deps)))
+
+(defn ns-that-depend-on [nm]
+  (dev-assert (string? nm))
+  (set (keys (get (dependencies) nm))))
+
+(defn ancestor* [nm nm2]
+  (dev-assert (string? nm) (string? nm2))
+  (let [deps (ns-that-depend-on nm)]
+    (dev-assert (set? deps))
+    (if (empty? deps)
+      false
+      (if (get deps nm2)
+        true
+        (reduce #(or %1 %2) false
+                (map #(ancestor* % nm2) deps))))))
+
+(defn ancestor [nm nm2]
+  (dev-assert (string? nm) (string? nm2) (map? @dependency-cache))
+  ;; sharing a cache so that it gets blown away when deps are updated
+  (let [cached (get-in @dependency-cache [:ancestor nm nm2])]
+    (if (not (nil? cached))
+      cached
+      (let [res (ancestor* nm nm2)]
+        (swap! dependency-cache assoc-in [:ancestor nm nm2] res)
+        res))))
+
+(defn topo-compare [nm nm2]
+  (dev-assert (string? nm) (string? nm2))
+  (cond
+    (= nm nm2) 0
+    (ancestor nm nm2) -1
+    :else 1))
+
+(defn topo-compare-file-msg [f1 f2]
+  (dev-assert (namespace-file-map? f1) (namespace-file-map? f2))
+  (topo-compare (:namespace f1) (:namespace f2)))
+
+(defn topo-sort-files
+  "Takes a list of file maps and returns a list of files in dep order."
+  [files]
+  (dev-assert (all? namespace-file-map? files))
+  (sort topo-compare-file-msg files))
+
+(defn expand-files-to-include-deps [file-msgs]
+  (dev-assert (all? namespace-file-map? file-msgs))
+  (let [current-ns    (set (map :namespace file-msgs))
+        dependent-ns  (set (mapcat ns-that-depend-on current-ns))
+        additional-ns (difference dependent-ns current-ns)
+        additional-files (map (fn [x] { :namespace x
+                                       :meta-data nil
+                                       :file (resolve-ns x)
+                                       :type :namespace }) additional-ns)]
+    (topo-sort-files (concat (set file-msgs)
+                             additional-files))))
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
@@ -98,8 +183,8 @@
 
 (defn reload-file [{:keys [request-url] :as file-msg} callback]
   (dev-assert (string? request-url)
-              (map? file-msg)
-              (not (nil? callback)))
+              (not (nil? callback))
+              (namespace-file-map? file-msg))
   (utils/debug-prn (str "FigWheel: Attempting to load " request-url))
   (reload-file* request-url
                 (fn [success?]
@@ -111,10 +196,10 @@
                       (utils/log :error (str  "Figwheel: Error loading file " request-url))
                       (apply callback [file-msg]))))))
 
-(defn reload-file? [{:keys [request-url namespace dependency-file meta-data] :as file-msg}]
+(defn reload-file? [{:keys [request-url namespace meta-data] :as file-msg}]
+  (dev-assert (namespace-file-map? file-msg))
   (and 
-   (or dependency-file
-       (and meta-data (:figwheel-load meta-data))
+   (or (and meta-data (:figwheel-load meta-data))
        ;; IMPORTANT make sure this file is currently provided
        (contains? *loaded-libs* namespace)
        #_(.isProvided_ js/goog (name namespace)))
@@ -139,13 +224,23 @@
 (defn load-all-js-files
   "Returns a chanel with one collection of loaded filenames on it."
   [files]
-  (async/into [] (async/filter< identity (async/merge (mapv reload-js-file files)))))
+  (let [out (chan)]
+    (go-loop [[f & fs] files]
+      (if-not (nil? f)
+        (do (put! out (<! (reload-js-file f)))
+            (recur fs))
+        (close! out)))
+    (async/into [] out))
+  ;; the following is a parallel load which is facter but non-deterministic
+  #_(async/into [] (async/filter< identity (async/merge (mapv reload-js-file files)))))
+
 
 (defn add-request-url [{:keys [url-rewriter] :as opts} {:keys [file] :as file-msg}]
-  (assoc file-msg :request-url
-         (if url-rewriter
-           (url-rewriter file)
-           (resolve-url file-msg))))
+  (let [resolved-path (resolve-url file-msg)]
+    (assoc file-msg :request-url
+           (if url-rewriter
+             (url-rewriter resolved-path)
+             resolved-path))))
 
 (defn add-request-urls [opts files]
   (map (partial add-request-url opts) files))
@@ -163,9 +258,20 @@
   (go
     (before-jsload files)
     ;; evaluate the eval bodies first
-    (doseq [eval-body-file (filter #(:eval-body %) files)]
-      (eval-body eval-body-file))
-    (let [files'  (add-request-urls opts (filter #(not (:eval-body %)) files))
+    ;; for now this is only for updating dependencies
+    ;; we are not handling removals
+    ;; TODO handle removals
+    (let [eval-bodies (filter #(:eval-body %) files)]
+      (when (not-empty eval-bodies)
+        (doseq [eval-body-file eval-bodies]
+          (eval-body eval-body-file))
+        (invalidate-dependency-cache!)))
+
+    (let [filtered-files (filter #(and (:namespace %)
+                                       (not (:eval-body %)))
+                                 files)
+          all-files  (expand-files-to-include-deps filtered-files)
+          files'  (add-request-urls opts all-files)
           res'    (<! (load-all-js-files files'))
           res     (filter :loaded-file res')
           files-not-loaded  (filter #(not (:loaded-file %)) res')]
@@ -179,6 +285,7 @@
       (when (not-empty files-not-loaded)
         (utils/log :debug "Figwheel: NOT loading files that haven't been required")
         (utils/log (str "not required:" (pr-str (map :file files-not-loaded))))))))
+
 
 ;; CSS reloading
 
