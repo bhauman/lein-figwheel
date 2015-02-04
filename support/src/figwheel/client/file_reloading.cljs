@@ -72,6 +72,7 @@
 
 ;;mutual caching recursion
 (defn ns-that-depend-on-recur* [nm]
+  (dev-assert (string? nm))
   (let [deps (ns-that-depend-on nm)]
     (dev-assert (set? deps))
     (if (empty? deps)
@@ -79,6 +80,7 @@
       (set (concat deps (mapcat ns-that-depend-on-recur deps))))))
 
 (defn ns-that-depend-on-recur [nm]
+  (dev-assert (string? nm))
   (let [cached (get-in @dependency-cache [:full-deps nm])]
     (if (not (nil? cached))
       cached
@@ -86,7 +88,7 @@
         (swap! dependency-cache assoc-in [:full-deps nm] res)
         res))))
 
-(prn (ns-that-depend-on-recur* "figwheel.client.utils"))
+#_(prn (ns-that-depend-on-recur* "figwheel.client.utils"))
 
 (defn ancestor [nm nm2]
   (dev-assert (string? nm) (string? nm2))
@@ -138,7 +140,6 @@
                                        :type :namespace }) additional-ns)]
     (topo-sort-files (concat (set file-msgs)
                              additional-files))))
-
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
