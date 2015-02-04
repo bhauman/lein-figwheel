@@ -1,6 +1,6 @@
 (ns figwheel.client.file-reloading
   (:require
-   [figwheel.client.utils :as utils :refer-macros [dev-assert]]
+   [figwheel.client.utils :as utils :refer-macros [dev-assert get-all-ns-meta-data]]
    [goog.Uri :as guri]
    [goog.string]
    [goog.net.jsloader :as loader]
@@ -13,6 +13,11 @@
 (declare reload-file* resolve-ns)
 
 (defonce ns-meta-data (atom {}))
+
+(defonce load-all-meta-data!
+  (do
+    (utils/debug-prn "Figwheel: intial loading of meta data")
+    (swap! ns-meta-data merge (get-all-ns-meta-data))))
 
 ;; dependency resolution
 

@@ -1,7 +1,8 @@
 (ns example.core
   (:require
    [example.cube]
-   [crate.core])
+   [crate.core]
+   [figwheel.client.file-reloading :as r])
   (:require-macros
    [example.macros :as m]))
 
