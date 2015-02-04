@@ -1,5 +1,6 @@
 (ns figwheel.client.utils
   (:require [cljs.analyzer.api :as api]
+            [cljs.compiler]
             [clojure.walk :as walk]))
 
 (def dev-blocks? (atom false))
@@ -27,6 +28,6 @@
 (defmacro get-all-ns-meta-data []
   (no-seqs
    (into {}
-         (map (juxt name meta)
+         (map (juxt (comp cljs.compiler/munge name) 
+                    meta)
               (map :name (map api/find-ns (api/all-ns)))))))
-
