@@ -3,7 +3,7 @@
    [figwheel.client :as fw]
    [example.core :as core])
   (:require-macros
-   [figwheel.client.utils :refer [enable-dev-blocks!]]   ))
+   [figwheel.client.utils :refer [enable-dev-blocks!]]))
 
 (enable-console-print!)
 
