@@ -33,12 +33,13 @@
 
 (defn check-changes [figwheel-server build]
   (let [{:keys [additional-changed-ns build-options id old-mtimes new-mtimes]} build]
-    (fig/check-for-changes (merge figwheel-server
-                                  (if id {:build-id id} {})
-                                  (select-keys build-options [:output-dir :output-to]))
-                           old-mtimes
-                           new-mtimes
-                           additional-changed-ns)))
+    (binding [cljs.env/*compiler* (:compiler-env build)]
+      (fig/check-for-changes (merge figwheel-server
+                                    (if id {:build-id id} {})
+                                    (select-keys build-options [:output-dir :output-to]))
+                             old-mtimes
+                             new-mtimes
+                             additional-changed-ns))))
 
 (defn handle-exceptions [figwheel-server {:keys [build-options exception]}]
   (println (auto/red (str "Compiling \"" (:output-to build-options) "\" failed.")))
@@ -281,14 +282,14 @@
                                       (cljs.env/default-compiler-env
                                         (:compiler b))))
                         builds))
-  
-  (def figwheel-server (fig/start-server))
 
+  (def figwheel-server (fig/start-server))
+  
   (fig/stop-server figwheel-server)
   
   (def bb (autobuild* {:builds env-builds
-                             :figwheel-server figwheel-server}))
-
+                       :figwheel-server figwheel-server}))
+  
   (auto/stop-autobuild! bb)
 
   (fig-repl/eval-js figwheel-server "1 + 1")
