@@ -1,6 +1,9 @@
 (ns figwheel-sidecar.core
   (:require
    [cljs.compiler]
+   [cljs.analyzer :as ana]
+   [cljs.env]
+   [cljs.analyzer.api :as ana-api]
    [compojure.route :as route]
    [compojure.core :refer [routes GET]]
    [ring.util.response :refer [resource-response]]
@@ -9,6 +12,7 @@
    [watchtower.core :as wt :refer [watcher compile-watcher watcher* ignore-dotfiles file-filter extensions]]
    [clojure.core.async :refer [go-loop <!! <! chan put! sliding-buffer timeout]]
    [clojure.string :as string]
+   [clojure.set :refer [difference union]]
    [clojure.edn :as edn]
    [clojure.java.io :refer [as-file] :as io]
    [digest]
@@ -204,6 +208,16 @@
             (swap! file-md5-atom assoc filepath check-sum)
             changed?))))))
 
+(defn target-file-changed? [{:keys [file-md5-atom] :as st} ns-sym]
+  (let [file (cbapi/cljs-target-file-from-ns (:output-dir st) ns-sym)
+        filepath (str file)]
+    (when (.exists file)
+      (let [check-sum (digest/md5 file)
+            changed? (not= (get @file-md5-atom filepath)
+                           check-sum)]
+        (swap! file-md5-atom assoc filepath check-sum)
+        changed?))))
+
 (defn dependency-files [{:keys [output-to output-dir]}]
    [output-to (str output-dir "/goog/deps.js") (str output-dir "/cljs_deps.js")])
 
@@ -220,14 +234,69 @@
         :eval-body (slurp %)})
    (dependency-files st)))
 
+(def ^:dynamic *transitive-dep-cache* false)
+(declare transitive-dependents)
+
+;; mutual recursion
+(defn transitive-dependents* [n]
+  (let [deps (ana/ns-dependents n)]
+    (if (empty? deps)
+      #{}
+      (set (concat deps (mapcat transitive-dependents deps))))))
+
+(defn transitive-dependents [nm]
+  (let [cached (get-in @*transitive-dep-cache* (name nm))]
+    (if (not (nil? cached))
+      cached
+      (let [res (transitive-dependents* nm)]
+        (swap! *transitive-dep-cache* assoc (name nm) res)
+        res))))
+
+(defn topo-compare [nm nm2]
+  (cond
+    (= nm nm2) 0
+    (get (transitive-dependents nm) nm2) -1
+    :else 1))
+
+(defn mark-changed-ns [state ns-syms]
+  (mapv (fn [nm]
+          (vary-meta nm assoc :file-changed-on-disk
+                     (if (target-file-changed? state nm) true false)))
+        ns-syms))
+
+(defn topo-sort [ns-syms]
+  (vec (sort topo-compare ns-syms)))
+
+(defn find-figwheel-always []
+  (set (filter (fn [n] (-> n meta :figwheel-always)) (ana-api/all-ns))))
+
+(defn expand-to-all-ns [state changed-ns-syms']
+  (if (nil? cljs.env/*compiler*) ;; bail if no comp env
+    changed-ns-syms'
+    (let [changed-ns-syms       (set changed-ns-syms')
+          dependants            (set (mapcat
+                                      transitive-dependents
+                                      changed-ns-syms))
+          additional-dependents (difference dependants changed-ns-syms)
+          additional-dependents (mark-changed-ns state additional-dependents)
+          all-ns                (union changed-ns-syms additional-dependents)
+          all-names             (set (map name all-ns))
+          additional-always     (set (filter #(not (all-names (name %)))
+                                             (find-figwheel-always)))
+        all-ns'               (union all-ns additional-always)]
+      (topo-sort all-ns'))))
+
+(defn dependents-info [n]
+  (vec (ana/ns-dependents n)))
+
 (defn make-sendable-file
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
   (let [n (-> nm name underscore)]
-    { :file (str (cbapi/cljs-target-file-from-ns (:output-dir st) nm))
+    { :file (str (cbapi/cljs-target-file-from-ns "" nm))
       :namespace (cljs.compiler/munge n)
       :type :namespace
-      :meta-data (meta nm) }))
+      :meta-data (meta nm)}))
 
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
@@ -247,9 +316,10 @@
 
 (defn notify-cljs-ns-changes [state ns-syms]
   (->> ns-syms
-       (map (partial make-sendable-file state))
-       (concat (get-dependency-files state))
-       (send-changed-files state)))
+    (expand-to-all-ns state)
+    (map (partial make-sendable-file state))
+    (concat (get-dependency-files state))
+    (send-changed-files state)))
 
 ;; this functionality should be moved to autobuilder or a new ns
 ;; this ns should just be for notifications?
@@ -266,10 +336,11 @@
   ;; this is the new way where if additional changes are needed they
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
+   (binding [*transitive-dep-cache* (atom {})]
      (notify-cljs-ns-changes state
-      (set (concat additional-ns
-              (keep get-ns-from-source-file-path
-                    (:cljs (get-changed-source-file-paths old-mtimes new-mtimes))))))))
+       (set (concat additional-ns
+                    (keep get-ns-from-source-file-path
+                          (:cljs (get-changed-source-file-paths old-mtimes new-mtimes)))))))))
 
 ;; css changes
 ;; this can be moved out of here I think
