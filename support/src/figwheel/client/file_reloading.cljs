@@ -1,4 +1,4 @@
-(ns figwheel.client.file-reloading
+(ns ^:figwheel-always figwheel.client.file-reloading
   (:require
    [figwheel.client.utils :as utils :refer-macros [dev-assert get-all-ns-meta-data]]
    [goog.Uri :as guri]
@@ -133,6 +133,9 @@
           (filter #(and (:meta-data %) (:namespace %)) files)]
     (swap! ns-meta-data assoc namespace meta-data)))
 
+(defn always-loaded-ns []
+  (map first (filter (fn [[k v]] (get v :figwheel-always)) @ns-meta-data)))
+
 (defn expand-files-to-include-deps [file-msgs]
   (dev-assert (all? namespace-file-map? file-msgs))
   (store-meta-data-for-files! file-msgs)
@@ -142,7 +145,9 @@
         additional-files (map (fn [x] { :namespace x
                                        :meta-data (get @ns-meta-data x)
                                        :file (resolve-ns x)
-                                       :type :namespace }) additional-ns)]
+                                       :type :namespace })
+                              (set (concat additional-ns
+                                           (always-loaded-ns))))]
     (topo-sort-files (concat (set file-msgs)
                              additional-files))))
 
