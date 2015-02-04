@@ -37,6 +37,7 @@
   (not (.startsWith goog.string n pre)))
 
 (defn invalidate-dependency-cache! []
+  (utils/debug-prn "Figwheel: Invalidating dependencies")
   (reset! dependency-cache {}))
 
 (defn relevant-nms []
@@ -46,7 +47,7 @@
           (js-keys (.. js/goog -dependencies_ -nameToPath))))
 
 (defn dependencies* []
-  (dev-assert (map? @dependency-cache))
+  (utils/debug-prn "Figwheel: Recalculating dependencies")
   (reduce (fn [acc-map nm]
             (let [pth (aget (.. js/goog -dependencies_ -nameToPath) nm)
                   reqs (js-keys (aget (.. js/goog -dependencies_ -requires) pth))]
@@ -56,37 +57,40 @@
 
 (defn dependencies []
   (dev-assert (map? @dependency-cache))
-  (if (not-empty @dependency-cache)
-    @dependency-cache
+  (if (not-empty (:deps @dependency-cache))
+    (:deps @dependency-cache)
     (let [deps (dependencies*)]
       (dev-assert (map? deps))
-      (reset! dependency-cache deps)
+      (swap! dependency-cache assoc :deps deps)
       deps)))
 
 (defn ns-that-depend-on [nm]
   (dev-assert (string? nm))
   (set (keys (get (dependencies) nm))))
 
-(defn ancestor* [nm nm2]
-  (dev-assert (string? nm) (string? nm2))
+(declare ns-that-depend-on-recur)
+
+;;mutual caching recursion
+(defn ns-that-depend-on-recur* [nm]
   (let [deps (ns-that-depend-on nm)]
     (dev-assert (set? deps))
     (if (empty? deps)
-      false
-      (if (get deps nm2)
-        true
-        (reduce #(or %1 %2) false
-                (map #(ancestor* % nm2) deps))))))
+      deps
+      (set (concat deps (mapcat ns-that-depend-on-recur deps))))))
 
-(defn ancestor [nm nm2]
-  (dev-assert (string? nm) (string? nm2) (map? @dependency-cache))
-  ;; sharing a cache so that it gets blown away when deps are updated
-  (let [cached (get-in @dependency-cache [:ancestor nm nm2])]
+(defn ns-that-depend-on-recur [nm]
+  (let [cached (get-in @dependency-cache [:full-deps nm])]
     (if (not (nil? cached))
       cached
-      (let [res (ancestor* nm nm2)]
-        (swap! dependency-cache assoc-in [:ancestor nm nm2] res)
+      (let [res (ns-that-depend-on-recur* nm)]
+        (swap! dependency-cache assoc-in [:full-deps nm] res)
         res))))
+
+(prn (ns-that-depend-on-recur* "figwheel.client.utils"))
+
+(defn ancestor [nm nm2]
+  (dev-assert (string? nm) (string? nm2))
+  (if (get (ns-that-depend-on-recur nm) nm2) true false))
 
 (defn topo-compare [nm nm2]
   (dev-assert (string? nm) (string? nm2))
@@ -94,6 +98,16 @@
     (= nm nm2) 0
     (ancestor nm nm2) -1
     :else 1))
+
+#_(prn (keys (dependencies)))
+
+#_(let [start (.getTime (js/Date.))]
+    (prn (sort topo-compare (map name (keys (dependencies)))))
+    (prn (sort topo-compare (map name (keys (dependencies)))))
+    (prn (sort topo-compare (map name (keys (dependencies)))))
+    (prn (sort topo-compare (map name (keys (dependencies)))))
+    (prn (- (.getTime (js/Date.))
+            start)))
 
 (defn topo-compare-file-msg [f1 f2]
   (dev-assert (namespace-file-map? f1) (namespace-file-map? f2))
@@ -116,7 +130,7 @@
   (dev-assert (all? namespace-file-map? file-msgs))
   (store-meta-data-for-files! file-msgs)
   (let [current-ns    (set (map :namespace file-msgs))
-        dependent-ns  (set (mapcat ns-that-depend-on current-ns))
+        dependent-ns  (set (mapcat ns-that-depend-on-recur current-ns))
         additional-ns (difference dependent-ns current-ns)
         additional-files (map (fn [x] { :namespace x
                                        :meta-data (get @ns-meta-data x)
@@ -124,6 +138,7 @@
                                        :type :namespace }) additional-ns)]
     (topo-sort-files (concat (set file-msgs)
                              additional-files))))
+
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
