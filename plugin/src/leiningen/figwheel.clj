@@ -72,6 +72,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
                                     builds)))
         figwheel-options (fc/prep-options
                           (merge
+                           { :http-server-root "public" }
                            (dissoc (:figwheel project) :builds)
                            (select-keys project [:resource-paths])))
         errors           (fc/check-config figwheel-options
