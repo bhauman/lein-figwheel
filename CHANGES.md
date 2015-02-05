@@ -25,10 +25,10 @@
   (like `React.render`) at the bottom of your root application file.
 * `^:figwheel-always` can now be added as meta data to cljs namespaces that
   you want to be reloaded whenever there is a file change in your source
-  tree. You won't really need `:on-jsload`, even for complex
-  setups. These namespaces do not have to be required. So you can put
-  this on your test runner namespace and viola!, you will have your tests 
-  running in the client env on every reload.
+  tree. With this flag you won't really need `:on-jsload`, even for complex
+  setups. Namespaces marked `figwheel-always` do not have to be required.
+  So you can put this on your test runner namespace and viola!, you will have
+  your tests running in the client env on every reload. Pretty cool.
 * No more undefined errors in the REPL when you try to define things
   in the `cljs.user` ns after refreshing the browser.
 * better REPL support in general for (require :reload) and :reload-all

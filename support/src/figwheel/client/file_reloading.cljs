@@ -1,4 +1,4 @@
-(ns ^:figwheel-always figwheel.client.file-reloading
+(ns figwheel.client.file-reloading
   (:require
    [figwheel.client.utils :as utils :refer-macros [dev-assert]]
    [goog.Uri :as guri]
