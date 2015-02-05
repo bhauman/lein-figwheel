@@ -6,15 +6,15 @@ Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
-The last version: [lein-figwheel "0.2.1-SNAPSHOT"](https://clojars.org/lein-figwheel)
+[lein-figwheel "0.2.1-SNAPSHOT"](https://clojars.org/lein-figwheel)
 supports clojurescript >= 0.0-2202
 
-Current version: [lein-figwheel "0.2.2-SNAPSHOT"](https://clojars.org/lein-figwheel) requires
+Current version: [lein-figwheel "0.2.3-SNAPSHOT"](https://clojars.org/lein-figwheel) requires
 clojurescript >= 0.0-2665, and will work even better with the comming
 releases.
 
-lein-figwheel "0.2.2-SNAPSHOT" has a built-in ClojureScript REPL that is attached to
-your running application. All the instructions below are for "0.2.2-SNAPSHOT"
+lein-figwheel "0.2.3-SNAPSHOT" has a built-in ClojureScript REPL that is attached to
+your running application. All the instructions below are for "0.2.3-SNAPSHOT"
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
@@ -28,6 +28,10 @@ file the changes are sent to the browser so you can see the effects of
 modifying your code in real time.  This is different than interactive
 programming in the browser-repl where you need to cherry pick which
 changes to send and which processes to start, etc.
+
+#### Supports Node.js
+
+You can use fighweel and to live code in Node.js with ClojureScript!
 
 #### Static file server
 
@@ -115,7 +119,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojurescript "0.0-2665"] ;; has to be at least 2665 or greater
-[figwheel "0.2.2-SNAPSHOT"]            ;; needed for figwheel client
+[figwheel "0.2.3-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -123,7 +127,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.4"] ;; 1.0.4 is a requirement
-[lein-figwheel "0.2.2-SNAPSHOT"]
+[lein-figwheel "0.2.3-SNAPSHOT"]
 ```
 
 #### Configure lein cljsbuild
@@ -214,7 +218,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.2.2-SNAPSHOT"]
+[figwheel "0.2.3-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
@@ -298,6 +302,17 @@ file:
 ```clojure
 (ns ^:figwheel-load example.core)
 ```
+
+It can be very helpful to have a file reload every time a file changes
+in your ClojureScript source tree. This can facilitate reloading your
+main app and running tests on change.
+
+To force a file to reload on every change:
+
+```clojure
+(ns ^:figwheel-always example.test-runner)
+```
+
 
 ### Using your own server
 
