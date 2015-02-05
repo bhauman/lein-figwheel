@@ -1,7 +1,7 @@
 ## 0.2.3-SNAPSHOT
 
 * **Node.js support!**: figwheel and the built-in REPL now supports running
-  in a Node.js evironment. This is very initial support for Node so if you
+  inside a Node.js evironment. This is very initial support for Node so if you
   run into trouble please let me know.
 * **Possible Breaking Change**: Figwheel now reloads files (js/css) from where
   they are originally loaded from. This should work in almost every setup
@@ -34,7 +34,10 @@
 * better REPL support in general for (require :reload) and :reload-all
 * `:debug` is a new client config option, when it is truthy figwheel
   will print out copious amounts of debug information.
-
+* `:load-unchanged-files` is a client option that if set to `false` will cause
+  the client to not reload files that haven't changed. With this option set to
+  `false` files will only load if their *content* has changed. This option defaults
+  to `true`.
 
 ## 0.2.2-SNAPSHOT
 
