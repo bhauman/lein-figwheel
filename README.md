@@ -31,7 +31,7 @@ changes to send and which processes to start, etc.
 
 #### Supports Node.js
 
-You can use fighweel and to live code in Node.js with ClojureScript!
+You can use figwheel to live code ClojureScript in Node.js!
 
 #### Static file server
 
@@ -413,10 +413,10 @@ update the build-id set.
 cleans.  They do not alter the implicit build ids.
 
 
-#### Mapping figwheel resource paths to your servers resource paths
+#### Rewriting asset request urls
 
-Somethings you want to load __js__ and __css__ resources from your
-server and your server paths are different than Figwheel's paths.
+Figwheel attempts to reload assets from where they reside. There are
+times when you may prefer to alter the url of the loaded assets.
 
 You can use the `:url-rewriter` client option to rewrite resource
 request urls. The `:url-rewriter` config options takes a function that
