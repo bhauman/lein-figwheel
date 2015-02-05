@@ -3,33 +3,32 @@
 * **Node.js support!**: figwheel and the built-in REPL now supports running
   in a Node.js evironment. This is very initial support for Node so if you
   run into trouble please let me know.
-* **Possible Breaking Change** figwheel now reloads files (js/css) from where
+* **Possible Breaking Change**: Figwheel now reloads files (js/css) from where
   they are originally loaded from. This should work in almost every setup
   imaginable. The `:url-rewriter` client config option shouldn't be
   needed in most cases now. If you are currently using `:url-rewriter` it will
   be broken as the form of the url argument is changing.
 * The above change means that you no longer are required to have your
   cljs target files on a resource path the figwheel server can see. If
-  you are loading your app from the figwheel server you will need to
-  have your output target files in an accessable resources directory
-  otherwise place them where your server needs them. Or you can just
-  load your app from the filesystem.
-* **node-webkit** should also be much easier to use as a result of these
+  you are loading your app from the figwheel server the current :output-dir
+  requirement still stands.  If you are not going to load your app from the
+  figwheel server then you you can place the files wherever you want.
+* **node-webkit** should also be much easier to use as a result of the above
   changes
-* **Fully loads dependents** a new feature in the CLJS compiler is that it
+* **Fully loads dependents**: A new feature in the CLJS compiler is that it
   recompiles all files that are dependent on a changed .cljs file. Figwheel is
   complementing this behavior by doing the same: when a file changes all
   its dependents are loaded as well, in correct dependency order.
   This has the marvelous benefit of reloading the application root file
   whenever one of its dependencies change. This can obviate the need for
-  `:on-jsreload` but just having app restarting/rerendering code
+  `:on-jsload` but just having app restarting/rerendering code
   (like `React.render`) at the bottom of your root application file.
 * `^:figwheel-always` can now be added as meta data to cljs namespaces that
   you want to be reloaded whenever there is a file change in your source
-  tree. This will pretty much put an end to :on-jsload for even complex
+  tree. You won't really need `:on-jsload`, even for complex
   setups. These namespaces do not have to be required. So you can put
-  this on your test runner namespace and viola you get tests running in
-  the client env on every reload.
+  this on your test runner namespace and viola!, you will have your tests 
+  running in the client env on every reload.
 * No more undefined errors in the REPL when you try to define things
   in the `cljs.user` ns after refreshing the browser.
 * better REPL support in general for (require :reload) and :reload-all
