@@ -97,9 +97,6 @@
   (string/join "\n" (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
                                 (string/split-lines stack-str))))
 
-(defn alters-dependencies? [code]
-  (re-matches  #"([\n\r]|.)*addDependency([\n\r]|.)*" code))
-
 (defn eval-javascript** [code result-handler]
   (try
     (binding [*print-fn* (fn [& args]
@@ -107,8 +104,6 @@
                              console-print
                              figwheel-repl-print))
               *print-newline* false]
-      (when (alters-dependencies? code)
-        (reloading/invalidate-dependency-cache!))
       (result-handler
        {:status :success,
         :value (str (js* "eval(~{code})"))}))

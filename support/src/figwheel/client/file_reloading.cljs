@@ -1,6 +1,6 @@
 (ns ^:figwheel-always figwheel.client.file-reloading
   (:require
-   [figwheel.client.utils :as utils :refer-macros [dev-assert get-all-ns-meta-data]]
+   [figwheel.client.utils :as utils :refer-macros [dev-assert]]
    [goog.Uri :as guri]
    [goog.string]
    [goog.net.jsloader :as loader]
@@ -11,17 +11,6 @@
    [cljs.core.async.macros :refer [go go-loop]]))
 
 (declare reload-file* resolve-ns)
-
-(defonce ns-meta-data (atom {}))
-
-(defonce load-all-meta-data!
-  (do
-    (utils/debug-prn "Figwheel: intial loading of meta data")
-    (swap! ns-meta-data merge (get-all-ns-meta-data))))
-
-;; dependency resolution
-
-(defonce dependency-cache (atom {}))
 
 (defn all? [pred coll]
   (reduce #(and %1 %2) true (map pred coll)))
@@ -36,120 +25,6 @@
     (do
       (println "Error not namespace-file-map" (pr-str m))
       false)))
-
-(defn not-start [n pre]
-  (dev-assert (string? n) (string? pre))
-  (not (.startsWith goog.string n pre)))
-
-(defn invalidate-dependency-cache! []
-  (utils/debug-prn "Figwheel: Invalidating dependencies")
-  (reset! dependency-cache {}))
-
-(defn relevant-nms []
-  (filter (fn [n]
-            (dev-assert (string? n))
-            (reduce #(and %1 (not-start n %2)) true ["goog" "cljs" "clojure"]))
-          (js-keys (.. js/goog -dependencies_ -nameToPath))))
-
-(defn dependencies* []
-  (utils/debug-prn "Figwheel: Recalculating dependencies")
-  (reduce (fn [acc-map nm]
-            (let [pth (aget (.. js/goog -dependencies_ -nameToPath) nm)
-                  reqs (js-keys (aget (.. js/goog -dependencies_ -requires) pth))]
-              (reduce (fn [amm r] (assoc-in amm [r nm] true)) acc-map reqs)))
-            {}
-            (relevant-nms)))
-
-(defn dependencies []
-  (dev-assert (map? @dependency-cache))
-  (if (not-empty (:deps @dependency-cache))
-    (:deps @dependency-cache)
-    (let [deps (dependencies*)]
-      (dev-assert (map? deps))
-      (swap! dependency-cache assoc :deps deps)
-      deps)))
-
-(defn ns-that-depend-on [nm]
-  (dev-assert (string? nm))
-  (set (keys (get (dependencies) nm))))
-
-(declare ns-that-depend-on-recur)
-
-;;mutual caching recursion
-(defn ns-that-depend-on-recur* [nm]
-  (dev-assert (string? nm))
-  (let [deps (ns-that-depend-on nm)]
-    (dev-assert (set? deps))
-    (if (empty? deps)
-      deps
-      (set (concat deps (mapcat ns-that-depend-on-recur deps))))))
-
-(defn ns-that-depend-on-recur [nm]
-  (dev-assert (string? nm))
-  (let [cached (get-in @dependency-cache [:full-deps nm])]
-    (if (not (nil? cached))
-      cached
-      (let [res (ns-that-depend-on-recur* nm)]
-        (swap! dependency-cache assoc-in [:full-deps nm] res)
-        res))))
-
-#_(prn (ns-that-depend-on-recur* "figwheel.client.utils"))
-
-(defn ancestor [nm nm2]
-  (dev-assert (string? nm) (string? nm2))
-  (if (get (ns-that-depend-on-recur nm) nm2) true false))
-
-(defn topo-compare [nm nm2]
-  (dev-assert (string? nm) (string? nm2))
-  (cond
-    (= nm nm2) 0
-    (ancestor nm nm2) -1
-    :else 1))
-
-#_(prn (keys (dependencies)))
-
-#_(let [start (.getTime (js/Date.))]
-    (prn (sort topo-compare (map name (keys (dependencies)))))
-    (prn (sort topo-compare (map name (keys (dependencies)))))
-    (prn (sort topo-compare (map name (keys (dependencies)))))
-    (prn (sort topo-compare (map name (keys (dependencies)))))
-    (prn (- (.getTime (js/Date.))
-            start)))
-
-(defn topo-compare-file-msg [f1 f2]
-  (dev-assert (namespace-file-map? f1) (namespace-file-map? f2))
-  (topo-compare (:namespace f1) (:namespace f2)))
-
-(defn topo-sort-files
-  "Takes a list of file maps and returns a list of files in dep order."
-  [files]
-  (dev-assert (all? namespace-file-map? files))
-  (sort topo-compare-file-msg files))
-
-(defn store-meta-data-for-files! [files]
-  (dev-assert (all? namespace-file-map? files))
-  ;; store meta data
-  (doseq [{:keys [namespace meta-data]}
-          (filter #(and (:meta-data %) (:namespace %)) files)]
-    (swap! ns-meta-data assoc namespace meta-data)))
-
-(defn always-loaded-ns []
-  (map first (filter (fn [[k v]] (get v :figwheel-always)) @ns-meta-data)))
-
-(defn expand-files-to-include-deps [file-msgs]
-  (dev-assert (all? namespace-file-map? file-msgs))
-  (store-meta-data-for-files! file-msgs)
-  (let [current-ns    (set (map :namespace file-msgs))
-        dependent-ns  (set (mapcat ns-that-depend-on-recur current-ns))
-        additional-ns (difference dependent-ns current-ns)
-        additional-files (map (fn [x] { :namespace x
-                                       :meta-data (get @ns-meta-data x)
-                                       :file (resolve-ns x)
-                                       :type :namespace })
-                              (set (concat additional-ns
-                                           (always-loaded-ns))))]
-    (topo-sort-files (concat (set file-msgs)
-                             additional-files))))
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
@@ -230,14 +105,20 @@
                       (utils/log :error (str  "Figwheel: Error loading file " request-url))
                       (apply callback [file-msg]))))))
 
-(defn reload-file? [{:keys [request-url namespace meta-data] :as file-msg}]
+(defn reload-file? [{:keys [namespace meta-data] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
-  (and 
-   (or (and meta-data (:figwheel-load meta-data))
-       ;; IMPORTANT make sure this file is currently provided
-       (contains? *loaded-libs* namespace)
-       #_(.isProvided_ js/goog (name namespace)))
-   (not (:figwheel-no-load (or meta-data {})))))
+  (let [meta-data (or meta-data {})]
+    (and
+     (not (:figwheel-no-load meta-data))
+     (or
+      (:figwheel-always meta-data)
+      (:figwheel-load meta-data)
+      ;; IMPORTANT make sure this file is currently provided
+      (and (contains? *loaded-libs* namespace)
+           (or
+            (not (contains? meta-data :file-changed-on-disk))
+            (:file-changed-on-disk meta-data)))
+      #_(.isProvided_ js/goog (name namespace))))))
 
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))
@@ -268,7 +149,6 @@
   ;; the following is a parallel load which is facter but non-deterministic
   #_(async/into [] (async/filter< identity (async/merge (mapv reload-js-file files)))))
 
-
 (defn add-request-url [{:keys [url-rewriter] :as opts} {:keys [file] :as file-msg}]
   (let [resolved-path (resolve-url file-msg)]
     (assoc file-msg :request-url
@@ -298,13 +178,11 @@
     (let [eval-bodies (filter #(:eval-body %) files)]
       (when (not-empty eval-bodies)
         (doseq [eval-body-file eval-bodies]
-          (eval-body eval-body-file))
-        (invalidate-dependency-cache!)))
+          (eval-body eval-body-file))))
 
-    (let [filtered-files (filter #(and (:namespace %)
-                                       (not (:eval-body %)))
-                                 files)
-          all-files  (expand-files-to-include-deps filtered-files)
+    (let [all-files (filter #(and (:namespace %)
+                                  (not (:eval-body %)))
+                            files)
           files'  (add-request-urls opts all-files)
           res'    (<! (load-all-js-files files'))
           res     (filter :loaded-file res')
@@ -317,9 +195,26 @@
                                     file)) res)))
         (js/setTimeout #(apply on-jsload [res]) 10))
       (when (not-empty files-not-loaded)
-        (utils/log :debug "Figwheel: NOT loading files that haven't been required")
-        (utils/log (str "not required:" (pr-str (map :file files-not-loaded))))))))
-
+        (utils/log :debug "Figwheel: NOT loading these files ")
+        (let [{:keys [figwheel-no-load file-changed-on-disk not-required]}
+              (group-by
+                     (fn [{:keys [meta-data]}]
+                       (cond
+                         (nil? meta-data) :not-required
+                         (contains? meta-data :figwheel-no-load) :figwheel-no-load
+                         (and (contains? meta-data :file-changed-on-disk)
+                              (not (:file-changed-on-disk meta-data)))
+                         :file-changed-on-disk
+                         :else :not-required))
+                     files-not-loaded)]
+          (when (not-empty figwheel-no-load)
+            (utils/log (str "figwheel-no-load meta-data: "
+                            (pr-str (map :file figwheel-no-load)))))
+          (when (not-empty file-changed-on-disk)
+            (utils/log (str "file didn't change: "
+                            (pr-str (map :file file-changed-on-disk)))))
+          (when (not-empty not-required)
+            (utils/log (str "not required: " (pr-str (map :file not-required))))))))))
 
 ;; CSS reloading
 
