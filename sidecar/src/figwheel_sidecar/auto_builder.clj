@@ -65,11 +65,11 @@
 
 (defn check-autobuild-config [all-builds build-ids figwheel-server]
   (let [builds (config/narrow-builds* all-builds build-ids)]
-    (config/check-config figwheel-server builds)))
+    (config/check-config figwheel-server builds :print-warning true)))
 
 (defn autobuild-ids [{:keys [all-builds build-ids figwheel-server]}]
   (let [builds (config/narrow-builds* all-builds build-ids)
-        errors (config/check-config figwheel-server builds)]
+        errors (config/check-config figwheel-server builds :print-warning true)]
     (if (empty? errors)
       (do
         (println (str "Figwheel: focusing on build-ids ("

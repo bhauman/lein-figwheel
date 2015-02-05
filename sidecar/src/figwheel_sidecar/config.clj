@@ -74,20 +74,23 @@
 
 (defn check-for-valid-options
   "Check for various configuration anomalies."
-  [{:keys [http-server-root] :as opts} build']
+  [{:keys [http-server-root] :as opts} print-warning build']
   (let [build-options (:compiler build')
         opts? (and (not (nil? build-options)) (optimizations-none? build'))
         out-dir? (output-dir-in-resources-root? build-options opts)]
     ;; this is now a warning
-    (when (and (not out-dir?)
-               (:output-dir build-options))
+    (when (and
+           print-warning
+           (not out-dir?)
+           (:output-dir build-options))
       (println
        (str
           "Figwheel Config Warning (in project.clj) -- \n"
           "Your build :output-dir is not in a resources directory.\n"
           "If you are serving your assets (js, css, etc.) with Figwheel,\n"
           "they must be on the resource path for the server.\n"
-          (str "Your :output-dir should match this pattern: " (make-serve-from-display opts)))))
+          (str "Your :output-dir should match this pattern: " (make-serve-from-display opts))))
+      (newline))
     (map
      #(str "Figwheel Config Error (in project.clj) - " %)
      (filter identity
@@ -97,7 +100,7 @@
               (when-not (:output-dir build-options)
                 "you have not configured an :output-dir in your build"))))))
 
-(defn check-config [figwheel-options builds]
+(defn check-config [figwheel-options builds & {:keys [print-warning]}]
   (if (empty? builds)
     (list
      (str "Figwheel: "
@@ -105,7 +108,8 @@
           "id on the command line or failed to specify a build in "
           "the :cljsbuild section of your project.clj. You need to have "
           "at least one build with :optimizations set to :none."))
-    (mapcat (partial check-for-valid-options figwheel-options) builds)))
+    (mapcat (partial check-for-valid-options figwheel-options print-warning)
+            builds)))
 
 (defn normalize-dir
   "If directory ends with '/' then truncate the trailing forward slash."
