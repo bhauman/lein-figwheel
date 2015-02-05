@@ -257,7 +257,10 @@
 
    :debug false
    
-   :heads-up-display true })
+   :heads-up-display true
+
+   :load-unchanged-files true
+   })
 
 (defn handle-deprecated-jsload-callback [config]
   (if (:jsload-callback config)

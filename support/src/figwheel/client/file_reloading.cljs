@@ -168,7 +168,8 @@
         (catch :default e
           (utils/log :error (str "Unable to evaluate " file)))))))
 
-(defn reload-js-files [{:keys [before-jsload on-jsload load-from-figwheel] :as opts} {:keys [files] :as msg}]
+(defn reload-js-files [{:keys [before-jsload on-jsload load-unchanged-files] :as opts}
+                       {:keys [files] :as msg}]
   (go
     (before-jsload files)
     ;; evaluate the eval bodies first
@@ -179,10 +180,14 @@
       (when (not-empty eval-bodies)
         (doseq [eval-body-file eval-bodies]
           (eval-body eval-body-file))))
-
+    
     (let [all-files (filter #(and (:namespace %)
                                   (not (:eval-body %)))
                             files)
+          all-files (if load-unchanged-files
+                      (map #(update-in % [:meta-data] dissoc :file-changed-on-disk)
+                           all-files)
+                      all-files)
           files'  (add-request-urls opts all-files)
           res'    (<! (load-all-js-files files'))
           res     (filter :loaded-file res')
