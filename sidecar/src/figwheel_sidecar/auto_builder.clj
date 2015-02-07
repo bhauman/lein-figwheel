@@ -209,6 +209,8 @@
           (build-once [id ...])      ;; builds source once time
           (clean-build [id ..])      ;; deletes compiled cljs target files
           (add-dep [org.om/om \"0.8.1\"]) ;; add a dependency. very experimental
+  Switch REPL build focus:
+          :cljs/quit                 ;; allows you to switch REPL to another build
     Docs: (doc function-name-here)
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3")
