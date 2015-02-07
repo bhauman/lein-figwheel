@@ -24,13 +24,20 @@
          :value "Eval timed out!"
          :stacktrace "No stacktrace available."}))))
 
+(defn connection-available?
+  [connection-count build-id]
+  (not
+   (zero?
+    (+ (or (get @connection-count build-id) 0)
+       (or (get @connection-count nil) 0)))))
+
 ;; limit how long we wait?
 ;; this is really rough we can wait for a the connection atom to
 ;; change for the positive
-(defn wait-for-connection [{:keys [connection-count]}]
-  (when (< @connection-count 1)
+(defn wait-for-connection [{:keys [connection-count build-id]}]
+  (when-not (connection-available? connection-count build-id)
     (loop []
-      (when (< @connection-count 1)
+      (when-not (connection-available? connection-count build-id)
         (Thread/sleep 500)
         (recur)))))
 

@@ -79,21 +79,29 @@
                        { :msg-name msg-name 
                          :project-id (:unique-id opts)})))
 
+(defn update-connection-count [connection-count build-id f]
+  (swap! connection-count update-in [build-id] (fnil f 0)))
+
 (defn setup-file-change-sender [{:keys [file-change-atom compile-wait-time connection-count] :as server-state}
+                                {:keys [desired-build-id] :as params}
                                 wschannel]
   (let [watch-key (keyword (gensym "message-watch-"))]
-    (swap! connection-count inc)
+    (update-connection-count connection-count desired-build-id inc)
     (add-watch file-change-atom
                watch-key
                (fn [_ _ o n]
                  (let [msg (first n)]
-                   (when msg
+                   (when (and msg (or
+                                   ;; if its nil you get it all
+                                   (nil? desired-build-id)
+                                   ;; otherwise you only get messages for your build id
+                                   (= desired-build-id (:build-id msg))))
                      (<!! (timeout compile-wait-time))
                      (when (open? wschannel)
                        (send! wschannel (prn-str msg)))))))
     
     (on-close wschannel (fn [status]
-                          (swap! connection-count dec)
+                          (update-connection-count connection-count desired-build-id dec)
                           (remove-watch file-change-atom watch-key)
                           #_(println "Figwheel: client disconnected " status)))
 
@@ -109,14 +117,15 @@
 (defn reload-handler [server-state]
   (fn [request]
     (with-channel request channel
-      (setup-file-change-sender server-state channel))))
+      (setup-file-change-sender server-state (:params request) channel))))
 
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
   [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
   (-> (routes
-       (GET "/figwheel-ws" [] (reload-handler server-state))
+       (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+       (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
        (route/resources "/" {:root http-server-root})
        (or ring-handler (fn [r] false))
        (GET "/" [] (resource-response "index.html" {:root http-server-root}))
@@ -429,7 +438,7 @@
                                         :file-md5-atom (atom {})})
     :file-change-atom (atom (list))
     :browser-callbacks (atom {})
-    :connection-count (atom 0)
+    :connection-count (atom {})
     :open-file-command open-file-command
    })
 

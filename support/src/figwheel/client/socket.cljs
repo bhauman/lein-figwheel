@@ -46,17 +46,12 @@
   (set! (.-onclose @socket-atom) identity)
   (.close @socket-atom))
 
-(defn proper-build-id [build-id msg]
-  (or (nil? build-id)
-      (nil? (:build-id msg))
-      (= (name build-id)
-         (:build-id msg))))
-
 (defn open [{:keys [retry-count retried-count websocket-url build-id] :as opts}]
   (if-let [WebSocket (get-websocket-imp)]
     (do
       (utils/log :debug "Figwheel: trying to open cljs reload socket")
-      (let [socket (WebSocket. websocket-url)]
+      (let [url (str websocket-url (if build-id (str "/" build-id) ""))
+            socket (WebSocket. url)]
         (set! (.-onmessage socket) (fn [msg-str]
                                      (when-let [msg (read-string (.-data msg-str))]
                                        (utils/debug-prn msg)
@@ -64,7 +59,6 @@
                                             (:msg-name msg)
                                             ;; don't forward pings
                                             (not= (:msg-name msg) :ping)
-                                            (proper-build-id build-id msg)
                                             (swap! message-history-atom
                                                    conj msg)))))
         (set! (.-onopen socket)  (fn [x]
