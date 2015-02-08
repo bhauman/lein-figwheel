@@ -31,25 +31,40 @@
      parsed-notify-command
      (str "Successfully compiled " output-to))))
 
+(defn merge-build-into-server-state [figwheel-server {:keys [id build-options]}]
+  (merge figwheel-server
+         (if id {:build-id id} {})
+         (select-keys build-options [:output-dir :output-to])))
+
 (defn check-changes [figwheel-server build]
   (let [{:keys [additional-changed-ns build-options id old-mtimes new-mtimes]} build]
     (binding [cljs.env/*compiler* (:compiler-env build)]
-      (fig/check-for-changes (merge figwheel-server
-                                    (if id {:build-id id} {})
-                                    (select-keys build-options [:output-dir :output-to]))
-                             old-mtimes
-                             new-mtimes
-                             additional-changed-ns))))
+      (fig/check-for-changes
+       (merge-build-into-server-state figwheel-server build)
+       old-mtimes
+       new-mtimes
+       additional-changed-ns))))
 
-(defn handle-exceptions [figwheel-server {:keys [build-options exception]}]
+(defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
   (println (auto/red (str "Compiling \"" (:output-to build-options) "\" failed.")))
   (clj-stacktrace.repl/pst+ exception)
-  (fig/compile-error-occured figwheel-server exception))
+  (fig/compile-error-occured
+   (merge-build-into-server-state figwheel-server build)
+   exception))
+
+(defn warning [builder warn-handler]
+  (fn [build]
+    (binding [cljs.analyzer/*cljs-warning-handlers* (conj cljs.analyzer/*cljs-warning-handlers*
+                                                          (warn-handler build))]
+      (builder build))))
 
 (defn builder [figwheel-server]
   (-> cbuild/build-source-paths*
-    (auto/warning (auto/warning-message-handler
-                   (partial fig/compile-warning-occured figwheel-server)))
+    (warning
+     (fn [build]
+       (auto/warning-message-handler
+        (partial fig/compile-warning-occured
+                 (merge-build-into-server-state figwheel-server build)))))
     auto/time-build
     (auto/after auto/compile-success)
     (auto/after (partial check-changes figwheel-server))
