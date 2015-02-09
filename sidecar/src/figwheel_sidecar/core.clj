@@ -134,7 +134,7 @@
       ;; super promiscuous please don't uses figwheel as a production server :)
       (cors/wrap-cors
        :access-control-allow-origin #".*"
-       :access-control-allow-methods [:head :options :get])
+       :access-control-allow-methods [:head :options :get :put :post :delete])
       (run-server {:port server-port})))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
