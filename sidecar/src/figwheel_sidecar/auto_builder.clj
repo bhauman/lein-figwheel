@@ -158,15 +158,17 @@
                             (when (not-empty ids)
                               (println "Focusing on build ids:" (string/join ", " ids))))
         builder-running? #(:autobuilder @state-atom)
-        ;; we are going to take an optiona id here
+        ;; we are going to take an optional id here
+        filter-builds*  (fn [ids]
+                          (let [bs (set (get-ids ids))]
+                            (filter #(bs (:id %)) all-builds)))
         build-once*     (fn [ids]
-                          (let [bs (set (get-ids ids))
-                                builds (filter #(bs (:id %)) all-builds)]
+                          (let [builds (filter-builds* ids)]
                             (display-focus-ids (map :id builds))
-                            (mapv auto/build-once builds)))
+                            (mapv auto/build-once (mapv #(assoc % :reload-clj-files false)
+                                                        builds))))        
         clean-build*    (fn [ids]
-                          (let [bs (set (get-ids ids))
-                                builds (filter #(bs (:id %)) all-builds)]
+                          (let [builds (filter-builds* ids)]
                             (display-focus-ids (map :id builds))
                             (mapv cbuild/clean-build (map :build-options builds))
                             (println "Deleting ClojureScript compilation target files.")))
@@ -177,6 +179,9 @@
                               (mapv println errors))
                             (when-not (builder-running?)
                               (build-once* build-ids)
+
+                              ;; kill some undeclared warnings, hopefully?
+                              (Thread/sleep 300)
                               (when-let [abuild
                                          (binding [*out* log-writer
                                                    *err* log-writer]
