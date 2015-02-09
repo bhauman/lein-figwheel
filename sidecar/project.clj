@@ -16,6 +16,6 @@
    [compojure "1.1.7"]
    [clj-stacktrace "0.2.7"]
    [cljsbuild "1.0.4"]
-   [clojurescript-build "0.1.2-SNAPSHOT"]
+   [clojurescript-build "0.1.3"]
    [watchtower "0.1.1"]
    [digest "1.4.3"]])

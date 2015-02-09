@@ -2,6 +2,5 @@
   (:require
    [figwheel.client :as fw]))
 
-(fw/start)
-
-(.log js/console "hello there now")
+(fw/start { :build-id "example-admin"
+            :debug true})

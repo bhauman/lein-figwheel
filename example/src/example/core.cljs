@@ -25,9 +25,8 @@
 
 (println "This is a reloaded print statement: modify me now.")
 
+
 ;; Example 1:  simple crate based app
-
-
 
 ;; Try editing the example below and watch how the live reloading
 ;; responds.  This is a rough example meant to quickly demonstrate
