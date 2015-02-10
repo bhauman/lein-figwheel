@@ -78,5 +78,5 @@
         socket))
     (utils/log :debug
                (if (utils/node-env?)
-                 "Figwheel: Can't start Figwheel!! Please make sure ws is installed\n do -> 'node install ws'"
+                 "Figwheel: Can't start Figwheel!! Please make sure ws is installed\n do -> 'npm install ws'"
                  "Figwheel: Can't start Figwheel!! This browser doesn't support WebSockets"))))
