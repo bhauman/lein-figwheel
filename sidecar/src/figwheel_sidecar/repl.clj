@@ -2,11 +2,25 @@
   (:require
    [clojure.pprint :as p]
    [cljs.repl]
+   [cljs.util]
    [cljs.env :as env]
+   [clojure.string :as string]
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
    [figwheel-sidecar.core :as fig]))
 
-(defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
+(defn fix-stacktrace [{:keys [status stacktrace value] :as eval-resp} output-dir]
+  (if (and (= status :exception) (vector? stacktrace))
+    (assoc eval-resp
+           :stacktrace (if (>= (:qualifier cljs.util/*clojurescript-version*) 2814)
+                         (mapv (fn [{:keys [file] :as x}]
+                                 (assoc x :file (str output-dir "/" file)))
+                               stacktrace)
+                         (string/join "\n" (map (fn [{:keys [function file line column]}]
+                                                  (str "\t" function " (" file ":" line ":" column ")"))
+                                                stacktrace))))
+    eval-resp))
+
+(defn eval-js [{:keys [browser-callbacks output-dir] :as figwheel-server} js]
   (let [callback-name (str (gensym "repl_eval_"))
         out (chan)
         callback (fn [result]
@@ -19,7 +33,7 @@
     (fig/send-message! figwheel-server :repl-eval {:code js :callback-name callback-name})
     (let [[v ch] (alts!! [out (timeout 8000)])]
       (if (= ch out)
-        v
+        (fix-stacktrace v output-dir)
         {:status :exception
          :value "Eval timed out!"
          :stacktrace "No stacktrace available."}))))
@@ -32,8 +46,6 @@
        (or (get @connection-count nil) 0)))))
 
 ;; limit how long we wait?
-;; this is really rough we can wait for a the connection atom to
-;; change for the positive
 (defn wait-for-connection [{:keys [connection-count build-id]}]
   (when-not (connection-available? connection-count build-id)
     (loop []
@@ -59,9 +71,10 @@
   (-tear-down [_] true))
 
 (defn repl-env
-  ([figwheel-server {:keys [id] :as build}]
+  ([figwheel-server {:keys [id build-options] :as build}]
    (assoc (FigwheelEnv. (merge figwheel-server
-                               (if id {:build-id id} {})))
+                               (if id {:build-id id} {})
+                               (select-keys build-options [:output-dir :output-to])))
           :cljs.env/compiler (:compiler-env build)))
   ([figwheel-server]
    (FigwheelEnv. figwheel-server)))
