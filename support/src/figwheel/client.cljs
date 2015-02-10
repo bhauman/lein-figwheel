@@ -123,10 +123,9 @@
 (defn ensure-cljs-user
   "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
   []
-  (when-not js/cljs  
-    (set! js/cljs #js {}))
-  (when-not (.-user js/cljs)
-    (set! (.-user js/cljs) #js {})))
+  ;; this should be included in the REPL
+  (when-not js/cljs.user
+    (set! js/cljs.user #js {})))
 
 (defn repl-plugin [{:keys [build-id] :as opts}]
   (fn [[{:keys [msg-name] :as msg} & _]]
