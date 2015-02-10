@@ -56,6 +56,7 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
+             :nrepl-port 7888
              ;; to disable the repl
              ;; :repl false
              ;; to specify a server logfile

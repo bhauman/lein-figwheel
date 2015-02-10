@@ -15,7 +15,8 @@
    [clojure.set :refer [intersection]]
    [clojure.stacktrace :as trace]
    [cljsbuild.util :as util]
-   [cemerick.pomegranate :refer [add-dependencies]]))
+   [cemerick.pomegranate :refer [add-dependencies]]
+   [clojure.tools.nrepl.server :as nrepl-serv]))
 
 (defn notify-cljs [command message]
   (when (seq (:shell command))
@@ -127,9 +128,9 @@
                          :repositories (merge cemerick.pomegranate.aether/maven-central
                                               {"clojars" "http://clojars.org/repo"})))))
 
-(defn doc
+(defn doc-help
   ([repl-env env form]
-   (doc repl-env env form nil))
+   (doc-help repl-env env form nil))
   ([repl-env env [_ sym :as form] opts]
    (if (not (symbol? sym))
      (print "Must provide bare var to get documentation i.e. (doc clojure.string/join)")
@@ -254,11 +255,10 @@
         control-fns  (setup-control-fns all-builds' build-ids figwheel-server)
         special-fns  (into {} (map (fn [[k v]] [k (make-special-fn v)]) control-fns))
         special-fns  (merge cljs.repl/default-special-fns special-fns {'add-dep add-dep
-                                                                       'doc doc})
+                                                                       'doc doc-help})
         ;; TODO remove this when cljs.repl error catching code makes it to release
         special-fns  (into {} (map (fn [[k v]] [k (catch-special-fn-errors v)]) special-fns))]
     ((get control-fns 'start-autobuild) build-ids)
-    ;; TODO it would be cool to switch the repl's build as well
     (loop [build repl-build]
       (newline)
       (print "Launching ClojureScript REPL")
@@ -278,16 +278,23 @@
                          :build-options build-options}]
                :figwheel-server (fig/start-server figwheel-options)}))
 
+(def ^:dynamic *autobuild-env* false)
+
 (defn run-autobuilder [{:keys [figwheel-options all-builds build-ids]}]
-  (let [autobuild-options { :all-builds all-builds
+  (let [autobuild-options { :all-builds (mapv auto/prep-build all-builds)
                             :build-ids  build-ids
                             :figwheel-server (figwheel-sidecar.core/start-server
                                               figwheel-options)}]
+    ;; this is a simple headless, ciderless repl for dev, I might should add
+    ;; cider in here
+    (binding [*autobuild-env* autobuild-options
+              *print-length* 100]
+      (when (:nrepl-port figwheel-options)
+        (nrepl-serv/start-server :port (:nrepl-port figwheel-options))))
     (if (= (:repl figwheel-options) false)
       (when (figwheel-sidecar.auto-builder/autobuild-ids autobuild-options)
         (loop [] (Thread/sleep 30000) (recur)))
       (figwheel-sidecar.auto-builder/autobuild-repl autobuild-options))))
-
 
 (comment
   
