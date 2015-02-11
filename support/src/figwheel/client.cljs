@@ -94,89 +94,40 @@
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
 #_(defn error-test2 []
-    js/joe)
+  js/joe)
+
+#_(defn error-test3 []
+  (error-test2))
 
 #_(defn error-test []
-    (error-test2))
+   (error-test3))
 
-;; chrome error
-;;  at error_test2 (http://localhost:3449/js/out/figwheel/client.js?zx=c852wj4xz1qe:384:8)
-;; node error
-;;  at error_test2 (/Users/brucehauman/workspace/noderer/out/noderer/core.js:16:8)
-;; safari 
-;;  error_test2@http://localhost:3449/js/out/figwheel/client.js:384:11
-;; firefox is the same
-;;  error_test2@http://localhost:3449/js/out/figwheel/client.js:384:1
+(defn truncate-stack-trace [stack-str]
+  (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
+              (string/split-lines stack-str)))
 
-;; canonical error form
-;; error_test2@http://localhost:3449/js/out/figwheel/client.js:384:11
-(defn at-start-line->canonical-stack-line [line]
-  (let [[_ function file-part] (re-matches #"\s*at\s*(\S*)\s*\((.*)\)" line)]
-    (str function "@" file-part)))
-
-(defn to-canonical-stack-line [line]
-  (if (re-matches #"\s*at\s*.*" line)
-    (at-start-line->canonical-stack-line line)
-    line))
-
-(defn output-dir-relative-file [file]
-  (let [base (string/replace (.-basePath js/goog) #"(.*)goog/" #(str %2))
-        short     (string/replace-first file base "")]
-    (first (string/split short "?"))))
-
-(defn stack-line->stack-line-map
-  "Parses a stack line into a frame representation, returning nil
-  if parse failed."
-  [stack-line]
-  (let [stack-line (to-canonical-stack-line stack-line)
-        [function file line column]
-        (rest (re-matches #"(.*)@(.*):([0-9]+):([0-9]+)"
-                stack-line))]
-    (when (and file function line column)
-      { :file      (output-dir-relative-file file)
-        :function  function
-        :line      (js/parseInt line)
-        :column    (js/parseInt column) })))
-
-(defn stack-line? [l]
-  (and
-   (map? l)
-   (string?  (:file l))
-   (string?  (:function l))
-   (integer? (:line l))
-   (integer? (:column l))))
-
-(defn handle-stack-trace [stack-str]
-  (let [stk-tr (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
-                           (string/split-lines stack-str))
-        grouped-lines (group-by stack-line? (mapv stack-line->stack-line-map stk-tr))]
-    (if (< (count (grouped-lines true))
-           (count (grouped-lines nil)))
-      (string/join "\n" stk-tr)
-      (vec (grouped-lines true)))))
-
-(defn eval-javascript** [code result-handler]
-  (try
-    (binding [*print-fn* (fn [& args]
-                           (-> args
-                             console-print
-                             figwheel-repl-print))
-              *print-newline* false]
-      (result-handler
-       {:status :success,
-        :value (str (js* "eval(~{code})"))}))
-    (catch js/Error e
-      (result-handler
-       {:status :exception
-        :value (pr-str e)
-        :stacktrace (if (.hasOwnProperty e "stack")
-                      (handle-stack-trace (.-stack e)) #_(truncate-stack-trace (.-stack e)) 
-                      "No stacktrace available.")}))
+(let [base-path (string/replace (.-basePath js/goog) #"(.*)goog/" #(str %2))]
+  (defn eval-javascript** [code result-handler]
+    (try
+      (binding [*print-fn* (fn [& args]
+                             (-> args
+                               console-print
+                               figwheel-repl-print))
+                *print-newline* false]
+        (result-handler
+         {:status :success,
+          :value (str (js* "eval(~{code})"))}))
+      (catch js/Error e
+        (result-handler
+         {:status :exception
+          :value (pr-str e)
+          :stacktrace (string/join "\n" (truncate-stack-trace (.-stack e)))
+          :base-path base-path }))
     (catch :default e
       (result-handler
        {:status :exception
         :value (pr-str e)
-        :stacktrace "No stacktrace available."}))))
+        :stacktrace "No stacktrace available."})))))
 
 (defn ensure-cljs-user
   "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."

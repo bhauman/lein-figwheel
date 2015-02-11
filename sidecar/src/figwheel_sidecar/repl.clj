@@ -8,17 +8,59 @@
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
    [figwheel-sidecar.core :as fig]))
 
-(defn fix-stacktrace [{:keys [status stacktrace value] :as eval-resp} output-dir]
-  (if (and (= status :exception) (vector? stacktrace))
-    (assoc eval-resp
-           :stacktrace (if (>= (:qualifier cljs.util/*clojurescript-version*) 2814)
-                         (mapv (fn [{:keys [file] :as x}]
-                                 (assoc x :file (str output-dir "/" file)))
-                               stacktrace)
-                         (string/join "\n" (map (fn [{:keys [function file line column]}]
-                                                  (str "\t" function " (" file ":" line ":" column ")"))
-                                                stacktrace))))
-    eval-resp))
+;; chrome error
+;;  at error_test2 (http://localhost:3449/js/out/figwheel/client.js?zx=c852wj4xz1qe:384:8)
+;; node error
+;;  at error_test2 (/Users/brucehauman/workspace/noderer/out/noderer/core.js:16:8)
+;; safari 
+;;  error_test2@http://localhost:3449/js/out/figwheel/client.js:384:11
+;; firefox is the same
+;;  error_test2@http://localhost:3449/js/out/figwheel/client.js:384:1
+
+;; canonical error form
+;; error_test2@http://localhost:3449/js/out/figwheel/client.js:384:11
+
+(defn at-start-line->canonical-stack-line [line]
+  (let [[_ function file-part] (re-matches #"\s*at\s*(\S*)\s*\((.*)\)" line)]
+    (str function "@" file-part)))
+
+(defn to-canonical-stack-line [line]
+  (if (re-matches #"\s*at\s*.*" line)
+    (at-start-line->canonical-stack-line line)
+    line))
+
+(defn output-dir-relative-file [base-path file]
+  (let [short (string/replace-first file base-path "")]
+    (first (string/split short #"\?"))))
+
+(defn stack-line->stack-line-map
+  [base-path stack-line]
+  (let [stack-line (to-canonical-stack-line stack-line)
+        [function file line column]
+        (rest (re-matches #"(.*)@(.*):([0-9]+):([0-9]+)"
+                stack-line))]
+    (when (and file function line column)
+      { :file      (output-dir-relative-file base-path file)
+        :function  function
+        :line      (Long/parseLong line)
+        :column    (Long/parseLong column) })))
+
+(defn stack-line? [l]
+  (and
+   (map? l)
+   (string?  (:file l))
+   (string?  (:function l))
+   (integer? (:line l))
+   (integer? (:column l))))
+
+(defn handle-stack-trace [base-path stk-str]
+  (let [stk-tr (string/split-lines stk-str)
+        grouped-lines (group-by stack-line? (mapv (partial stack-line->stack-line-map base-path)
+                                                  stk-tr))]
+    (if (< (count (grouped-lines true))
+           (count (grouped-lines nil)))
+      (string/join "\n" stk-tr)
+      (vec (grouped-lines true)))))
 
 (defn eval-js [{:keys [browser-callbacks output-dir] :as figwheel-server} js]
   (let [callback-name (str (gensym "repl_eval_"))
@@ -33,7 +75,7 @@
     (fig/send-message! figwheel-server :repl-eval {:code js :callback-name callback-name})
     (let [[v ch] (alts!! [out (timeout 8000)])]
       (if (= ch out)
-        (fix-stacktrace v output-dir)
+        v
         {:status :exception
          :value "Eval timed out!"
          :stacktrace "No stacktrace available."}))))
@@ -68,7 +110,10 @@
     (eval-js figwheel-server js))
       ;; this is not used for figwheel
   (-load [this ns url] true)
-  (-tear-down [_] true))
+  (-tear-down [_] true)
+  cljs.repl/IParseStacktrace
+  (-parse-stacktrace [repl-env stacktrace error build-options]
+    (handle-stack-trace (:base-path error) (:stacktrace error))))
 
 (defn repl-env
   ([figwheel-server {:keys [id build-options] :as build}]
