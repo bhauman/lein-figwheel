@@ -234,7 +234,7 @@
           :cljs/quit                 ;; allows you to switch REPL to another build
     Docs: (doc function-name-here)
     Exit: Control+C or :cljs/quit
- Results: Stored in vars *1, *2, *3")
+ Results: Stored in vars *1, *2, *3, *e holds last exception object")
 
 (defn get-build-choice [choices]
   (let [choices (set (map name choices))]
