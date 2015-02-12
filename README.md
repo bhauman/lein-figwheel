@@ -252,7 +252,7 @@ In keeping with the previous examples you would put this into your
 (println "You can change this line an see the changes in the dev console")
 
 (fw/start {
-  ;; configure a websocket url if yor are using your own server
+  ;; configure a websocket url if you are using your own server
   ;; :websocket-url "ws://localhost:3449/figwheel-ws"
 
   ;; optional callback
