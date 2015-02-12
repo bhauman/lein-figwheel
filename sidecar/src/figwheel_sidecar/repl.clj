@@ -113,7 +113,12 @@
   (-tear-down [_] true)
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [repl-env stacktrace error build-options]
-    (handle-stack-trace (:base-path error) (:stacktrace error))))
+    (handle-stack-trace (:base-path error) (:stacktrace error)))
+  cljs.repl/IPrintStacktrace
+  (-print-stacktrace [repl-env stacktrace error build-options]
+    (doseq [{:keys [function file url line column]}
+              (cljs.repl/mapped-stacktrace stacktrace build-options)]
+      (println "\t" (str function " (" (str (or url file)) ":" line ":" column ")")))))
 
 (defn repl-env
   ([figwheel-server {:keys [id build-options] :as build}]
