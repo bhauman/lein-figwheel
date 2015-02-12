@@ -244,20 +244,12 @@
    (dependency-files st)))
 
 (def ^:dynamic *transitive-dep-cache* false)
-(declare transitive-dependents)
-
-;; mutual recursion
-(defn transitive-dependents* [n]
-  (let [deps (ana/ns-dependents n)]
-    (if (empty? deps)
-      #{}
-      (set (concat deps (mapcat transitive-dependents deps))))))
 
 (defn transitive-dependents [nm]
   (let [cached (get-in @*transitive-dep-cache* (name nm))]
     (if (not (nil? cached))
       cached
-      (let [res (transitive-dependents* nm)]
+      (let [res (set (ana/ns-dependents nm))]
         (swap! *transitive-dep-cache* assoc (name nm) res)
         res))))
 
@@ -285,7 +277,7 @@
     (false? (:recompile-dependents state))
     (concat changed-ns-syms' (find-figwheel-always))
     :else
-    (let [changed-ns-syms       (set changed-ns-syms')
+    (let [changed-ns-syms       (set (map (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
           dependants            (set (mapcat
                                       transitive-dependents
                                       changed-ns-syms))
