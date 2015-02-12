@@ -4,17 +4,17 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2815"]
+                 [org.clojure/clojurescript "0.0-2843"]
                  [sablono "0.2.16"]
                  [crate "0.2.4"]
                  [jayq "2.4.0"]
-                 [figwheel "0.2.3-SNAPSHOT"]
+                 [figwheel "0.2.4-SNAPSHOT"]
                  ;; for development
-                 [figwheel-sidecar "0.2.3-SNAPSHOT"]]
-  
+                 [figwheel-sidecar "0.2.4-SNAPSHOT"]]
+
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.4"]
-            [lein-figwheel "0.2.3-SNAPSHOT"]]
+            [lein-figwheel "0.2.4-SNAPSHOT"]]
 
   ;; this is used for testing an external server
   :ring { :handler example.server/static-server }
@@ -35,6 +35,7 @@
                                     :output-dir "resources/public/js/out"
                                     :source-map true
                                     :source-map-timestamp true
+                                    :recompile-dependents false
                                     :cache-analysis true
                                     :optimizations :none}}
                        { :id "example-admin"
