@@ -35,7 +35,7 @@
 (defn merge-build-into-server-state [figwheel-server {:keys [id build-options]}]
   (merge figwheel-server
          (if id {:build-id id} {})
-         (select-keys build-options [:output-dir :output-to])))
+         (select-keys build-options [:output-dir :output-to :recompile-dependents])))
 
 (defn check-changes [figwheel-server build]
   (let [{:keys [additional-changed-ns build-options id old-mtimes new-mtimes]} build]

@@ -280,8 +280,11 @@
   (set (filter (fn [n] (-> n meta :figwheel-always)) (ana-api/all-ns))))
 
 (defn expand-to-all-ns [state changed-ns-syms']
-  (if (nil? cljs.env/*compiler*) ;; bail if no comp env
-    changed-ns-syms'
+  (cond
+    (nil? cljs.env/*compiler*) changed-ns-syms'
+    (false? (:recompile-dependents state))
+    (concat changed-ns-syms' (find-figwheel-always))
+    :else
     (let [changed-ns-syms       (set changed-ns-syms')
           dependants            (set (mapcat
                                       transitive-dependents
