@@ -1,3 +1,10 @@
+## 0.2.4-SNAPSHOT
+
+* adds source mapped stacktraces to REPL
+* does away dependents calculations when `:recompile-dependents` is `false`
+* corrects a complexity bug in calculating dependents
+* requires ClojureScript 0.0-2843 or greater
+
 ## 0.2.3-SNAPSHOT
 
 * **Node.js support!**: figwheel and the built-in REPL now supports running
