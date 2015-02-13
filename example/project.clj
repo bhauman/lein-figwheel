@@ -5,9 +5,9 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2843"]
-                 [sablono "0.2.16"]
-                 [crate "0.2.4"]
-                 [jayq "2.4.0"]
+                 [sablono "0.3.1"]
+                 [org.omcljs/om "0.8.8"]
+                 [ankha "0.1.4"]
                  [figwheel "0.2.4-SNAPSHOT"]
                  ;; for development
                  [figwheel-sidecar "0.2.4-SNAPSHOT"]]
@@ -28,7 +28,7 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" "dev" "../support/src"]
+                         :source-paths ["src" "dev"]
                          :compiler {:main example.dev
                                     :asset-path "js/out"
                                     :output-to "resources/public/js/example.js"

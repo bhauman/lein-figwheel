@@ -1,12 +1,56 @@
-@import url("imported.css");
-
-@font-face {
-  font-family: 'source_sans_proregular';
-  src: url('../webfonts/sourcesanspro-regular-webfont.ttf');
-} 
-
 body {
-   color: blue;
-   font-family: 'source_sans_proregular';
-   background: #fff url(../webfonts/wrap-bg.png) repeat 0 0;
+   color: #333;
+}
+
+/* ankah */
+.toggle-button {
+    font-weight: bold;
+}
+
+.edit-button {
+    margin-left: 2px;
+}
+
+.ellipsis {
+    color: grey;
+}
+
+.number {
+    color: forestgreen;
+}
+
+.keyword {
+    color: darkviolet;
+}
+
+.symbol {
+    color: inherit;
+}
+
+.symbol:before {
+    content: "'";
+}
+
+.string {
+    color: dodgerblue;
+}
+
+.boolean {
+    color: goldenrod;
+}
+
+.nil {
+    color: silver;
+}
+
+.function {
+    color: firebrick;
+}
+
+.regex {
+    color: darkgreen;
+}
+
+.object .key:after {
+    content: ":";
 }
