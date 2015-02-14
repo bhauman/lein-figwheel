@@ -65,7 +65,7 @@
     #'start-autobuild
     #'stop-autobuild
     #'build-once
-    #'clean-builds
+    #'clean-build
     #'switch-to-build
     #'reset-autobuild
     #'api-help
