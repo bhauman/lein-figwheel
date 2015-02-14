@@ -7,7 +7,7 @@
   [& ids]
   (fr/build-once ids))
 
-(defn clean-builds
+(defn clean-build
   "Deletes the compiled artifacts for the builds with the provided build ids (or the current default ids)."
   [& ids]
   (fr/clean-build ids))
