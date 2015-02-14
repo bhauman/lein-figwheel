@@ -345,26 +345,6 @@
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3, *e holds last exception object")
 
-(defn cljs-repl
-  ([] (cljs-repl nil))
-  ([id]
-   (let [{:keys [state-atom figwheel-server all-builds]} *autobuild-env*
-         opt-none-builds (set (keep :id (filter config/optimizations-none? all-builds)))
-         build-id (first (not-empty (get-ids (if id [(name id)] [])
-                                             (:focus-ids @state-atom)
-                                             all-builds)))
-         build (first (filter #(and
-                                (opt-none-builds (:id %))
-                                (= build-id (:id %)))
-                             all-builds))]
-     (if build
-       (do
-         (println "Starting Figwheel CLJS repl for build:" (:id build))
-         (println (repl-function-docs))
-         (println "Prompt will show when figwheel connects to your application")         
-         (repl build figwheel-server {:special-fns figwheel-special-fns}))
-       (println "No such build found:" (name id))))))
-
 (defn get-build-choice [choices]
   (let [choices (set (map name choices))]
     (loop []
@@ -377,56 +357,82 @@
             (println (str "Error: " res " is not a valid choice"))
             (recur)))))))
 
-;; this is still confused, conflated, complected
-(defn autobuild-repl
-  ([autobuild-options]
-   (autobuild-repl autobuild-options repl))
-  ([{:keys [all-builds build-ids figwheel-server] :as opts} repl-fn]
-   (let [all-builds'  (mapv auto/prep-build all-builds)
-         ;; choose default build for repl
-         repl-build   (first (config/narrow-builds* all-builds' build-ids))
-         build-ids    (or (not-empty build-ids) [(:id repl-build)]) ;; give a default build-id
-         ]
-     ;; this is what currently starts the autobuild
-     ((get repl-control-fns 'start-autobuild) build-ids)
-     (loop [build repl-build]
-       (newline)
-       (print "Launching ClojureScript REPL")
-       (when-let [id (:id build)] (println " for build:" id))
-       (println (repl-function-docs))
-       (println "Prompt will show when figwheel connects to your application")
-       
-       (repl-fn build figwheel-server {:special-fns figwheel-special-fns})
-       (println "\nStart CLJS repl on another build? (Ctrl+D to exit)")
+(defn initial-repl-build [all-builds build-ids]
+  (first (config/narrow-builds* all-builds build-ids)))
+
+(defn initial-build-ids [all-builds build-ids]
+  (let [repl-build (initial-repl-build all-builds build-ids)]
+    (or (not-empty build-ids) [(:id repl-build)])))
+
+(defn start-repl [build]
+  (let [{:keys [figwheel-server build-ids]} *autobuild-env*]
+    (start-autobuild build-ids)
+    (newline)
+    (print "Launching ClojureScript REPL")
+    (when-let [id (:id build)] (println " for build:" id))
+    (println (repl-function-docs))
+    (println "Prompt will show when figwheel connects to your application")
+    (repl build figwheel-server {:special-fns figwheel-special-fns})))
+
+(defn cljs-repl
+  ([] (cljs-repl nil))
+  ([id]
+   (let [{:keys [state-atom figwheel-server all-builds build-ids]} *autobuild-env*
+         opt-none-builds (set (keep :id (filter config/optimizations-none? all-builds)))
+         build-id (first (not-empty (get-ids (if id [(name id)] [])
+                                             (:focus-ids @state-atom)
+                                             all-builds)))
+         build-id (or build-id (first build-ids))
+         build (first (filter #(and
+                                (opt-none-builds (:id %))
+                                (= build-id (:id %)))
+                             all-builds))]
+     (if build
+       (start-repl build)
+       (if id
+         (println "No such build found:" (name id))
+         (println "No build found to start CLJS REPL for."))))))
+
+;;; This will not work in an nrepl env!!!
+(defn repl-switching-loop
+  ([] (repl-switching-loop nil))
+  ([start-build]
+   (let [{:keys [all-builds]} *autobuild-env*]
+     (loop [build start-build]
+       (cljs-repl (:id build))
        (let [chosen-build-id (get-build-choice
-                              (keep :id (filter config/optimizations-none? all-builds')))
-             chosen-build (first (filter #(= (name (:id %)) chosen-build-id) all-builds'))]
+                              (keep :id (filter config/optimizations-none? all-builds)))
+             chosen-build (first (filter #(= (name (:id %)) chosen-build-id) all-builds))]
          (recur chosen-build))))))
 
-(defn start-nrepl [figwheel-options autobuild-options]
+(defn start-nrepl-server [figwheel-options autobuild-options]
   (when (:nrepl-port figwheel-options)
     (nrepl-serv/start-server
      :port (:nrepl-port figwheel-options)
      :handler (apply nrepl-serv/default-handler
                      (conj (map resolve cider/cider-middleware) #'pback/wrap-cljs-repl)))))
 
-(defn run-autobuilder [{:keys [figwheel-options all-builds build-ids]}]
+(defn create-autobuild-env [{:keys [figwheel-options all-builds build-ids]}]
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")
         _ (config/mkdirs logfile-path)
         log-writer        (io/writer logfile-path :append true)
         state-atom        (atom {:autobuilder nil
                                  :focus-ids  build-ids})
         all-builds        (mapv auto/prep-build all-builds)
+        build-ids         (initial-build-ids all-builds build-ids)
         figwheel-server   (figwheel-sidecar.core/start-server figwheel-options)]
-    (binding [*autobuild-env* {:all-builds all-builds
-                               :build-ids build-ids
-                               :figwheel-server figwheel-server
-                               :state-atom state-atom
-                               :output-writer log-writer
-                               :error-writer log-writer}]
-      (start-nrepl figwheel-options *autobuild-env*)
-      (if (or (= (:repl figwheel-options) false)
-              (nil? (:nrepl-port figwheel-options)))
-        (when (figwheel-sidecar.auto-builder/autobuild-ids *autobuild-env*)
-          (loop [] (Thread/sleep 30000) (recur)))
-        (autobuild-repl *autobuild-env*)))))
+    {:all-builds all-builds
+     :build-ids build-ids
+     :figwheel-server figwheel-server
+     :state-atom state-atom
+     :output-writer log-writer
+     :error-writer log-writer}))
+
+(defn run-autobuilder [{:keys [figwheel-options all-builds build-ids] :as options}]
+  (binding [*autobuild-env* (create-autobuild-env options)]
+    (start-nrepl-server figwheel-options *autobuild-env*)
+    (if (or (= (:repl figwheel-options) false)
+            (nil? (:nrepl-port figwheel-options)))
+      (when (figwheel-sidecar.auto-builder/autobuild-ids *autobuild-env*)
+        (loop [] (Thread/sleep 30000) (recur)))
+      (repl-switching-loop))))
