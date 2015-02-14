@@ -8,13 +8,13 @@
                  [sablono "0.3.1"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
-                 [figwheel "0.2.4-SNAPSHOT"]
+                 [figwheel "0.2.5-SNAPSHOT"]
                  ;; for development
                  [figwheel-sidecar "0.2.4-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.4"]
-            [lein-figwheel "0.2.4-SNAPSHOT"]]
+            [lein-figwheel "0.2.5-SNAPSHOT"]]
 
   ;; this is used for testing an external server
   :ring { :handler example.server/static-server }
@@ -28,7 +28,7 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" "dev"]
+                         :source-paths ["src" "dev" "../support/src"]
                          :compiler {:main example.dev
                                     :asset-path "js/out"
                                     :output-to "resources/public/js/example.js"
