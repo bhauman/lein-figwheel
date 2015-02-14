@@ -166,7 +166,9 @@
     (go
      (cond
       (reload-file-state? msg-names opts)
-      (<! (heads-up/flash-loaded))
+      (if (:autoload opts)
+        (<! (heads-up/flash-loaded))
+        (<! (heads-up/clear)))
 
       (compile-refail-state? msg-names)
       (do
@@ -263,6 +265,8 @@
    :on-compile-fail default-on-compile-fail
    :on-compile-warning default-on-compile-warning
 
+   :autoload true
+   
    :debug false
    
    :heads-up-display true
@@ -288,6 +292,9 @@
                                   :file-reloader-plugin
                                   :comp-fail-warning-plugin
                                   :repl-plugin])
+               base)
+        base (if (false? (:autoload system-options))
+               (dissoc base :file-reloader-plugin)
                base)]
     (if (and (:heads-up-display system-options)
              (utils/html-env?))
