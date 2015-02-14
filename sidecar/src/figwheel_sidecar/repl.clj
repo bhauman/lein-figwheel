@@ -387,6 +387,7 @@
          repl-build   (first (config/narrow-builds* all-builds' build-ids))
          build-ids    (or (not-empty build-ids) [(:id repl-build)]) ;; give a default build-id
          ]
+     ;; this is what currently starts the autobuild
      ((get repl-control-fns 'start-autobuild) build-ids)
      (loop [build repl-build]
        (newline)
