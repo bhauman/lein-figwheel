@@ -52,7 +52,7 @@
 See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
     (.mkdirs (io/file crossover-path)))
   (run-local-project project crossover-path all-builds
-     '(require 'cljsbuild.crossover 'cljsbuild.util 'figwheel-sidecar.auto-builder)
+     '(require 'cljsbuild.crossover 'cljsbuild.util 'figwheel-sidecar.repl)
      `(letfn [(copy-crossovers# []
                   (cljsbuild.crossover/copy-crossovers
                    ~crossover-path
@@ -60,7 +60,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
           (when (not-empty '~crossovers)
             (copy-crossovers#)
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
-          (figwheel-sidecar.auto-builder/run-autobuilder ~autobuild-opts))))
+          (figwheel-sidecar.repl/run-autobuilder ~autobuild-opts))))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."

@@ -54,7 +54,6 @@
                 :onChange (prevent->value
                            #(om/update! form-todo :content %))}]]))))
 
-
 (defn inspect-data [data]
   (sab/html
    [:div.ankha {:style {:marginTop "50px"}}

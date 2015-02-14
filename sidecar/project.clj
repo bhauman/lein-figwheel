@@ -16,6 +16,10 @@
    [compojure "1.1.7"]
    [clj-stacktrace "0.2.7"]
    [cljsbuild "1.0.4"]
+   
+   [com.cemerick/piggieback "0.1.5"]
+   [cider/cider-nrepl "0.8.2"]
+   
    [clojurescript-build "0.1.5"]
    [watchtower "0.1.1"]
    [digest "1.4.3"]])
