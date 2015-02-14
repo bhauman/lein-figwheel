@@ -43,6 +43,11 @@
   []
   (fr/status))
 
+(defn add-dep
+  "Attempts to add a maven dependency from clojars."
+  [dep]
+  (fr/add-dep* dep))
+
 (defn- doc* [v]
   (let [{:keys [name doc arglists]} (meta v)]
     (print name " ")
@@ -64,5 +69,6 @@
     #'switch-to-build
     #'reset-autobuild
     #'api-help
+    #'add-dep
     ])
   nil)

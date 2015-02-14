@@ -1,6 +1,5 @@
 (ns figwheel-sidecar.repl
   (:require
-
    [cljs.repl]
    [cljs.util]
    [cljs.analyzer :as ana]   
@@ -157,7 +156,8 @@
          figwheel-repl-env (repl-env figwheel-server build)]
      (if (thread-bound? #'nrepl-eval/*msg*)
        (cemerick.piggieback/cljs-repl
-        :repl-env figwheel-repl-env)
+        :repl-env figwheel-repl-env
+        :special-fns (or (:special-fns opts) cljs.repl/default-special-fns))
        (cljs.repl/repl* figwheel-repl-env opts)))))
 
 (defn namify [arg]
@@ -173,13 +173,16 @@
      ;; are we only accepting string ids?
      (f (keep namify args)))))
 
+
+(defn add-dep* [dep]
+  (binding [*err* *out*]
+    (add-dependencies :coordinates [dep]
+                      :repositories (merge cemerick.pomegranate.aether/maven-central
+                                           {"clojars" "http://clojars.org/repo"}))))
+
 (defn add-dep
   ([a b c] (add-dep a b c nil))
-  ([_ _ [_ dep] _]
-     (binding [*err* *out*]
-       (add-dependencies :coordinates [dep]
-                         :repositories (merge cemerick.pomegranate.aether/maven-central
-                                              {"clojars" "http://clojars.org/repo"})))))
+  ([_ _ [_ dep] _] (add-dep* dep)))
 
 (defn doc-help
   ([repl-env env form]
@@ -357,7 +360,9 @@
      (if build
        (do
          (println "Starting Figwheel CLJS repl for build:" (:id build))
-         (repl build figwheel-server))
+         (println (repl-function-docs))
+         (println "Prompt will show when figwheel connects to your application")         
+         (repl build figwheel-server {:special-fns figwheel-special-fns}))
        (println "No such build found:" (name id))))))
 
 (defn get-build-choice [choices]
@@ -372,6 +377,7 @@
             (println (str "Error: " res " is not a valid choice"))
             (recur)))))))
 
+;; this is still confused, conflated, complected
 (defn autobuild-repl
   ([autobuild-options]
    (autobuild-repl autobuild-options repl))
@@ -423,16 +429,3 @@
         (when (figwheel-sidecar.auto-builder/autobuild-ids *autobuild-env*)
           (loop [] (Thread/sleep 30000) (recur)))
         (autobuild-repl *autobuild-env*)))))
-
-(comment
-  
-  (cemerick.piggieback/cljs-repl
-   :repl-env (figwheel-sidecar.repl/repl-env
-              (:figwheel-server figwheel-sidecar.auto-builder/*autobuild-env*)
-              (first (:all-builds figwheel-sidecar.auto-builder/*autobuild-env*))))
-
-  (nil? (:autobuilder @(:state-atom  *autobuild-env*)))
-
-  (in-ns 'figwheel-sidecar.repl)
-  
-  )
