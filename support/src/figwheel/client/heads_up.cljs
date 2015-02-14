@@ -67,10 +67,10 @@
         (set! (.-innerHTML el) (str clojure-symbol-svg))
         (.appendChild el (node :div {:id content-id}))
         (-> (.-body js/document)
-            (.appendChild el)))
-      { :container-el    (.getElementById js/document cont-id)
-        :content-area-el (.getElementById js/document content-id) }
-      )))
+            (.appendChild el))))
+    { :container-el    (.getElementById js/document cont-id)
+      :content-area-el (.getElementById js/document content-id) }
+      ))
 
 (defn set-style! [{:keys [container-el]} st-map]
   (mapv
