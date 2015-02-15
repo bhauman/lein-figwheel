@@ -1,6 +1,37 @@
 (ns figwheel-sidecar.repl-api
   (:require
-   [figwheel-sidecar.repl :as fr]))
+   [figwheel-sidecar.repl :as fr]
+   [figwheel-sidecar.config :as fc]))
+
+(defn start-figwheel!
+  [{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
+  (if-not fr/*autobuild-env*
+    (let [env (fr/create-autobuild-env
+               {:figwheel-options (fc/prep-options figwheel-options)
+                :all-builds (fc/prep-builds all-builds)
+                :build-ids (map name build-ids)})]
+      (alter-var-root (var fr/*autobuild-env*) (fn [_] env))
+      nil)
+    (println "Figwheel system already initialized!")))
+
+(comment
+  
+  (start-figwheel!
+   {:figwheel-options {}
+    :build-ids ["example"]
+    :all-builds [{ :id "example"
+                  :source-paths ["src" "dev" "../support/src"]
+                  :compiler {:main "example.dev"
+                             :asset-path "js/out"
+                             :output-to "resources/public/js/example.js"
+                             :output-dir "resources/public/js/out"
+                             :source-map true
+                             :source-map-timestamp true
+                             :recompile-dependents false
+                             :cache-analysis true
+                             :optimizations :none}}]})
+
+  )
 
 (defn build-once
   "Compiles the builds with the provided build ids (or the current default ids) once."
@@ -69,6 +100,5 @@
     #'switch-to-build
     #'reset-autobuild
     #'api-help
-    #'add-dep
-    ])
+    #'add-dep])
   nil)

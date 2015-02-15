@@ -10,7 +10,7 @@
                  [ankha "0.1.4"]
                  [figwheel "0.2.5-SNAPSHOT"]
                  ;; for development
-                 [figwheel-sidecar "0.2.4-SNAPSHOT"]]
+                 [figwheel-sidecar "0.2.5-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.4"]
