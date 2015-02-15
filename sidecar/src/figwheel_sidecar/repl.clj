@@ -229,7 +229,7 @@
                                 builds))
     nil))
 
-(defn clean-build [ids]
+(defn clean-builds [ids]
   (let [ids (map name ids)
         builds (filter-builds* ids
                                (:focus-ids @(:state-atom *autobuild-env*))
@@ -295,7 +295,7 @@
   ([_]
    (let [{:keys [state-atom]} *autobuild-env*]
      (stop-autobuild [])
-     (clean-build [])
+     (clean-builds [])
      (start-autobuild (:focus-ids @state-atom)))))
 
 (defn status
@@ -322,7 +322,7 @@
     'reset-autobuild reset-autobuild
     'build-once      build-once
     'fig-status      status
-    'clean-builds    clean-build})
+    'clean-builds    clean-builds})
 
 (def figwheel-special-fns 
   (let [special-fns' (into {} (map (fn [[k v]] [k (make-special-fn v)]) repl-control-fns))]
@@ -336,7 +336,7 @@
           (switch-to-build id ...)   ;; switches autobuilder to different build
           (reset-autobuild)          ;; stops, cleans, and starts autobuilder
           (build-once [id ...])      ;; builds source once time
-          (clean-build [id ..])      ;; deletes compiled cljs target files
+          (clean-builds [id ..])      ;; deletes compiled cljs target files
           (fig-status)               ;; displays current state of system
           (add-dep [org.om/om \"0.8.1\"]) ;; add a dependency. very experimental
   Switch REPL build focus:

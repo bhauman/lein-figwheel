@@ -38,10 +38,10 @@
   [& ids]
   (fr/build-once ids))
 
-(defn clean-build
+(defn clean-builds
   "Deletes the compiled artifacts for the builds with the provided build ids (or the current default ids)."
   [& ids]
-  (fr/clean-build ids))
+  (fr/clean-builds ids))
 
 (defn stop-autobuild
   "Stops the currently running autobuild process."
@@ -96,7 +96,7 @@
     #'start-autobuild
     #'stop-autobuild
     #'build-once
-    #'clean-build
+    #'clean-builds
     #'switch-to-build
     #'reset-autobuild
     #'api-help
