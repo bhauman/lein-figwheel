@@ -431,8 +431,8 @@
 (defn run-autobuilder [{:keys [figwheel-options all-builds build-ids] :as options}]
   (binding [*autobuild-env* (create-autobuild-env options)]
     (start-nrepl-server figwheel-options *autobuild-env*)
-    (if (or (= (:repl figwheel-options) false)
-            (nil? (:nrepl-port figwheel-options)))
+    (if (or (false? (:repl figwheel-options))
+            (not (nil? (:nrepl-port figwheel-options))))
       (when (figwheel-sidecar.auto-builder/autobuild-ids *autobuild-env*)
         (loop [] (Thread/sleep 30000) (recur)))
       (repl-switching-loop))))
