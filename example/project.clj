@@ -5,11 +5,11 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2843"]
-                 [sablono "0.3.1"]
+                 [sablono "0.3.4"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
                  [figwheel "0.2.5-SNAPSHOT"]
-                 ;; for development
+                 ;; for development purposes
                  [figwheel-sidecar "0.2.5-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
@@ -21,6 +21,8 @@
   
   :source-paths ["src"] 
 
+  ;; :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  
   :clean-targets ^{:protect false} ["resources/public/js/out"
                                     "resources/public/js/example.js"]
 
@@ -57,7 +59,8 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
-             :nrepl-port 7888
+             ;; Start an nREPL server into the running fighweel process
+             ;; :nrepl-port 7888
              ;; to disable the repl
              ;; :repl false
              ;; to specify a server logfile

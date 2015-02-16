@@ -1,3 +1,16 @@
+## 0.2.5-SNAPSHOT
+
+* **nREPL and cider support for the REPL** adding an `:nrepl-port` along
+  with a port number to the `:figwheel` config in your project.clj will
+  start an nREPL server into the running figwheel process.
+  https://github.com/bhauman/lein-figwheel/wiki/Using-the-Figwheel-REPL-within-NRepl
+* **disabling hod loading for REPL only development**
+  Setting a new client side config option `:autobuild` to `false` will disable
+  the automatic loading of code on file changes. Now that the cljs REPL
+  development experience is maturing it's nice to have the option to do
+  REPL only development. Its a client side option so that you can change
+  back and forth between the styles of development fairly easily.
+
 ## 0.2.4-SNAPSHOT
 
 * adds source mapped stacktraces to REPL
