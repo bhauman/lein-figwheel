@@ -22,7 +22,7 @@
       (util/sh (update-in command [:shell] (fn [old] (concat old [message]))))
       (catch Throwable e
         (println (auto/red "Error running :notify-command:"))
-        (stack/print-cause-trace exception 1)
+        (stack/print-cause-trace e 1)
         #_(clj-stacktrace.repl/pst+ e)))))
 
 (defn notify-on-complete [{:keys [build-options parsed-notify-command]}]
