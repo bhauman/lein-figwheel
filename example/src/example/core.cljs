@@ -24,6 +24,13 @@
             :content "buy car"}]
          :form-todo {} }))
 
+;; transactions
+
+(defn add-todo [form-todo todos]
+  (conj todos
+        (assoc form-todo
+               :temp-id (name (gensym "temp-")))))
+
 (defn todo [{:keys [id content] :as huh}]
   (om/component
    (sab/html [:li
@@ -42,10 +49,7 @@
               (prevent
                #(do
                   (om/transact!
-                   todos [] (fn [tds]
-                              (conj tds
-                                    (assoc form-todo
-                                           :temp-id (name (gensym "temp-")))))
+                   todos [] (partial add-todo form-todo)
                    :create-todo)
                   (om/update! form-todo {})))}
        [:input {:type "text"

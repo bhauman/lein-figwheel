@@ -30,7 +30,7 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" "dev" "../support/src"]
+                         :source-paths ["src" "dev" "tests"]
                          :compiler {:main example.dev
                                     :asset-path "js/out"
                                     :output-to "resources/public/js/example.js"
