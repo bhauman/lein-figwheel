@@ -37,7 +37,7 @@
                                     :output-dir "resources/public/js/out"
                                     :source-map true
                                     :source-map-timestamp true
-                                    :recompile-dependents false
+                                    ;; :recompile-dependents true
                                     :cache-analysis true
                                     :optimizations :none}}
                        { :id "example-admin"
@@ -60,7 +60,7 @@
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
              ;; Start an nREPL server into the running fighweel process
-             ;; :nrepl-port 7888
+             :nrepl-port 7888
              ;; to disable the repl
              ;; :repl false
              ;; to specify a server logfile
