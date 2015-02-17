@@ -61,7 +61,7 @@
              :open-file-command "emacsclient"
              ;; Start an nREPL server into the running fighweel process
              :nrepl-port 7888
-             ;; to disable the repl
+             ;; to disable to launched repl 
              ;; :repl false
              ;; to specify a server logfile
              ;; :server-logfile "tmp/logs/test-server-logfile.log"
