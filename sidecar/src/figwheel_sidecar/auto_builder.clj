@@ -8,6 +8,7 @@
    [cljs.analyzer :as ana]
    [cljs.env]
    [clj-stacktrace.repl]
+   [clojure.stacktrace :as stack]   
    [clojurescript-build.core :as cbuild]
    [clojurescript-build.auto :as auto]
    [clojure.java.io :as io]
@@ -21,9 +22,12 @@
       (util/sh (update-in command [:shell] (fn [old] (concat old [message]))))
       (catch Throwable e
         (println (auto/red "Error running :notify-command:"))
-        (clj-stacktrace.repl/pst+ e)))))
+        (stack/print-cause-trace exception 1)
+        #_(clj-stacktrace.repl/pst+ e)))))
 
 (defn notify-on-complete [{:keys [build-options parsed-notify-command]}]
+  (println "Build options - after build")
+  (prn build-options)  
   (let [{:keys [output-to]} build-options]
     (notify-cljs
      parsed-notify-command
@@ -45,7 +49,8 @@
 
 (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
   (println (auto/red (str "Compiling \"" (:output-to build-options) "\" failed.")))
-  (clj-stacktrace.repl/pst+ exception)
+  (stack/print-cause-trace exception 1)
+  #_(clj-stacktrace.repl/pst+ exception)
   (fig/compile-error-occured
    (merge-build-into-server-state figwheel-server build)
    exception))
