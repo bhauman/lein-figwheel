@@ -365,8 +365,9 @@
     (or (not-empty build-ids) [(:id repl-build)])))
 
 (defn start-repl [build]
-  (let [{:keys [figwheel-server build-ids]} *autobuild-env*]
-    (start-autobuild build-ids)
+  (let [{:keys [figwheel-server build-ids state-atom]} *autobuild-env*]
+    (when-not (builder-running? state-atom)
+      (start-autobuild build-ids))
     (newline)
     (print "Launching ClojureScript REPL")
     (when-let [id (:id build)] (println " for build:" id))
@@ -430,6 +431,7 @@
 
 (defn run-autobuilder [{:keys [figwheel-options all-builds build-ids] :as options}]
   (binding [*autobuild-env* (create-autobuild-env options)]
+    (start-autobuild (:build-ids *autobuild-env*))
     (start-nrepl-server figwheel-options *autobuild-env*)
     (if (false? (:repl figwheel-options))
       (when (figwheel-sidecar.auto-builder/autobuild-ids *autobuild-env*)
