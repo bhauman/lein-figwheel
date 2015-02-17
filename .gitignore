@@ -30,3 +30,4 @@ pom.xml.asc
 config.ru
 
 *-init.clj
+sidecar/figwheel_server.log
