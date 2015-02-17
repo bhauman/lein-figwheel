@@ -125,9 +125,9 @@
 
 (defn fix-build-options [build-options]
   (->> build-options
-       (apply-to-key normalize-dir :output-dir)
-       (apply-to-key name :main)
-       (apply-to-key name :id)))
+    (apply-to-key normalize-dir :output-dir)
+    (apply-to-key name :main)
+    (apply-to-key name :id)))
 
 (defn fix-build [opts]
   (update-in opts [(if (:build-options opts) :build-options :compiler)] fix-build-options))
