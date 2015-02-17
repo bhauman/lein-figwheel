@@ -26,8 +26,6 @@
         #_(clj-stacktrace.repl/pst+ e)))))
 
 (defn notify-on-complete [{:keys [build-options parsed-notify-command]}]
-  (println "Build options - after build")
-  (prn build-options)  
   (let [{:keys [output-to]} build-options]
     (notify-cljs
      parsed-notify-command
@@ -61,8 +59,14 @@
                                                           (warn-handler build))]
       (builder build))))
 
+(defn default-build-options [builder default-options]
+  (fn [build]
+    (builder
+     (update-in build [:build-options] (partial merge default-options)))))
+
 (defn builder [figwheel-server]
   (-> cbuild/build-source-paths*
+    (default-build-options {:recompile-dependents false})
     (warning
      (fn [build]
        (auto/warning-message-handler
