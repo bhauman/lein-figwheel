@@ -12,6 +12,7 @@
 (fw/start {
            :websocket-url "ws://localhost:3449/figwheel-ws"
            :build-id "example"
+           ;; :autoload false
            ;; :debug true
            :on-jsload (fn []
 
@@ -20,4 +21,3 @@
                         ;; (example.cube/stop-and-start-ex3)
                         )
            })
-
