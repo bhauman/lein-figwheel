@@ -5,6 +5,8 @@ example/resources/public/js/example.js
 example/resources/public/js/prod
 example/figwheel_server_log.txt
 example/figwheel_server.log
+example/node_modules
+example/server_out
 example/target
 support/target
 sidecar/target
