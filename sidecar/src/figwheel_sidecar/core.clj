@@ -306,7 +306,7 @@
     :else
     (let [changed-ns-syms       (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
           dependants            (set (mapcat
-                                      transitive-dependents
+                                      *transitive-dep-fn*
                                       changed-ns-syms))
           additional-dependents (difference dependants changed-ns-syms)
           additional-dependents (mark-changed-ns state additional-dependents)
