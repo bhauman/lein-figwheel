@@ -77,6 +77,8 @@
     (callback (try
                 (js/require path)
                 (catch js/Error e
+                  (utils/log :error (str  "Figwheel: Error loading file " path))
+                  (utils/log :error (.-stack e))
                   false)))))
 
 (defmethod reload-base :html [request-url callback]
