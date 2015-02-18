@@ -7,5 +7,4 @@
   (let [todos (ex/add-todo {:content "buy house"} [{:content "hi"}])]
     (is (= (count todos) 2))
     (is (= (:content (last todos))
-           "buy house"))
-    (is (:temp-id (last todos)))))
+           "buy house"))))

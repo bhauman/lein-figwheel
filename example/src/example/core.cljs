@@ -1,9 +1,10 @@
-(ns example.core
+(ns ^:figwheel-always example.core
   (:require
    [sablono.core :as sab :include-macros true]
    [om.core :as om]
    [om.dom :as dom]
-   [ankha.core :as ankha]))
+   [ankha.core :as ankha]
+   [example.style :as style]))
 
 (enable-console-print!)
 
@@ -24,21 +25,55 @@
             :content "buy car"}]
          :form-todo {} }))
 
+(defn todos* []
+  (om/ref-cursor (:todos (om/root-cursor app-state))))
+
 ;; transactions
 
 (defn add-todo [form-todo todos]
   (conj todos
         (assoc form-todo
-               :temp-id (name (gensym "temp-")))))
+               :id
+               (name (gensym "temp-")))))
 
-(defn todo [{:keys [id content] :as huh}]
+(defn update-todo [id data todos]
+  (mapv
+   (fn [td]
+     (if (= (:id td) id)
+       (merge td data)
+       td))
+   todos))
+
+(defn delete-todo [id todos]
+  (vec (filter #(not= (:id %) id) todos)))
+
+(defn update-todo! [todos id data]
+  (om/transact! todos [] (partial update-todo id data)
+                :update-todo))
+
+(defn delete-todo! [todos id]
+  (om/transact! todos [] (partial delete-todo id) :delete-todo))
+
+(defn todo [{:keys [id content completed] :as huh} owner]
   (om/component
-   (sab/html [:li
-              [:div content]])))
+   (let [todos (om/observe owner (todos*))]
+     (sab/html [:li 
+                [:div 
+                 (if completed
+                   [:a {:href "#"
+                        :style style/done-button
+                        :onClick (prevent #(delete-todo! todos id))}
+                    "delete"]
+                   [:a {:href "#"
+                        :style style/done-button
+                        :onClick (prevent #(update-todo! todos id {:completed true}))}
+                    "done"])
+                 [:span {:style (if completed style/completed-todo {})}
+                  content]]]))))
 
 (defn todo-list [todos owner]
   (om/component
-   (sab/html [:ul (om/build-all todo todos)])))
+   (sab/html [:ul {:style style/todo-list} (om/build-all todo todos)])))
 
 (defn todo-form [data owner]
   (om/component
@@ -65,11 +100,18 @@
 
 (defn widget [data owner]
   (om/component
-   (sab/html [:div
-              [:h1 "Todos"]
-              (om/build todo-list (:todos data))
-              (om/build todo-form data)
-              (inspect-data data)])))
+   (let [todos-parts (group-by :completed (:todos data))
+         todos       (get todos-parts nil)
+         completed-todos (get todos-parts true)]
+     (sab/html [:div
+                [:h1 "Todos"]
+                (om/build todo-form data)
+                (om/build todo-list todos)
+                (when (not-empty completed-todos)
+                  (sab/html
+                   [:div [:h4 "Completed"]
+                    (om/build todo-list completed-todos)]))
+                (inspect-data data)]))))
 
 (om/root widget app-state {:target (.getElementById js/document "app")
                            :tx-listen (fn [x _]
