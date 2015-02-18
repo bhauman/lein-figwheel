@@ -275,9 +275,10 @@
   (cond
     (nil? cljs.env/*compiler*) changed-ns-syms'
     (false? (:recompile-dependents state))
-    (concat changed-ns-syms' (find-figwheel-always))
+    (union (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms')
+           (find-figwheel-always))
     :else
-    (let [changed-ns-syms       (set (map (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
+    (let [changed-ns-syms       (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
           dependants            (set (mapcat
                                       transitive-dependents
                                       changed-ns-syms))
