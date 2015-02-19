@@ -300,8 +300,8 @@
     (nil? cljs.env/*compiler*) changed-ns-syms'
     (false? (:recompile-dependents state))
     (topo-sort
-     (reverse (union (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms')
-                     (find-figwheel-always))))
+     (union (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms')
+            (find-figwheel-always)))
 
     :else
     (let [changed-ns-syms       (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
@@ -479,3 +479,4 @@
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
+
