@@ -3,12 +3,9 @@
    [figwheel-sidecar.repl :as fr]
    [figwheel-sidecar.config :as fc]))
 
-;; this is intended to help you boot figwheel ontop of an nREPL
-;; requires that you have piggeiback nrepl middleware installed
-;; Currently having problems with the foreign deps resolution.
-;; See::
-;; http://dev.clojure.org/jira/browse/CLJS-1036
 (defn start-figwheel!
+  "If you aren't connected to an env where fighweel is running already.
+  You this method will start the figwheel server with the passed build info."
   [{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
   (if-not fr/*autobuild-env*
     (let [env (fr/create-autobuild-env
@@ -36,10 +33,8 @@
                              :output-dir "resources/public/js/out"
                              :source-map true
                              :source-map-timestamp true
-                             :recompile-dependents false
                              :cache-analysis true
                              :optimizations :none}}]})
-
   )
 
 (defn build-once
