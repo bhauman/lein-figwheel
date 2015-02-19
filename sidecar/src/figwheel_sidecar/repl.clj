@@ -35,6 +35,16 @@
 
 (def ^:dynamic *autobuild-env* false)
 
+;; slow but works
+;; TODO simplify in the future
+(defn resolve-repl-println []
+  (let [opts (resolve 'cljs.repl/*repl-opts*)]
+    (or (and opts (:print @opts))
+        println)))
+
+(defn repl-println [& args]
+  (apply (resolve-repl-println) args))
+
 (defn at-start-line->canonical-stack-line [line]
   (let [[_ function file-part] (re-matches #"\s*at\s*(\S*)\s*\((.*)\)" line)]
     (str function "@" file-part)))
@@ -111,8 +121,9 @@
         (recur)))))
 
 (defn add-repl-print-callback! [{:keys [browser-callbacks]}]
-  (swap! browser-callbacks assoc "figwheel-repl-print"
-         (fn [args] (apply println args))))
+  (let [pr-fn (resolve-repl-println)] 
+    (swap! browser-callbacks assoc "figwheel-repl-print"
+           (fn [args] (apply pr-fn args)))))
 
 (defrecord FigwheelEnv [figwheel-server]
   cljs.repl/IJavaScriptEnv
@@ -133,7 +144,7 @@
   (-print-stacktrace [repl-env stacktrace error build-options]
     (doseq [{:keys [function file url line column]}
               (cljs.repl/mapped-stacktrace stacktrace build-options)]
-      (println "\t" (str function " (" (str (or url file)) ":" line ":" column ")")))))
+      (repl-println "\t" (str function " (" (str (or url file)) ":" line ":" column ")")))))
 
 (defn repl-env
   ([figwheel-server {:keys [id build-options] :as build}]
@@ -189,7 +200,7 @@
    (doc-help repl-env env form nil))
   ([repl-env env [_ sym :as form] opts]
    (if (not (symbol? sym))
-     (print "Must provide bare var to get documentation i.e. (doc clojure.string/join)")
+     (repl-println "Must provide bare var to get documentation i.e. (doc clojure.string/join)")
      (cljs.repl/evaluate-form repl-env
                               (assoc env :ns (ana/get-namespace ana/*cljs-ns*))
                               "<cljs repl>"
@@ -200,7 +211,7 @@
 
 (defn validate-build-ids [ids all-builds]
   (let [bs (set (keep :id all-builds))]
-    (vec (keep #(if (bs %) % (println "No such build id:" %)) ids))))
+    (vec (keep #(if (bs %) % (repl-println "No such build id:" %)) ids))))
 
 (defn get-ids [ids focus-ids all-builds]
   (or (and (empty? ids) focus-ids)
@@ -208,7 +219,7 @@
 
 (defn display-focus-ids [ids]
   (when (not-empty ids)
-    (println "Focusing on build ids:" (string/join ", " ids))))
+    (repl-println "Focusing on build ids:" (string/join ", " ids))))
 
 (defn builder-running? [state-atom]
   (not (nil? (:autobuilder @state-atom))))
@@ -236,14 +247,14 @@
                                (:all-builds *autobuild-env*))]
     (display-focus-ids (map :id builds))
     (mapv cbuild/clean-build (map :build-options builds))
-    (println "Deleting ClojureScript compilation target files.")))
+    (repl-println "Deleting ClojureScript compilation target files.")))
 
 (defn run-autobuilder-helper [build-ids]
   (let [{:keys [all-builds figwheel-server state-atom logfile-path output-writer error-writer]} *autobuild-env*]
     (if-let [errors (not-empty (autobuild/check-autobuild-config all-builds build-ids figwheel-server))]
       (do
         (display-focus-ids build-ids)
-        (mapv println errors))
+        (mapv repl-println errors))
       (when-not (builder-running? state-atom)
         (build-once build-ids)
         
@@ -257,8 +268,8 @@
                         :build-ids build-ids
                         :figwheel-server figwheel-server }))]
           (if logfile-path
-            (println "Started Figwheel autobuilder see:" logfile-path)
-            (println "Started Figwheel autobuilder"))
+            (repl-println "Started Figwheel autobuilder see:" logfile-path)
+            (repl-println "Started Figwheel autobuilder"))
           (reset! state-atom { :autobuilder abuild
                                :focus-ids build-ids}))))))
 
@@ -270,8 +281,8 @@
        (do
          (auto/stop-autobuild! (:autobuilder @state-atom))
          (swap! state-atom assoc :autobuilder nil)
-         (println "Stopped Figwheel autobuild"))
-       (println "Autobuild not running.")))))
+         (repl-println "Stopped Figwheel autobuild"))
+       (repl-println "Autobuild not running.")))))
 
 (defn start-autobuild [ids]
   (let [{:keys [state-atom all-builds]} *autobuild-env*
@@ -282,7 +293,7 @@
                                                 all-builds))]
         (run-autobuilder-helper build-ids')
         nil)
-      (println "Autobuilder already running."))))
+      (repl-println "Autobuilder already running."))))
 
 (defn switch-to-build [ids]
   (let [ids (map name ids)]
@@ -302,16 +313,16 @@
   ([] (status nil))
   ([_]
    (let [connection-count (get-in *autobuild-env* [:figwheel-server :connection-count])]
-     (println "Figwheel System Status")
-     (println "----------------------------------------------------")
-     (println "Autobuilder running? :" (builder-running? (:state-atom *autobuild-env*)))
+     (repl-println "Figwheel System Status")
+     (repl-println "----------------------------------------------------")
+     (repl-println "Autobuilder running? :" (builder-running? (:state-atom *autobuild-env*)))
      (display-focus-ids (:focus-ids @(:state-atom *autobuild-env*)))
-     (println "Client Connections")
+     (repl-println "Client Connections")
      (when connection-count
        (doseq [[id v] @connection-count]
-         (println "\t" (str (if (nil? id) "any-build" id) ":")
+         (repl-println "\t" (str (if (nil? id) "any-build" id) ":")
                   v (str "connection" (if (= 1 v) "" "s")))))
-     (println "----------------------------------------------------"))))
+     (repl-println "----------------------------------------------------"))))
 
 ;; end API methods
 
