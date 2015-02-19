@@ -32,10 +32,11 @@
 ;; transactions
 
 (defn add-todo [form-todo todos]
-  (conj todos
-        (assoc form-todo
-               :id (name (gensym "temp-"))
-               :created-at (js/Date.))))
+  (vec
+   (conj todos
+         (assoc form-todo
+                :id (name (gensym "temp-"))
+                :created-at (js/Date.)))))
 
 (defn update-todo [id data todos]
   (mapv
