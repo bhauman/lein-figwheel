@@ -14,7 +14,7 @@
            :build-id "example"
            ;; if you want to disable autoloading
            ;; :autoload false
-           ;; :debug true
+           :debug true
            :on-jsload (fn []
                         ;; it can be helpful to touch the state on 
                         ;; reload to cause a re-render

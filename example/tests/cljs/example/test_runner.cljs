@@ -3,4 +3,5 @@
    [example.core-test]
    [cljs.test :refer-macros [run-tests]]))
 
-(cljs.test/run-tests 'example.core-test)
+#_(cljs.test/run-tests 'example.core-test)
+

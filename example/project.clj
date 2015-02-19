@@ -5,16 +5,27 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2843"]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [sablono "0.3.4"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
                  [figwheel "0.2.5-SNAPSHOT"]
+                 [datascript "0.9.0"]
+                 [cljs-http "0.1.26"]
                  ;; for development purposes
                  [figwheel-sidecar "0.2.5-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.4"]
-            [lein-figwheel "0.2.5-SNAPSHOT"]]
+            [lein-figwheel "0.2.5-SNAPSHOT"]
+            [lein-npm "0.4.0"]]
+
+  :node-dependencies [[source-map-support "0.2.8"]
+                      [express "4.10.7"]
+                      [serve-static "1.9.1"]
+                      [body-parser "1.12.0"]
+                      [type-is "1.6.0"]
+                      [ws "0.7.1"]]
 
   ;; this is used for testing an external server
   :ring { :handler example.server/static-server }
@@ -24,7 +35,9 @@
   ;; :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
   
   :clean-targets ^{:protect false} ["resources/public/js/out"
-                                    "resources/public/js/example.js"]
+                                    "resources/public/js/example.js"
+                                    "server_out"
+                                    "server_out/todo_server.js"]
 
   :resource-paths ["resources" "other_resources"]
 
@@ -40,6 +53,15 @@
                                     ;; :recompile-dependents true
                                     :cache-analysis true
                                     :optimizations :none}}
+                       {:id "server"
+                        :source-paths ["server_src" "../support/src"]
+                        :compiler {
+                                   :output-to "server_out/todo_server.js"
+                                   :output-dir "server_out"
+                                   :target :nodejs
+                                   :optimizations :none
+                                   :cache-analysis true                                   
+                                   :source-map true}}
                        { :id "example-admin"
                          :source-paths ["other_src" ]
                          :compiler { :output-to "resources/public/js/compiled/example_admin.js"
