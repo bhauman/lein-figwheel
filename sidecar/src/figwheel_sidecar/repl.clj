@@ -121,7 +121,7 @@
         (recur)))))
 
 (defn add-repl-print-callback! [{:keys [browser-callbacks]}]
-  (let [pr-fn (resolve-repl-println)] 
+  (let [pr-fn (resolve-repl-println)]
     (swap! browser-callbacks assoc "figwheel-repl-print"
            (fn [args] (apply pr-fn args)))))
 
@@ -362,8 +362,10 @@
       (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") > "))
       (flush)
       (let [res (read-line)]
-        (if (choices res)
-          res
+        (cond
+          (nil? res) false
+          (choices res) res
+          :else
           (do
             (println (str "Error: " res " is not a valid choice"))
             (recur)))))))
@@ -413,9 +415,11 @@
      (loop [build start-build]
        (cljs-repl (:id build))
        (let [chosen-build-id (get-build-choice
-                              (keep :id (filter config/optimizations-none? all-builds)))
-             chosen-build (first (filter #(= (name (:id %)) chosen-build-id) all-builds))]
-         (recur chosen-build))))))
+                              (keep :id (filter config/optimizations-none? all-builds)))]
+         (if (false? chosen-build-id)
+           false ;; quit
+           (let [chosen-build (first (filter #(= (name (:id %)) chosen-build-id) all-builds))]
+             (recur chosen-build))))))))
 
 (defn start-nrepl-server [figwheel-options autobuild-options]
   (when (:nrepl-port figwheel-options)
