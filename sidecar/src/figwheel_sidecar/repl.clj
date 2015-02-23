@@ -342,16 +342,16 @@
 
 (defn repl-function-docs  []
   "Figwheel Controls:
-          (stop-autobuild)           ;; stops Figwheel autobuilder
-          (start-autobuild [id ...]) ;; starts autobuilder focused on optional ids
-          (switch-to-build id ...)   ;; switches autobuilder to different build
-          (reset-autobuild)          ;; stops, cleans, and starts autobuilder
-          (build-once [id ...])      ;; builds source once time
-          (clean-builds [id ..])      ;; deletes compiled cljs target files
-          (fig-status)               ;; displays current state of system
+          (stop-autobuild)                ;; stops Figwheel autobuilder
+          (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
+          (switch-to-build id ...)        ;; switches autobuilder to different build
+          (reset-autobuild)               ;; stops, cleans, and starts autobuilder
+          (build-once [id ...])           ;; builds source one time
+          (clean-builds [id ..])          ;; deletes compiled cljs target files
+          (fig-status)                    ;; displays current state of system
           (add-dep [org.om/om \"0.8.1\"]) ;; add a dependency. very experimental
   Switch REPL build focus:
-          :cljs/quit                 ;; allows you to switch REPL to another build
+          :cljs/quit                      ;; allows you to switch REPL to another build
     Docs: (doc function-name-here)
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3, *e holds last exception object")
