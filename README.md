@@ -9,12 +9,11 @@ See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interac
 [lein-figwheel "0.2.1-SNAPSHOT"](https://clojars.org/lein-figwheel)
 supports clojurescript >= 0.0-2202
 
-Current version: [lein-figwheel "0.2.3-SNAPSHOT"](https://clojars.org/lein-figwheel) requires
-clojurescript >= 0.0-2665, and will work even better with the comming
-releases.
+Current version: [lein-figwheel "0.2.5-SNAPSHOT"](https://clojars.org/lein-figwheel) requires
+clojurescript >= 0.0-2843
 
-lein-figwheel "0.2.3-SNAPSHOT" has a built-in ClojureScript REPL that is attached to
-your running application. All the instructions below are for "0.2.3-SNAPSHOT"
+lein-figwheel "0.2.5-SNAPSHOT" has a built-in ClojureScript REPL that is attached to
+your running application. All the instructions below are for "0.2.5-SNAPSHOT"
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
@@ -119,7 +118,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojurescript "0.0-2665"] ;; has to be at least 2665 or greater
-[figwheel "0.2.3-SNAPSHOT"]            ;; needed for figwheel client
+[figwheel "0.2.5-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -127,7 +126,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.4"] ;; 1.0.4 is a requirement
-[lein-figwheel "0.2.3-SNAPSHOT"]
+[lein-figwheel "0.2.5-SNAPSHOT"]
 ```
 
 #### Configure lein cljsbuild
@@ -218,7 +217,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.2.3-SNAPSHOT"]
+[figwheel "0.2.5-SNAPSHOT"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example
