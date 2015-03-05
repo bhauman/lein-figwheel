@@ -117,7 +117,7 @@ figwheel leinigen template.
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojurescript "0.0-2665"] ;; has to be at least 2665 or greater
+[org.clojure/clojurescript "0.0-2843"] ;; has to be at least 2843 or greater
 [figwheel "0.2.5-SNAPSHOT"]            ;; needed for figwheel client
 ```
 
