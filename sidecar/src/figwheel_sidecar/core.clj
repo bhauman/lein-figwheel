@@ -92,6 +92,8 @@
                (fn [_ _ o n]
                  (let [msg (first n)]
                    (when (and msg (or
+                                   ;; broadcast all css messages
+                                   (= :css-files-changed (:msg-name msg))
                                    ;; if its nil you get it all
                                    (nil? desired-build-id)
                                    ;; otherwise you only get messages for your build id
