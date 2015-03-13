@@ -123,9 +123,20 @@
   [f k opts]
   (if (k opts) (update-in opts [k] f) opts))
 
+(defn namify-module-entries [module-map]
+  (if (map? module-map)
+    (into {} (map (fn [[k v]]
+                    (if (and (map? v)
+                             (get v :entries))
+                      [k (update-in v [:entries] #(set (map name %)))]
+                      [k v]))
+                  module-map))
+    module-map))
+
 (defn fix-build-options [build-options]
   (->> build-options
     (apply-to-key normalize-dir :output-dir)
+    (apply-to-key namify-module-entries :modules)
     (apply-to-key name :main)
     (apply-to-key name :id)))
 
