@@ -1,11 +1,11 @@
 ## 0.2.5
 
 * **First non snapshot release**
-* ^:figwheel-always was causing a double file reload when editing the marked ns
+* `^:figwheel-always` was causing a double file reload when editing the marked ns
 * minor fixes to be compatible with ClojureScript REPL changes
 * CSS changes broadast to all named builds, this should work fine as long as
   CSS files for different builds are named distinctly
-* fixed problem where using unquoted namespaces in :modules configurations was
+* fixed problem where using unquoted namespaces in `:modules` configurations was
   preventing figwheel from starting
 
 ## 0.2.5-SNAPSHOT
