@@ -85,8 +85,7 @@
    {:builds  builds
     :builder (builder figwheel-server)
     :each-iteration-hook (fn [_ build]
-                           (fig/check-for-css-changes
-                            (merge-build-into-server-state figwheel-server build)))}))
+                           (fig/check-for-css-changes figwheel-server))}))
 
 (defn check-autobuild-config [all-builds build-ids figwheel-server]
   (let [builds (config/narrow-builds* all-builds build-ids)]
