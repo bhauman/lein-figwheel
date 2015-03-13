@@ -6,8 +6,8 @@ Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
-Current version: [![Clojars Project](http://clojars.org/lein-figwheel/latest-version.svg)](http://clojars.org/lein-figwheel)
-requires clojurescript >= 0.0-2843
+####Current version:
+[![Clojars Project](http://clojars.org/lein-figwheel/latest-version.svg)](http://clojars.org/lein-figwheel) 
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
