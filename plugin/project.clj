@@ -12,6 +12,7 @@
       :plugins [[lein-cljsbuild "1.0.4"]]}}
   
   :scm { :name "git"
-         :url "https://github.com/bhauman/lein-figwheel"}
+        :url "https://github.com/bhauman/lein-figwheel"
+        :dir "plugin"}
 
   :eval-in-leiningen true)
