@@ -431,7 +431,9 @@
 (defn create-autobuild-env [{:keys [figwheel-options all-builds build-ids]}]
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")
         _ (config/mkdirs logfile-path)
-        log-writer        (io/writer logfile-path :append true)
+        log-writer       (if (false? (:repl figwheel-options))
+                           *out*
+                           (io/writer logfile-path :append true)) 
         state-atom        (atom {:autobuilder nil
                                  :focus-ids  build-ids})
         all-builds        (mapv auto/prep-build all-builds)
@@ -449,6 +451,5 @@
     (start-autobuild (:build-ids *autobuild-env*))
     (start-nrepl-server figwheel-options *autobuild-env*)
     (if (false? (:repl figwheel-options))
-      (when (figwheel-sidecar.auto-builder/autobuild-ids *autobuild-env*)
-        (loop [] (Thread/sleep 30000) (recur)))
+      (loop [] (Thread/sleep 30000) (recur))
       (repl-switching-loop))))
