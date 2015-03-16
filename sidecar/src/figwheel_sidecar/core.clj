@@ -289,10 +289,11 @@
   (vec (sort topo-compare ns-syms)))
 
 (defn mark-changed-ns [state ns-syms]
-  (mapv (fn [nm]
-          (vary-meta nm assoc :file-changed-on-disk
-                     (if (target-file-changed? state nm) true false)))
-        ns-syms))
+  (set
+   (mapv (fn [nm]
+           (vary-meta nm assoc :file-changed-on-disk
+                      (if (target-file-changed? state nm) true false)))
+         ns-syms)))
 
 (defn find-figwheel-always []
   (set (filter (fn [n] (-> n meta :figwheel-always)) (ana-api/all-ns))))
@@ -302,8 +303,8 @@
     (nil? cljs.env/*compiler*) changed-ns-syms'
     (false? (:recompile-dependents state))
     (topo-sort
-     (union (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms')
-            (find-figwheel-always)))
+     (union (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
+            (set (find-figwheel-always))))
 
     :else
     (let [changed-ns-syms       (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
