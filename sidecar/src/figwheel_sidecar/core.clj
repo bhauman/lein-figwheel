@@ -125,19 +125,23 @@
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
   [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
-  (-> (routes
-       (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-       (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
-       (route/resources "/" {:root http-server-root})
-       (or ring-handler (fn [r] false))
-       (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-       (route/not-found "<h1>Page not found</h1>"))
-      ;; adding cors to support @font-face which has a strange cors error
-      ;; super promiscuous please don't uses figwheel as a production server :)
-      (cors/wrap-cors
-       :access-control-allow-origin #".*"
-       :access-control-allow-methods [:head :options :get :put :post :delete])
-      (run-server {:port server-port})))
+  (try
+    (-> (routes
+         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
+         (route/resources "/" {:root http-server-root})
+         (or ring-handler (fn [r] false))
+         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
+         (route/not-found "<h1>Page not found</h1>"))
+        ;; adding cors to support @font-face which has a strange cors error
+        ;; super promiscuous please don't uses figwheel as a production server :)
+        (cors/wrap-cors
+         :access-control-allow-origin #".*"
+         :access-control-allow-methods [:head :options :get :put :post :delete])
+        (run-server {:port server-port}))
+    (catch java.net.BindException e
+      (println "Port" server-port "is already being used. Are you running another Figwheel instace? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
+      (System/exit 0))))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
