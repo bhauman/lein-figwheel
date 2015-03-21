@@ -140,7 +140,7 @@
          :access-control-allow-methods [:head :options :get :put :post :delete])
         (run-server {:port server-port}))
     (catch java.net.BindException e
-      (println "Port" server-port "is already being used. Are you running another Figwheel instace? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
+      (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
       (System/exit 0))))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
