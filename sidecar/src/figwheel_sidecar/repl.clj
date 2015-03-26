@@ -426,7 +426,8 @@
     (nrepl-serv/start-server
      :port (:nrepl-port figwheel-options)
      :handler (apply nrepl-serv/default-handler
-                     (conj (map resolve cider/cider-middleware) #'pback/wrap-cljs-repl)))))
+                     (conj (map resolve cider/cider-middleware) #'pback/wrap-cljs-repl)))
+    (spit (doto (io/file ".nrepl-port") .deleteOnExit) (:nrepl-port figwheel-options))))
 
 (defn create-autobuild-env [{:keys [figwheel-options all-builds build-ids]}]
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")
