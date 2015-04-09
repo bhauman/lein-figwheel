@@ -32,7 +32,7 @@
       [(subs base 0 i) (subs base i)]
       [base nil])))
 
-;; assumes leiningen 
+;; assumes leiningen
 (defn project-unique-id []
   (let [f (io/file "./project.clj")]
     (or (when (.exists f)
@@ -76,7 +76,7 @@
 (defn message* [opts msg-name data]
   (merge data
          (add-build-id opts
-                       { :msg-name msg-name 
+                       { :msg-name msg-name
                          :project-id (:unique-id opts)})))
 
 (defn update-connection-count [connection-count build-id f]
@@ -94,6 +94,8 @@
                    (when (and msg (or
                                    ;; broadcast all css messages
                                    (= :css-files-changed (:msg-name msg))
+                                   ;; broadcast all foreign messages
+                                   (= :foreign-files-changed (:msg-name msg))
                                    ;; if its nil you get it all
                                    (nil? desired-build-id)
                                    ;; otherwise you only get messages for your build id
@@ -101,7 +103,7 @@
                      (<!! (timeout compile-wait-time))
                      (when (open? wschannel)
                        (send! wschannel (prn-str msg)))))))
-    
+
     (on-close wschannel (fn [status]
                           (update-connection-count connection-count desired-build-id dec)
                           (remove-watch file-change-atom watch-key)
@@ -128,7 +130,7 @@
   (try
     (-> (routes
          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
+         (GET "/figwheel-ws" {params :params} (reload-handler server-state))
          (route/resources "/" {:root http-server-root})
          (or ring-handler (fn [r] false))
          (GET "/" [] (resource-response "index.html" {:root http-server-root}))
@@ -204,7 +206,7 @@
                  (:cljs changed-source-file-paths))))))
 
 (let [root (norm-path (.getCanonicalPath (io/file ".")))]
-  (defn remove-root-path 
+  (defn remove-root-path
     "relativize to the local root just in case we have an absolute path"
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
@@ -212,7 +214,7 @@
 
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
-  [{:keys [file-md5-atom]} filepath]  
+  [{:keys [file-md5-atom]} filepath]
   (let [file (as-file filepath)]
     (when (.exists file)
       (let [contents (slurp file)]
@@ -410,10 +412,48 @@
   (when (:css-dirs state)
     (let [changed-css-files (get-changed-css-files state)]
       (when (not-empty changed-css-files)
-        (send-css-files state (map (partial make-css-file state) 
+        (send-css-files state (map (partial make-css-file state)
                                    changed-css-files))))))
 
-;; end css changes
+
+;; end css, start foreign-libs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn compile-foreign-filewatcher [{:keys [foreign-dirs] :as server-state}]
+  (compile-watcher (-> foreign-dirs
+                       (watcher*)
+                       (file-filter ignore-dotfiles)
+                       (file-filter (extensions :js)))))
+
+(defn get-changed-foreign-files [{:keys [last-pass foreign-last-pass] :as state}]
+  ;; this uses watchtower change detection
+  (binding [wt/*last-pass* foreign-last-pass]
+    (let [{:keys [updated?]} (compile-foreign-filewatcher state)]
+      (map (fn [x] (.getPath x)) (updated?)))))
+
+(defn make-foreign-file
+  "Overwrites the foreign file copy in /out with the new changed version, allowing browser refresh.
+    --Once changed, we primarily load from foreign-dir rather than /out.
+   Then, set the file's :provide to the msg's :namespace so client can see it in *loaded-libs*."
+  [state path]
+  (let [changed (slurp path)]
+    (spit (str (:output-dir state) "/" (last (string/split path #"\\"))) changed))
+  {:file (remove-root-path path)
+    ;; for some reason watchtower returns path with backslashes instead of forward slashes
+    :namespace (first (:provides (first (filter #(= (string/replace path #"\\" "/") (:file %))  (:foreign-libs state)))))
+    :root (:http-server-root state)
+    :type :foreign})
+
+(defn send-foreign-files [st files]
+  (send-message! st :foreign-files-changed { :files files})
+  (doseq [f files]
+    (println "sending changed foreign file:" (:file f))))
+
+(defn check-for-foreign-changes [state]
+  (when (:foreign-libs state)
+    (let [changed-foreign-files (get-changed-foreign-files state)]
+      (when (not-empty changed-foreign-files)
+        (send-foreign-files state (map (partial make-foreign-file state) changed-foreign-files))))))
+
 
 ;; compile error occured
 
@@ -437,15 +477,15 @@
   (:file-md5-atom state))
 
 (defn create-initial-state [{:keys [root name version resource-paths
-                                    css-dirs ring-handler http-server-root
+                                    css-dirs foreign-dirs foreign-libs ring-handler http-server-root
                                     server-port output-dir output-to
                                     unique-id
                                     server-logfile
                                     repl
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
-  { :unique-id (or unique-id (project-unique-id)) 
-     
+  { :unique-id (or unique-id (project-unique-id))
+
     :resource-paths (or
                      (and resource-paths
                           (empty? resource-paths)
@@ -453,6 +493,8 @@
                      resource-paths
                      ["resources"])
     :css-dirs css-dirs
+    :foreign-dirs foreign-dirs
+    :foreign-libs foreign-libs
     :http-server-root (or http-server-root "public")
     :output-dir output-dir
     :output-to output-to
@@ -460,7 +502,8 @@
     :server-port (or server-port 3449)
     :server-logfile server-logfile
     :repl repl
-    :css-last-pass (atom (System/currentTimeMillis))   
+    :css-last-pass (atom (System/currentTimeMillis))
+    :foreign-last-pass (atom (System/currentTimeMillis))
     :compile-wait-time 10
     :file-md5-atom (initial-check-sums {:output-to output-to
                                         :output-dir output-dir

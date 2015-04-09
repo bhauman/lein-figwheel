@@ -26,9 +26,9 @@
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
   (let [project' (-> project
-                     (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version]) 
+                     (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version])
                      (subproject/make-subproject crossover-path builds)
-                     #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
+                     #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))]
     (leval/eval-in-project project'
      `(try
         (do
@@ -72,7 +72,9 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
                                     builds)))
         figwheel-options (fc/prep-options
                           (merge
-                           { :http-server-root "public" }
+                           {:http-server-root "public"
+                            :foreign-libs (:foreign-libs (:compiler (first (filter #(= (:id %) (or (first build-ids) "dev")) builds)))) ;; assumes "dev" build if no arg, could be problem
+                            :output-dir (:output-dir (:compiler (first builds)))}
                            (dissoc (:figwheel project) :builds)
                            (select-keys project [:resource-paths])))
         errors           (fc/check-config figwheel-options

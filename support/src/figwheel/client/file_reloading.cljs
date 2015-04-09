@@ -52,7 +52,7 @@
                      (aget (.. js/goog -dependencies_ -visited) (aget gntp name)))
                    (js-keys gntp))))))
   (set! (.-require js/goog)
-        (fn [name reload]           
+        (fn [name reload]
           (when (or (not (contains? *loaded-libs* name)) reload)
             (set! *loaded-libs* (conj (or *loaded-libs* #{}) name))
             (reload-file* (resolve-ns name)))))
@@ -81,31 +81,48 @@
                   (utils/log :error (.-stack e))
                   false)))))
 
+
 (defmethod reload-base :html [request-url callback]
-  (dev-assert (string? request-url) (not (nil? callback)))  
+  (dev-assert (string? request-url) (not (nil? callback)))
   (let [deferred (loader/load (add-cache-buster request-url)
                               #js { :cleanupWhenDone true })]
     (.addCallback deferred #(apply callback [true]))
     (.addErrback deferred #(apply callback [false]))))
 
+
+(defn reload-foreign [request-url callback]
+  (dev-assert (string? request-url) (not (nil? callback)))
+  (let [deferred (loader/load request-url #js { :cleanupWhenDone true })] ;; add-cache-buster???
+    (.addCallback deferred #(apply callback [true]))
+    (.addErrback deferred #(apply callback [false]))))
+
+
 (defn reload-file*
   ([request-url callback] (reload-base request-url callback))
   ([request-url] (reload-file* request-url identity)))
 
+
 (defn reload-file [{:keys [request-url] :as file-msg} callback]
-  (dev-assert (string? request-url)
-              (not (nil? callback))
-              (namespace-file-map? file-msg))
-  (utils/debug-prn (str "FigWheel: Attempting to load " request-url))
-  (reload-file* request-url
-                (fn [success?]
-                  (if success?
-                    (do
-                      (utils/debug-prn (str "FigWheel: Successfullly loaded " request-url))
-                      (apply callback [(assoc file-msg :loaded-file true)]))
-                    (do
-                      (utils/log :error (str  "Figwheel: Error loading file " request-url))
-                      (apply callback [file-msg]))))))
+  (do
+    ;;(.log js/console "%c(reload-file): file-msg: " "color:skyblue" (str file-msg))
+    (dev-assert (string? request-url)
+                (not (nil? callback))
+                (namespace-file-map? file-msg))
+    (utils/debug-prn (str "FigWheel: Attempting to load " request-url))
+
+    (let [callback (fn [success?]
+                     (if success?
+                       (do
+                         (utils/debug-prn (str "FigWheel: Successfullly loaded " request-url))
+                         (apply callback [(assoc file-msg :loaded-file true)]))
+                       (do
+                         (utils/log :error (str  "Figwheel: Error loading file " request-url))
+                         (apply callback [file-msg]))))]
+      (case (:type file-msg)
+        :foreign (reload-foreign request-url callback)
+        :namespace (reload-file* request-url callback)))));what about :default?
+
+
 
 (defn reload-file? [{:keys [namespace meta-data] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
@@ -122,6 +139,8 @@
             (:file-changed-on-disk meta-data)))
       #_(.isProvided_ js/goog (name namespace))))))
 
+
+
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))
   (if (reload-file? file-msg)
@@ -130,6 +149,9 @@
       (utils/debug-prn (str "Figwheel: Not trying to load file " request-url))
       (apply callback [file-msg]))))
 
+
+
+
 (defn reload-js-file [file-msg]
   (let [out (chan)]
     (js/setTimeout #(js-reload file-msg (fn [url]
@@ -137,6 +159,7 @@
                                           (put! out url)
                                           (close! out))) 0)
     out))
+
 
 (defn load-all-js-files
   "Returns a chanel with one collection of loaded filenames on it."
@@ -182,7 +205,7 @@
       (when (not-empty eval-bodies)
         (doseq [eval-body-file eval-bodies]
           (eval-body eval-body-file))))
-    
+
     (let [all-files (filter #(and (:namespace %)
                                   (not (:eval-body %)))
                             files)
@@ -230,10 +253,10 @@
          (.getElementsByTagName js/document "link")))
 
 (defn truncate-url [url]
-  (-> (first (string/split url #"\?")) 
+  (-> (first (string/split url #"\?"))
       (string/replace-first (str (.-protocol js/location) "//") "")
       (string/replace-first ".*://" "")
-      (string/replace-first #"^//" "")         
+      (string/replace-first #"^//" "")
       (string/replace-first #"[^\/]*" "")))
 
 (defn matches-file?
@@ -298,3 +321,21 @@
     (go
       (<! (timeout 100))
       (on-cssload (:files files-msg)))))
+
+(defn get-foreign-url
+  "url-string: assumed to be form like '/resources/public/js/....'
+   root: http-server-root, set in plugin/figwheel, defaults to 'public'
+   |-> returns just 'js/...'"
+  [url-string root]
+  (string/join "/" (rest (drop-while #(not= root %) (string/split url-string "/")))))
+
+(defn reload-foreign-files [{:keys [on-foreignload] :as opts} files-msg]
+  (when (utils/html-env?)
+    (doseq [f (add-request-urls opts (:files files-msg))]
+      (reload-js-file {:namespace (:namespace f)
+                       :request-url (get-foreign-url (:request-url f) (:root f))
+                       :file (:file f)
+                       :type (:type f)}))
+    (go
+      (<! (timeout 100))
+      (on-foreignload (:files files-msg)))))

@@ -7,7 +7,7 @@
    [cljs.analyzer :as ana]
    [cljs.env]
    #_[clj-stacktrace.repl]
-   [clojure.stacktrace :as stack]   
+   [clojure.stacktrace :as stack]
    [clojurescript-build.core :as cbuild]
    [clojurescript-build.auto :as auto]
    [clojure.java.io :as io]
@@ -85,7 +85,9 @@
    {:builds  builds
     :builder (builder figwheel-server)
     :each-iteration-hook (fn [_ build]
-                           (fig/check-for-css-changes figwheel-server))}))
+                           (do
+                             (fig/check-for-foreign-changes figwheel-server)
+                             (fig/check-for-css-changes figwheel-server)))}))
 
 (defn check-autobuild-config [all-builds build-ids figwheel-server]
   (let [builds (config/narrow-builds* all-builds build-ids)]
@@ -109,8 +111,50 @@
                          :build-options build-options}]
                :figwheel-server (fig/start-server figwheel-options)}))
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (comment
-  
+
   (def builds [{ :id "example"
                  :source-paths ["src" "../support/src"]
                  :build-options { :output-to "resources/public/js/compiled/example.js"
@@ -126,17 +170,17 @@
                         builds))
 
   (def figwheel-server (fig/start-server))
-  
+
   (fig/stop-server figwheel-server)
-  
+
   (def bb (autobuild* {:builds env-builds
                        :figwheel-server figwheel-server}))
-  
+
   (auto/stop-autobuild! bb)
 
   (fig-repl/eval-js figwheel-server "1 + 1")
 
   (def build-options (:build-options (first builds)))
-  
+
   #_(cljs.repl/repl (repl-env figwheel-server) )
 )

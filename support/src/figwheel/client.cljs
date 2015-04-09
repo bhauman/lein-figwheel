@@ -3,7 +3,7 @@
    [goog.Uri :as guri]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
-   [figwheel.client.utils :as utils]   
+   [figwheel.client.utils :as utils]
    [figwheel.client.heads-up :as heads-up]
    [figwheel.client.file-reloading :as reloading]
    [clojure.string :as string]
@@ -76,6 +76,9 @@
 (defn css-loaded-state? [msg-names]
   (= :css-files-changed (first msg-names)))
 
+(defn foreign-loaded-state? [msg-names]
+  (= :foreign-files-changed (first msg-names)))
+
 (defn file-reloader-plugin [opts]
   (let [ch (chan)]
     (go-loop []
@@ -87,7 +90,7 @@
                  (cond
                   (reload-file-state? msg-names opts)
                   (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
-                  
+
                   (block-reload-file-state? msg-names opts)
                   (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file)))
                  (recur))))
@@ -151,6 +154,11 @@
     (when (= msg-name :css-files-changed)
       (reloading/reload-css-files opts msg))))
 
+(defn foreign-reloader-plugin [opts]
+  (fn [[{:keys [msg-name] :as msg} & _]]
+    (when (= msg-name :foreign-files-changed)
+      (reloading/reload-foreign-files opts msg))))
+
 (defn compile-fail-warning-plugin [{:keys [on-compile-warning on-compile-fail]}]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (condp = msg-name
@@ -174,21 +182,24 @@
       (do
         (<! (heads-up/clear))
         (<! (heads-up/display-error (format-messages (:exception-data msg)))))
-      
+
       (compile-fail-state? msg-names)
       (<! (heads-up/display-error (format-messages (:exception-data msg))))
-      
+
       (warning-append-state? msg-names)
       (heads-up/append-message (:message msg))
-      
+
       (rewarning-state? msg-names)
       (do
         (<! (heads-up/clear))
         (<! (heads-up/display-warning (:message msg))))
-      
+
       (warning-state? msg-names)
       (<! (heads-up/display-warning (:message msg)))
-      
+
+      (foreign-loaded-state? msg-names)
+      (<! (heads-up/flash-loaded))
+
       (css-loaded-state? msg-names)
       (<! (heads-up/flash-loaded))))))
 
@@ -245,7 +256,12 @@
 
 (defn default-on-cssload [files]
   (utils/log :debug "Figwheel: loaded CSS files")
-  (utils/log :info (pr-str (map :file files)))  
+  (utils/log :info (pr-str (map :file files)))
+  files)
+
+(defn default-on-foreignload [files]
+  (utils/log :debug "Figwheel: loaded foreign js files")
+  (utils/log :info (pr-str (map :file files)))
   files)
 
 (defonce config-defaults
@@ -254,21 +270,22 @@
                        (if (utils/html-env?) js/location.host "localhost:3449")
                        "/figwheel-ws")
    :load-warninged-code false
-   
+
    :on-jsload default-on-jsload
    :before-jsload default-before-load
 
    :url-rewriter false
 
    :on-cssload default-on-cssload
-   
+   :on-foreignload default-on-foreignload
+
    :on-compile-fail default-on-compile-fail
    :on-compile-warning default-on-compile-warning
 
    :autoload true
-   
+
    :debug false
-   
+
    :heads-up-display true
 
    :load-unchanged-files true
@@ -286,6 +303,7 @@
               :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
+              :foreign-reloader-plugin  foreign-reloader-plugin
               :repl-plugin      repl-plugin}
        base  (if (not (.. js/goog inHtmlDocument_)) ;; we are in node?
                (select-keys base [#_:enforce-project-plugin
@@ -321,7 +339,7 @@
                         plugins'
                         (merge (base-plugins system-options) merge-plugins))]
          (set! utils/*print-debug* (:debug opts))
-         #_(enable-repl-print!)         
+         #_(enable-repl-print!)
          (add-plugins plugins system-options)
          (reloading/patch-goog-base)
          (socket/open system-options)))))
