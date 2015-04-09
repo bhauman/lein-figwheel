@@ -7,11 +7,11 @@ Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
 ####Current version:
-[![Clojars Project](http://clojars.org/lein-figwheel/latest-version.svg)](http://clojars.org/lein-figwheel) 
+[![Clojars Project](http://clojars.org/lein-figwheel/latest-version.svg)](http://clojars.org/lein-figwheel)
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
-## Features 
+## Features
 
 #### Live code reloading
 
@@ -36,6 +36,10 @@ handler into the figwheel server.
 #### Live CSS reloading
 
 Figwheel will reload your CSS live as well.
+
+#### Live Foreign JavaScript reloading
+
+Figwheel will reload foreign-libs too...whether these libs are suitable to reloading or not is up to you.
 
 #### Heads up display
 
@@ -132,11 +136,16 @@ Here is an example:
 
 ```clojure
 :cljsbuild {
-  :builds [ { :id "example" 
+  :builds [ { :id "example"
               :source-paths ["src/"]
               :compiler { :output-to "resources/public/js/compiled/example.js"
                           :output-dir "resources/public/js/compiled/out"
                           :externs ["resources/public/js/externs/jquery-1.9.js"]
+
+                          ;; needs :foreign-dirs in fw options, see server config below
+                          :foreign-libs [{:file "resources/public/js/foreign/jquery.js"
+                                          :provides ["jq"]}]
+
                           :optimizations :none
                           :source-map true } } ]
 }
@@ -178,10 +187,19 @@ In your `project.clj` you can add the following configuration parameters:
    :server-port 3449          ;; default
 
    ;; CSS reloading (optional)
-   ;; :css-dirs has no default value 
+   ;; :css-dirs has no default value
    ;; if :css-dirs is set figwheel will detect css file changes and
    ;; send them to the browser
    :css-dirs ["resources/public/css"]
+
+   ;; foreign js reloading (optional)
+   ;; :foreign-dirs has no default value
+   ;; if :foreign-dirs is set figwheel will detect file changes and
+   ;; send them to the browser if required
+   :foreign-dirs ["resources/public/js/foreign"]
+
+
+
 
    ;; Server Ring Handler (optional)
    ;; if you want to embed a ring handler into the figwheel http-kit
@@ -201,9 +219,9 @@ In your `project.clj` you can add the following configuration parameters:
    ;; :repl false
 
    ;; to configure a different figwheel logfile path
-   ;; :server-logfile "tmp/logs/figwheel-logfile.log" 
-   
-} 
+   ;; :server-logfile "tmp/logs/figwheel-logfile.log"
+
+}
 ```
 
 ## Client side usage
@@ -252,7 +270,7 @@ In keeping with the previous examples you would put this into your
   :on-jsload (fn [] (print "reloaded"))
 
   ;; The heads up display is enabled by default
-  ;; to disable it: 
+  ;; to disable it:
   ;; :heads-up-display false
 
   ;; when the compiler emits warnings figwheel
@@ -268,7 +286,7 @@ In keeping with the previous examples you would put this into your
 ```
 
 The call to `start` is idempotent and can be called many
-times safely. 
+times safely.
 
 Whole files will be reloaded on change so we have to make sure that
 we [write reloadable code](https://github.com/bhauman/lein-figwheel#writing-reloadable-code).
@@ -310,7 +328,7 @@ To force a file to reload on every change:
 ### Using your own server
 
 You do not have to use the figwheel server to host your app and its
-static assets. You can use your own server. 
+static assets. You can use your own server.
 
 To use your own server simply navigate to your server url for the page
 that is hosting your ClojureScript app.
@@ -327,7 +345,7 @@ Like so:
 })
 ```
 
-Note that you will still need to run the figwheel server in addition to 
+Note that you will still need to run the figwheel server in addition to
 your development app server if you wish to continue utilizing figwheel.
 
 For example, you could run figwheel in one terminal...
@@ -454,13 +472,13 @@ Clojure REPL like so:
 
 ;; you can stop the building process like so:
 (auto/stop-autobuild! fig-builder)
-                                        
+
 ;; you can then restart the watching and building process with a
 ;; different config etc.
 
 ```
 
-## Resources 
+## Resources
 
 [Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading if you aren't using Om.
 
@@ -479,21 +497,21 @@ browser can reload them.
 
 The main motivation for lein-figwheel is to allow for the interactive
 development of ClojureScript. Figwheel doesn't provide this out of the
-box, **the developer has to take care to make their code reloadable**. 
+box, **the developer has to take care to make their code reloadable**.
 
 ## Writing reloadable code
 
-Figwheel relies on having files that can be reloaded. 
+Figwheel relies on having files that can be reloaded.
 
 Reloading works beautifully on referentially transparent code and
 code that only defines behavior without bundling state with the
-behavior. 
+behavior.
 
 If you are using React or Om it's not hard to write reloadable code,
 in fact you might be doing it already.
 
 There are several coding patterns to look out for when writing
-reloadable code. 
+reloadable code.
 
 One problematic pattern is top level definitions that have local
 state.
@@ -544,8 +562,8 @@ APIs directly has always been really difficult. For instance if we make
 it so that these hooks are only executed once, like so:
 
 ```clojure
-(defonce setup-stuff 
-  (do 
+(defonce setup-stuff
+  (do
      (.click ($ "a.button") (fn [e] (print "clicked button")))))
 ```
 
@@ -555,9 +573,9 @@ have the listener bound to them.
 
 You can fix this by using an event delegation strategy as so:
 
-```clojure  
-(defonce setup-stuff 
-  (do 
+```clojure
+(defonce setup-stuff
+  (do
      (.on ($ "div#app") "click" "a.button" (fn [e] (print "clicked button")))))
 ```
 
@@ -566,18 +584,18 @@ code in the setup up block and see your changes take affect.
 
 If you are not using React and you want to build things this way and
 have reloadable code we need to create `setup` and `teardown`
-functions to be invoked on code reload.  
+functions to be invoked on code reload.
 
-```clojure  
+```clojure
 (defn setup []
    (.on ($ "div#app") "click" "a.button" (fn [e] (print "clicked button"))))
 
 (defn teardown []
    (.off ($ "div#app") "click" "a.button")
 
-;; hook in the  
+;; hook in the
 (fw/start {
-  :on-jsload (fn [] 
+  :on-jsload (fn []
                (teardown)
                (setup))
 })
