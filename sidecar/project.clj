@@ -13,9 +13,9 @@
    [org.clojure/core.async "0.1.346.0-17112a-alpha"]
    [com.cemerick/pomegranate "0.3.0"]  
    [http-kit "2.1.16"]
-   [ring-cors "0.1.4"]
-   [compojure "1.1.7"]
-   [clj-stacktrace "0.2.7"]
+   [ring-cors "0.1.7"]
+   [compojure "1.3.3"]
+   [clj-stacktrace "0.2.8"]
    [cljsbuild "1.0.5"]
    
    [com.cemerick/piggieback "0.1.5"]
@@ -23,4 +23,4 @@
    
    [clojurescript-build "0.1.5"]
    [watchtower "0.1.1"]
-   [digest "1.4.3"]])
+   [digest "1.4.4"]])
