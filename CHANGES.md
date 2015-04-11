@@ -2,9 +2,9 @@
 
 * fixed shared compile-env for cljs-3196
 * fixed #108 double file loading
-* fixed #107 repl :false starts to compile processes
+* fixed #107 repl `:false` starts two compile processes
 * fixed #118 topo-sort incorrect implementation
-* fixed #106 empty build `:id` coused NPE
+* fixed #106 empty build `:id` caused NPE
 * fixed #65  friendly error for already bound port error
 * upgraded cljsbuild
 * upgraded figwheel-sidecar dependencies
