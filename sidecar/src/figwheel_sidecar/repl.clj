@@ -169,7 +169,7 @@
        (cemerick.piggieback/cljs-repl
         :repl-env figwheel-repl-env
         :special-fns (or (:special-fns opts) cljs.repl/default-special-fns))
-       (cljs.repl/repl* figwheel-repl-env opts)))))
+       (cljs.repl/repl* figwheel-repl-env (assoc opts :compiler-env (:compiler-env build)))))))
 
 (defn namify [arg]
   (if (seq? arg)
