@@ -1,3 +1,13 @@
+## 0.2.6
+
+* fixed #108 double file loading
+* fixed #107 repl :false starts to compile processes
+* fixed #118 topo-sort incorrect implementation
+* fixed #106 empty build `:id` coused NPE
+* fixed #65  friendly error for already bound port error
+* upgraded cljsbuild
+* upgraded figwheel-sidecar dependencies
+
 ## 0.2.5
 
 * **First non snapshot release**
