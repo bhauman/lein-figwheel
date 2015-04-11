@@ -8,11 +8,11 @@
 
   :profiles {
     :dev {
-      :dependencies [[cljsbuild "1.0.4"]]
-      :plugins [[lein-cljsbuild "1.0.4"]]}}
+      :dependencies [[cljsbuild "1.0.5"]]
+      :plugins [[lein-cljsbuild "1.0.5"]]}}
   
   :scm { :name "git"
-        :url "https://github.com/bhauman/lein-figwheel"
-        :dir "plugin"}
+         :url "https://github.com/bhauman/lein-figwheel"
+         :dir "plugin"}
 
   :eval-in-leiningen true)

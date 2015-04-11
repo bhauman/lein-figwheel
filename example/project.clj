@@ -16,7 +16,7 @@
                  [figwheel-sidecar "0.2.6-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
-            [lein-cljsbuild "1.0.4"]
+            [lein-cljsbuild "1.0.5"]
             [lein-figwheel "0.2.6-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
