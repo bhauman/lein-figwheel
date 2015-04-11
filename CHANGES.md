@@ -1,5 +1,6 @@
 ## 0.2.6
 
+* fixed shared compile-env for cljs-3196
 * fixed #108 double file loading
 * fixed #107 repl :false starts to compile processes
 * fixed #118 topo-sort incorrect implementation
