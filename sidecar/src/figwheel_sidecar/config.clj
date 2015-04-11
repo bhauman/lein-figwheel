@@ -137,11 +137,17 @@
   (->> build-options
     (apply-to-key normalize-dir :output-dir)
     (apply-to-key namify-module-entries :modules)
-    (apply-to-key name :main)
-    (apply-to-key name :id)))
+    (apply-to-key name :main)))
+
+(defn ensure-id [opts]
+  (if (nil? (:id opts))
+    (assoc opts :id (name (gensym "build_needs_id_")))
+    (assoc opts :id (name (:id opts)))))
 
 (defn fix-build [opts]
-  (update-in opts [(if (:build-options opts) :build-options :compiler)] fix-build-options))
+  (-> opts
+    ensure-id
+    (update-in [(if (:build-options opts) :build-options :compiler)] fix-build-options)))
 
 (defn fix-builds [builds]
   (mapv fix-build builds))
