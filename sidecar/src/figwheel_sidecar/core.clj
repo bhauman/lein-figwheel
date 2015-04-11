@@ -287,7 +287,8 @@
   (cond
     (= nm nm2) 0
     (get (*transitive-dep-fn* nm) nm2) -1
-    :else 1))
+    (get (*transitive-dep-fn* nm2) nm) 1    
+    :else 0))
 
 (defn topo-sort [ns-syms]
   (vec (sort topo-compare ns-syms)))
