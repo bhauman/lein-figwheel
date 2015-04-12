@@ -249,49 +249,45 @@
         :eval-body (slurp %)})
    (dependency-files st)))
 
-
 ;; inlining this for now so that people can use it now
 
 (defn get-deps [ns]
-  (set
-   (map first
-        (filter
-         (fn [[_ ns-info]]
-           (contains? (:requires ns-info) ns))
-         (get @cljs.env/*compiler* :cljs.analyzer/namespaces)))))
+  (letfn [(parent? [parent [child {:keys [requires] :as ns-info}]]
+             (when-not (= parent child)
+               (cond
+                 (or (map? requires)
+                     (set? requires)) (contains? requires parent)
+                     (vector? requires) (some #{(munge (name parent))} requires))))]
+    (set
+     (map first
+          (filter
+           #(parent? ns %)
+           (get @cljs.env/*compiler* :cljs.analyzer/namespaces))))))
+
+(def ^:dynamic *memo-get-deps* false)
+
+(declare cljs-topo-sort)
+
+(defn sort-and-expand-ns
+  ([deps]
+   (sort-and-expand-ns deps 0 (atom (sorted-map))))
+  ([deps depth state]
+   (swap! state update-in [depth] (fnil into #{}) deps)
+   (doseq [dep deps]
+     (cljs-topo-sort dep (inc depth) state))
+   (doseq [[<depth _] (subseq @state < depth)]
+     (swap! state update-in [<depth] difference deps))
+   (when (= depth 0)
+     (distinct (apply concat (vals @state))))))
 
 ;; from cljs.util; will use that one in when it hits mainstream
-(defn cljs-topo-sort
-  ([x get-deps]
-    (cljs-topo-sort x 0 (atom (sorted-map)) (memoize get-deps)))
-  ([x depth state memo-get-deps]
-    (let [deps (memo-get-deps x)]
-      (swap! state update-in [depth] (fnil into #{}) deps)
-      (doseq [dep deps]
-        (cljs-topo-sort dep (inc depth) state memo-get-deps))
-      (doseq [[<depth _] (subseq @state < depth)]
-        (swap! state update-in [<depth] difference deps))
-      (when (= depth 0)
-        (distinct (apply concat (vals @state)))))))
-
-(defn create-ns-dependents-fn []
-  (let [mem-deps (memoize get-deps)]
-    (memoize
-     (fn [ns]
-       (set (cljs-topo-sort ns 0 (atom (sorted-map)) mem-deps))))))
-
-;; creating a new memoized fn each time we get a request
-(def ^:dynamic *transitive-dep-fn* false)
-
-(defn topo-compare [nm nm2]
-  (cond
-    (= nm nm2) 0
-    (get (*transitive-dep-fn* nm) nm2) -1
-    (get (*transitive-dep-fn* nm2) nm) 1    
-    :else 0))
+(defn cljs-topo-sort [x depth state]
+  (sort-and-expand-ns (*memo-get-deps* x) depth state))
 
 (defn topo-sort [ns-syms]
-  (vec (sort topo-compare ns-syms)))
+  (let [all-syms (set (map name ns-syms))]
+    (filter #(all-syms (name %))
+            (sort-and-expand-ns ns-syms))))
 
 (defn mark-changed-ns [state ns-syms]
   (set
@@ -301,29 +297,20 @@
          ns-syms)))
 
 (defn find-figwheel-always []
-  (set (filter (fn [n] (-> n meta :figwheel-always)) (ana-api/all-ns))))
+  (filter (fn [n] (-> n meta :figwheel-always)) (ana-api/all-ns)))
+
+(defn all-ns-to-load [changed-ns-syms]
+  (set (concat (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms)
+               (find-figwheel-always))))
 
 (defn expand-to-all-ns [state changed-ns-syms']
   (cond
     (nil? cljs.env/*compiler*) changed-ns-syms'
     (false? (:recompile-dependents state))
-    (topo-sort
-     (union (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
-            (set (find-figwheel-always))))
-
+    (topo-sort (all-ns-to-load changed-ns-syms'))
     :else
-    (let [changed-ns-syms       (set (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms'))
-          dependants            (set (mapcat
-                                      *transitive-dep-fn*
-                                      changed-ns-syms))
-          additional-dependents (difference dependants changed-ns-syms)
-          additional-dependents (mark-changed-ns state additional-dependents)
-          all-ns                (union changed-ns-syms additional-dependents)
-          all-names             (set (map name all-ns))
-          additional-always     (set (filter #(not (all-names (name %)))
-                                             (find-figwheel-always)))
-        all-ns'               (union all-ns additional-always)]
-      (topo-sort all-ns'))))
+    ;;     (mark-changed-ns state ) may not be worth it
+    (sort-and-expand-ns (all-ns-to-load changed-ns-syms'))))
 
 (defn dependents-info [n]
   (vec (ana/ns-dependents n)))
@@ -375,9 +362,9 @@
   ;; this is the new way where if additional changes are needed they
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
-   (binding [*transitive-dep-fn* (create-ns-dependents-fn)]
+   (binding [*memo-get-deps* (memoize get-deps)]
      (notify-cljs-ns-changes state
-       (set (concat additional-ns
+       (set (concat additional-ns 
                     (keep get-ns-from-source-file-path
                           (:cljs (get-changed-source-file-paths old-mtimes new-mtimes)))))))))
 
