@@ -170,11 +170,8 @@
   (try
     (when (.exists (as-file file-path))
       (with-open [rdr (io/reader file-path)]
-        (-> (java.io.PushbackReader. rdr)
-            read
-            second
-            #_name
-            #_underscore)))
+        (let [forms (ana/forms-seq* rdr file-path)]
+          (second (first forms)))))
     (catch java.lang.RuntimeException e
       nil)))
 
