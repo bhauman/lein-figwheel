@@ -201,7 +201,8 @@
                  ;; need to test this
                  (filter #(= ".cljs" (second (split-ext %)))
                          (keys new-mtimes))
-                 (:cljs changed-source-file-paths))))))
+                 (concat (:cljs changed-source-file-paths)
+                         (:cljc changed-source-file-paths)))))))
 
 (let [root (norm-path (.getCanonicalPath (io/file ".")))]
   (defn remove-root-path 
@@ -363,10 +364,13 @@
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
    (binding [*memo-get-deps* (memoize get-deps)]
-     (notify-cljs-ns-changes state
-       (set (concat additional-ns 
-                    (keep get-ns-from-source-file-path
-                          (:cljs (get-changed-source-file-paths old-mtimes new-mtimes)))))))))
+     (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
+       (notify-cljs-ns-changes state
+                               (set (concat additional-ns 
+                                            (keep get-ns-from-source-file-path
+                                                  (concat
+                                                   (:cljs change-source-file-paths)
+                                                   (:cljc change-source-file-paths))))))))))
 
 ;; css changes
 ;; this can be moved out of here I think
