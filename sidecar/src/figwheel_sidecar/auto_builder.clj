@@ -63,7 +63,8 @@
     #_(clj-stacktrace.repl/pst+ exception)
     (fig/compile-error-occured
       (merge-build-into-server-state figwheel-server build)
-      exception)))
+      exception
+      cause)))
 
 (defn warning [builder warn-handler]
   (fn [build]

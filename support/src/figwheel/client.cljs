@@ -173,10 +173,10 @@
       (compile-refail-state? msg-names)
       (do
         (<! (heads-up/clear))
-        (<! (heads-up/display-error (format-messages (:exception-data msg)))))
+        (<! (heads-up/display-error (format-messages (:exception-data msg)) (:cause msg))))
       
       (compile-fail-state? msg-names)
-      (<! (heads-up/display-error (format-messages (:exception-data msg))))
+      (<! (heads-up/display-error (format-messages (:exception-data msg)) (:cause msg)))
       
       (warning-append-state? msg-names)
       (heads-up/append-message (:message msg))
@@ -229,10 +229,12 @@
                     (js/CustomEvent. "figwheel.js-reload"
                                      (js-obj "detail" url)))))
 
-(defn default-on-compile-fail [{:keys [formatted-exception exception-data] :as ed}]
+(defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
   (utils/log :debug "Figwheel: Compile Exception")
   (doseq [msg (format-messages exception-data)]
     (utils/log :info msg))
+  (if cause
+    (utils/log :info (str "Error on file " (:file cause) ", line " (:line cause) ", column " (:column cause))))
   ed)
 
 (defn default-on-compile-warning [{:keys [message] :as w}]

@@ -406,14 +406,15 @@
 
 ;; compile error occured
 
-(defn compile-error-occured [st exception]
+(defn compile-error-occured [st exception cause]
   (let [parsed-exception (parse-exception exception)
         formatted-exception (let [out (java.io.ByteArrayOutputStream.)]
                               (pst-on (io/writer out) false exception)
                               (.toString out))]
     (send-message! st :compile-failed
                    { :exception-data parsed-exception
-                     :formatted-exception formatted-exception })))
+                     :formatted-exception formatted-exception
+                     :cause cause })))
 
 (defn compile-warning-occured [st msg]
   (send-message! st :compile-warning { :message msg }))
