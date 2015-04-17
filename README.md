@@ -242,7 +242,7 @@ In keeping with the previous examples you would put this into your
 
 (enable-console-print!)
 
-(println "You can change this line an see the changes in the dev console")
+(println "You can change this line and see the changes in the dev console")
 
 (fw/start {
   ;; configure a websocket url if you are using your own server
@@ -279,7 +279,7 @@ To see all the client side config options [look here](https://github.com/bhauman
 
 ### Preventing and forcing file reloads
 
-Figwheel normally reloads anyfile that has changed. If you want to
+Figwheel normally reloads any file that has changed. If you want to
 prevent certain files from being reloaded by figwheel, you can add
 meta-data to the namespace declaration like so:
 
