@@ -45,14 +45,26 @@
        new-mtimes
        additional-changed-ns))))
 
+(defmulti report-exception (fn [exception cause] (:type cause)))
+
+(defmethod report-exception :reader-exception [e {:keys [file line column]}]
+  (println (format "ERROR: %s on file %s, line %d, column %d"
+                   (some-> e (.getCause) (.getMessage))
+                   file line column)))
+
+(defmethod report-exception :default [e _]
+  (stack/print-stack-trace e 30))
+
 (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
   (println (auto/red (str "Compiling \"" (:output-to build-options) "\" failed.")))
-  (stack/print-stack-trace exception 30)
-  (flush)
-  #_(clj-stacktrace.repl/pst+ exception)
-  (fig/compile-error-occured
-   (merge-build-into-server-state figwheel-server build)
-   exception))
+  (let [cause (ex-data (.getCause exception))]
+    (report-exception exception cause)
+    (flush)
+    #_(clj-stacktrace.repl/pst+ exception)
+    (fig/compile-error-occured
+      (merge-build-into-server-state figwheel-server build)
+      exception
+      cause)))
 
 (defn warning [builder warn-handler]
   (fn [build]
