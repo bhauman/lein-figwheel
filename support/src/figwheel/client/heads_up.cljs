@@ -142,8 +142,16 @@
           (first (keep file-and-line-number formatted-messages)))
         msg (apply str (map #(str "<div>" % "</div>") formatted-messages))]
     (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
-                      (str (close-link) (heading "Compile Error") (file-selector-div file-name file-line msg)
-                           (if cause (str "Error on file " (:file cause) ", line " (:line cause) ", column " (:column cause)))))))
+                      (str (close-link) (heading "Compile Error")
+                           (file-selector-div file-name (or file-line (and cause (:line cause)))
+                                              (str msg
+                                                   (if cause
+                                                     (str "Error on file "
+                                                          (:file cause)
+                                                          ", line "
+                                                          (:line cause)
+                                                          ", column " (:column cause))
+                                                     "")))))))
 
 (defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
