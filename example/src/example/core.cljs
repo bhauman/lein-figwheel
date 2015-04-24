@@ -7,9 +7,11 @@
    [example.style :as style]
    [cljs.reader :refer [read-string]]
    [cljs-http.client :as http]
-   [cljs.core.async :refer [<!]])
+   [cljs.core.async :refer [<!]]
+   [example.sss])
   (:require-macros
-   [cljs.core.async.macros :refer [go]]))
+   [cljs.core.async.macros :refer [go]]
+   #_[example.sss :refer [adder]]))
 
 (enable-console-print!)
 

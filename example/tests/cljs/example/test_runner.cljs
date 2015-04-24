@@ -1,4 +1,4 @@
-(ns ^:figwheel-always example.test-runner
+(ns example.test-runner
   (:require
    [example.core-test]
    [cljs.test :refer-macros [run-tests]]))
