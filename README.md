@@ -111,8 +111,8 @@ figwheel leinigen template.
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojurescript "0.0-2843"] ;; has to be at least 2843 or greater
-[figwheel "0.2.6"]            ;; needed for figwheel client
+[org.clojure/clojurescript "0.0-3165"] ;; has to be at least 3165 or greater
+[figwheel "0.2.7"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -120,7 +120,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.2.6"]
+[lein-figwheel "0.2.7"]
 ```
 
 #### Configure lein cljsbuild
@@ -211,7 +211,7 @@ In your `project.clj` you can add the following configuration parameters:
 In your project.clj you need to include figwheel in your dependencies.
 
 ```clojure
-[figwheel "0.2.6"]
+[figwheel "0.2.7"]
 ```
 
 Make sure you have setup an html file to host your cljs. For example

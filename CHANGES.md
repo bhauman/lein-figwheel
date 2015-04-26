@@ -1,3 +1,11 @@
+## 0.2.7
+
+* **support Reader Conditionals**
+* require cljs-3165
+* re-fixed #118 topo-sort incorrect implementation
+* heads up display includes file and line information for reader exceptions
+  - Thanks to Juho Teperi 
+
 ## 0.2.6
 
 * fixed shared compile-env for cljs-3196
