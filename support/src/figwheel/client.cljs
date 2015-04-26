@@ -313,21 +313,22 @@
 
 (defn start
   ([opts]
-   (defonce __figwheel-start-once__
-     (js/setTimeout
-      #(let [plugins' (:plugins opts) ;; plugins replaces all plugins
-             merge-plugins (:merge-plugins opts) ;; merges plugins
-             system-options (handle-deprecated-jsload-callback
-                             (merge config-defaults
-                                    (dissoc opts :plugins :merge-plugins)))
-             plugins  (if plugins'
-                        plugins'
-                        (merge (base-plugins system-options) merge-plugins))]
-         (set! utils/*print-debug* (:debug opts))
-         #_(enable-repl-print!)         
-         (add-plugins plugins system-options)
-         (reloading/patch-goog-base)
-         (socket/open system-options)))))
+   (when-not (nil? goog/dependencies_)
+       (defonce __figwheel-start-once__
+         (js/setTimeout
+          #(let [plugins' (:plugins opts) ;; plugins replaces all plugins
+                 merge-plugins (:merge-plugins opts) ;; merges plugins
+                 system-options (handle-deprecated-jsload-callback
+                                 (merge config-defaults
+                                        (dissoc opts :plugins :merge-plugins)))
+                 plugins  (if plugins'
+                            plugins'
+                            (merge (base-plugins system-options) merge-plugins))]
+             (set! utils/*print-debug* (:debug opts))
+             #_(enable-repl-print!)         
+             (add-plugins plugins system-options)
+             (reloading/patch-goog-base)
+             (socket/open system-options))))))
   ([] (start {})))
 
 ;; legacy interface
