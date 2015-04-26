@@ -8,7 +8,8 @@
    [clojure.set :refer [difference]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
   (:require-macros
-   [cljs.core.async.macros :refer [go go-loop]]))
+   [cljs.core.async.macros :refer [go go-loop]])
+  (:import [goog]))
 
 (declare reload-file* resolve-ns)
 
@@ -37,27 +38,28 @@
 
 (defn resolve-ns [ns]
   (dev-assert (string? ns))
-  (str (string/replace (.-basePath js/goog) #"(.*)goog/" #(str %2))
+  (str (utils/base-url-path)
        (ns-to-js-file ns)))
 
 ;; still don't know how I feel about this
 (defn patch-goog-base []
-  (set! (.-isProvided_ js/goog) (fn [x] false))
+  (set! goog/isProvided (fn [x] false))
   (when (or (nil? *loaded-libs*) (empty? *loaded-libs*))
     (set! *loaded-libs*
-          (let [gntp (.. js/goog -dependencies_ -nameToPath)]
+          (let [gntp (.. goog/dependencies_
+                         -nameToPath)]
             (into #{}
                   (filter
                    (fn [name]
-                     (aget (.. js/goog -dependencies_ -visited) (aget gntp name)))
+                     (aget (.. goog/dependencies_ -visited) (aget gntp name)))
                    (js-keys gntp))))))
-  (set! (.-require js/goog)
+  (set! goog/require
         (fn [name reload]           
           (when (or (not (contains? *loaded-libs* name)) reload)
             (set! *loaded-libs* (conj (or *loaded-libs* #{}) name))
             (reload-file* (resolve-ns name)))))
-  (set! (.-provide js/goog) (.-exportPath_ js/goog))
-  (set! (.-CLOSURE_IMPORT_SCRIPT (.-global js/goog)) reload-file*))
+  (set! goog/provide goog/exportPath_)
+  (set! (.-CLOSURE_IMPORT_SCRIPT goog/global) reload-file*))
 
 (defmulti resolve-url :type)
 
@@ -120,7 +122,7 @@
            (or
             (not (contains? meta-data :file-changed-on-disk))
             (:file-changed-on-disk meta-data)))
-      #_(.isProvided_ js/goog (name namespace))))))
+      #_(goog/isProvided_ (name namespace))))))
 
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))

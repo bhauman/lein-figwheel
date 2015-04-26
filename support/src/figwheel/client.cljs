@@ -10,7 +10,8 @@
    ;; to support repl doc
    [cljs.repl])
   (:require-macros
-   [cljs.core.async.macros :refer [go go-loop]]))
+   [cljs.core.async.macros :refer [go go-loop]])
+  (:import [goog]))
 
 ;; exception formatting
 
@@ -106,7 +107,7 @@
   (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
               (string/split-lines stack-str)))
 
-(let [base-path (string/replace (.-basePath js/goog) #"(.*)goog/" #(str %2))]
+(let [base-path (utils/base-url-path)]
   (defn eval-javascript** [code result-handler]
     (try
       (binding [*print-fn* (fn [& args]
@@ -289,7 +290,7 @@
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
               :repl-plugin      repl-plugin}
-       base  (if (not (.. js/goog inHtmlDocument_)) ;; we are in node?
+       base  (if (not (utils/html-env?)) ;; we are in an html environment?
                (select-keys base [#_:enforce-project-plugin
                                   :file-reloader-plugin
                                   :comp-fail-warning-plugin

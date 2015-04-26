@@ -1,12 +1,16 @@
-(ns ^:figwheel-no-load figwheel.client.utils)
+(ns ^:figwheel-no-load figwheel.client.utils
+    (:require [clojure.string :as string])
+    (:import [goog]))
 
 ;; don't auto reload this file it will mess up the debug printing
 
 (def ^:dynamic *print-debug* false)
 
-(defn html-env? [] (.inHtmlDocument_ js/goog))
+(defn html-env? [] goog/inHtmlDocument_)
 
-(defn node-env? [] (not (nil? (aget js/goog "nodeGlobalRequire"))))
+(defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
+
+(defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" #(str %2)))
 
 (defn host-env? []
   (cond
