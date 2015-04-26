@@ -10,15 +10,15 @@
                  [sablono "0.3.4"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
-                 [figwheel "0.2.7"]
+                 [figwheel "0.2.8-SNAPSHOT"]
                  [datascript "0.9.0"]
                  [cljs-http "0.1.26"]
                  ;; for development purposes
-                 [figwheel-sidecar "0.2.7"]]
+                 [figwheel-sidecar "0.2.8-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.2.7"]
+            [lein-figwheel "0.2.8-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
