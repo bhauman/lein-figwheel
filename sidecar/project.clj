@@ -17,6 +17,7 @@
    [compojure "1.3.3"]
    [clj-stacktrace "0.2.8"]
    [cljsbuild "1.0.5"]
+   [figwheel "0.2.8-SNAPSHOT"]
    
    [com.cemerick/piggieback "0.1.5"]
    [cider/cider-nrepl "0.8.2"]
