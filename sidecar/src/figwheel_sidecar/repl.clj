@@ -230,6 +230,28 @@
 
 ;; API
 
+(defn analyze-build [build]
+  ;; put some guards here for expectations
+  (when (and (:compiler-env build)
+             (:source-paths build))
+    (env/with-compiler-env (:compiler-env build)
+      (let [files (map :source-file
+                       (cbuild/files-like [".cljs" ".cljc"]
+                                          (:source-paths build)))
+            ;; TODO refactor this or clause repeated to many times
+            opts (or (:build-options build) (:compiler build))]
+        (doseq [f files] (ana/analyze-file f opts))
+        nil))))
+
+(defn analyze-builds [ids]
+  (let [ids (map name ids)
+        builds (filter-builds* ids
+                               (:focus-ids @(:state-atom *autobuild-env*))
+                               (:all-builds *autobuild-env*))]
+    (doseq [build builds]
+      (analyze-build build))
+    nil))
+
 (defn build-once [ids]
   (let [ids (map name ids)
         builds (filter-builds* ids
@@ -257,6 +279,11 @@
         (mapv repl-println errors))
       (when-not (builder-running? state-atom)
         (build-once build-ids)
+        ;; this is kinda crap but we need it for now
+        ;; build-once can short circuit and not analyze all the files
+        ;; but we need to call it so it does some stateful voodoo
+        ;; then we force analyzation on all files
+        (analyze-builds build-ids)
         
         ;; kill some undeclared warnings, hopefully?
         (Thread/sleep 300)

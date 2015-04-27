@@ -476,4 +476,3 @@
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
-
