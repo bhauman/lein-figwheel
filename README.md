@@ -109,9 +109,10 @@ figwheel leinigen template.
     lein new figwheel hello-world
 
 Or optionally:
+```
     lein new figwheel hello-world -- --om       ;; for an om based project
     lein new figwheel hello-world -- --reagent  ;; for a reagent based project 
-
+```
 ## Usage
 
 First make sure you include the following `:dependencies` in your `project.clj` file.
