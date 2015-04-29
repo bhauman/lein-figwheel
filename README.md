@@ -4,6 +4,8 @@ Figwheel builds your ClojureScript code and hot loads it into the browser as you
 
 Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
 
+Here is a [ClojureWest talk on Figwheel](https://www.youtube.com/watch?v=j-kj2qwJa_E)
+
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
 ####Current version:
