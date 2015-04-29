@@ -8,27 +8,31 @@
    [clojure.java.io :as io]
    [figwheel-sidecar.config :as fc]))
 
-(def figwheel-sidecar-version
+
+(defn get-lib-version [proj-name]
   (let [[_ coords version]
-        (-> (or (io/resource "META-INF/leiningen/figwheel-sidecar/figwheel-sidecar/project.clj")
-                ; this should only ever come into play when testing figwheel-sidecar itself
-                "project.clj")
+        (-> (io/resource (str "META-INF/leiningen/" proj-name "/" proj-name "/project.clj"))
             slurp
             read-string)]
-    (assert (= coords 'figwheel-sidecar)
-            (str "Something very wrong, could not find figwheel-sidecar's project.clj, actually found: "
+    (assert (= coords (symbol proj-name))
+            (str "Something very wrong, could not find " proj-name "'s project.clj, actually found: "
                  coords))
     (assert (string? version)
-            (str "Something went wrong, version of figwheel-sidecar is not a string: "
+            (str "Something went wrong, version of " proj-name " is not a string: "
                  version))
     version))
+
+(def figwheel-sidecar-version (get-lib-version "figwheel-sidecar"))
+
+(def figwheel-version (get-lib-version "figwheel"))
 
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project crossover-path builds requires form]
   (let [project' (-> project
-                     (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version]) 
-                     (subproject/make-subproject crossover-path builds)
-                     #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
+                   (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version])
+                   (update-in [:dependencies] conj ['figwheel figwheel-version]) 
+                   (subproject/make-subproject crossover-path builds)
+                   #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
     (leval/eval-in-project project'
      `(try
         (do

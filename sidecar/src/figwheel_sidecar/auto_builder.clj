@@ -77,9 +77,99 @@
     (builder
      (update-in build [:build-options] (partial merge default-options)))))
 
+;; connection
+
+(defn connect-script-temp-dir [build]
+  (str "target/figwheel_temp/" (name (:id build))))
+
+(defn connect-script-path [build]
+  (str (connect-script-temp-dir build) "/figwheel/connect.cljs"))
+
+(def figwheel-client-hook-keys [:on-jsload
+                                :before-jsload
+                                :on-cssload
+                                :on-compile-fail
+                                :on-compile-fail])
+
+(defn extract-connection-requires [{:keys [figwheel] :as build}]
+  (let [names (set
+               (map #(symbol (namespace (symbol %)))
+                    (vals (select-keys figwheel figwheel-client-hook-keys))))
+        ;; if there is a main defined then add it
+        main-ns  (get-in build [:build-options :main])
+        names (if main-ns
+                (conj names (symbol (str main-ns)))
+                names)]
+    (conj names 'figwheel.client)))
+
+(defn extract-connection-script-required-ns [{:keys [figwheel] :as build}]
+  (list 'ns 'figwheel.connect
+        (cons :require (map vector (extract-connection-requires build)))))
+
+(defn extract-connection-script-figwheel-start [{:keys [figwheel]}]
+  (let [func-map (select-keys figwheel figwheel-client-hook-keys)
+        func-map (into {} (map (fn [[k v]] [k (symbol v)]) func-map))
+        res (merge figwheel func-map)]
+    (list 'figwheel.client/start res)))
+
+(comment
+
+  (extract-connection-script-required-ns {:figwheel {:on-jsload "blah.blah/on-jsload"}})
+
+  (extract-connection-script-required-ns {:figwheel {}})
+
+  (extract-connection-script-figwheel-start {:figwheel {:on-jsload "blah.blah/on-jsload" :websocket-url "hey"}})
+
+  )
+
+(defn create-connect-script! [build]
+  ;;; consider doing this is the system temp dir
+  (.mkdirs (io/file (connect-script-temp-dir build)))
+  (let [temp-file (io/file (connect-script-path build))]
+    (.deleteOnExit temp-file)
+    (with-open [file (io/writer temp-file)]
+      (binding [*out* file]
+        (println
+         (apply str (mapcat
+                     prn-str
+                     (list (extract-connection-script-required-ns build)
+                           (extract-connection-script-figwheel-start build)
+                           '(.log js/console "this should be working now")))))))
+    temp-file))
+
+(defn create-connect-script-if-needed! [build]
+  (when (config/figwheel-build? build)
+    (when-not (.exists (io/file (connect-script-path build)))
+      (create-connect-script! build))))
+
+(defn add-connect-script! [figwheel-server build]
+  (if (config/figwheel-build? build)
+    (let [build (config/update-figwheel-connect-options figwheel-server build)]
+      (create-connect-script-if-needed! build)
+      (update-in build [:source-paths] conj (connect-script-temp-dir build)))
+    build))
+
+(defn require-connection-script-js [build]
+  (let [node? (and (:target build) (== (:target build) :nodejs)) 
+        main? (get-in build [:build-options :main])]
+    (if (and main? (not node?))
+      "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");"
+      "\ngoog.require(\"figwheel.connect\");")))
+
+(defn append-connection-init! [build]
+  (when-let [output-to (get-in build [:build-options :output-to])]
+    (spit output-to (require-connection-script-js build) :append true)))
+
+(defn insert-figwheel-connect-script [builder figwheel-server]
+  (fn [build]
+    (let [res (builder (add-connect-script! figwheel-server build))]
+      (append-connection-init! build)
+      res)))
+
 (defn builder [figwheel-server]
   (-> cbuild/build-source-paths*
     (default-build-options {:recompile-dependents false})
+    (insert-figwheel-connect-script figwheel-server)
     (warning
      (fn [build]
        (auto/warning-message-handler
@@ -92,7 +182,14 @@
     (auto/error (partial handle-exceptions figwheel-server))
     (auto/before auto/compile-start)))
 
+(defn delete-connect-scripts! [builds]
+  (doseq [b builds]
+    (when (config/figwheel-build? b)
+      (let [f (io/file (connect-script-path b))]
+        (when (.exists f) (.delete f))))))
+
 (defn autobuild* [{:keys [builds figwheel-server]}]
+  (delete-connect-scripts! builds)
   (auto/autobuild*
    {:builds  builds
     :builder (builder figwheel-server)

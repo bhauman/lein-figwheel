@@ -170,3 +170,6 @@
                                         (println "Transaction:")
                                         (prn x)
                                         (remote-transact x))})
+
+(defn fig-reload []
+  (.log js/console "in fig-reload"))
