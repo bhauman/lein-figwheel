@@ -77,9 +77,78 @@
     (builder
      (update-in build [:build-options] (partial merge default-options)))))
 
+;; connection
+
+(defn connect-script-temp-dir [build]
+  (str "target/figwheel_temp/" (name (:id build))))
+
+(defn connect-script-path [build]
+  (str (connect-script-temp-dir build) "/figwheel/connect.cljs"))
+
+(def figwheel-client-hook-keys [:on-jsload
+                                :before-jsload
+                                :on-cssload
+                                :on-compile-fail
+                                :on-compile-fail])
+
+(defn extract-connection-script-required-ns [{:keys [figwheel]}]
+  (let [names (vals (select-keys figwheel figwheel-client-hook-keys))]
+    (list 'ns 'figwheel.connect
+          (concat (list :require ['figwheel.client])
+                  (map #(vector (symbol (namespace (symbol %))))
+                       names)))))
+
+(defn extract-connection-script-figwheel-start [{:keys [figwheel]}]
+  (let [func-map (select-keys figwheel figwheel-client-hook-keys)
+        func-map (into {} (map (fn [[k v]] [k (symbol v)]) func-map))
+        res (merge figwheel func-map)]
+    (list 'figwheel.client/start res)))
+
+(comment
+
+  (extract-connection-script-required-ns {:figwheel {:on-jsload "blah.blah/on-jsload"}})
+
+  (extract-connection-script-required-ns {:figwheel {}})
+
+  (extract-connection-script-figwheel-start {:figwheel {:on-jsload "blah.blah/on-jsload" :websocket-url "hey"}})
+  
+  )
+
+(defn figwheel-build? [build]
+  (and (= (get-in build [:build-options :optimizations]) :none)
+       (:figwheel build)))
+
+(defn create-connect-script! [build]
+  ;;; consider doing this is the system temp dir
+  (.mkdirs (io/file (connect-script-temp-dir build)))
+  (let [temp-file (io/file (connect-script-path build))]
+    (.deleteOnExit temp-file)
+    (with-open [file (io/writer temp-file)]
+      (binding [*out* file]
+        (println
+         (apply str (mapcat
+                     prn-str
+                     (list (extract-connection-script-required-ns build)
+                           (extract-connection-script-figwheel-start build)
+                           '(.log js/console "this should be working")))))))
+    temp-file))
+
+(defn create-connect-script-if-needed! [build]
+  (when (figwheel-build? build)
+    (when-not (.exists (io/file (connect-script-path build)))
+      (create-connect-script! build))))
+
+(defn insert-client-script [build]
+  (create-connect-script-if-needed! build)
+  build)
+
+(defn insert-figwheel-client-script [builder]
+  (fn [build] (builder (insert-client-script build))))
+
 (defn builder [figwheel-server]
   (-> cbuild/build-source-paths*
     (default-build-options {:recompile-dependents false})
+    (insert-figwheel-client-script)
     (warning
      (fn [build]
        (auto/warning-message-handler
@@ -92,12 +161,42 @@
     (auto/error (partial handle-exceptions figwheel-server))
     (auto/before auto/compile-start)))
 
+(defn add-connect-script [build]
+  ;; maybe should just add it to source paths here
+  ;; if you create it once here it could be deleted by a lein clean
+  (if (figwheel-build? build)
+    (do
+      ;; create a fresh one at the beginning of each autobuild
+      (create-connect-script! build)
+      (update-in build [:source-paths] conj (connect-script-temp-dir build)))
+    build))
+
+(defn update-figwheel-connect-options [figwheel-server build]
+  (if (:figwheel build)
+    (let [build (config/prep-build-for-figwheel-client build)]
+      (if-let [host (get-in build [:figwheel :websocket-host])]
+        (-> build
+          (update-in [:figwheel] dissoc :websocket-host)
+          (assoc-in [:figwheel :websocket-url]
+                    (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
+        build))
+    build))
+
+(comment
+  
+  (update-figwheel-client-options {:port 5555} {:figwheel {:websocket-host "llllll"} :yeah 6})
+
+  (update-figwheel-client-options {:port 5555} {:figwheel true})
+
+  )
+
 (defn autobuild* [{:keys [builds figwheel-server]}]
-  (auto/autobuild*
-   {:builds  builds
-    :builder (builder figwheel-server)
-    :each-iteration-hook (fn [_ build]
-                           (fig/check-for-css-changes figwheel-server))}))
+  (let [builds (map (partial update-figwheel-connect-options figwheel-server) builds)]
+    (auto/autobuild*
+     {:builds  (mapv add-connect-script builds)
+      :builder (builder figwheel-server)
+      :each-iteration-hook (fn [_ build]
+                             (fig/check-for-css-changes figwheel-server))})))
 
 (defn check-autobuild-config [all-builds build-ids figwheel-server]
   (let [builds (config/narrow-builds* all-builds build-ids)]
