@@ -173,4 +173,3 @@
 
 (defn fig-reload []
   (.log js/console "in fig-reload"))
-
