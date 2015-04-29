@@ -194,41 +194,30 @@
   (and (= (get-in build [:build-options :optimizations]) :none)
        (:figwheel build)))
 
-;; this just handles websocket-host
-;; should probably default to localhost this handles most cases
 (defn update-figwheel-connect-options [figwheel-server build]
   (if (figwheel-build? build)
     (let [build (prep-build-for-figwheel-client build)]
-      (if-let [host (get-in build [:figwheel :websocket-host])]
-        (-> build
-          (update-in [:figwheel] dissoc :websocket-host)
-          (assoc-in [:figwheel :websocket-url]
-                    (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
+      (if-not (get-in build [:figwheel :websocket-url]) ;; prefer 
+        (let [host (or (get-in build [:figwheel :websocket-host]) "localhost")]
+          (-> build
+            (update-in [:figwheel] dissoc :websocket-host)
+            (assoc-in [:figwheel :websocket-url]
+                      (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws"))))        
         build))
     build))
 
 (comment
-  
   (update-figwheel-connect-options {:port 5555} {:figwheel {:websocket-host "llllll"} :yeah 6})
-
   (update-figwheel-connect-options {:port 5555} {:figwheel {:websocket-host "llllll" :websocket-url "yep"} :yeah 6})
-
   (update-figwheel-connect-options {:port 5555} {:figwheel true})
-
   )
 
 (comment
-  (fix-figwheel-symbol-keys {:on-jsload 'asdfasdf
-                             :hey 5})
-
+  (fix-figwheel-symbol-keys {:on-jsload 'asdfasdf :hey 5})
   (prep-build-for-figwheel-client {})
-
   (prep-build-for-figwheel-client { :figwheel true})
-
   (prep-build-for-figwheel-client { :id "hey" :figwheel true})
-
-  (prep-build-for-figwheel-client { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5}})  
-
+  (prep-build-for-figwheel-client { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5}})
 )
 
 (defn prep-builds [builds]
@@ -238,11 +227,6 @@
       prep-builds-for-figwheel-client
       ensure-output-dirs
       no-seqs))
-
-#_(defn prep-build-for-figwheel-client [build]
-
-  )
-
 
 (defn prep-options
   "Normalize various configuration input."

@@ -119,7 +119,7 @@
   (extract-connection-script-required-ns {:figwheel {}})
 
   (extract-connection-script-figwheel-start {:figwheel {:on-jsload "blah.blah/on-jsload" :websocket-url "hey"}})
-  
+
   )
 
 (defn create-connect-script! [build]
