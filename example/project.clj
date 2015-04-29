@@ -10,11 +10,8 @@
                  [sablono "0.3.4"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
-                 [figwheel "0.2.8-SNAPSHOT"]
                  [datascript "0.9.0"]
-                 [cljs-http "0.1.26"]
-                 ;; for development purposes
-                 [figwheel-sidecar "0.2.8-SNAPSHOT"]]
+                 [cljs-http "0.1.26"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.5"]
@@ -44,8 +41,12 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" "dev" "tests" "../support/src"]
-                         :compiler {:main example.dev
+                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
+                        
+                         :figwheel { :websocket-host "localhost"
+                                     :on-jsload      "example.core/fig-reload" }
+                        
+                         :compiler {:main example.core
                                     :asset-path "js/out"
                                     :output-to "resources/public/js/example.js"
                                     :output-dir "resources/public/js/out"
