@@ -158,12 +158,15 @@ Setting `:figwheel true` will automagically insert the figwheel client
 code into your application.
 
 **If you want to serve the HTML file that will host your application
-from the figwheel's built in server**, then the output directory has to
-be in a directory that can be served by the static webserver. The
-default for the webserver root is "resources/public" so your output
-files need to be in a subdirectory "resources/public" unless you
-change the webserver root. For now the webserver root has to be in a
-subdirectory of `resources`.
+from figwheel's built in server**, then the output directory has to be
+in a directory that can be served by the static webserver. The default
+for the webserver root is "resources/public" so your output files need
+to be in a subdirectory "resources/public" unless you change the
+webserver root. For now the webserver root has to be in a subdirectory
+of `resources`.
+
+If you are serving your application HTML from your own server you can
+configure `:output-to` and `:output-dir` as you like.
 
 Start the figwheel server. (This will get the first `:optimizations`
 `:none` build)
