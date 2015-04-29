@@ -133,8 +133,7 @@
          (apply str (mapcat
                      prn-str
                      (list (extract-connection-script-required-ns build)
-                           (extract-connection-script-figwheel-start build)
-                           '(.log js/console "this should be working now")))))))
+                           (extract-connection-script-figwheel-start build)))))))
     temp-file))
 
 (defn create-connect-script-if-needed! [build]

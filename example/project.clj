@@ -41,20 +41,20 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
+                         :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      "example.core/fig-reload" }
                         
-                         :compiler {:main example.core
-                                    :asset-path "js/out"
-                                    :output-to "resources/public/js/example.js"
-                                    :output-dir "resources/public/js/out"
-                                    :source-map true
-                                    :source-map-timestamp true
-                                    ;; :recompile-dependents true
-                                    :cache-analysis true
-                                    :optimizations :none}}
+                         :compiler { :main example.core
+                                     :asset-path "js/out"
+                                     :output-to "resources/public/js/example.js"
+                                     :output-dir "resources/public/js/out"
+                                     :source-map true
+                                     :source-map-timestamp true
+                                     ;; :recompile-dependents true
+                                     :cache-analysis true
+                                     :optimizations :none}}
                        {:id "server"
                         :source-paths ["server_src"]
                         :compiler {
