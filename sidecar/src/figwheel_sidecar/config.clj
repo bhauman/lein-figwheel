@@ -159,12 +159,63 @@
   (mapv ensure-output-dirs* builds)
   builds)
 
+(defn figwheel-client-options [{:keys [figwheel]}]
+  (if figwheel
+    (if-not (map? figwheel) {} figwheel)
+    {}))
+
+(comment
+  (figwheel-client-options {:figwheel {:hey 1}})
+
+  (figwheel-client-options {:figwheel true})
+  
+  )
+
+(defn fix-figwheel-symbol-keys [figwheel]
+  (into {} (map (fn [[k v]] [k (if (symbol? v) (name v) v)]) figwheel)))
+
+(defn append-build-id [figwheel build]
+  (if (:id build)
+    (assoc figwheel :build-id (:id build))
+    figwheel))
+
+(defn prep-build-for-figwheel-client [{:keys [figwheel] :as build}]
+  (if figwheel
+    (assoc build :figwheel
+           (-> (figwheel-client-options build)
+             (append-build-id build)
+             (fix-figwheel-symbol-keys)))
+    build))
+
+(defn prep-builds-for-figwheel-client [builds]
+  (mapv prep-build-for-figwheel-client builds))
+
+(comment
+  (fix-figwheel-symbol-keys {:on-jsload 'asdfasdf
+                             :hey 5})
+
+  (prep-build-for-figwheel-client {})
+
+  (prep-build-for-figwheel-client { :figwheel true})
+
+  (prep-build-for-figwheel-client { :id "hey" :figwheel true})
+
+  (prep-build-for-figwheel-client { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5}})  
+
+)
+
 (defn prep-builds [builds]
   (-> builds
       map-to-vec-builds
       fix-builds
+      prep-builds-for-figwheel-client
       ensure-output-dirs
       no-seqs))
+
+#_(defn prep-build-for-figwheel-client [build]
+
+  )
+
 
 (defn prep-options
   "Normalize various configuration input."
