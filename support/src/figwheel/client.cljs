@@ -318,9 +318,9 @@
          (js/setTimeout
           #(let [plugins' (:plugins opts) ;; plugins replaces all plugins
                  merge-plugins (:merge-plugins opts) ;; merges plugins
-                 system-options (handle-deprecated-jsload-callback
-                                 (merge config-defaults
-                                        (dissoc opts :plugins :merge-plugins)))
+                 system-options (-> config-defaults
+                                  (merge (dissoc opts :plugins :merge-plugins))
+                                  (handle-deprecated-jsload-callback))
                  plugins  (if plugins'
                             plugins'
                             (merge (base-plugins system-options) merge-plugins))]
