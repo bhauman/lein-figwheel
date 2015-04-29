@@ -9,7 +9,7 @@ Here is a [ClojureWest talk on Figwheel](https://www.youtube.com/watch?v=j-kj2qw
 See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
 ####Current version:
-[![Clojars Project](http://clojars.org/lein-figwheel/latest-version.svg)](https://clojars.org/lein-figwheel) 
+[![Clojars Project](https://clojars.org/lein-figwheel/latest-version.svg)](https://clojars.org/lein-figwheel)
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
 
