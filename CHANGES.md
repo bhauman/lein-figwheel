@@ -1,3 +1,16 @@
+## 0.2.8
+
+* vastly simplified configuration. You no longer need to write the
+  client code manually and then figure out how to have it excluded in
+  production. Simply add `:fighweel true` to builds that you want
+  figwheel to run on. The client code will be injected to the build.
+  You can inspect the generated client code in
+  `target/figwheel_temp/<build id>/fighweel/connect.cljs`
+* fixed #126 where inclusion of figwheel.client in an advenced build
+  caused "undefined is not a function" problems. This is fixed please
+  don't include figwheel.client in advanced builds. It won't work.
+* fixed #124
+
 ## 0.2.7
 
 * **support Reader Conditionals**

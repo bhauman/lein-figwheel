@@ -108,13 +108,16 @@ figwheel leinigen template.
 
     lein new figwheel hello-world
 
+Or optionally:
+    lein new figwheel hello-world -- --om       ;; for an om based project
+    lein new figwheel hello-world -- --reagent  ;; for a reagent based project 
+
 ## Usage
 
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
 [org.clojure/clojurescript "0.0-3165"] ;; has to be at least 3165 or greater
-[figwheel "0.2.7"]            ;; needed for figwheel client
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -122,7 +125,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.2.7"]
+[lein-figwheel "0.2.8"]
 ```
 
 #### Configure lein cljsbuild
@@ -136,22 +139,31 @@ Here is an example:
 :cljsbuild {
   :builds [ { :id "example" 
               :source-paths ["src/"]
-              :compiler { :output-to "resources/public/js/compiled/example.js"
-                          :output-dir "resources/public/js/compiled/out"
-                          :externs ["resources/public/js/externs/jquery-1.9.js"]
-                          :optimizations :none
-                          :source-map true } } ]
+              :compiler {  :main "example.core"
+                           :asset-path "js/out"
+                           :figwheel true
+                           :output-to "resources/public/js/compiled/example.js"
+                           :output-dir "resources/public/js/compiled/out"
+                           :externs ["resources/public/js/externs/jquery-1.9.js"]
+                           :optimizations :none
+                           :source-map true
+                           :source-map-timestamp true } } ]
 }
 ```
 
 The important part here is that you have to have at least one `build`
 and that build has to have `:optimizations` set to `:none`.
 
-The output directory has to be in a directory that can be served by
-the static webserver. The default for the webserver root is
-"resources/public" so your output files need to be in a subdirectory
-"resources/public" unless you change the webserver root. For now the
-webserver root has to be in a subdirectory of `resources`.
+Setting `:figwheel true` will automagically insert the figwheel client
+code into your application.
+
+**If you want to serve the HTML file that will host your application
+from the figwheel's built in server**, then the output directory has to
+be in a directory that can be served by the static webserver. The
+default for the webserver root is "resources/public" so your output
+files need to be in a subdirectory "resources/public" unless you
+change the webserver root. For now the webserver root has to be in a
+subdirectory of `resources`.
 
 Start the figwheel server. (This will get the first `:optimizations`
 `:none` build)
@@ -168,11 +180,15 @@ resources being served via the compojure `resources` ring handler.
 So you can load the HTML file thats hosting your ClojureScript app
 by going to `http://localhost:3449/<yourfilename>.html`
 
+If you are using your own server please load your app from that server.
+
 [Cljsbuild has many many more options](https://github.com/emezeske/lein-cljsbuild/blob/master/sample.project.clj)
 
-### Server configuration
+### Fighweel server side configuration
 
-In your `project.clj` you can add the following configuration parameters:
+This is not neccessary but you can further configure the figwheel
+system at the root level of your `project.clj` you can add the
+following server side configuration parameters:
 
 ```clojure
 :figwheel {
@@ -210,12 +226,6 @@ In your `project.clj` you can add the following configuration parameters:
 
 ## Client side usage
 
-In your project.clj you need to include figwheel in your dependencies.
-
-```clojure
-[figwheel "0.2.7"]
-```
-
 Make sure you have setup an html file to host your cljs. For example
 you can create this `resources/public/index.html` file:
 
@@ -227,50 +237,63 @@ you can create this `resources/public/index.html` file:
   <body>
     <div id="main-area">
     </div>
-    <script src="js/compiled/out/goog/base.js" type="text/javascript"></script>
-    <script src="js/compiled/example.js" type="text/javascript"></script>
-    <script type="text/javascript">goog.require("example.core");</script>
+    <script src="js/compiled/example.js" type="text/javascript"></script>   
   </body>
 </html>
 ```
 
-In keeping with the previous examples you would put this into your
-`src/example/core.cljs`:
+## Client side configuration options 
+
+Instead of setting `:figwheel true` in your cljsbuild configuration
+you can pass a map of options as below:
 
 ```clojure
-(ns example.core
-  (:require
-   [figwheel.client :as fw]))
-
-(enable-console-print!)
-
-(println "You can change this line and see the changes in the dev console")
-
-(fw/start {
-  ;; configure a websocket url if you are using your own server
-  ;; :websocket-url "ws://localhost:3449/figwheel-ws"
-
-  ;; optional callback
-  :on-jsload (fn [] (print "reloaded"))
-
-  ;; The heads up display is enabled by default
-  ;; to disable it: 
-  ;; :heads-up-display false
-
-  ;; when the compiler emits warnings figwheel
-  ;; blocks the loading of files.
-  ;; To disable this behavior:
-  ;; :load-warninged-code true
-
-  ;; if figwheel is watching more than one build
-  ;; it can be helpful to specify a build id for
-  ;; the client to focus on
-  ;; :build-id "example"
-})
+:cljsbuild {
+  :builds [ { :id "example" 
+              :source-paths ["src/"]
+              :compiler {  :main "example.core"
+                           :asset-path "js/out"
+                           ;; put client config options in :figwheel
+                           :figwheel { :websocket-host "localhost" 
+                                       :on-jsload "example.core/fig-reload"}
+                           :output-to "resources/public/js/compiled/example.js"
+                           :output-dir "resources/public/js/compiled/out"
+                           :externs ["resources/public/js/externs/jquery-1.9.js"]
+                           :optimizations :none
+                           :source-map true
+                           :source-map-timestamp true } } ]
+}
 ```
 
-The call to `start` is idempotent and can be called many
-times safely. 
+The following configuration options are available:
+
+```clojure
+
+;; configure a websocket host, fighweel already knows the port
+;; this is helpful if you want to broadcast to devices
+:websocket-host "localhost" ;; or "www.myhost.com", "192.168.0.112"
+
+;; optional callback
+:on-jsload "example.core/fig-reload"
+
+;; if you want to do repl based development and not have
+;; have files autoloaded into the client env
+:autoload false
+
+;; The heads up display is enabled by default
+;; to disable it: 
+:heads-up-display false
+
+;; when the compiler emits warnings figwheel
+;; blocks the loading of files.
+;; To disable this behavior:
+:load-warninged-code true
+
+;; a hook that will rewriter the urls that fighweel is loading
+;; this really shouldn't be necessary
+:url-rewriter "example.core/fig-url-rewrite"
+
+```
 
 Whole files will be reloaded on change so we have to make sure that
 we [write reloadable code](https://github.com/bhauman/lein-figwheel#writing-reloadable-code).
