@@ -357,8 +357,8 @@ Like so:
 
 ```clojure
   :figwheel {
-    :websocket-host   "localhost"
-    :on-jsload "example.core/reload-hook"
+    :websocket-host "localhost"
+    :on-jsload      "example.core/reload-hook"
   }
 ```
 
