@@ -141,9 +141,9 @@ Here is an example:
 :cljsbuild {
   :builds [ { :id "example" 
               :source-paths ["src/"]
+              :figwheel { :on-jsload "example.core/reload-hook" }              
               :compiler {  :main "example.core"
                            :asset-path "js/out"
-                           :figwheel { :on-jsload "example.core/reload-hook" }
                            :output-to "resources/public/js/compiled/example.js"
                            :output-dir "resources/public/js/compiled/out"
                            :externs ["resources/public/js/externs/jquery-1.9.js"]
