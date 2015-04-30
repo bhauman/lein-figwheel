@@ -356,10 +356,10 @@ websocket is.
 Like so:
 
 ```clojure
-(fw/start {
-  :websocket-url   "ws://localhost:3449/figwheel-ws"
-  :on-jsload (fn [] (print "reloaded"))
-})
+  :figwheel {
+    :websocket-host   "localhost"
+    :on-jsload "example.core/reload-hook"
+  }
 ```
 
 Note that you will still need to run the figwheel server in addition to 
@@ -457,10 +457,14 @@ recieves the resource url and should return a corrected url that
 points to the same resource on your server.
 
 ```clojure
-(fw/start {
+;; in your cljs code
+(defn fig-rewrite [url] (clojure.string/replace url ":3449" ":3000"))
+
+;; in project.clj
+:figwheel {
   :websocket-url   "ws://localhost:3449/figwheel-ws"
-  :url-rewriter    (fn [url] (clojure.string/replace url ":3449" ":3000"))
-})
+  :url-rewriter    "example.core/fig-rewrite"   
+}
 ```
 
 ### Using figwheel from the REPL
@@ -610,12 +614,11 @@ functions to be invoked on code reload.
 (defn teardown []
    (.off ($ "div#app") "click" "a.button")
 
-;; hook in the  
-(fw/start {
-  :on-jsload (fn [] 
-               (teardown)
-               (setup))
-})
+;; define a reload hook in the
+(defn fig-reload-hook []
+      (teardown)
+      (setup))
+
 ```
 
 Now you can edit the code in the setup and teardown functions and see
