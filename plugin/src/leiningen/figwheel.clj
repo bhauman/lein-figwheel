@@ -73,6 +73,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
         all-builds       (fc/prep-builds
                           (mapv config/parse-notify-command
                                 (or (get-in project [:figwheel :builds])
+                                    (get-in project [:cljsbuild :builds])
                                     builds)))
         figwheel-options (fc/prep-options
                           (merge

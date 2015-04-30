@@ -133,9 +133,32 @@
                   module-map))
     module-map))
 
+(defn sane-output-to-dir [{:keys [output-to output-dir] :as options}]
+  (letfn [(parent [fname] (if-let [p (.getParent (io/file fname))] (str p "/") ""))]
+    (if (and (= (:optimizations options) :none)
+             (or (nil? output-dir) (nil? output-to)))
+      (if (and (nil? output-dir) (nil? output-to))
+        (assoc options :output-to "main.js" :output-dir "out")
+        (if output-dir ;; probably shouldn't do this
+          (assoc options :output-to (str (parent output-dir) "main.js"))
+          (assoc options :output-dir (str (parent output-to) "out"))))
+      options)))
+
+(comment
+  (sane-output-to-dir {:output-dir "yes"})
+
+  (sane-output-to-dir {:output-to "yes.js"})
+
+  (sane-output-to-dir {:output-dir "yes/there"})
+
+  (sane-output-to-dir {:output-to "outer/yes.js"})  
+  
+  )
+
 (defn fix-build-options [build-options]
   (->> build-options
     (apply-to-key normalize-dir :output-dir)
+    (sane-output-to-dir)
     (apply-to-key namify-module-entries :modules)
     (apply-to-key name :main)))
 
