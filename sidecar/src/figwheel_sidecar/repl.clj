@@ -2,7 +2,8 @@
   (:require
    [cljs.repl]
    [cljs.util]
-   [cljs.analyzer :as ana]   
+   [cljs.analyzer :as ana]
+   [cljs.compiler]   
    [cljs.env :as env]
    [clojure.stacktrace :as trace]
    [clojure.pprint :as p]   
@@ -234,6 +235,7 @@
   ;; put some guards here for expectations
   (when (and (:compiler-env build)
              (:source-paths build))
+
     (env/with-compiler-env (:compiler-env build)
       (let [files (map :source-file
                        (cbuild/files-like [".cljs" ".cljc"]
@@ -250,6 +252,18 @@
                                (:all-builds *autobuild-env*))]
     (doseq [build builds]
       (analyze-build build))
+    nil))
+
+(defn analyze-core-cljs [ids]
+  (let [ids (map name ids)
+        builds (filter-builds* ids
+                               (:focus-ids @(:state-atom *autobuild-env*))
+                               (:all-builds *autobuild-env*))]
+    (doseq [build builds]
+      (env/with-compiler-env (:compiler-env build)
+        (let [opts (or (:build-options build) (:compiler build))]
+          (cljs.compiler/with-core-cljs opts (fn []))
+          nil)))
     nil))
 
 (defn build-once [ids]
@@ -278,6 +292,8 @@
         (display-focus-ids build-ids)
         (mapv repl-println errors))
       (when-not (builder-running? state-atom)
+        (analyze-core-cljs build-ids)
+        
         (build-once build-ids)
         ;; this is kinda crap but we need it for now
         ;; build-once can short circuit and not analyze all the files
