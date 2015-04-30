@@ -258,11 +258,13 @@ you can pass a map of options as below:
 :cljsbuild {
   :builds [ { :id "example" 
               :source-paths ["src/"]
+
+              ;; put client config options in :figwheel
               :figwheel { :websocket-host "localhost" 
-                          :on-jsload "example.core/fig-reload"}              
+                          :on-jsload "example.core/fig-reload"}
+                          
               :compiler {  :main "example.core"
                            :asset-path "js/out"
-                           ;; put client config options in :figwheel
 
                            :output-to "resources/public/js/compiled/example.js"
                            :output-dir "resources/public/js/compiled/out"
