@@ -143,7 +143,7 @@ Here is an example:
               :source-paths ["src/"]
               :compiler {  :main "example.core"
                            :asset-path "js/out"
-                           :figwheel true
+                           :figwheel { :on-jsload "example.core/reload-hook" }
                            :output-to "resources/public/js/compiled/example.js"
                            :output-dir "resources/public/js/compiled/out"
                            :externs ["resources/public/js/externs/jquery-1.9.js"]
@@ -156,8 +156,10 @@ Here is an example:
 The important part here is that you have to have at least one `build`
 and that build has to have `:optimizations` set to `:none`.
 
-Setting `:figwheel true` will automagically insert the figwheel client
-code into your application.
+Setting `:figwheel { :on-jsload "example.core/reload-hook" }` will
+automagically insert the figwheel client code into your application.
+If you supply `:on-jsload` the name of a function that function will
+be called after new code gets reloaded.
 
 **If you want to serve the HTML file that will host your application
 from figwheel's built in server**, then the output directory has to be
