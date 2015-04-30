@@ -124,8 +124,8 @@
 
 (defn create-connect-script! [build]
   ;;; consider doing this is the system temp dir
-  (.mkdirs (io/file (connect-script-temp-dir build)))
   (let [temp-file (io/file (connect-script-path build))]
+    (.mkdirs (.getParentFile temp-file))
     (.deleteOnExit temp-file)
     (with-open [file (io/writer temp-file)]
       (binding [*out* file]
