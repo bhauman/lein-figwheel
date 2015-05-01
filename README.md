@@ -88,7 +88,7 @@ environment stable. This behavior is optional and can be turned off.
 
 ## Quick Start
 
-Make sure you have the [latest version of leinigen installed](https://github.com/technomancy/leiningen#installation).
+Make sure you have the [latest version of leiningen installed](https://github.com/technomancy/leiningen#installation).
 
 You can try figwheel out quickly with the flappy bird demo:
 
@@ -104,7 +104,7 @@ coding. Make sure you open your browser's development console so you
 can get feedback about code reloads.
 
 If you would prefer to greenfield a new project you can use the
-figwheel leinigen template.
+figwheel leiningen template.
 
     lein new figwheel hello-world
 
