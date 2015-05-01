@@ -143,9 +143,9 @@ Here is an example:
               :source-paths ["src/"]
               :figwheel { :on-jsload "example.core/reload-hook" }              
               :compiler {  :main "example.core"
-                           :asset-path "js/compiled/out"
-                           :output-to "resources/public/js/compiled/example.js"
-                           :output-dir "resources/public/js/compiled/out"
+                           :asset-path "js/out"
+                           :output-to "resources/public/js/example.js"
+                           :output-dir "resources/public/js/out"
                            :optimizations :none } } ]
 }
 ```
@@ -241,7 +241,7 @@ you can create this `resources/public/index.html` file:
   <body>
     <div id="main-area">
     </div>
-    <script src="js/compiled/example.js" type="text/javascript"></script>   
+    <script src="js/example.js" type="text/javascript"></script>   
   </body>
 </html>
 ```
@@ -262,13 +262,9 @@ you can pass a map of options as below:
                           
               :compiler {  :main "example.core"
                            :asset-path "js/out"
-
-                           :output-to "resources/public/js/compiled/example.js"
-                           :output-dir "resources/public/js/compiled/out"
-                           :externs ["resources/public/js/externs/jquery-1.9.js"]
-                           :optimizations :none
-                           :source-map true
-                           :source-map-timestamp true } } ]
+                           :output-to "resources/public/js/example.js"
+                           :output-dir "resources/public/js/out"
+                           :optimizations :none } } ]
 }
 ```
 
