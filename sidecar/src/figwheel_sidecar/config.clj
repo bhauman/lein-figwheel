@@ -8,6 +8,12 @@
   (let [f (io/file fpath)]
     (when-let [dir (.getParentFile f)] (.mkdirs dir))))
 
+(defn get-build-options
+  ([build]
+   (or (:build-options build) (:compiler build) {}))
+  ([build key]
+   (get (get-build-options build) key)))
+
 (defn ensure-output-dirs* [{:keys [build-options compiler]}]
   (let [{:keys [output-to]} (or build-options compiler)]
     (when output-to
@@ -16,7 +22,8 @@
 (defn optimizations-none?
   "returns true if a build has :optimizations set to :none"
   [build]
-  (= :none (get-in build [:compiler :optimizations])))
+  (let [opt (get-build-options build :optimizations)]
+    (or (nil? opt) (= :none opt))))
 
 ;; checking to see if output dir is in right directory
 (defn norm-path
@@ -75,22 +82,8 @@
 (defn check-for-valid-options
   "Check for various configuration anomalies."
   [{:keys [http-server-root] :as opts} print-warning build']
-  (let [build-options (:compiler build')
-        opts? (and (not (nil? build-options)) (optimizations-none? build'))
-        out-dir? (output-dir-in-resources-root? build-options opts)]
-    ;; this is now a warning
-    (when (and
-           print-warning
-           (not out-dir?)
-           (:output-dir build-options))
-      (println
-       (str
-          "Figwheel Config Warning (in project.clj) -- \n"
-          "Your build :output-dir is not in a resources directory.\n"
-          "If you are serving your assets (js, css, etc.) with Figwheel,\n"
-          "they must be on the resource path for the server.\n"
-          (str "Your :output-dir should match this pattern: " (make-serve-from-display opts))))
-      (newline))
+  (let [build-options (get-build-options build')
+        opts? (and (not (nil? build-options)) (optimizations-none? build'))]
     (map
      #(str "Figwheel Config Error (in project.clj) - " %)
      (filter identity
@@ -133,9 +126,19 @@
                   module-map))
     module-map))
 
+(defn opt-none? [{:keys [optimizations]}]
+  (or (nil? optimizations) (= optimizations :none)))
+
+;; TODO this is a hack need to check all the places that I'm checking for
+;; :optimizations :none and check for nil? or :none
+(defn default-optimizations-to-none [build-options]
+  (if (opt-none? build-options)
+    (assoc build-options :optimizations :none)
+    build-options))
+
 (defn sane-output-to-dir [{:keys [output-to output-dir] :as options}]
   (letfn [(parent [fname] (if-let [p (.getParent (io/file fname))] (str p "/") ""))]
-    (if (and (= (:optimizations options) :none)
+    (if (and #_(opt-none? options)
              (or (nil? output-dir) (nil? output-to)))
       (if (and (nil? output-dir) (nil? output-to))
         (assoc options :output-to "main.js" :output-dir "out")
@@ -145,18 +148,20 @@
       options)))
 
 (comment
-  (sane-output-to-dir {:output-dir "yes"})
+  (default-optimizations-to-none {:optimizations :simple})
+  
+  (sane-output-to-dir {:output-dir "yes" })
 
   (sane-output-to-dir {:output-to "yes.js"})
 
   (sane-output-to-dir {:output-dir "yes/there"})
 
-  (sane-output-to-dir {:output-to "outer/yes.js"})  
-  
+  (sane-output-to-dir {:output-to "outer/yes.js"})
   )
 
 (defn fix-build-options [build-options]
   (->> build-options
+    (default-optimizations-to-none)
     (apply-to-key normalize-dir :output-dir)
     (sane-output-to-dir)
     (apply-to-key namify-module-entries :modules)
@@ -167,10 +172,19 @@
     (assoc opts :id (name (gensym "build_needs_id_")))
     (assoc opts :id (name (:id opts)))))
 
-(defn fix-build [opts]
-  (-> opts
+(defn move-compiler-to-build-options [build]
+  (if (and (not (:build-options build))
+           (:compiler build))
+    (-> build
+      (assoc :build-options (:compiler build))
+      (dissoc :compiler))
+    build))
+
+(defn fix-build [build]
+  (-> build
     ensure-id
-    (update-in [(if (:build-options opts) :build-options :compiler)] fix-build-options)))
+    move-compiler-to-build-options
+    (update-in [:build-options] fix-build-options)))
 
 (defn fix-builds [builds]
   (mapv fix-build builds))
