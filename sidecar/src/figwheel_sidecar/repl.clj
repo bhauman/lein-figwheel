@@ -229,13 +229,17 @@
   (let [bs (set (get-ids ids focus-ids all-builds))]
     (filter #(bs (:id %)) all-builds)))
 
+(defn focused-builds [ids]
+  (filter-builds* (map name ids)
+                  (:focus-ids @(:state-atom *autobuild-env*))
+                  (:all-builds *autobuild-env*)))
+
 ;; API
 
 (defn analyze-build [build]
   ;; put some guards here for expectations
   (when (and (:compiler-env build)
              (:source-paths build))
-
     (env/with-compiler-env (:compiler-env build)
       (let [files (map :source-file
                        (cbuild/files-like [".cljs" ".cljc"]
@@ -246,41 +250,23 @@
         nil))))
 
 (defn analyze-builds [ids]
-  (let [ids (map name ids)
-        builds (filter-builds* ids
-                               (:focus-ids @(:state-atom *autobuild-env*))
-                               (:all-builds *autobuild-env*))]
-    (doseq [build builds]
-      (analyze-build build))
-    nil))
+  (doseq [build (focused-builds ids)]
+    (analyze-build build)))
 
 (defn analyze-core-cljs [ids]
-  (let [ids (map name ids)
-        builds (filter-builds* ids
-                               (:focus-ids @(:state-atom *autobuild-env*))
-                               (:all-builds *autobuild-env*))]
-    (doseq [build builds]
-      (env/with-compiler-env (:compiler-env build)
+  (doseq [build (focused-builds ids)]
+    (env/with-compiler-env (:compiler-env build)
         (let [opts (or (:build-options build) (:compiler build))]
-          (cljs.compiler/with-core-cljs opts (fn []))
-          nil)))
-    nil))
+          (cljs.compiler/with-core-cljs opts (fn []))))))
 
 (defn build-once [ids]
-  (let [ids (map name ids)
-        builds (filter-builds* ids
-                               (:focus-ids @(:state-atom *autobuild-env*))
-                               (:all-builds *autobuild-env*))]
+  (let [builds (->> (focused-builds ids)
+                 (map #(assoc % :reload-clj-files false)))]
     (display-focus-ids (map :id builds))
-    (mapv auto/build-once (mapv #(assoc % :reload-clj-files false)
-                                builds))
-    nil))
+    (doseq [build builds] (auto/build-once build))))
 
 (defn clean-builds [ids]
-  (let [ids (map name ids)
-        builds (filter-builds* ids
-                               (:focus-ids @(:state-atom *autobuild-env*))
-                               (:all-builds *autobuild-env*))]
+  (let [builds (focused-builds ids)]
     (display-focus-ids (map :id builds))
     (mapv cbuild/clean-build (map :build-options builds))
     (repl-println "Deleting ClojureScript compilation target files.")))
