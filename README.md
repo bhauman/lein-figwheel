@@ -119,7 +119,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojure "1.6.0"]          ;; has to be at least 1.6.0
-[org.clojure/clojurescript "0.0-3195"] ;; has to be at least 3195 or greater
+[org.clojure/clojurescript "0.0-3211"] ;; has to be at least 3195 or greater
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
@@ -143,13 +143,10 @@ Here is an example:
               :source-paths ["src/"]
               :figwheel { :on-jsload "example.core/reload-hook" }              
               :compiler {  :main "example.core"
-                           :asset-path "js/out"
+                           :asset-path "js/compiled/out"
                            :output-to "resources/public/js/compiled/example.js"
                            :output-dir "resources/public/js/compiled/out"
-                           :externs ["resources/public/js/externs/jquery-1.9.js"]
-                           :optimizations :none
-                           :source-map true
-                           :source-map-timestamp true } } ]
+                           :optimizations :none } } ]
 }
 ```
 
