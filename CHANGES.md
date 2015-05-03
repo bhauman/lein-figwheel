@@ -1,3 +1,14 @@
+## 0.3.0
+
+* the `(reset-autobuild)` REPL command now reloads the build config
+  from your `project.clj`
+* simplified necessary build config parameters, no longer have to have
+  `:optimizations`, `:output-to`, `:output-dir`
+
+## 0.2.9
+
+* fixes #137 missing connect.cljs 
+
 ## 0.2.8
 
 * vastly simplified configuration. You no longer need to write the
