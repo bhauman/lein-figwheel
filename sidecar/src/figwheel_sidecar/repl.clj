@@ -302,6 +302,42 @@
           (reset! state-atom { :autobuilder abuild
                                :focus-ids build-ids}))))))
 
+(defn get-project-config []
+  (when (.exists (io/file "project.clj"))
+    (try
+      (into {} (map vec (partition 2 (drop 3 (read-string (slurp "project.clj"))))))
+      (catch Exception e
+        {}))))
+
+(defn get-project-cljs-builds []
+  (let [p (get-project-config)
+        builds (or
+                (get-in p [:figwheel :builds])
+                (get-in p [:cljsbuild :builds]))]
+    (when (> (count builds) 0)
+      (config/prep-builds builds))))
+
+(defn build-with-id [builds id]
+  (first (filter #(= (:id %) id) builds)))
+
+(declare initial-build-ids)
+
+;;; ewww this is nasty, never planned for dynamic reloading of config
+; begs for higher level of abstraction
+(defn reload-builds! []
+  (when-let [builds (get-project-cljs-builds)]
+    (let [current-builds (:all-builds *autobuild-env*)
+          builds' (mapv (fn [b] (if-let [cb (build-with-id current-builds (:id b))]
+                                 (merge b (select-keys cb [:dependency-mtimes :compiler-env]))
+                                 (auto/prep-build b)))
+                        builds)]
+      (println "Reloading Build Configuration")
+      (let [build-ids (initial-build-ids builds' [] #_(:build-ids *autobuild-env*))]
+        (set! *autobuild-env* (assoc *autobuild-env*
+                                     :build-ids  build-ids
+                                     :all-builds builds'))
+        (swap! (:state-atom *autobuild-env*) assoc :focus-ids build-ids)))))
+
 (defn stop-autobuild
   ([] (stop-autobuild nil))
   ([_]
@@ -333,9 +369,10 @@
 (defn reset-autobuild
   ([] (reset-autobuild nil))
   ([_]
+   (stop-autobuild [])
+   (clean-builds [])
+   (reload-builds!)     
    (let [{:keys [state-atom]} *autobuild-env*]
-     (stop-autobuild [])
-     (clean-builds [])
      (start-autobuild (:focus-ids @state-atom)))))
 
 (defn status
@@ -440,9 +477,9 @@
 (defn repl-switching-loop
   ([] (repl-switching-loop nil))
   ([start-build]
-   (let [{:keys [all-builds]} *autobuild-env*]
-     (loop [build start-build]
-       (cljs-repl (:id build))
+   (loop [build start-build]
+     (cljs-repl (:id build))
+     (let [{:keys [all-builds]} *autobuild-env*]
        (let [chosen-build-id (get-build-choice
                               (keep :id (filter config/optimizations-none? all-builds)))]
          (if (false? chosen-build-id)

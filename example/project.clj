@@ -15,7 +15,7 @@
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.2.9"]
+            [lein-figwheel "0.3.0-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -44,16 +44,14 @@
                          :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
-                                     :on-jsload      "example.core/fig-reload" }
+                                     :on-jsload      "example.core/fig-reload"}
                         
                          :compiler { :main example.core
                                      :asset-path "js/out"
                                      :output-to "resources/public/js/example.js"
                                      :output-dir "resources/public/js/out"
-                                     :source-map true
                                      :source-map-timestamp true
                                      ;; :recompile-dependents true
-                                     :cache-analysis true
                                      :optimizations :none}}
                        {:id "server"
                         :source-paths ["server_src"]
