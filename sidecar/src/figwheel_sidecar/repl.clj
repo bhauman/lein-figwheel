@@ -332,7 +332,7 @@
                                  (auto/prep-build b)))
                         builds)]
       (println "Reloading Build Configuration")
-      (let [build-ids (initial-build-ids builds' [] #_(:build-ids *autobuild-env*))]
+      (let [build-ids (initial-build-ids builds' [])]
         (set! *autobuild-env* (assoc *autobuild-env*
                                      :build-ids  build-ids
                                      :all-builds builds'))
