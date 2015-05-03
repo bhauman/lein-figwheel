@@ -2,11 +2,12 @@
 
 Figwheel builds your ClojureScript code and hot loads it into the browser as you are coding!
 
-Here is a [live demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI)
+Get a quick idea of what figwheel does by watching the
+6 minute [flappy bird demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI).
 
-Here is a [ClojureWest talk on Figwheel](https://www.youtube.com/watch?v=j-kj2qwJa_E)
+Learn even more by watching a 45 minute [talk on Figwheel](https://www.youtube.com/watch?v=j-kj2qwJa_E) given at ClojureWest 2015.
 
-See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
+Read the [introductory blog post](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
 ####Current version:
 [![Clojars Project](https://clojars.org/lein-figwheel/latest-version.svg)](https://clojars.org/lein-figwheel)
@@ -19,10 +20,8 @@ See the introductory blog post [here](http://rigsomelight.com/2014/05/01/interac
 
 If you write [**reloadable code**](https://github.com/bhauman/lein-figwheel#writing-reloadable-code), figwheel can facilitate automated live
 interactive programming. Every time you save your ClojureScript source
-file the changes are sent to the browser so you can see the effects of
-modifying your code in real time.  This is different than interactive
-programming in the browser-repl where you need to cherry pick which
-changes to send and which processes to start, etc.
+file, the changes are sent to the browser so that you can see the effects of
+modifying your code in real time. 
 
 #### Supports Node.js
 
@@ -60,7 +59,7 @@ execute various build tasks without having to stop and rerun lein-figwheel.
 
 Figwheel's connection is fairly robust. I have experienced figwheel
 sessions that have lasted for days through multiple OS sleeps. You can
-also use figwheel like a Repl if you are OK with using `print` to output
+also use figwheel like a REPL if you are OK with using `print` to output
 the evaluation results to the browser console.
 
 #### Message broadcast
@@ -114,14 +113,14 @@ Or optionally:
     lein new figwheel hello-world -- --reagent  ;; for a reagent based project 
 ```
 
-## Quick Start
+## Quick Start 
 
 If you are new to Figwheel there is the brand new [Quick
 Start](https://github.com/bhauman/lein-figwheel/wiki/Quick-Start) tutorial.
 Working through this Quick Start will probably save you a tremendous
 amount of time.
 
-As of right now this document is rough and brand new, but it is probably the best
+As of right now this document is new and a bit rough, but it is the best
 getting started guide available at the moment.
 
 ## Usage
@@ -166,7 +165,7 @@ and that build has to have `:optimizations` set to `:none`.
 
 Setting `:figwheel { :on-jsload "example.core/reload-hook" }` will
 automagically insert the figwheel client code into your application.
-If you supply `:on-jsload` the name of a function that function will
+If you supply `:on-jsload` the name of a function, that function will
 be called after new code gets reloaded.
 
 **If you want to serve the HTML file that will host your application
@@ -201,9 +200,9 @@ If you are using your own server please load your app from that server.
 
 ### Fighweel server side configuration
 
-This is not neccessary but you can further configure the figwheel
-system at the root level of your `project.clj` you can add the
-following server side configuration parameters:
+This is not neccessary but you can configure the figwheel system. At
+the root level of your `project.clj` you can add the following server
+side configuration parameters:
 
 ```clojure
 :figwheel {
@@ -290,21 +289,19 @@ The following configuration options are available:
 ;; optional callback
 :on-jsload "example.core/fig-reload"
 
-;; if you want to do repl based development and not have
-;; have files autoloaded into the client env
+;; if you want to do REPL based development and not have
+;; have compiled files autoloaded into the client env
 :autoload false
 
-;; The heads up display is enabled by default
-;; to disable it: 
+;; The heads up display is enabled by default to disable it: 
 :heads-up-display false
 
-;; when the compiler emits warnings figwheel
-;; blocks the loading of files.
+;; when the compiler emits warnings figwheel blocks the loading of files.
 ;; To disable this behavior:
 :load-warninged-code true
 
-;; a hook that will rewriter the urls that fighweel is loading
-;; this really shouldn't be necessary
+;; a hook that will rewrite the urls that fighweel is using to
+;; fetch assets.
 :url-rewriter "example.core/fig-url-rewrite"
 
 ```
@@ -319,7 +316,7 @@ To see all the client side config options [look here](https://github.com/bhauman
 ### Preventing and forcing file reloads
 
 Figwheel normally reloads any file that has changed. If you want to
-prevent certain files from being reloaded by figwheel, you can add
+prevent certain files from being **reloaded** by figwheel, you can add
 meta-data to the namespace declaration like so:
 
 ```clojure
@@ -327,9 +324,8 @@ meta-data to the namespace declaration like so:
 ```
 
 Figwheel will not load or reload files that haven't been required by
-your application. If you want to force a file to be loaded and
-reloaded add the follwoing meta-data the namespace declaration of the
-file:
+your application. If you want to force a file to be loaded when it
+changes add the follwoing meta-data the namespace declaration of the file:
 
 ```clojure
 (ns ^:figwheel-load example.core)
@@ -349,33 +345,35 @@ To force a file to reload on every change:
 ### Using your own server
 
 You do not have to use the figwheel server to host your app and its
-static assets. You can use your own server. 
+static assets. You can use your own server.
 
 To use your own server simply navigate to your server url for the page
 that is hosting your ClojureScript app.
 
-In this case, you have to let the figwheel client know where figwheel
+In this case, you may have to let the figwheel client know where figwheel
 websocket is.
 
 Like so:
 
 ```clojure
-  :figwheel {
-    :websocket-host "localhost"
-    :on-jsload      "example.core/reload-hook"
-  }
+:cljsbuild {
+  :builds [{:id "dev"
+            :source-paths ["src"]
+            :figwheel { :websocket-host "localhost" }
+            :main "example.core"
+            ... }]}
 ```
 
 Note that you will still need to run the figwheel server in addition to 
 your development app server if you wish to continue utilizing figwheel.
 
-For example, you could run figwheel in one terminal...
+For example, you could run figwheel in one terminal:
 
 ```
 $ lein figwheel
 ```
 
-and run your app server of choice in another...
+and run the app server of choice in another:
 
 ```
 $ lein ring server ;; you are using lein-ring
