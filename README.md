@@ -416,28 +416,6 @@ cleans.  They do not alter the implicit build ids.
 including whether the autobuilder is running, which build ids are in
 focus, and the number of client connections.
 
-
-#### Rewriting asset request urls
-
-Figwheel attempts to reload assets from where they reside. There are
-times when you may prefer to alter the url of the loaded assets.
-
-You can use the `:url-rewriter` client option to rewrite resource
-request urls. The `:url-rewriter` config options takes a function that
-recieves the resource url and should return a corrected url that
-points to the same resource on your server.
-
-```clojure
-;; in your cljs code
-(defn fig-rewrite [url] (clojure.string/replace url ":3449" ":3000"))
-
-;; in project.clj
-:figwheel {
-  :websocket-url   "ws://localhost:3449/figwheel-ws"
-  :url-rewriter    "example.core/fig-rewrite"   
-}
-```
-
 ### Using figwheel from the REPL
 
 This is still a work in progress. But you can use figwheel from a
