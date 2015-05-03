@@ -72,9 +72,10 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
   (let [{:keys [crossover-path crossovers builds]} (config/extract-options project)
         all-builds       (fc/prep-builds
                           (mapv config/parse-notify-command
-                                (or (get-in project [:figwheel :builds])
-                                    (get-in project [:cljsbuild :builds])
-                                    builds)))
+                                (fc/map-to-vec-builds
+                                 (or (get-in project [:figwheel :builds])
+                                     (get-in project [:cljsbuild :builds])
+                                     builds))))
         ;_ (pp/pprint all-builds)
         figwheel-options (fc/prep-options
                           (merge
