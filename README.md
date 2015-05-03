@@ -137,7 +137,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.2.9"]
+[lein-figwheel "0.3.0"]
 ```
 
 #### Configure lein cljsbuild
@@ -155,13 +155,15 @@ Here is an example:
               :compiler {  :main "example.core"
                            :asset-path "js/out"
                            :output-to "resources/public/js/example.js"
-                           :output-dir "resources/public/js/out"
-                           :optimizations :none } } ]
+                           :output-dir "resources/public/js/out" } } ]
 }
 ```
 
 The important part here is that you have to have at least one `build`
-and that build has to have `:optimizations` set to `:none`.
+that has `:optimizations` set to `:none` or `nil`.
+
+If you leave out the `:optimizations` key the ClojureScript compiler
+will default to `:none`.
 
 Setting `:figwheel { :on-jsload "example.core/reload-hook" }` will
 automagically insert the figwheel client code into your application.
@@ -342,43 +344,6 @@ To force a file to reload on every change:
 ```
 
 
-### Using your own server
-
-You do not have to use the figwheel server to host your app and its
-static assets. You can use your own server.
-
-To use your own server simply navigate to your server url for the page
-that is hosting your ClojureScript app.
-
-In this case, you may have to let the figwheel client know where figwheel
-websocket is.
-
-Like so:
-
-```clojure
-:cljsbuild {
-  :builds [{:id "dev"
-            :source-paths ["src"]
-            :figwheel { :websocket-host "localhost" }
-            :main "example.core"
-            ... }]}
-```
-
-Note that you will still need to run the figwheel server in addition to 
-your development app server if you wish to continue utilizing figwheel.
-
-For example, you could run figwheel in one terminal:
-
-```
-$ lein figwheel
-```
-
-and run the app server of choice in another:
-
-```
-$ lein ring server ;; you are using lein-ring
-```
-
 #### Using the ClojureScript REPL
 
 When you run `lein figwheel` a REPL will be launched into your application.
@@ -427,6 +392,10 @@ can't compose them.
 
 You can think of these functions having an implicit set of build ids
 that they operate on.
+
+If you call `(reset-autobuild)` it will stop the figwheel autobuilder,
+clean the builds, reload the build configuration from your
+`project.clj` and then restart the autobuild process.
 
 If you call `(stop-autobuild)` it will stop the figwheel autobuilder.
 
