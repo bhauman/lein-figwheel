@@ -1,3 +1,7 @@
+## 0.3.1
+
+* fixed regression on supporting map based build configs
+
 ## 0.3.0
 
 * the `(reset-autobuild)` REPL command now reloads the build config
