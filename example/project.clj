@@ -15,7 +15,7 @@
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.3.0-SNAPSHOT"]
+            [lein-figwheel "0.3.1"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
