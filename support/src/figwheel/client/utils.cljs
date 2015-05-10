@@ -6,7 +6,7 @@
 
 (def ^:dynamic *print-debug* false)
 
-(defn html-env? [] goog/inHtmlDocument_)
+(defn html-env? [] (goog/inHtmlDocument_))
 
 (defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
 
@@ -32,6 +32,6 @@
    (let [f (condp = (if (html-env?) level :info)
             :warn  #(.warn js/console %)
             :debug #(.debug js/console %)
-            :error #(.error js/console %)    
+            :error #(.error js/console %)
             #(.log js/console %))]
      (f arg))))
