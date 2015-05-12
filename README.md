@@ -198,8 +198,6 @@ by going to `http://localhost:3449/<yourfilename>.html`
 
 If you are using your own server please load your app from that server.
 
-[Cljsbuild has many many more options](https://github.com/emezeske/lein-cljsbuild/blob/master/sample.project.clj)
-
 ### Fighweel server side configuration
 
 This is not neccessary but you can configure the figwheel system. At
