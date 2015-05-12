@@ -100,15 +100,29 @@
         names (if main-ns
                 (conj names (symbol (str main-ns)))
                 names)]
-    (conj names 'figwheel.client)))
+    (conj names 'figwheel.client 'figwheel.client.utils)))
 
 (defn extract-connection-script-required-ns [{:keys [figwheel] :as build}]
   (list 'ns 'figwheel.connect
         (cons :require (map vector (extract-connection-requires build)))))
 
+(defn hook-name-to-js [hook-name]
+  (symbol
+   (str "js/"
+        (string/join "." (string/split (str hook-name) #"/")))))
+
+(defn try-jsreload-hook [k hook-name]
+  ;; change hook to js form to avoid compile warnings when it doesn't
+  ;; exist, these compile warnings are confusing and prevent code loading
+  (let [hook-name' (hook-name-to-js hook-name)]
+    (list 'fn '[& x]
+          (list 'if hook-name'
+                (list 'apply hook-name' 'x)
+                (list 'figwheel.client.utils/log :debug (str "Figwheel: " k " hook '" hook-name "' is missing"))))))
+
 (defn extract-connection-script-figwheel-start [{:keys [figwheel]}]
   (let [func-map (select-keys figwheel figwheel-client-hook-keys)
-        func-map (into {} (map (fn [[k v]] [k (symbol v)]) func-map))
+        func-map (into {} (map (fn [[k v]] [k (try-jsreload-hook k v)]) func-map))
         res (merge figwheel func-map)]
     (list 'figwheel.client/start res)))
 
