@@ -241,9 +241,12 @@
   (when (and (:compiler-env build)
              (:source-paths build))
     (env/with-compiler-env (:compiler-env build)
-      (let [files (map :source-file
-                       (cbuild/files-like [".cljs" ".cljc"]
-                                          (:source-paths build)))
+      (let [files
+            (filter
+             (fn [f] (not (= (.getName f) "deps.cljs")))
+             (map :source-file
+                  (cbuild/files-like [".cljs" ".cljc"]
+                                     (:source-paths build))))
             ;; TODO refactor this or clause repeated to many times
             opts (or (:build-options build) (:compiler build))]
         (doseq [f files] (ana/analyze-file f opts))
