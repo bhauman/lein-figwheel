@@ -129,7 +129,7 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojure "1.6.0"]          ;; has to be at least 1.6.0
-[org.clojure/clojurescript "0.0-3211"] ;; has to be at least 3211 or greater
+[org.clojure/clojurescript "0.0-3211"] ;; must be 3211
 ```
 
 Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
