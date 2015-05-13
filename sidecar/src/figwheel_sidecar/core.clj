@@ -32,15 +32,6 @@
       [(subs base 0 i) (subs base i)]
       [base nil])))
 
-;; assumes leiningen 
-(defn project-unique-id []
-  (let [f (io/file "./project.clj")]
-    (or (when (.exists f)
-          (let [[_ name version] (-> f slurp read-string)]
-            (when (and name version)
-              (str name "--" version))))
-        (.getCanonicalPath (io/file ".")))))
-
 (defn read-msg [data]
   (try
     (let [msg (edn/read-string data)]
@@ -434,7 +425,7 @@
                                     repl
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
-  { :unique-id (or unique-id (project-unique-id)) 
+  { :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
      
     :resource-paths (or
                      (and resource-paths

@@ -66,6 +66,11 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
             (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
           (figwheel-sidecar.repl/run-autobuilder ~autobuild-opts))))
 
+(defn get-unique-id [prj]
+  (let [{:keys [name version]} prj]
+    (when (and name version)
+      (str name "--" version))))
+
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
@@ -79,7 +84,8 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
         ;_ (pp/pprint all-builds)
         figwheel-options (fc/prep-options
                           (merge
-                           { :http-server-root "public" }
+                           { :http-server-root "public"
+                             :unique-id (get-unique-id project)}
                            (dissoc (:figwheel project) :builds)
                            (select-keys project [:resource-paths])))
         errors           (fc/check-config figwheel-options
@@ -92,3 +98,4 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
                       :all-builds all-builds
                       :build-ids  (vec build-ids)})
       (mapv println errors))))
+
