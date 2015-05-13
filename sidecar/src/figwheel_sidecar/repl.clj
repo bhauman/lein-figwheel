@@ -494,6 +494,7 @@
   (when (:nrepl-port figwheel-options)
     (nrepl-serv/start-server
      :port (:nrepl-port figwheel-options)
+     :bind (:nrepl-host figwheel-options)
      :handler (apply nrepl-serv/default-handler
                      (conj (map resolve cider/cider-middleware) #'pback/wrap-cljs-repl)))))
 
