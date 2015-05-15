@@ -262,11 +262,25 @@
         (let [opts (or (:build-options build) (:compiler build))]
           (cljs.compiler/with-core-cljs opts (fn []))))))
 
+(defn build-once-builder [figwheel-server]
+  (-> cbuild/build-source-paths*
+    (autobuild/default-build-options {:recompile-dependents false})
+    (autobuild/insert-figwheel-connect-script figwheel-server)
+    (auto/warning (auto/warning-message-handler
+              #(when-let [msg (:message %)] 
+                 (println msg))))
+    auto/time-build
+    (auto/after auto/compile-success)
+    (auto/error auto/compile-fail)
+    (auto/before auto/compile-start)))
+
 (defn build-once [ids]
-  (let [builds (->> (focused-builds ids)
+  (let [build-it-once (build-once-builder (get *autobuild-env* :figwheel-server))
+        builds (->> (focused-builds ids)
                  (map #(assoc % :reload-clj-files false)))]
     (display-focus-ids (map :id builds))
-    (doseq [build builds] (auto/build-once build))))
+    (doseq [build builds]
+      (build-it-once build))))
 
 (defn clean-builds [ids]
   (let [builds (focused-builds ids)]
