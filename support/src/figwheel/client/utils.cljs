@@ -18,6 +18,12 @@
     (node-env?) :node
     :else :html))
 
+(defn dispatch-custom-event [event-name data]
+  (when (and (html-env?) (aget js/window "CustomEvent"))
+    (.dispatchEvent (.-body js/document)
+                    (js/CustomEvent. event-name
+                                     (js-obj "detail" data)))))
+
 (defn debug-prn [o]
   (when *print-debug*
     (let [o (if (or (map? o)

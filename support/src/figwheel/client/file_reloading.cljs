@@ -13,6 +13,14 @@
 
 (declare reload-file* resolve-ns)
 
+;; you can listen to this event easily like so:
+;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
+(defn on-jsload-custom-event [url]
+  (utils/dispatch-custom-event "figwheel.js-reload" url))
+
+(defn before-jsload-custom-event [files]
+  (utils/dispatch-custom-event "figwheel.before-js-reload" files))
+
 (defn all? [pred coll]
   (reduce #(and %1 %2) true (map pred coll)))
 
@@ -176,6 +184,7 @@
                        {:keys [files] :as msg}]
   (go
     (before-jsload files)
+    (before-jsload-custom-event files)
     ;; evaluate the eval bodies first
     ;; for now this is only for updating dependencies
     ;; we are not handling removals
@@ -202,7 +211,9 @@
                                   (if namespace
                                     (ns-to-js-file namespace)
                                     file)) res)))
-        (js/setTimeout #(apply on-jsload [res]) 10))
+        (js/setTimeout #(do
+                          (on-jsload-custom-event res)
+                          (apply on-jsload [res])) 10))
       (when (not-empty files-not-loaded)
         (utils/log :debug "Figwheel: NOT loading these files ")
         (let [{:keys [figwheel-no-load file-changed-on-disk not-required]}

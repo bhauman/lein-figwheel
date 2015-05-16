@@ -224,11 +224,7 @@
 ;; you can listen to this event easily like so:
 ;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
 
-(defn default-on-jsload [url]
-  (when (and (utils/html-env?) (js*  "(\"CustomEvent\" in window)"))
-    (.dispatchEvent (.-body js/document)
-                    (js/CustomEvent. "figwheel.js-reload"
-                                     (js-obj "detail" url)))))
+(def default-on-jsload identity)
 
 (defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
   (utils/log :debug "Figwheel: Compile Exception")
