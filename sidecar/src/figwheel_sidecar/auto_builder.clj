@@ -80,7 +80,10 @@
 ;; connection
 
 (defn connect-script-temp-dir [build]
-  (str "target/figwheel_temp/" (name (:id build))))
+  (str
+    "target/figwheel_temp"
+    (when-let [id (:id build)]
+      (str "/" (name id)))))
 
 (defn connect-script-path [build]
   (str (connect-script-temp-dir build) "/figwheel/connect.cljs"))
