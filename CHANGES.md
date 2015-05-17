@@ -1,3 +1,14 @@
+## 0.3.2
+
+* provide global custom events "figwheel.js-reload" and "figwheel.before-js-reload" for folks to hook into
+* initial build wasn't providing figwheel start hook to output-to file
+* merge PR #150 allow to configure binding host of nREPL 
+* bump clojure requirement to be inline with clojurescript "0.1.7beta3" to fix #152
+* fix #151 stop depending on presence of project.clj 
+* fix #147 handle presence of a deps.cljs on the source path 
+* fix #145 cannot read property cljs$lang$maxFixedArity
+* merge PR #146 correctly detect if in html document 
+
 ## 0.3.1
 
 * fixed regression on supporting map based build configs

@@ -128,7 +128,7 @@ getting started guide available at the moment.
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojure "1.6.0"]          ;; has to be at least 1.6.0
+[org.clojure/clojure "1.7.0-beta3"]
 [org.clojure/clojurescript "0.0-3211"] ;; has to be at least 3211 or greater
 ```
 
@@ -137,7 +137,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.3.1"]
+[lein-figwheel "0.3.2"]
 ```
 
 #### Configure lein cljsbuild
@@ -151,7 +151,7 @@ Here is an example:
 :cljsbuild {
   :builds [ { :id "example" 
               :source-paths ["src/"]
-              :figwheel { :on-jsload "example.core/reload-hook" }              
+              :figwheel true
               :compiler {  :main "example.core"
                            :asset-path "js/out"
                            :output-to "resources/public/js/example.js"
@@ -165,7 +165,7 @@ that has `:optimizations` set to `:none` or `nil`.
 If you leave out the `:optimizations` key the ClojureScript compiler
 will default to `:none`.
 
-Setting `:figwheel { :on-jsload "example.core/reload-hook" }` will
+Setting `:fighweel true` or `:figwheel { :on-jsload "example.core/reload-hook" }` will
 automagically insert the figwheel client code into your application.
 If you supply `:on-jsload` the name of a function, that function will
 be called after new code gets reloaded.
