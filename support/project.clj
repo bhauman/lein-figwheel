@@ -1,4 +1,4 @@
-(defproject figwheel "0.3.2"
+(defproject figwheel "0.3.3"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"

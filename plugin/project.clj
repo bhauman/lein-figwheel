@@ -1,11 +1,11 @@
-(defproject lein-figwheel "0.3.2"
+(defproject lein-figwheel "0.3.3"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[figwheel-sidecar "0.3.2"]
-                 [figwheel "0.3.2"]]
+  :dependencies [[figwheel-sidecar "0.3.3"]
+                 [figwheel "0.3.3"]]
 
   :profiles {
     :dev {
