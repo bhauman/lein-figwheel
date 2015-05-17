@@ -1,3 +1,8 @@
+## 0.3.3
+
+* ensure that we are only adding inserting the figwheel.connect require when `:figwheel` is
+  set in the build
+
 ## 0.3.2
 
 * provide global custom events "figwheel.js-reload" and "figwheel.before-js-reload" for folks to hook into
