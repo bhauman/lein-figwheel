@@ -170,8 +170,9 @@
       "\ngoog.require(\"figwheel.connect\");")))
 
 (defn append-connection-init! [build]
-  (when-let [output-to (get-in build [:build-options :output-to])]
-    (spit output-to (require-connection-script-js build) :append true)))
+  (when (config/figwheel-build? build)
+    (when-let [output-to (get-in build [:build-options :output-to])]
+      (spit output-to (require-connection-script-js build) :append true))))
 
 (defn insert-figwheel-connect-script [builder figwheel-server]
   (fn [build]
