@@ -14,7 +14,7 @@
    [com.cemerick/pomegranate "0.3.0"]  
    [http-kit "2.1.16"]
    [ring-cors "0.1.7"]
-   [compojure "1.3.3"]
+   [compojure "1.3.4"]
    [clj-stacktrace "0.2.8"]
    [cljsbuild "1.0.5"]
    [figwheel "0.3.3"]
