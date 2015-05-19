@@ -18,6 +18,8 @@
 (defn on-jsload-custom-event [url]
   (utils/dispatch-custom-event "figwheel.js-reload" url))
 
+;; you can listen to this event easily like so:
+;; document.body.addEventListener("figwheel.before-js-reload", function (e) { console.log(e.detail);} );
 (defn before-jsload-custom-event [files]
   (utils/dispatch-custom-event "figwheel.before-js-reload" files))
 
