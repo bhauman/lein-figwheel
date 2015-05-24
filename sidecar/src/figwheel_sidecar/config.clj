@@ -235,11 +235,12 @@
   (if (figwheel-build? build)
     (let [build (prep-build-for-figwheel-client build)]
       (if-not (get-in build [:figwheel :websocket-url]) ;; prefer 
-        (let [host (or (get-in build [:figwheel :websocket-host]) "localhost")]
+        (if-let [host (get-in build [:figwheel :websocket-host])]
           (-> build
             (update-in [:figwheel] dissoc :websocket-host)
             (assoc-in [:figwheel :websocket-url]
-                      (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws"))))        
+                      (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
+          build)
         build))
     build))
 
