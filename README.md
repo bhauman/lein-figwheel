@@ -165,7 +165,7 @@ that has `:optimizations` set to `:none` or `nil`.
 If you leave out the `:optimizations` key the ClojureScript compiler
 will default to `:none`.
 
-Setting `:fighweel true` or `:figwheel { :on-jsload "example.core/reload-hook" }` will
+Setting `:figwheel true` or `:figwheel { :on-jsload "example.core/reload-hook" }` will
 automagically insert the figwheel client code into your application.
 If you supply `:on-jsload` the name of a function, that function will
 be called after new code gets reloaded.
@@ -198,7 +198,7 @@ by going to `http://localhost:3449/<yourfilename>.html`
 
 If you are using your own server please load your app from that server.
 
-### Fighweel server side configuration
+### figwheel server side configuration
 
 This is not neccessary but you can configure the figwheel system. At
 the root level of your `project.clj` you can add the following server
@@ -282,7 +282,7 @@ The following configuration options are available:
 
 ```clojure
 
-;; configure a websocket host, fighweel already knows the port
+;; configure a websocket host, figwheel already knows the port
 ;; this is helpful if you want to broadcast to devices
 :websocket-host "localhost" ;; or "www.myhost.com", "192.168.0.112"
 
@@ -300,7 +300,7 @@ The following configuration options are available:
 ;; To disable this behavior:
 :load-warninged-code true
 
-;; a hook that will rewrite the urls that fighweel is using to
+;; a hook that will rewrite the urls that figwheel is using to
 ;; fetch assets.
 :url-rewriter "example.core/fig-url-rewrite"
 
