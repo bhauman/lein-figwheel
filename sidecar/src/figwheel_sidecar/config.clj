@@ -241,7 +241,7 @@
               (update-in [:figwheel] dissoc :websocket-host)
               (assoc-in [:figwheel :websocket-url]
                         (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
-            build))
+            (update-in build [:figwheel] dissoc :websocket-host)))
         build))
     build))
 
