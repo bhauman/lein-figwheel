@@ -95,6 +95,7 @@ environment stable. This behavior is optional and can be turned off.
 >
 > Danny King and Daniel Woelfel
 
+
 > My major issue is that Figwheel is too awesome.
 >
 > Julian Leviston
