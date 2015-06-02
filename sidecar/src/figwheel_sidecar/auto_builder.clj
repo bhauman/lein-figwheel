@@ -7,7 +7,7 @@
    [cljs.analyzer :as ana]
    [cljs.env]
    #_[clj-stacktrace.repl]
-   [clojure.stacktrace :as stack]   
+   [clojure.stacktrace :as stack]
    [clojurescript-build.core :as cbuild]
    [clojurescript-build.auto :as auto]
    [clojure.java.io :as io]
@@ -80,7 +80,10 @@
 ;; connection
 
 (defn connect-script-temp-dir [build]
-  (str "target/figwheel_temp/" (name (:id build))))
+  (str
+    "target/figwheel_temp"
+    (when-let [id (:id build)]
+      (str "/" (name id)))))
 
 (defn connect-script-path [build]
   (str (connect-script-temp-dir build) "/figwheel/connect.cljs"))
@@ -163,7 +166,7 @@
     build))
 
 (defn require-connection-script-js [build]
-  (let [node? (and (:target build) (== (:target build) :nodejs)) 
+  (let [node? (and (:target build) (== (:target build) :nodejs))
         main? (get-in build [:build-options :main])]
     (if (and main? (not node?))
       "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");"
@@ -233,7 +236,7 @@
                :figwheel-server (fig/start-server figwheel-options)}))
 
 (comment
-  
+
   (def builds [{ :id "example"
                  :source-paths ["src" "../support/src"]
                  :build-options { :output-to "resources/public/js/compiled/example.js"
@@ -249,17 +252,17 @@
                         builds))
 
   (def figwheel-server (fig/start-server))
-  
+
   (fig/stop-server figwheel-server)
-  
+
   (def bb (autobuild* {:builds env-builds
                        :figwheel-server figwheel-server}))
-  
+
   (auto/stop-autobuild! bb)
 
   (fig-repl/eval-js figwheel-server "1 + 1")
 
   (def build-options (:build-options (first builds)))
-  
+
   #_(cljs.repl/repl (repl-env figwheel-server) )
 )
