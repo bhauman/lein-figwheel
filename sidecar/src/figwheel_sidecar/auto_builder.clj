@@ -80,6 +80,7 @@
 ;; connection
 
 (defn connect-script-temp-dir [build]
+  (assert (:id build) (str "Following build needs an id: " build))
   (str "target/figwheel_temp/" (name (:id build))))
 
 (defn connect-script-path [build]
