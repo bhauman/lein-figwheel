@@ -389,6 +389,14 @@
   ([_]
    (stop-autobuild [])
    (clean-builds [])
+   (let [{:keys [state-atom]} *autobuild-env*]
+     (start-autobuild (:focus-ids @state-atom)))))
+
+(defn reload-config
+  ([] (reload-config nil))
+  ([_]
+   (stop-autobuild [])
+   (clean-builds [])
    (reload-builds!)     
    (let [{:keys [state-atom]} *autobuild-env*]
      (start-autobuild (:focus-ids @state-atom)))))
@@ -415,6 +423,7 @@
     'start-autobuild start-autobuild
     'switch-to-build switch-to-build
     'reset-autobuild reset-autobuild
+    'reload-config   reload-config
     'build-once      build-once
     'fig-status      status
     'clean-builds    clean-builds})
@@ -430,6 +439,7 @@
           (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
           (switch-to-build id ...)        ;; switches autobuilder to different build
           (reset-autobuild)               ;; stops, cleans, and starts autobuilder
+          (reload-config)                 ;; reloads build config and resets autobuild
           (build-once [id ...])           ;; builds source one time
           (clean-builds [id ..])          ;; deletes compiled cljs target files
           (fig-status)                    ;; displays current state of system

@@ -67,6 +67,11 @@
   []
   (fr/reset-autobuild))
 
+(defn reload-config
+  "Reloads the build config, and resets the autobuild."
+  []
+  (fr/reload-config))
+
 (defn cljs-repl
   "Starts a Figwheel ClojureScript REPL for the provided build id (or the first default id)."
   ([] (fr/cljs-repl))
@@ -103,6 +108,7 @@
     #'clean-builds
     #'switch-to-build
     #'reset-autobuild
+    #'reload-config    
     #'api-help
     #'add-dep])
   nil)
