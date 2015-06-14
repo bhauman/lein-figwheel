@@ -1,4 +1,5 @@
 .repl
+out/
 example/resources/public/js/compiled
 example/resources/public/js/out
 example/resources/public/js/example.js

@@ -13,9 +13,7 @@
    [cemerick.pomegranate :refer [add-dependencies]]
    [clojure.tools.nrepl.server :as nrepl-serv]
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
-   [cider.nrepl :as cider]
    [cemerick.piggieback :as pback]
-   
    [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.auto-builder :as autobuild]
@@ -157,6 +155,9 @@
    (FigwheelEnv. figwheel-server)))
 
 ;; add some repl functions for reloading local clj code
+
+(defn require? [symbol]
+  (try (require symbol) true (catch Exception e false)))
 
 (defn repl
   ([build figwheel-server]
@@ -506,11 +507,14 @@
 
 (defn start-nrepl-server [figwheel-options autobuild-options]
   (when (:nrepl-port figwheel-options)
-    (nrepl-serv/start-server
-     :port (:nrepl-port figwheel-options)
-     :bind (:nrepl-host figwheel-options)
-     :handler (apply nrepl-serv/default-handler
-                     (conj (map resolve cider/cider-middleware) #'pback/wrap-cljs-repl)))))
+    (let [middleware (if (require? 'cider.nrepl)
+                       (map resolve (deref (resolve 'cider.nrepl/cider-middleware)))
+                       (list))
+          middleware (conj middleware #'cemerick.piggieback/wrap-cljs-repl)]
+      (nrepl-serv/start-server
+       :port (:nrepl-port figwheel-options)
+       :bind (:nrepl-host figwheel-options)
+       :handler (apply nrepl-serv/default-handler middleware)))))
 
 (defn create-autobuild-env [{:keys [figwheel-options all-builds build-ids]}]
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")
