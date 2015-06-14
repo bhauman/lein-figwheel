@@ -63,6 +63,8 @@
                                                    conj msg)))))
         (set! (.-onopen socket)  (fn [x]
                                    (reset! socket-atom socket)
+                                   (when (utils/html-env?)
+                                     (.addEventListener js/window "beforeunload" close!))
                                    (utils/log :debug "Figwheel: socket connection established")))
         (set! (.-onclose socket) (fn [x]
                                    (let [retried-count (or retried-count 0)]
