@@ -236,10 +236,12 @@
     (let [build (prep-build-for-figwheel-client build)]
       (if-not (get-in build [:figwheel :websocket-url]) ;; prefer 
         (let [host (or (get-in build [:figwheel :websocket-host]) "localhost")]
-          (-> build
-            (update-in [:figwheel] dissoc :websocket-host)
-            (assoc-in [:figwheel :websocket-url]
-                      (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws"))))        
+          (if-not (= :js-client-host host)
+            (-> build
+              (update-in [:figwheel] dissoc :websocket-host)
+              (assoc-in [:figwheel :websocket-url]
+                        (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
+            (update-in build [:figwheel] dissoc :websocket-host)))
         build))
     build))
 
