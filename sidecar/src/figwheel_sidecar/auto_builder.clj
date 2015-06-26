@@ -5,6 +5,7 @@
    [figwheel-sidecar.config :as config]
    [cljs.repl]
    [cljs.analyzer :as ana]
+   [cljs.analyzer.api :as ana-api]
    [cljs.env]
    #_[clj-stacktrace.repl]
    [clojure.stacktrace :as stack]   
@@ -100,12 +101,17 @@
         main-ns  (get-in build [:build-options :main])
         names (if main-ns
                 (conj names (symbol (str main-ns)))
+                names)
+        names (map vector (conj names 'figwheel.client 'figwheel.client.utils))
+        names (if (:devcards figwheel)
+                (conj names '[devcards.core :include-macros true])
                 names)]
-    (conj names 'figwheel.client 'figwheel.client.utils)))
+    names))
 
 (defn extract-connection-script-required-ns [{:keys [figwheel] :as build}]
   (list 'ns 'figwheel.connect
-        (cons :require (map vector (extract-connection-requires build)))))
+        (cons :require
+              (extract-connection-requires build))))
 
 (defn hook-name-to-js [hook-name]
   (symbol
@@ -127,6 +133,10 @@
         res (merge figwheel func-map)]
     (list 'figwheel.client/start res)))
 
+(defn extract-connection-devcards-start [{:keys [figwheel]}]
+  (when (:devcards figwheel)
+      (list 'devcards.core/start-devcard-ui!)))
+
 (comment
 
   (extract-connection-script-required-ns {:figwheel {:on-jsload "blah.blah/on-jsload"}})
@@ -147,8 +157,11 @@
         (println
          (apply str (mapcat
                      prn-str
-                     (list (extract-connection-script-required-ns build)
-                           (extract-connection-script-figwheel-start build)))))))
+                     (keep
+                      identity
+                      (list (extract-connection-script-required-ns build)
+                            (extract-connection-script-figwheel-start build)
+                            (extract-connection-devcards-start build))))))))
     temp-file))
 
 (defn create-connect-script-if-needed! [build]
@@ -156,24 +169,44 @@
     (when-not (.exists (io/file (connect-script-path build)))
       (create-connect-script! build))))
 
+;; TODO have figwheel script stay in memory
+
 (defn add-connect-script! [figwheel-server build]
   (if (config/figwheel-build? build)
-    (let [build (config/update-figwheel-connect-options figwheel-server build)]
+    (let [build (config/update-figwheel-connect-options figwheel-server build)
+          devcards? (get-in build [:figwheel :devcards])]
       (create-connect-script-if-needed! build)
-      (update-in build [:source-paths] conj (connect-script-temp-dir build)))
+      (cljs.env/with-compiler-env (:compiler-env build)
+        (-> build
+          ;; might want to add in devcards jar path here :)
+          (update-in [:source-paths] (fn [sp] (let [res (cons (connect-script-temp-dir build) sp)]
+                                               (vec (if-let [devcards-src (and devcards?
+                                                                               (not (ana-api/find-ns 'devcards.core))
+                                                                               (io/resource "devcards/core.cljs"))]
+                                                      (cons devcards-src res)
+                                                      res)))))
+        (update-in [:build-options] (fn [bo] (if devcards?
+                                              (assoc bo :devcards true)
+                                              bo))))))
     build))
 
 (defn require-connection-script-js [build]
   (let [node? (and (:target build) (== (:target build) :nodejs)) 
-        main? (get-in build [:build-options :main])]
-    (if (and main? (not node?))
-      "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");"
-      "\ngoog.require(\"figwheel.connect\");")))
+        main? (get-in build [:build-options :main])
+        output-to (get-in build [:build-options :output-to])
+        line (if (and main? (not node?))
+               "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");"
+               "\ngoog.require(\"figwheel.connect\");")]
+    (when (and output-to (not node?))
+      (if main?
+        (let [lines (string/split (slurp output-to) #"\n")]
+          ;; require before app
+          (spit output-to (string/join "\n" (concat (butlast lines) [line] [(last lines)]))))
+        (spit output-to line :append true)))))
 
 (defn append-connection-init! [build]
   (when (config/figwheel-build? build)
-    (when-let [output-to (get-in build [:build-options :output-to])]
-      (spit output-to (require-connection-script-js build) :append true))))
+    (require-connection-script-js build)))
 
 (defn insert-figwheel-connect-script [builder figwheel-server]
   (fn [build]
@@ -184,6 +217,7 @@
 (defn builder [figwheel-server]
   (-> cbuild/build-source-paths*
     (default-build-options {:recompile-dependents false})
+    
     (insert-figwheel-connect-script figwheel-server)
     (warning
      (fn [build]
