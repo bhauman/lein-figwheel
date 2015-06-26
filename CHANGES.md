@@ -1,3 +1,16 @@
+## 0.3.4
+
+* fix #183 htmlEscape warnings and errors in the heads up display
+* fix #179 add `:server-ip` server config option to all folks to not
+  default to binding "0.0.0.0" which exposes the connection to the network
+* add `:devcards` option to figwheel client config, more on this later
+* add `:websocket-host :js-client-host` option to allow the client to use the `location.host` of
+  the loaded page. Thanks to @peterschwarz
+* fix #180 cider no longer hard coded to repl, but auto detected, allows folks
+  to use `[cider-nrepl 0.9.0]` a little more easily
+* making reloading of build config an explicit `reload-config` special-fn in the repl
+* fix #164 explicitly close the client side websocket on onload
+
 ## 0.3.3
 
 * ensure that we are only adding inserting the figwheel.connect require when `:figwheel` is
