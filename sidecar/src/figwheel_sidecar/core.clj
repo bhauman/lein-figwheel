@@ -115,7 +115,7 @@
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
-  [{:keys [ring-handler server-port http-server-root ring-handler] :as server-state}]
+  [{:keys [ring-handler server-port server-ip http-server-root ring-handler] :as server-state}]
   (try
     (-> (routes
          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
@@ -129,7 +129,10 @@
         (cors/wrap-cors
          :access-control-allow-origin #".*"
          :access-control-allow-methods [:head :options :get :put :post :delete])
-        (run-server {:port server-port}))
+        (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+                      (if server-ip
+                        (assoc config :ip server-ip)
+                        config))))
     (catch java.net.BindException e
       (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
       (System/exit 0))))
@@ -422,6 +425,7 @@
                                     server-port output-dir output-to
                                     unique-id
                                     server-logfile
+                                    server-ip
                                     repl
                                     open-file-command] :as opts}]
   ;; I'm spelling this all out as a reference
@@ -439,6 +443,7 @@
     :output-to output-to
     :ring-handler ring-handler
     :server-port (or server-port 3449)
+    :server-ip server-ip
     :server-logfile server-logfile
     :repl repl
     :css-last-pass (atom (System/currentTimeMillis))   
