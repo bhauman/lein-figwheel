@@ -2,7 +2,8 @@
   (:require
    [clojure.string :as string]
    [figwheel.client.socket :as socket]
-   [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
+   [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
+   [goog.string])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
@@ -131,23 +132,24 @@
        "\">" msg "</div>"))
 
 (defn format-line [msg]
-  (if-let [[f ln] (file-and-line-number msg)]
-    (file-selector-div f ln msg)
-    (str "<div>" msg "</div>")))
+  (let [msg (goog.string/htmlEscape msg)]
+    (if-let [[f ln] (file-and-line-number msg)]
+      (file-selector-div f ln msg)
+      (str "<div>" msg "</div>"))))
 
 (defn display-error [formatted-messages cause]
   (let [[file-name file-line file-column]
         (if cause
           [(:file cause) (:line cause) (:column cause)]
           (first (keep file-and-line-number formatted-messages)))
-        msg (apply str (map #(str "<div>" % "</div>") formatted-messages))]
+        msg (apply str (map #(str "<div>" (goog.string/htmlEscape %)  "</div>") formatted-messages))]
     (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
                       (str (close-link) (heading "Compile Error")
                            (file-selector-div file-name (or file-line (and cause (:line cause)))
                                               (str msg
                                                    (if cause
                                                      (str "Error on file "
-                                                          (:file cause)
+                                                          (goog.string/htmlEscape (:file cause))
                                                           ", line "
                                                           (:line cause)
                                                           ", column " (:column cause))
@@ -155,7 +157,8 @@
 
 (defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
-                    (str (close-link) (heading header) (format-line msg))))
+                    (str (close-link) (heading header)
+                         (format-line msg))))
 
 (defn display-warning [msg]
   (display-system-warning "Compile Warning" msg))
