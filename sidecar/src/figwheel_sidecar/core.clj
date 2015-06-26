@@ -129,7 +129,9 @@
         (cors/wrap-cors
          :access-control-allow-origin #".*"
          :access-control-allow-methods [:head :options :get :put :post :delete])
-        (run-server {:port server-port}))
+        (run-server {:port server-port
+                     :ip "127.0.0.1"
+                     :worker-name-prefix "figwh-httpkit-"}))
     (catch java.net.BindException e
       (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
       (System/exit 0))))
