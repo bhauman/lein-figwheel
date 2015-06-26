@@ -108,7 +108,7 @@
               (string/split-lines stack-str)))
 
 (let [base-path (utils/base-url-path)]
-  (defn eval-javascript** [code result-handler]
+  (defn eval-javascript** [code opts result-handler]
     (try
       (binding [*print-fn* (fn [& args]
                              (-> args
@@ -117,7 +117,7 @@
                 *print-newline* false]
         (result-handler
          {:status :success,
-          :value (str (js* "eval(~{code})"))}))
+          :value (str (utils/eval-helper code opts))}))
       (catch js/Error e
         (result-handler
          {:status :exception
@@ -141,7 +141,7 @@
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
       (ensure-cljs-user)
-      (eval-javascript** (:code msg)
+      (eval-javascript** (:code msg) opts
        (fn [res]
          (socket/send! {:figwheel-event "callback"
                         :callback-name (:callback-name  msg)
@@ -271,6 +271,8 @@
    :heads-up-display true
 
    :load-unchanged-files true
+
+   :eval-fn false
    })
 
 (defn handle-deprecated-jsload-callback [config]

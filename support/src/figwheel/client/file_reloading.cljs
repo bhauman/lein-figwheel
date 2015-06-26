@@ -173,12 +173,12 @@
 (defn add-request-urls [opts files]
   (map (partial add-request-url opts) files))
 
-(defn eval-body [{:keys [eval-body file]}]
+(defn eval-body [{:keys [eval-body file]} opts]
   (when (and eval-body (string? eval-body))
     (let [code eval-body]
       (try
         (utils/debug-prn (str "Evaling file " file))
-        (js* "eval(~{code})")
+        (utils/eval-helper code opts)
         (catch :default e
           (utils/log :error (str "Unable to evaluate " file)))))))
 
@@ -194,7 +194,7 @@
     (let [eval-bodies (filter #(:eval-body %) files)]
       (when (not-empty eval-bodies)
         (doseq [eval-body-file eval-bodies]
-          (eval-body eval-body-file))))
+          (eval-body eval-body-file opts))))
     
     (let [all-files (filter #(and (:namespace %)
                                   (not (:eval-body %)))
