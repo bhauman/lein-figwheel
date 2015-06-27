@@ -14,7 +14,6 @@
 
 (defn host-env? []
   (cond
-    (html-env?) :html
     (node-env?) :node
     :else :html))
 
