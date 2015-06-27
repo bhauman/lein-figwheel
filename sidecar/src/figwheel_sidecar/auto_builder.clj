@@ -91,7 +91,7 @@
                                 :before-jsload
                                 :on-cssload
                                 :on-compile-fail
-                                :on-compile-fail])
+                                :on-compile-warning])
 
 (defn extract-connection-requires [{:keys [figwheel] :as build}]
   (let [names (set
