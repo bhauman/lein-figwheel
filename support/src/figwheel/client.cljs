@@ -224,7 +224,7 @@
 ;; you can listen to this event easily like so:
 ;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
 
-(def default-on-jsload identity)
+(def default-on-jsload [identity])
 
 (defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
   (utils/log :debug "Figwheel: Compile Exception")
@@ -282,6 +282,12 @@
         (dissoc :jsload-callback))
     config))
 
+(defn wrap-on-jsload [config]
+ (let [callback (:on-jsload config)]
+   (if (or (vector? callback) (list? callback))
+     config
+     (assoc config :on-jsload [callback]))))
+
 (defn base-plugins [system-options]
   (let [base {:enforce-project-plugin enforce-project-plugin
               :file-reloader-plugin     file-reloader-plugin
@@ -318,7 +324,8 @@
                  merge-plugins (:merge-plugins opts) ;; merges plugins
                  system-options (-> config-defaults
                                   (merge (dissoc opts :plugins :merge-plugins))
-                                  (handle-deprecated-jsload-callback))
+                                  (handle-deprecated-jsload-callback)
+                                  (wrap-on-jsload))
                  plugins  (if plugins'
                             plugins'
                             (merge (base-plugins system-options) merge-plugins))]
