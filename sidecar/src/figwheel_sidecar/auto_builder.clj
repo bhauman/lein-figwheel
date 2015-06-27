@@ -176,18 +176,19 @@
     (let [build (config/update-figwheel-connect-options figwheel-server build)
           devcards? (get-in build [:figwheel :devcards])]
       (create-connect-script-if-needed! build)
-      (cljs.env/with-compiler-env (:compiler-env build)
-        (-> build
-          ;; might want to add in devcards jar path here :)
-          (update-in [:source-paths] (fn [sp] (let [res (cons (connect-script-temp-dir build) sp)]
-                                               (vec (if-let [devcards-src (and devcards?
-                                                                               (not (ana-api/find-ns 'devcards.core))
-                                                                               (io/resource "devcards/core.cljs"))]
-                                                      (cons devcards-src res)
-                                                      res)))))
-        (update-in [:build-options] (fn [bo] (if devcards?
-                                              (assoc bo :devcards true)
-                                              bo))))))
+      (-> build
+        ;; might want to add in devcards jar path here :)
+        (update-in [:source-paths] (fn [sp] (let [res (cons (connect-script-temp-dir build) sp)]
+                                             (vec (if-let [devcards-src (and devcards?
+                                                                             (cljs.env/with-compiler-env (:compiler-env build)
+                                                                               (not (ana-api/find-ns 'devcards.core)))
+                                                                             (io/resource "devcards/core.cljs"))]
+                                                    (cons devcards-src res)
+                                                    res)))))
+        ;; this needs to be in the (:options (:compiler-env build))
+        #_(update-in [:build-options] (fn [bo] (if devcards?
+                                                (assoc bo :devcards true)
+                                                bo)))))
     build))
 
 (defn require-connection-script-js [build]

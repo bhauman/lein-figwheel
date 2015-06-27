@@ -216,6 +216,11 @@
     (assoc figwheel :build-id (:id build))
     figwheel))
 
+(defn forward-devcard-option [{:keys [figwheel] :as build}]
+  (if (and figwheel (:devcards figwheel))
+    (assoc-in build [:build-options :devcards] true)
+    build))
+
 (defn prep-build-for-figwheel-client [{:keys [figwheel] :as build}]
   (if figwheel
     (assoc build :figwheel
@@ -225,7 +230,7 @@
     build))
 
 (defn prep-builds-for-figwheel-client [builds]
-  (mapv prep-build-for-figwheel-client builds))
+  (mapv (comp prep-build-for-figwheel-client forward-devcard-option) builds))
 
 (defn figwheel-build? [build]
   (and (= (get-in build [:build-options :optimizations]) :none)
@@ -257,6 +262,12 @@
   (prep-build-for-figwheel-client { :figwheel true})
   (prep-build-for-figwheel-client { :id "hey" :figwheel true})
   (prep-build-for-figwheel-client { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5}})
+
+  ((comp prep-build-for-figwheel-client forward-devcard-option)
+   { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5}})
+  ((comp prep-build-for-figwheel-client forward-devcard-option)
+   { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5 :devcards true} :build-options {:fun false}})
+  
 )
 
 (defn prep-builds [builds]
