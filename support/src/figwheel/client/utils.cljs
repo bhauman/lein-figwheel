@@ -40,3 +40,8 @@
             :error #(.error js/console %)
             #(.log js/console %))]
      (f arg))))
+
+(defn eval-helper [code {:keys [eval-fn] :as opts}]
+  (if eval-fn
+    (eval-fn code opts)
+    (js* "eval(~{code})")))
