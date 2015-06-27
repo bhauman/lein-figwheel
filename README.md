@@ -150,7 +150,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.3.3"]
+[lein-figwheel "0.3.4"]
 ```
 
 #### Configure lein cljsbuild
