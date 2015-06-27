@@ -267,8 +267,7 @@
    { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5}})
   ((comp prep-build-for-figwheel-client forward-devcard-option)
    { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5 :devcards true} :build-options {:fun false}})
-  
-)
+ )
 
 (defn prep-builds [builds]
   (-> builds
