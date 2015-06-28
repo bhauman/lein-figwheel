@@ -129,7 +129,7 @@
 
 (defn extract-connection-script-figwheel-start [{:keys [figwheel]}]
   (let [func-map (select-keys figwheel figwheel-client-hook-keys)
-        func-map (into {} (map (fn [[k v]] [k (try-jsreload-hook k v)]) func-map))
+        func-map (into {} (map (fn [[k v]] [k (map #(try-jsreload-hook k %) (if (vector? v) v [v]))]) func-map))
         res (merge figwheel func-map)]
     (list 'figwheel.client/start res)))
 
@@ -140,6 +140,8 @@
 (comment
 
   (extract-connection-script-required-ns {:figwheel {:on-jsload "blah.blah/on-jsload"}})
+
+  (extract-connection-script-required-ns {:figwheel {:on-jsload ["blah.blah/on-jsload"]}})
 
   (extract-connection-script-required-ns {:figwheel {}})
 
