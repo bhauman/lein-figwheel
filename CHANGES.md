@@ -1,3 +1,8 @@
+## 0.3.6
+
+* update to clojure 1.7.0!
+* hopefully fix #194 update http-kit 
+
 ## 0.3.5
 
 * small fixes to allow Atom.io usage see pr-188 and pr-189 for details
