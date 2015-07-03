@@ -14,7 +14,7 @@
 (declare reload-file* resolve-ns)
 
 ;; you can listen to this event easily like so:
-;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
+;; document.body.addEventListener("figwheel.js-reload", function (e) {console.log(e.detail);} );
 (defn on-jsload-custom-event [url]
   (utils/dispatch-custom-event "figwheel.js-reload" url))
 
