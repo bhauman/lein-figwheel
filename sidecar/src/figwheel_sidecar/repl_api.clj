@@ -4,8 +4,8 @@
    [figwheel-sidecar.config :as fc]))
 
 (defn start-figwheel!
-  "If you aren't connected to an env where fighweel is running already.
-  You this method will start the figwheel server with the passed build info."
+  "If you aren't connected to an env where fighweel is running already,
+  this method will start the figwheel server with the passed in build info."
   [{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
   (if-not fr/*autobuild-env*
     (let [env (fr/create-autobuild-env
