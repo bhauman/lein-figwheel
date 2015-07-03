@@ -215,7 +215,7 @@
                                     file)) res)))
         (js/setTimeout #(do
                           (on-jsload-custom-event res)
-                          (map #(apply % [res]) on-jsload)) 10))
+                          (apply on-jsload [res])) 10))
       (when (not-empty files-not-loaded)
         (utils/log :debug "Figwheel: NOT loading these files ")
         (let [{:keys [figwheel-no-load file-changed-on-disk not-required]}
