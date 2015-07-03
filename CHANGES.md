@@ -1,7 +1,11 @@
-## 0.3.6
+## 0.3.7
 
 * update to clojure 1.7.0!
 * hopefully fix #194 update http-kit 
+
+## 0.3.6
+
+* no change
 
 ## 0.3.5
 

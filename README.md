@@ -141,7 +141,7 @@ getting started guide available at the moment.
 First make sure you include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojure "1.7.0-beta3"]
+[org.clojure/clojure "1.7.0"]
 [org.clojure/clojurescript "0.0-3211"] ;; has to be at least 3211 or greater
 ```
 
@@ -150,7 +150,7 @@ section of your project.clj.
 
 ```clojure
 [lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.3.6"]
+[lein-figwheel "0.3.7"]
 ```
 
 #### Configure lein cljsbuild
