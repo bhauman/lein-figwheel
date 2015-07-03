@@ -196,7 +196,10 @@
         main? (get-in build [:build-options :main])
         output-to (get-in build [:build-options :output-to])
         line (if (and main? (not node?))
-               "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");"
+               (str
+                (when (get-in build [:figwheel :devcards])
+                  "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"devcards.core\\\"); }</script>\");")
+                "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");")
                "\ngoog.require(\"figwheel.connect\");")]
     (when (and output-to (not node?))
       (if main?
