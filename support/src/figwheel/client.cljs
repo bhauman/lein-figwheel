@@ -270,8 +270,6 @@
    
    :heads-up-display true
 
-   :load-unchanged-files true
-
    :eval-fn false
    })
 
@@ -332,3 +330,4 @@
 ;; legacy interface
 (def watch-and-reload-with-opts start)
 (defn watch-and-reload [& {:keys [] :as opts}] (start opts))
+

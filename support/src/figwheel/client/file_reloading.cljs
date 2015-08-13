@@ -3,6 +3,7 @@
    [figwheel.client.utils :as utils :refer-macros [dev-assert]]
    [goog.Uri :as guri]
    [goog.string]
+   [goog.object :as gobj]   
    [goog.net.jsloader :as loader]
    [clojure.string :as string]
    [clojure.set :refer [difference]]
@@ -11,7 +12,7 @@
    [cljs.core.async.macros :refer [go go-loop]])
   (:import [goog]))
 
-(declare reload-file* resolve-ns)
+(declare queued-file-reload reload-file* resolve-ns)
 
 ;; you can listen to this event easily like so:
 ;; document.body.addEventListener("figwheel.js-reload", function (e) {console.log(e.detail);} );
@@ -33,9 +34,9 @@
         (string? (:file m))
         (= (:type m)
            :namespace))
-    (do
-      (println "Error not namespace-file-map" (pr-str m))
-      false)))
+   (do
+     (println "Error not namespace-file-map" (pr-str m))
+     false)))
 
 ;; this assumes no query string on url
 (defn add-cache-buster [url]
@@ -48,61 +49,72 @@
 
 (defn resolve-ns [ns]
   (dev-assert (string? ns))
-  (str (utils/base-url-path)
-       (ns-to-js-file ns)))
+  (str (utils/base-url-path) "goog/"
+       (aget js/goog.dependencies_.nameToPath ns)))
+
+(defn bootstrap-goog-base
+  "Reusable browser REPL bootstrapping. Patches the essential functions
+  in goog.base to support re-loading of namespaces after page load."
+  []
+  ;; Monkey-patch goog.provide if running under optimizations :none - David
+  (when-not js/COMPILED
+    (set! (.-require__ js/goog) js/goog.require)
+    ;; suppress useless Google Closure error about duplicate provides
+    (set! (.-isProvided__ js/goog) (.-isProvided_ js/goog))
+    (set! (.-isProvided_ js/goog) (fn [name] false))
+    ;; provide cljs.user
+    (goog/constructNamespace_ "cljs.user")
+    ;; we must reuse Closure library dev time dependency management, under namespace
+    ;; reload scenarios we simply delete entries from the correct
+    ;; private locations
+    (set! (.-CLOSURE_IMPORT_SCRIPT goog/global) queued-file-reload)
+    (set! (.-require js/goog)
+          (fn [src reload]
+            (when (= reload "reload-all")
+              (set! (.-cljsReloadAll_ js/goog) true))
+            (let [reload? (or reload (.-cljsReloadAll__ js/goog))]
+              (when reload?
+                (let [path (aget js/goog.dependencies_.nameToPath src)]
+                  (gobj/remove js/goog.dependencies_.visited path)
+                  (gobj/remove js/goog.dependencies_.written path)
+                  (gobj/remove js/goog.dependencies_.written
+                               (str js/goog.basePath path))))
+              (let [ret (.require__ js/goog src)]
+                (when (= reload "reload-all")
+                  (set! (.-cljsReloadAll_ js/goog) false))
+                ret))))))
 
 ;; still don't know how I feel about this
 (defn patch-goog-base []
-  (set! goog/isProvided (fn [x] false))
-  (when (or (nil? *loaded-libs*) (empty? *loaded-libs*))
-    (set! *loaded-libs*
-          (let [gntp (.. goog/dependencies_
-                         -nameToPath)]
-            (into #{}
-                  (filter
-                   (fn [name]
-                     (aget (.. goog/dependencies_ -visited) (aget gntp name)))
-                   (js-keys gntp))))))
-  (set! goog/require
-        (fn [name reload]           
-          (when (or (not (contains? *loaded-libs* name)) reload)
-            (set! *loaded-libs* (conj (or *loaded-libs* #{}) name))
-            (reload-file* (resolve-ns name)))))
-  (set! goog/provide goog/exportPath_)
-  (set! (.-CLOSURE_IMPORT_SCRIPT goog/global) reload-file*))
+  (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
 
 (defmulti resolve-url :type)
-
 (defmethod resolve-url :default [{:keys [file]}] file)
-
 (defmethod resolve-url :namespace [{:keys [namespace]}]
   (dev-assert (string? namespace))
   (resolve-ns namespace))
 
-(defmulti reload-base utils/host-env?)
-
-(defmethod reload-base :node [request-url callback]
-  (dev-assert (string? request-url) (not (nil? callback)))
-  (let [root (string/join "/" (reverse (drop 2 (reverse (string/split js/__dirname "/")))))
-        path (str root "/" request-url)]
-    (aset (.-cache js/require) path nil)
-    (callback (try
-                (js/require path)
-                (catch js/Error e
-                  (utils/log :error (str  "Figwheel: Error loading file " path))
-                  (utils/log :error (.-stack e))
-                  false)))))
-
-(defmethod reload-base :html [request-url callback]
-  (dev-assert (string? request-url) (not (nil? callback)))  
-  (let [deferred (loader/load (add-cache-buster request-url)
-                              #js { :cleanupWhenDone true })]
-    (.addCallback deferred #(apply callback [true]))
-    (.addErrback deferred #(apply callback [false]))))
-
-(defn reload-file*
-  ([request-url callback] (reload-base request-url callback))
-  ([request-url] (reload-file* request-url identity)))
+(def reload-file*
+  (condp = (utils/host-env?)
+    :node
+    (fn [request-url callback]
+      (dev-assert (string? request-url) (not (nil? callback)))
+      (let [root (string/join "/" (reverse (drop 2 (reverse (string/split js/__dirname "/")))))
+            path (str root "/" request-url)]
+        (aset (.-cache js/require) path nil)
+        (callback (try
+                    (js/require path)
+                    (catch js/Error e
+                      (utils/log :error (str  "Figwheel: Error loading file " path))
+                      (utils/log :error (.-stack e))
+                      false)))))
+    :html (fn [request-url callback]
+            (dev-assert (string? request-url) (not (nil? callback)))  
+            (let [deferred (loader/load (add-cache-buster request-url)
+                                        #js { :cleanupWhenDone true })]
+              (.addCallback deferred #(apply callback [true]))
+              (.addErrback deferred #(apply callback [false]))))
+    (fn [a b] (throw "Reload not defined for this platform"))))
 
 (defn reload-file [{:keys [request-url] :as file-msg} callback]
   (dev-assert (string? request-url)
@@ -119,6 +131,38 @@
                       (utils/log :error (str  "Figwheel: Error loading file " request-url))
                       (apply callback [file-msg]))))))
 
+;; for goog.require consumption
+(defonce reload-chan (chan))
+
+(defonce on-load-callbacks (atom {}))
+
+(defn blocking-load [url]
+  (let [out (chan)]
+    (reload-file
+       {:request-url url}
+       (fn [file-msg]
+         (put! out file-msg)
+         (close! out)))
+    out))
+
+(defonce reloader-loop
+  (go-loop []
+    (when-let [url (<! reload-chan)]
+      (let [file-msg (<! (blocking-load url))]
+        (when-let [callback (get @on-load-callbacks url)]
+          (callback file-msg))
+        (recur)))))
+
+(defn queued-file-reload [url]
+  (put! reload-chan url))
+
+(defn require-with-callback [{:keys [request-url] :as file-msg} callback]
+  (swap! on-load-callbacks assoc request-url
+         (fn [file-msg'] (swap! on-load-callbacks dissoc request-url)
+           (apply callback [(merge file-msg (select-keys file-msg' [:loaded-file]))])))
+  ;; we are forcing reload here
+  (js/goog.require (name (:namespace file-msg)) true))
+
 (defn reload-file? [{:keys [namespace meta-data] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
   (let [meta-data (or meta-data {})]
@@ -127,17 +171,14 @@
      (or
       (:figwheel-always meta-data)
       (:figwheel-load meta-data)
-      ;; IMPORTANT make sure this file is currently provided
-      (and (contains? *loaded-libs* namespace)
-           (or
-            (not (contains? meta-data :file-changed-on-disk))
-            (:file-changed-on-disk meta-data)))
-      #_(goog/isProvided_ (name namespace))))))
+      ;; might want to use .-visited here
+      (goog/isProvided__ (name namespace))))))
 
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))
   (if (reload-file? file-msg)
-    (reload-file file-msg callback)
+    (require-with-callback file-msg callback)
+    #_(reload-file file-msg callback)
     (do
       (utils/debug-prn (str "Figwheel: Not trying to load file " request-url))
       (apply callback [file-msg]))))
@@ -159,9 +200,7 @@
         (do (put! out (<! (reload-js-file f)))
             (recur fs))
         (close! out)))
-    (async/into [] out))
-  ;; the following is a parallel load which is facter but non-deterministic
-  #_(async/into [] (async/filter< identity (async/merge (mapv reload-js-file files)))))
+    (async/into [] out)))
 
 (defn add-request-url [{:keys [url-rewriter] :as opts} {:keys [file] :as file-msg}]
   (let [resolved-path (resolve-url file-msg)]
@@ -182,7 +221,7 @@
         (catch :default e
           (utils/log :error (str "Unable to evaluate " file)))))))
 
-(defn reload-js-files [{:keys [before-jsload on-jsload load-unchanged-files] :as opts}
+(defn reload-js-files [{:keys [before-jsload on-jsload] :as opts}
                        {:keys [files] :as msg}]
   (go
     (before-jsload files)
@@ -199,10 +238,6 @@
     (let [all-files (filter #(and (:namespace %)
                                   (not (:eval-body %)))
                             files)
-          all-files (if load-unchanged-files
-                      (map #(update-in % [:meta-data] dissoc :file-changed-on-disk)
-                           all-files)
-                      all-files)
           files'  (add-request-urls opts all-files)
           res'    (<! (load-all-js-files files'))
           res     (filter :loaded-file res')
@@ -218,23 +253,17 @@
                           (apply on-jsload [res])) 10))
       (when (not-empty files-not-loaded)
         (utils/log :debug "Figwheel: NOT loading these files ")
-        (let [{:keys [figwheel-no-load file-changed-on-disk not-required]}
+        (let [{:keys [figwheel-no-load not-required]}
               (group-by
                      (fn [{:keys [meta-data]}]
                        (cond
                          (nil? meta-data) :not-required
                          (contains? meta-data :figwheel-no-load) :figwheel-no-load
-                         (and (contains? meta-data :file-changed-on-disk)
-                              (not (:file-changed-on-disk meta-data)))
-                         :file-changed-on-disk
                          :else :not-required))
                      files-not-loaded)]
           (when (not-empty figwheel-no-load)
             (utils/log (str "figwheel-no-load meta-data: "
                             (pr-str (map :file figwheel-no-load)))))
-          (when (not-empty file-changed-on-disk)
-            (utils/log (str "file didn't change: "
-                            (pr-str (map :file file-changed-on-disk)))))
           (when (not-empty not-required)
             (utils/log (str "not required: " (pr-str (map :file not-required))))))))))
 
