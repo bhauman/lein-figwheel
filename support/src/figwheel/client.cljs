@@ -273,6 +273,7 @@
    :eval-fn false
    })
 
+
 (defn handle-deprecated-jsload-callback [config]
   (if (:jsload-callback config)
     (-> config

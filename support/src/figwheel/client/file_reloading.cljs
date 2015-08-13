@@ -5,7 +5,9 @@
    [goog.string]
    [goog.object :as gobj]   
    [goog.net.jsloader :as loader]
+   [goog.string :as gstring]
    [clojure.string :as string]
+   
    [clojure.set :refer [difference]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
   (:require-macros
@@ -47,10 +49,21 @@
   (dev-assert (string? ns))
   (str (string/replace ns "." "/") ".js"))
 
-(defn resolve-ns [ns]
-  (dev-assert (string? ns))
-  (str (utils/base-url-path) "goog/"
-       (aget js/goog.dependencies_.nameToPath ns)))
+(defn fix-node-request-url [url]
+  (if (gstring/startsWith url "../")
+    (string/replace url "../" "")
+    (str "goog/" url)))
+
+(def resolve-ns
+  (condp = (utils/host-env?)
+    :node
+    (fn [ns]
+      (dev-assert (string? ns))
+      (fix-node-request-url (aget js/goog.dependencies_.nameToPath ns)))
+    (fn [ns]
+      (dev-assert (string? ns))
+      (str (utils/base-url-path) "goog/"
+           (aget js/goog.dependencies_.nameToPath ns)))))
 
 (defn bootstrap-goog-base
   "Reusable browser REPL bootstrapping. Patches the essential functions
@@ -84,7 +97,6 @@
                   (set! (.-cljsReloadAll_ js/goog) false))
                 ret))))))
 
-;; still don't know how I feel about this
 (defn patch-goog-base []
   (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
 
@@ -94,6 +106,7 @@
   (dev-assert (string? namespace))
   (resolve-ns namespace))
 
+
 (def reload-file*
   (condp = (utils/host-env?)
     :node
@@ -101,6 +114,7 @@
       (dev-assert (string? request-url) (not (nil? callback)))
       (let [root (string/join "/" (reverse (drop 2 (reverse (string/split js/__dirname "/")))))
             path (str root "/" request-url)]
+        (prn request-url)
         (aset (.-cache js/require) path nil)
         (callback (try
                     (js/require path)
@@ -174,11 +188,15 @@
       ;; might want to use .-visited here
       (goog/isProvided__ (name namespace))))))
 
+(def js-reload*
+  (if (= :node (utils/host-env?))
+    reload-file
+    require-with-callback))
+
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))
   (if (reload-file? file-msg)
-    (require-with-callback file-msg callback)
-    #_(reload-file file-msg callback)
+    (js-reload* file-msg callback)
     (do
       (utils/debug-prn (str "Figwheel: Not trying to load file " request-url))
       (apply callback [file-msg]))))
