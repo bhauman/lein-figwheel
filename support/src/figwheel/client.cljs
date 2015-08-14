@@ -257,8 +257,6 @@
    :on-jsload default-on-jsload
    :before-jsload default-before-load
 
-   :url-rewriter false
-
    :on-cssload default-on-cssload
    
    :on-compile-fail default-on-compile-fail
@@ -272,7 +270,6 @@
 
    :eval-fn false
    })
-
 
 (defn handle-deprecated-jsload-callback [config]
   (if (:jsload-callback config)
