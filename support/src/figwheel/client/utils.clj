@@ -1,7 +1,4 @@
-(ns figwheel.client.utils
-  (:require [cljs.analyzer.api :as api]
-            [cljs.compiler]
-            [clojure.walk :as walk]))
+(ns figwheel.client.utils)
 
 (def dev-blocks? (atom false))
 
