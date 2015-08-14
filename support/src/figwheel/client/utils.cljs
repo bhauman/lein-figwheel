@@ -10,12 +10,9 @@
 
 (defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
 
-(defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" #(str %2)))
+(defn host-env? [] (if (node-env?) :node :html))
 
-(defn host-env? []
-  (cond
-    (node-env?) :node
-    :else :html))
+(defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" #(str %2)))
 
 (defn dispatch-custom-event [event-name data]
   (when (and (html-env?) (aget js/window "CustomEvent"))
