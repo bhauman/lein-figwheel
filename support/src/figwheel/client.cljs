@@ -262,6 +262,8 @@
    :on-compile-fail default-on-compile-fail
    :on-compile-warning default-on-compile-warning
 
+   :reload-dependents true
+   
    :autoload true
    
    :debug false

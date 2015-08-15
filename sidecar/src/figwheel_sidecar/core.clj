@@ -143,13 +143,29 @@
   (swap! file-change-atom append-msg
          (message* st msg-name data)))
 
+(defn find-figwheel-meta []
+  (into {}
+        (map
+         (fn [n]
+           [(cljs.compiler/munge (name n))
+            (select-keys (meta n) [:figwheel-always :figwheel-load :figwheel-no-load])])
+         (filter (fn [n] (let [m (meta n)]
+                          (or
+                           (get m :figwheel-always)
+                           (get m :figwheel-load)
+                           (get m :figwheel-no-load))))
+                 (ana-api/all-ns)))))
+
 (defn send-changed-files
   "Formats and sends a files-changed message to the file-change-atom.
    Also reports this event to the console."
   [st files]
-  (send-message! st :files-changed {:files files })
+  (send-message! st :files-changed {:files files
+                                    :recompile-dependents (:recompile-dependents st)
+                                    :figwheel-meta (find-figwheel-meta)})
   (doseq [f files]
          (println "notifying browser that file changed: " (:file f))))
+
 
 (defn underscore [s] (string/replace s "-" "_"))
 (defn ns-to-path [nm] (string/replace nm "." "/"))
@@ -201,7 +217,6 @@
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
 
-
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
   [{:keys [file-md5-atom]} filepath]  
@@ -214,16 +229,6 @@
                                check-sum)]
             (swap! file-md5-atom assoc filepath check-sum)
             changed?))))))
-
-(defn target-file-changed? [{:keys [file-md5-atom] :as st} ns-sym]
-  (let [file (cbapi/cljs-target-file-from-ns (:output-dir st) ns-sym)
-        filepath (str file)]
-    (when (.exists file)
-      (let [check-sum (digest/md5 file)
-            changed? (not= (get @file-md5-atom filepath)
-                           check-sum)]
-        (swap! file-md5-atom assoc filepath check-sum)
-        changed?))))
 
 (defn dependency-files [{:keys [output-to output-dir]}]
    [output-to (str output-dir "/goog/deps.js") (str output-dir "/cljs_deps.js")])
@@ -241,80 +246,13 @@
         :eval-body (slurp %)})
    (dependency-files st)))
 
-;; inlining this for now so that people can use it now
-
-(defn get-deps [ns]
-  (letfn [(parent? [parent [child {:keys [requires] :as ns-info}]]
-             (when-not (= parent child)
-               (cond
-                 (or (map? requires)
-                     (set? requires)) (contains? requires parent)
-                     (vector? requires) (some #{(munge (name parent))} requires))))]
-    (set
-     (map first
-          (filter
-           #(parent? ns %)
-           (get @cljs.env/*compiler* :cljs.analyzer/namespaces))))))
-
-(def ^:dynamic *memo-get-deps* false)
-
-(declare cljs-topo-sort)
-
-(defn sort-and-expand-ns
-  ([deps]
-   (sort-and-expand-ns deps 0 (atom (sorted-map))))
-  ([deps depth state]
-   (swap! state update-in [depth] (fnil into #{}) deps)
-   (doseq [dep deps]
-     (cljs-topo-sort dep (inc depth) state))
-   (doseq [[<depth _] (subseq @state < depth)]
-     (swap! state update-in [<depth] difference deps))
-   (when (= depth 0)
-     (distinct (apply concat (vals @state))))))
-
-;; from cljs.util; will use that one in when it hits mainstream
-(defn cljs-topo-sort [x depth state]
-  (sort-and-expand-ns (*memo-get-deps* x) depth state))
-
-(defn topo-sort [ns-syms]
-  (let [all-syms (set (map name ns-syms))]
-    (filter #(all-syms (name %))
-            (sort-and-expand-ns ns-syms))))
-
-(defn mark-changed-ns [state ns-syms]
-  (set
-   (mapv (fn [nm]
-           (vary-meta nm assoc :file-changed-on-disk
-                      (if (target-file-changed? state nm) true false)))
-         ns-syms)))
-
-(defn find-figwheel-always []
-  (filter (fn [n] (-> n meta :figwheel-always)) (ana-api/all-ns)))
-
-(defn all-ns-to-load [changed-ns-syms]
-  (set (concat (keep (fn [n] (:name (ana-api/find-ns n))) changed-ns-syms)
-               (find-figwheel-always))))
-
-(defn expand-to-all-ns [state changed-ns-syms']
-  (cond
-    (nil? cljs.env/*compiler*) changed-ns-syms'
-    (false? (:recompile-dependents state))
-    (topo-sort (all-ns-to-load changed-ns-syms'))
-    :else
-    ;;     (mark-changed-ns state ) may not be worth it
-    (sort-and-expand-ns (all-ns-to-load changed-ns-syms'))))
-
-(defn dependents-info [n]
-  (vec (ana/ns-dependents n)))
-
 (defn make-sendable-file
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
   (let [n (-> nm name underscore)]
-    { :file (str (cbapi/cljs-target-file-from-ns "" nm))
+    { ;:file (str (cbapi/cljs-target-file-from-ns "" nm))
       :namespace (cljs.compiler/munge n)
-      :type :namespace
-      :meta-data (meta nm)}))
+      :type :namespace}))
 
 ;; I would love to just check the compiled javascript files to see if
 ;; they changed and then just send them to the browser. There is a
@@ -334,7 +272,6 @@
 
 (defn notify-cljs-ns-changes [state ns-syms]
   (->> ns-syms
-    (expand-to-all-ns state)
     (map (partial make-sendable-file state))
     (concat (get-dependency-files state))
     (send-changed-files state)))
@@ -354,14 +291,13 @@
   ;; this is the new way where if additional changes are needed they
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
-   (binding [*memo-get-deps* (memoize get-deps)]
-     (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
-       (notify-cljs-ns-changes state
-                               (set (concat additional-ns 
-                                            (keep get-ns-from-source-file-path
-                                                  (concat
+   (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
+     (notify-cljs-ns-changes state
+                             (set (concat additional-ns 
+                                          (keep get-ns-from-source-file-path
+                                                (concat
                                                    (:cljs change-source-file-paths)
-                                                   (:cljc change-source-file-paths))))))))))
+                                                   (:cljc change-source-file-paths)))))))))
 
 ;; css changes
 ;; this can be moved out of here I think

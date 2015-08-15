@@ -16,6 +16,8 @@
 
 (declare queued-file-reload)
 
+(defonce figwheel-meta-pragmas (atom {}))
+
 ;; you can listen to this event easily like so:
 ;; document.body.addEventListener("figwheel.js-reload", function (e) {console.log(e.detail);} );
 (defn on-jsload-custom-event [url]
@@ -29,11 +31,12 @@
 (defn all? [pred coll]
   (reduce #(and %1 %2) true (map pred coll)))
 
+
 (defn namespace-file-map? [m]
   (or
    (and (map? m)
         (string? (:namespace m))
-        (string? (:file m))
+        #_(string? (:file m))
         (= (:type m)
            :namespace))
    (do
@@ -55,6 +58,102 @@
   (if (gstring/startsWith url "../")
     (string/replace url "../" "")
     (str "goog/" url)))
+
+(defn immutable-ns? [name]
+  (or (#{"goog"
+         "cljs.core"
+         "an.existing.path"
+         "dup.base"
+         "far.out"
+         "ns"
+         "someprotopackage.TestPackageTypes"
+         "svgpan.SvgPan"
+         "testDep.bar"} name)
+      (some
+       (partial goog.string/startsWith name)
+       ["goog." "cljs." "clojure." "fake." "proto2."])))
+
+(def ^:dynamic *get-deps* false)
+(def ^:dynamic *path->name* false)
+
+(defn get-requires [ns]
+  (->> ns
+    name->path
+    (aget js/goog.dependencies_.requires)
+    (gobj/getKeys)
+    (filter #(not (immutable-ns? %)))
+    set))
+
+(defn create-path->name []
+  (let [lookup (into {}
+                     (map (fn [[k v]] [v k])
+                          (js->clj (gobj/filter js/goog.dependencies_.nameToPath
+                                                (fn [v k o]
+                                                  (gstring/startsWith v "../"))))))]
+    (fn [path] (get lookup path))))
+
+;; inverting this early may adversly affect perf
+;; inverting on demand would probably provide better perf
+
+;; should really create an addDependency hook to create this
+;; data structure on the fly
+(defn create-ns->dependents []
+  (let [lookup (reduce
+                (fn [a [k v]]
+                  (reduce (fn [a' [k' v']]
+                            (update-in a' [k'] conj k)) a v))
+                {}
+                (js->clj
+                 (gobj/filter js/goog.dependencies_.requires 
+                              (fn [v k o]
+                                (gstring/startsWith k "../")))))]
+    (fn [ns]
+      (set (map *path->name* (reverse (get lookup ns)))))))
+
+(declare topo-sort-helper)
+
+(defn elim-dups [[x & xs]]
+  (if (nil? x)
+    (list)
+    (cons x (elim-dups (map #(difference % x) xs)))))
+
+(defn topo-sort
+  ([deps]
+   (topo-sort deps 0 (atom (sorted-map))))
+  ([deps depth state]
+   (swap! state update-in [depth] (fnil into #{}) deps)
+   (doseq [dep deps]
+     (topo-sort-helper dep (inc depth) state))
+   (when (= depth 0)
+     (elim-dups (reverse (vals @state))))))
+
+;; from cljs.util; will use that one in when it hits mainstream
+(defn topo-sort-helper [x depth state]
+  (let [deps (*get-deps* x)]
+    (when-not (empty? deps) (topo-sort deps depth state))))
+
+;; overkill because we dont need these in order
+;; but the chance that we will soon is pretty high
+(defn get-all-dependencies [ns]
+  (binding [*get-deps* (memoize get-requires)]
+    (apply concat (topo-sort [ns]))))
+
+(defn get-all-dependents [nss]
+  (binding [*path->name* (create-path->name)
+            *get-deps* (memoize (create-ns->dependents))]
+    (reverse (apply concat (topo-sort nss)))))
+
+#_(prn "dependents" (get-all-dependents [ "example.core" "figwheel.client.file_reloading"]))
+
+#_(prn "dependencies" (get-all-dependencies "figwheel.client.file_reloading"))
+
+#_(time (get-all-dependents [ "example.core" "figwheel.client.file_reloading"]))
+
+(defn unprovide! [ns]
+  (let [path (name->path ns)]
+    (gobj/remove js/goog.dependencies_.visited path)
+    (gobj/remove js/goog.dependencies_.written path)
+    (gobj/remove js/goog.dependencies_.written (str js/goog.basePath path))))
 
 ;; this matches goog behavior in url resolution should actually just
 ;; use that code
@@ -80,19 +179,16 @@
     (set! (.-require js/goog)
           (fn [src reload]
             (when (= reload "reload-all")
+              (doseq [ns (get-all-dependencies src)] (unprovide! ns))
               (set! (.-cljsReloadAll_ js/goog) true))
             (let [reload? (or reload (.-cljsReloadAll__ js/goog))]
-              (when reload?
-                (let [path (name->path
-                                 src)]
-                  (gobj/remove js/goog.dependencies_.visited path)
-                  (gobj/remove js/goog.dependencies_.written path)
-                  (gobj/remove js/goog.dependencies_.written
-                               (str js/goog.basePath path))))
+              (when reload? (unprovide! src))
               (let [ret (.require__ js/goog src)]
                 (when (= reload "reload-all")
                   (set! (.-cljsReloadAll_ js/goog) false))
                 ret))))))
+
+#_(js/goog.require "figwheel.client.file_reloading" true)
 
 (defn patch-goog-base []
   (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
@@ -168,14 +264,14 @@
     ;; we are forcing reload here
     (js/goog.require (name namespace) true)))
 
-(defn reload-file? [{:keys [namespace meta-data] :as file-msg}]
+(defn reload-file? [{:keys [namespace] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
-  (let [meta-data (or meta-data {})]
+  (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
     (and
-     (not (:figwheel-no-load meta-data))
+     (not (:figwheel-no-load meta-pragmas))
      (or
-      (:figwheel-always meta-data)
-      (:figwheel-load meta-data)
+      (:figwheel-always meta-pragmas)
+      (:figwheel-load meta-pragmas)
       ;; might want to use .-visited here
       (goog/isProvided__ (name namespace))))))
 
@@ -217,8 +313,29 @@
         (catch :default e
           (utils/log :error (str "Unable to evaluate " file)))))))
 
-(defn reload-js-files [{:keys [before-jsload on-jsload] :as opts}
-                       {:keys [files] :as msg}]
+(defn expand-files [files]
+  (let [deps (get-all-dependents (map :namespace files))]
+    (filter (comp not #{"figwheel.connect"} :namespace)
+            (map
+             (fn [n]
+               (if-let [file-msg (first (filter #(= (:namespace %) n) files))]
+                 file-msg
+                 {:type :namespace :namespace n}))
+             deps))))
+
+(defn sort-files [files]
+  (let [keep-files (set (keep :namespace files))]
+    (filter (comp keep-files :namespace) (expand-files files))))
+
+(defn get-figwheel-always []
+  (map (fn [[k v]] {:namespace k :type :namespace})
+       (filter (fn [[k v]]
+                 (:figwheel-always v)) @figwheel-meta-pragmas)))
+
+(defn reload-js-files [{:keys [before-jsload on-jsload reload-dependents] :as opts}
+                       {:keys [files figwheel-meta recompile-dependents] :as msg}]
+  (when-not (empty? figwheel-meta)
+    (reset! figwheel-meta-pragmas figwheel-meta))
   (go
     (before-jsload files)
     (before-jsload-custom-event files)
@@ -234,6 +351,13 @@
     (let [all-files (filter #(and (:namespace %)
                                   (not (:eval-body %)))
                             files)
+          ;; add in figwheel always
+          all-files (concat all-files (get-figwheel-always))
+          all-files (if (or reload-dependents recompile-dependents)
+                      (expand-files all-files)
+                      (sort-files all-files))
+          ;_       (prn "expand-files" (expand-files all-files))
+          ;_       (prn "sort-files" (sort-files all-files))
           res'    (<! (load-all-js-files all-files))
           res     (filter :loaded-file res')
           files-not-loaded  (filter #(not (:loaded-file %)) res')
