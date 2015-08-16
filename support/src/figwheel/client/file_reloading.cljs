@@ -35,7 +35,8 @@
   (or
    (and (map? m)
         (string? (:namespace m))
-        #_(string? (:file m))
+        (or (nil? (:file m))
+            (string? (:file m)))
         (= (:type m)
            :namespace))
    (do
@@ -182,7 +183,7 @@
     ;; provide cljs.user
     (setup-path->name!)
     (setup-ns->dependents!)
-    
+
     (set! (.-addDependency__ js/goog) js/goog.addDependency)
     (set! (.-addDependency js/goog)
           (fn [& args]
@@ -334,7 +335,6 @@
                  file-msg
                  {:type :namespace :namespace n}))
              deps))))
-
 
 (defn sort-files [files]
   (let [keep-files (set (keep :namespace files))]

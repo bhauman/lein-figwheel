@@ -3,6 +3,7 @@
    [cljs.compiler]
    [cljs.analyzer :as ana]
    [cljs.env]
+   [cljs.build.api :as build-api]
    [cljs.analyzer.api :as ana-api]
    [compojure.route :as route]
    [compojure.core :refer [routes GET]]
@@ -160,12 +161,12 @@
   "Formats and sends a files-changed message to the file-change-atom.
    Also reports this event to the console."
   [st files]
-  (send-message! st :files-changed {:files files
-                                    :recompile-dependents (:recompile-dependents st)
-                                    :figwheel-meta (find-figwheel-meta)})
-  (doseq [f files]
-         (println "notifying browser that file changed: " (:file f))))
-
+  (when (not-empty files)
+    (send-message! st :files-changed {:files files
+                                      :recompile-dependents (:recompile-dependents st)
+                                      :figwheel-meta (find-figwheel-meta)})
+    (doseq [f files]
+      (println "notifying browser that file changed: " (:file f)))))
 
 (defn underscore [s] (string/replace s "-" "_"))
 (defn ns-to-path [nm] (string/replace nm "." "/"))
@@ -250,7 +251,7 @@
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
   (let [n (-> nm name underscore)]
-    { ;:file (str (cbapi/cljs-target-file-from-ns "" nm))
+    { :file (str (cbapi/cljs-target-file-from-ns "" nm))
       :namespace (cljs.compiler/munge n)
       :type :namespace}))
 
@@ -276,6 +277,28 @@
     (concat (get-dependency-files state))
     (send-changed-files state)))
 
+(defn closure-file->namespace [js-file-path]
+  (-> js-file-path
+    io/file
+    build-api/parse-js-ns
+    :provides
+    first))
+
+(defn copy-changed-closure-js [output-dir changed-js]
+  ;; there is an easy way to do this built into clojurescript
+  ;; the idea here is we are only copying files that make sense to
+  ;; copy i.e. they have a provide
+  (when-not (empty changed-js)
+    (let [copies (keep
+                  (fn [f]
+                    (when-let [nspace (closure-file->namespace f)]
+                      {:namespace nspace
+                       :output-file (cbapi/cljs-target-file-from-ns output-dir nspace)
+                       :file f}))
+                  changed-js)]
+      (doseq [{:keys [file output-file]} copies]
+        (spit output-file (slurp file))))))
+
 ;; this functionality should be moved to autobuilder or a new ns
 ;; this ns should just be for notifications?
 (defn check-for-changes
@@ -292,8 +315,10 @@
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
    (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
+     (copy-changed-closure-js (:output-dir state) (:js change-source-file-paths))
      (notify-cljs-ns-changes state
-                             (set (concat additional-ns 
+                             (set (concat additional-ns
+                                          (keep closure-file->namespace (:js change-source-file-paths))
                                           (keep get-ns-from-source-file-path
                                                 (concat
                                                    (:cljs change-source-file-paths)
