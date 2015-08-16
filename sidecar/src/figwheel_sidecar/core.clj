@@ -299,6 +299,7 @@
       (doseq [{:keys [file output-file]} copies]
         (spit output-file (slurp file))))))
 
+
 ;; this functionality should be moved to autobuilder or a new ns
 ;; this ns should just be for notifications?
 (defn check-for-changes

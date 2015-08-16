@@ -7,12 +7,21 @@
    [example.style :as style]
    [cljs.reader :refer [read-string]]
    [cljs-http.client :as http]
+   [cljs-time.core]
    [cljs.core.async :refer [<!]]
-   [example.sss])
+   [example.sss]
+   [example.tester])
   (:require-macros
    [cljs.core.async.macros :refer [go]]
+   [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
 
+
+#_(prn example.tester)
+(prn (example.tester/hello))
+
+
+(enable-dev-blocks!)
 (enable-console-print!)
 
 (defn prevent [f]

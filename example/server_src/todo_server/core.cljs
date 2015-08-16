@@ -2,6 +2,7 @@
   (:require
    [cljs.nodejs :as nodejs]
    [cljs.reader :refer [read-string]]
+   [cljs-time.core]
    [figwheel.client :as fw]))
 
 (nodejs/enable-util-print!)

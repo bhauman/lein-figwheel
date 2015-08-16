@@ -5,17 +5,18 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
                  [org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "0.0-3308"]
+                 [org.clojure/clojurescript "1.7.48"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                 [sablono "0.3.4"]
+                 [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
                  [datascript "0.9.0"]
+                 [com.andrewmcveigh/cljs-time "0.3.11"]
                  [cljs-http "0.1.35"]]
 
   :plugins [[lein-ring "0.8.13"]
             [lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.3.7"]
+            [lein-figwheel "0.3.8-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -41,20 +42,22 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
+                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
-                                     :on-jsload      "example.core/fig-reload"}
+                                     :on-jsload      "example.core/fig-reload"
+                                     :debug true }
                         
                          :compiler { :main example.core
                                      :asset-path "js/out"
                                      :output-to "resources/public/js/example.js"
                                      :output-dir "resources/public/js/out"
                                      :source-map-timestamp true
+                                     :libs []
                                      ;; :recompile-dependents true
-                                    :optimizations :none}}
+                                     :optimizations :none}}
                        {:id "server"
-                        :source-paths ["server_src"]
+                        :source-paths ["server_src" "../support/src"]
                         :compiler {
                                    :output-to "server_out/todo_server.js"
                                    :output-dir "server_out"
