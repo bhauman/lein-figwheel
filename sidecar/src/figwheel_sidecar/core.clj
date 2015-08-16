@@ -288,7 +288,7 @@
   ;; there is an easy way to do this built into clojurescript
   ;; the idea here is we are only copying files that make sense to
   ;; copy i.e. they have a provide
-  (when-not (empty changed-js)
+  (when-not (empty? changed-js)
     (let [copies (keep
                   (fn [f]
                     (when-let [nspace (closure-file->namespace f)]
@@ -298,7 +298,6 @@
                   changed-js)]
       (doseq [{:keys [file output-file]} copies]
         (spit output-file (slurp file))))))
-
 
 ;; this functionality should be moved to autobuilder or a new ns
 ;; this ns should just be for notifications?
@@ -316,6 +315,7 @@
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
    (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
+     
      (copy-changed-closure-js (:output-dir state) (:js change-source-file-paths))
      (notify-cljs-ns-changes state
                              (set (concat additional-ns
