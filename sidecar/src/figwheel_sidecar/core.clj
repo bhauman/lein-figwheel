@@ -129,7 +129,7 @@
         ;; super promiscuous please don't uses figwheel as a production server :)
         (cors/wrap-cors
          :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete])
+         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
         (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
                       (if server-ip
                         (assoc config :ip server-ip)
