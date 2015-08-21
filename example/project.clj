@@ -58,7 +58,8 @@
                                      :optimizations :none}}
                        {:id "server"
                         :source-paths ["server_src" "../support/src"]
-                        :compiler {
+                        :figwheel true
+                        :compiler {;; :main "todo-server.core"
                                    :output-to "server_out/todo_server.js"
                                    :output-dir "server_out"
                                    :target :nodejs

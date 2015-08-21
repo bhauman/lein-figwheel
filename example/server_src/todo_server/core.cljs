@@ -68,4 +68,6 @@
 
 (set! *main-cli-fn* -main)
 
-(fw/start { :build-id "server" })
+#_(fw/start { :build-id "server" })
+
+
