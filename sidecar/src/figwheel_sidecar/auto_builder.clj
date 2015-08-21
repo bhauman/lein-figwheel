@@ -8,7 +8,7 @@
    [cljs.analyzer.api :as ana-api]
    [cljs.env]
    #_[clj-stacktrace.repl]
-   [clojure.stacktrace :as stack]   
+   [clojure.stacktrace :as stack]
    [clojurescript-build.core :as cbuild]
    [clojurescript-build.auto :as auto]
    [clojure.java.io :as io]
@@ -192,7 +192,7 @@
     build))
 
 (defn require-connection-script-js [build]
-  (let [node? (and (:target build) (== (:target build) :nodejs)) 
+  (let [node? (and (:target build) (= (:target build) :nodejs))
         main? (get-in build [:build-options :main])
         output-to (get-in build [:build-options :output-to])
         line (if (and main? (not node?))
@@ -201,7 +201,7 @@
                   "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"devcards.core\\\"); }</script>\");")
                 "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");")
                "\ngoog.require(\"figwheel.connect\");")]
-    (when (and output-to (not node?))
+    (when output-to
       (if main?
         (let [lines (string/split (slurp output-to) #"\n")]
           ;; require before app
@@ -221,7 +221,7 @@
 (defn builder [figwheel-server]
   (-> cbuild/build-source-paths*
     (default-build-options {:recompile-dependents false})
-    
+
     (insert-figwheel-connect-script figwheel-server)
     (warning
      (fn [build]
@@ -272,7 +272,7 @@
                :figwheel-server (fig/start-server figwheel-options)}))
 
 (comment
-  
+
   (def builds [{ :id "example"
                  :source-paths ["src" "../support/src"]
                  :build-options { :output-to "resources/public/js/compiled/example.js"
@@ -288,17 +288,17 @@
                         builds))
 
   (def figwheel-server (fig/start-server))
-  
+
   (fig/stop-server figwheel-server)
-  
+
   (def bb (autobuild* {:builds env-builds
                        :figwheel-server figwheel-server}))
-  
+
   (auto/stop-autobuild! bb)
 
   (fig-repl/eval-js figwheel-server "1 + 1")
 
   (def build-options (:build-options (first builds)))
-  
+
   #_(cljs.repl/repl (repl-env figwheel-server) )
 )
