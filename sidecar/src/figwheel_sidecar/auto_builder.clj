@@ -192,7 +192,7 @@
     build))
 
 (defn require-connection-script-js [build]
-  (let [node? (= :nodejs (get-in build [:compiler :target]))
+  (let [node? (= :nodejs (get-in build [:build-options :target]))
         main? (get-in build [:build-options :main])
         output-to (get-in build [:build-options :output-to])
         line (if (and main? (not node?))
