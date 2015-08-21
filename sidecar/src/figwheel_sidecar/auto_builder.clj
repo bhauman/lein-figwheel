@@ -201,8 +201,8 @@
                   "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"devcards.core\\\"); }</script>\");")
                 "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");")
                "\ngoog.require(\"figwheel.connect\");")]
-    (when (and output-to (not node?))
-      (if main?
+    (when output-to
+      (if (and main? (not node?))
         (let [lines (string/split (slurp output-to) #"\n")]
           ;; require before app
           (spit output-to (string/join "\n" (concat (butlast lines) [line] [(last lines)]))))
