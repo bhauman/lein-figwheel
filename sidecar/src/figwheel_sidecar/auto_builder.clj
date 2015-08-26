@@ -13,24 +13,7 @@
    [clojurescript-build.auto :as auto]
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [clojure.set :refer [intersection]]
-   [cljsbuild.util :as util]))
-
-(defn notify-cljs [command message]
-  (when (seq (:shell command))
-    (try
-      (util/sh (update-in command [:shell] (fn [old] (concat old [message]))))
-      (catch Throwable e
-        (println (auto/red "Error running :notify-command:"))
-        (stack/print-stack-trace e 30)
-        (flush)
-        #_(clj-stacktrace.repl/pst+ e)))))
-
-(defn notify-on-complete [{:keys [build-options parsed-notify-command]}]
-  (let [{:keys [output-to]} build-options]
-    (notify-cljs
-     parsed-notify-command
-     (str "Successfully compiled " output-to))))
+   [clojure.set :refer [intersection]]))
 
 (defn merge-build-into-server-state [figwheel-server {:keys [id build-options]}]
   (merge figwheel-server
@@ -232,7 +215,6 @@
     auto/time-build
     (auto/after auto/compile-success)
     (auto/after (partial check-changes figwheel-server))
-    (auto/after notify-on-complete)
     (auto/error (partial handle-exceptions figwheel-server))
     (auto/before auto/compile-start)))
 
