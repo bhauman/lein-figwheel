@@ -19,6 +19,6 @@
    [cljsbuild "1.0.5"]  
    [figwheel "0.3.8-SNAPSHOT"]
    [com.cemerick/piggieback "0.1.5"]
-   [clojurescript-build "0.1.8"]
+   [clojurescript-build "0.1.9"]
    [watchtower "0.1.1"] ;; why the heck am I still using this?
    [digest "1.4.4"]])
