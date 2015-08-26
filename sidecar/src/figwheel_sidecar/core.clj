@@ -277,27 +277,43 @@
     (concat (get-dependency-files state))
     (send-changed-files state)))
 
-(defn closure-file->namespace [js-file-path]
-  (-> js-file-path
-    io/file
-    build-api/parse-js-ns
-    :provides
-    first))
+(defn get-foreign-lib [{:keys [foreign-libs]} file-path]
+  (when foreign-libs
+    (let [file (io/file file-path)]
+      (first (filter (fn [fl]
+                       (= (.getCanonicalPath (io/file (:file fl)))
+                          (.getCanonicalPath file)))
+                     foreign-libs)))))
 
-(defn copy-changed-closure-js [output-dir changed-js]
+(defn js-file->namespaces [{:keys [foreign-libs] :as state} js-file-path]
+  (if-let [foreign (get-foreign-lib state js-file-path)]
+    (:provides foreign)
+    (:provides (build-api/parse-js-ns js-file-path))))
+
+(defn cljs-target-file-from-foreign [output-dir file-path]
+  (io/file (str output-dir java.io.File/separator (.getName (io/file file-path)))) )
+
+(defn get-js-copies [{:keys [output-dir] :as state} changed-js]
+  (keep
+   (fn [f]
+     (if-let [foreign (get-foreign-lib state f)]
+       {:output-file (cljs-target-file-from-foreign output-dir f)
+        :file f}
+       (when-let [namesp (first (js-file->namespaces state f))]
+         {:output-file (cbapi/cljs-target-file-from-ns output-dir namesp)
+          :file f})))
+   changed-js))
+
+(defn make-copies [copies]
+  (doseq [{:keys [file output-file]} copies]
+    (spit output-file (slurp file))))
+
+(defn copy-changed-js [state changed-js]
   ;; there is an easy way to do this built into clojurescript
   ;; the idea here is we are only copying files that make sense to
   ;; copy i.e. they have a provide
   (when-not (empty? changed-js)
-    (let [copies (keep
-                  (fn [f]
-                    (when-let [nspace (closure-file->namespace f)]
-                      {:namespace nspace
-                       :output-file (cbapi/cljs-target-file-from-ns output-dir nspace)
-                       :file f}))
-                  changed-js)]
-      (doseq [{:keys [file output-file]} copies]
-        (spit output-file (slurp file))))))
+    (make-copies (get-js-copies state changed-js))))
 
 ;; this functionality should be moved to autobuilder or a new ns
 ;; this ns should just be for notifications?
@@ -315,11 +331,11 @@
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
    (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
-     
-     (copy-changed-closure-js (:output-dir state) (:js change-source-file-paths))
+     (copy-changed-js state (:js change-source-file-paths))
      (notify-cljs-ns-changes state
                              (set (concat additional-ns
-                                          (keep closure-file->namespace (:js change-source-file-paths))
+                                          (mapcat (partial js-file->namespaces state)
+                                                  (:js change-source-file-paths))
                                           (keep get-ns-from-source-file-path
                                                 (concat
                                                    (:cljs change-source-file-paths)
