@@ -52,6 +52,9 @@
   (dev-assert (string? ns))
   (aget js/goog.dependencies_.nameToPath ns))
 
+(defn provided? [ns]
+  (aget js/goog.dependencies_.written (name->path ns)))
+
 ;; this is pretty simple, not sure how brittle it is 
 (defn fix-node-request-url [url]
   (dev-assert (string? url))
@@ -286,7 +289,7 @@
       (:figwheel-always meta-pragmas)
       (:figwheel-load meta-pragmas)
       ;; might want to use .-visited here
-      (goog/isProvided__ (name namespace))))))
+      (provided? (name namespace))))))
 
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))
