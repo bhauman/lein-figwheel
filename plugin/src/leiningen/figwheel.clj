@@ -8,7 +8,6 @@
    [clojure.java.io :as io]
    [figwheel-sidecar.config :as fc]))
 
-
 (defn get-lib-version [proj-name]
   (let [[_ coords version]
         (-> (io/resource (str "META-INF/leiningen/" proj-name "/" proj-name "/project.clj"))
@@ -27,11 +26,11 @@
 (def figwheel-version (get-lib-version "figwheel"))
 
 ;; well this is private in the leiningen.cljsbuild ns
-(defn- run-local-project [project crossover-path builds requires form]
+(defn- run-local-project [project builds requires form]
   (let [project' (-> project
                    (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version])
                    (update-in [:dependencies] conj ['figwheel figwheel-version]) 
-                   (subproject/make-subproject crossover-path builds)
+                   (subproject/make-subproject nil builds)
                    #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
     (leval/eval-in-project project'
      `(try
@@ -47,24 +46,10 @@
            (System/exit 1))))
      requires)))
 
-(defn run-compiler [project crossover-path crossovers
-                    {:keys [all-builds] :as autobuild-opts}]
-  ; If crossover-path does not exist before eval-in-project is called,
-  ; the files it contains won't be classloadable, for some reason.
-  (when (not-empty crossovers)
-    (println "\033[31mWARNING: lein-cljsbuild crossovers are deprecated, and will be removed in future versions.\n
-See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for details.\033[0m")
-    (.mkdirs (io/file crossover-path)))
-  (run-local-project project crossover-path all-builds
-     '(require 'cljsbuild.crossover 'cljsbuild.util 'figwheel-sidecar.repl)
-     `(letfn [(copy-crossovers# []
-                  (cljsbuild.crossover/copy-crossovers
-                   ~crossover-path
-                   '~crossovers))]
-          (when (not-empty '~crossovers)
-            (copy-crossovers#)
-            (cljsbuild.util/once-every-bg 1000 "copying crossovers" copy-crossovers#))
-          (figwheel-sidecar.repl/run-autobuilder ~autobuild-opts))))
+(defn run-compiler [project {:keys [all-builds] :as autobuild-opts}]
+  (run-local-project project all-builds
+     '(require 'cljsbuild.util 'figwheel-sidecar.repl)
+     `(figwheel-sidecar.repl/run-autobuilder ~autobuild-opts)))
 
 (defn get-unique-id [prj]
   (let [{:keys [name version]} prj]
@@ -74,7 +59,7 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
-  (let [{:keys [crossover-path crossovers builds]} (config/extract-options project)
+  (let [{:keys [builds]} (config/extract-options project)
         all-builds       (fc/prep-builds
                           (mapv config/parse-notify-command
                                 (fc/map-to-vec-builds
@@ -93,9 +78,8 @@ See https://github.com/emezeske/lein-cljsbuild/blob/master/doc/CROSSOVERS.md for
                                            all-builds
                                            build-ids))]
     (if (empty? errors)
-      (run-compiler project crossover-path crossovers
+      (run-compiler project 
                     { :figwheel-options figwheel-options
                       :all-builds all-builds
                       :build-ids  (vec build-ids)})
       (mapv println errors))))
-
