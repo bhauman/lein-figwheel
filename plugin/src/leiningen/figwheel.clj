@@ -2,11 +2,25 @@
   (:refer-clojure :exclude [test])
   (:require
    [clojure.pprint :as pp]
-   [leiningen.cljsbuild.config :as config]
-   [leiningen.cljsbuild.subproject :as subproject]
    [leiningen.core.eval :as leval]
    [clojure.java.io :as io]
    [figwheel-sidecar.config :as fc]))
+
+(defn make-subproject [project builds]
+  (with-meta
+    (merge
+      (select-keys project [:checkout-deps-shares
+                            :eval-in
+                            :jvm-opts
+                            :local-repo
+                            :dependencies
+                            :repositories
+                            :resource-paths])
+      {:local-repo-classpath true
+       :source-paths (concat
+                       (:source-paths project)
+                       (mapcat :source-paths builds))})
+    (meta project)))
 
 (defn get-lib-version [proj-name]
   (let [[_ coords version]
@@ -30,16 +44,12 @@
   (let [project' (-> project
                    (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version])
                    (update-in [:dependencies] conj ['figwheel figwheel-version]) 
-                   (subproject/make-subproject nil builds)
-                   #_(update-in [:dependencies] #(filter (fn [[n _]] (not= n 'cljsbuild)) %)))] 
+                   (make-subproject builds))] 
     (leval/eval-in-project project'
      `(try
         (do
           ~form
           (System/exit 0))
-        (catch cljsbuild.test.TestsFailedException e#
-                                        ; Do not print stack trace on test failure
-          (System/exit 1))
         (catch Exception e#
           (do
             (.printStackTrace e#)
@@ -48,7 +58,7 @@
 
 (defn run-compiler [project {:keys [all-builds] :as autobuild-opts}]
   (run-local-project project all-builds
-     '(require 'cljsbuild.util 'figwheel-sidecar.repl)
+     '(require 'figwheel-sidecar.repl)
      `(figwheel-sidecar.repl/run-autobuilder ~autobuild-opts)))
 
 (defn get-unique-id [prj]
@@ -59,14 +69,11 @@
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
-  (let [{:keys [builds]} (config/extract-options project)
-        all-builds       (fc/prep-builds
-                          (mapv config/parse-notify-command
-                                (fc/map-to-vec-builds
-                                 (or (get-in project [:figwheel :builds])
-                                     (get-in project [:cljsbuild :builds])
-                                     builds))))
-        ;_ (pp/pprint all-builds)
+  (let [all-builds (fc/prep-builds
+                    (fc/map-to-vec-builds
+                     (or (get-in project [:figwheel :builds])
+                         (get-in project [:cljsbuild :builds]))))
+                                        ;_ (pp/pprint all-builds)
         figwheel-options (fc/prep-options
                           (merge
                            { :http-server-root "public"

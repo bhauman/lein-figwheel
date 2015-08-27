@@ -7,11 +7,6 @@
   :dependencies [[figwheel-sidecar "0.3.8-SNAPSHOT"]
                  [figwheel "0.3.8-SNAPSHOT"]]
 
-  :profiles {
-    :dev {
-      :dependencies [[cljsbuild "1.0.5"]]
-      :plugins [[lein-cljsbuild "1.0.5"]]}}
-  
   :scm { :name "git"
          :url "https://github.com/bhauman/lein-figwheel"
          :dir "plugin"}
