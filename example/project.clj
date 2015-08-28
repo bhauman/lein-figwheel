@@ -15,7 +15,7 @@
                  [cljs-http "0.1.35"]]
 
   :plugins [[lein-ring "0.8.13"]
-            [lein-cljsbuild "1.0.5"]
+            #_[lein-cljsbuild "1.1.0"]
             [lein-figwheel "0.3.8-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
@@ -47,15 +47,18 @@
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      "example.core/fig-reload"
                                      :debug true }
-                        
                          :compiler { :main example.core
                                      :asset-path "js/out"
                                      :output-to "resources/public/js/example.js"
                                      :output-dir "resources/public/js/out"
                                      :source-map-timestamp true
-                                     :libs []
+                                     :libs ["libs_src" "libs_sscr/tweaky.js"]
+                                     ;; :externs ["foreign/wowza-externs.js"]
+                                    :foreign-libs [{:file "foreign/wowza.js"
+                                                    :provides ["wowzacore"]}]
                                      ;; :recompile-dependents true
                                      :optimizations :none}}
+
                        {:id "server"
                         :source-paths ["server_src" "../support/src"]
                         :figwheel true
