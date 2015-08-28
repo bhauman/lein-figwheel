@@ -25,7 +25,7 @@ modifying your code in real time.
 
 #### Supports Node.js
 
-You can use figwheel to live code ClojureScript in Node.js!
+You can use figwheel to live code Node.js in ClojureScript!
 
 #### Static file server
 
