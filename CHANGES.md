@@ -1,3 +1,21 @@
+## 0.3.8
+
+* **Hot reloading Javascript!** this works for `:foreign-libs`, `:libs`
+  and Google Closure libs in your `:source-paths` that follow Clojure
+  namespacing conventions - this is hot!
+* **fixed the loading order of dependencies** this silently broke a while back. Dependency
+  loading has been overhauled to work with the latest CLJS and should be much more stable.
+* `(require ... :reload)` and `(require ... :reload-all)` work correctly now
+* adding `:reload-dependents` client config parameter. It forces the "reloading"
+  of files that are dependent on changed files. This is very fast operation and can
+  potentially obviate the need for `^:figwheel-always`. `:recompile-dependents` is much slower.
+* **removed cljsbuild as a dependency**, this removes **crossovers** and **notify-command** from figwheel
+
+* new Community CLJS logo
+* fixing Node so that `figwheel.connect` works
+* added http PATCH to CORS
+
+
 ## 0.3.7
 
 * update to clojure 1.7.0!
