@@ -22,6 +22,11 @@
    [clojurescript-build.api :as cbapi]
    [clojure.pprint :as p]))
 
+(defn atom?
+  "Returns true when the provided argument is an atom."
+  [maybe-atom?]
+  (instance? clojure.lang.Atom maybe-atom?))
+
 ;; get rid of fs dependancy
 
 (defn split-ext
@@ -141,8 +146,9 @@
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
 (defn send-message! [{:keys [file-change-atom] :as st} msg-name data]
-  (swap! file-change-atom append-msg
-         (message* st msg-name data)))
+  (when (atom? file-change-atom)
+    (swap! file-change-atom append-msg
+           (message* st msg-name data))))
 
 (defn find-figwheel-meta []
   (into {}
@@ -220,9 +226,9 @@
 
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
-  [{:keys [file-md5-atom]} filepath]  
+  [{:keys [file-md5-atom]} filepath]
   (let [file (as-file filepath)]
-    (when (.exists file)
+    (when (and (.exists file) (atom? file-md5-atom))
       (let [contents (slurp file)]
         (when (.contains contents "addDependency")
           (let [check-sum (digest/md5 contents)

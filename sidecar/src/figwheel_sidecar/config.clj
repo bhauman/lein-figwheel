@@ -2,7 +2,8 @@
   (:require
    [clojure.string :as string]
    [clojure.java.io :as io]
-   [clojure.walk :as walk]))
+   [clojure.walk :as walk]
+   [figwheel-sidecar.core :refer [norm-path]]))
 
 (defn mkdirs [fpath]
   (let [f (io/file fpath)]
@@ -26,10 +27,6 @@
     (or (nil? opt) (= :none opt))))
 
 ;; checking to see if output dir is in right directory
-(defn norm-path
-  "Normalize paths to a forward slash separator to fix windows paths"
-  [p] (string/replace p  "\\" "/"))
-
 (defn relativize-resource-paths
   "Relativize to the local root just in case we have an absolute path"
   [resource-paths]
