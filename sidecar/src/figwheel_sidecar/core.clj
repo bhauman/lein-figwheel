@@ -140,9 +140,22 @@
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
+(defn setup-callback [{:keys [browser-callbacks]} {:keys [callback] :as msg-data}]
+  (if callback
+    (let [callback-name (str (gensym "figwheel_callback_"))]
+      (swap! browser-callbacks assoc callback-name
+             (fn [result]
+               (swap! browser-callbacks dissoc callback-name)
+               (callback result)))
+      (-> msg-data
+        (dissoc :callback)
+        (assoc :callback-name callback-name)))
+    msg-data))
+
 (defn send-message! [{:keys [file-change-atom] :as st} msg-name data]
   (swap! file-change-atom append-msg
-         (message* st msg-name data)))
+         (message* st msg-name
+                   (setup-callback st data))))
 
 (defn find-figwheel-meta []
   (into {}
@@ -221,7 +234,7 @@
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
   [{:keys [file-md5-atom]} filepath]  
-  (let [file (as-file filepath)]
+  (when-let [file (as-file filepath)]
     (when (.exists file)
       (let [contents (slurp file)]
         (when (.contains contents "addDependency")
@@ -340,6 +353,7 @@
                                                 (concat
                                                    (:cljs change-source-file-paths)
                                                    (:cljc change-source-file-paths)))))))))
+
 
 ;; css changes
 ;; this can be moved out of here I think

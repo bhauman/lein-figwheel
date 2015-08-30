@@ -86,17 +86,14 @@
       (string/join "\n" stk-tr)
       (vec (grouped-lines true)))))
 
-(defn eval-js [{:keys [browser-callbacks output-dir] :as figwheel-server} js]
-  (let [callback-name (str (gensym "repl_eval_"))
-        out (chan)
+(defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
+  (let [out (chan)
         callback (fn [result]
-                   (swap! browser-callbacks dissoc callback-name)
                    (put! out result)
                    (go
                      (<! (timeout 2000))
                      (close! out)))]
-    (swap! browser-callbacks assoc callback-name callback)
-    (fig/send-message! figwheel-server :repl-eval {:code js :callback-name callback-name})
+    (fig/send-message! figwheel-server :repl-eval {:code js :callback callback})
     (let [[v ch] (alts!! [out (timeout 8000)])]
       (if (= ch out)
         v
