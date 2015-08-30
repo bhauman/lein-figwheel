@@ -8,9 +8,8 @@
 * `(require ... :reload)` and `(require ... :reload-all)` work correctly now
 * adding `:reload-dependents` client config parameter. It forces the "reloading"
   of files that are dependent on changed files. This is very fast operation and can
-  potentially obviate the need for `^:figwheel-always`. `:recompile-dependents` is much slower.
+  potentially obviate the need for `^:figwheel-always`
 * **removed cljsbuild as a dependency**, this removes **crossovers** and **notify-command** from figwheel
-
 * new Community CLJS logo
 * fixing Node so that `figwheel.connect` works
 * added http PATCH to CORS
