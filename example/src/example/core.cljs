@@ -28,6 +28,7 @@
 
 #_(prn example.tester)
 
+#_(fw/start)
 
 
 (prn (example.tester/hello))
@@ -159,6 +160,7 @@
                             (:temp-id todo)
                             (dissoc todo :temp-id)))))))))
 
+
 (defmethod remote-transact :update-todo [{:keys [old-value new-value]}]
   (let [[_ new] (first (filter
                         #(not= %1 %2)
@@ -181,6 +183,7 @@
         (vec (-> data :body))
         []))))
 
+
 (defonce init-data
   (go
     (let [todos (<! (get-todos))]
@@ -191,6 +194,7 @@
                                         (println "Transaction:")
                                         (prn x)
                                         (remote-transact x))})
+
 
 (defn fig-reload []
   (.log js/console "in fig-reload"))
