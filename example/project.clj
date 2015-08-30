@@ -12,7 +12,11 @@
                  [ankha "0.1.4"]
                  [datascript "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.3.11"]
-                 [cljs-http "0.1.35"]]
+                 [cljs-http "0.1.35"]
+                 
+                 [com.stuartsierra/component "0.2.3"]
+                 [figwheel "0.3.8-SNAPSHOT"]                 
+                 [figwheel-sidecar "0.3.8-SNAPSHOT"]]
 
   :plugins [[lein-ring "0.8.13"]
             #_[lein-cljsbuild "1.1.0"]
@@ -42,7 +46,7 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
+                         :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      "example.core/fig-reload"
