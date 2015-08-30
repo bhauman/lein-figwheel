@@ -142,20 +142,19 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojure "1.7.0"]
-[org.clojure/clojurescript "0.0-3211"] ;; has to be at least 3211 or greater
+[org.clojure/clojurescript "1.7.48"]
 ```
 
-Then include `lein-figwheel` along with `lein-cljsbuild` in the `:plugins`
+Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-cljsbuild "1.0.5"]
-[lein-figwheel "0.3.7"]
+[lein-figwheel "0.3.8"]
 ```
 
-#### Configure lein cljsbuild
+#### Configure your builds
 
-You also need to have your `lein-cljsbuild` configuration set up in your
+You also need to have your `:cljsbuild` configuration set up in your
 `project.clj`.
 
 Here is an example:
@@ -469,9 +468,9 @@ leiningen template that includes figwheel.
 
 ### What actually happens
 
-This plugin starts the cljsbuild auto builder, opens a websocket and
+This plugin starts a ClojureScript auto builder, opens a websocket and
 starts static file server. When you save a ClojureScript file,
-cljsbuild will detect that and compile it and other affected files. It
+Figwheel will detect that and compile it and other affected files. It
 will then pass a list of those changed files off to the figwheel
 server. The figwheel server will in turn push the paths of the
 **relevant** compiled javascript files through a websocket so that the
