@@ -1,5 +1,7 @@
 ## 0.3.8
 
+#### Incompatable with weasel repl and others that use the cljs browser repl. Expect a new release very soon.
+
 * **Hot reloading Javascript!** this works for `:foreign-libs`, `:libs`
   and Google Closure libs in your `:source-paths` that follow Clojure
   namespacing conventions - this is hot!
