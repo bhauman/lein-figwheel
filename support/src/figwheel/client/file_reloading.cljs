@@ -173,38 +173,37 @@
     (doseq [req requires]
       (name-to-parent! req prov))))
 
+(defn figwheel-require [src reload]
+  (when (= reload "reload-all")
+    (doseq [ns (get-all-dependencies src)] (unprovide! ns)))
+  (when reload (unprovide! src))
+  (.require_figwheel_backup_ js/goog src))
+
 (defn bootstrap-goog-base
   "Reusable browser REPL bootstrapping. Patches the essential functions
   in goog.base to support re-loading of namespaces after page load."
   []
   ;; Monkey-patch goog.provide if running under optimizations :none - David
   (when-not js/COMPILED
-    (set! (.-require__ js/goog) js/goog.require)
+    (set! (.-require_figwheel_backup_ js/goog) js/goog.require)
     ;; suppress useless Google Closure error about duplicate provides
-    (set! (.-isProvided__ js/goog) (.-isProvided_ js/goog))
     (set! (.-isProvided_ js/goog) (fn [name] false))
     ;; provide cljs.user
     (setup-path->name!)
     (setup-ns->dependents!)
 
-    (set! (.-addDependency__ js/goog) js/goog.addDependency)
+    (set! (.-addDependency_figwheel_backup_ js/goog) js/goog.addDependency)
     (set! (.-addDependency js/goog)
           (fn [& args]
             (apply addDependency args)
-            (apply (.-addDependency__ js/goog) args)))
+            (apply (.-addDependency_figwheel_backup_ js/goog) args)))
     
     (goog/constructNamespace_ "cljs.user")
     ;; we must reuse Closure library dev time dependency management, under namespace
     ;; reload scenarios we simply delete entries from the correct
     ;; private locations
     (set! (.-CLOSURE_IMPORT_SCRIPT goog/global) queued-file-reload)
-    (set! (.-require js/goog)
-          (fn [src reload]
-            (when (= reload "reload-all")
-              (doseq [ns (get-all-dependencies src)] (unprovide! ns)))
-            (let [reload? (or reload (.-cljsReloadAll__ js/goog))]
-              (when reload? (unprovide! src))
-              (.require__ js/goog src))))))
+    (set! (.-require js/goog) figwheel-require)))
 
 (defn patch-goog-base []
   (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
@@ -278,7 +277,7 @@
              (swap! on-load-callbacks dissoc request-url)
              (apply callback [(merge file-msg (select-keys file-msg' [:loaded-file]))])))
     ;; we are forcing reload here
-    (js/goog.require (name namespace) true)))
+    (figwheel-require (name namespace) true)))
 
 (defn reload-file? [{:keys [namespace] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
