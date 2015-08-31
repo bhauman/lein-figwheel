@@ -473,13 +473,15 @@
          (.insertBefore parent klone (.-nextSibling orig-link)))
        (js/setTimeout #(.removeChild parent orig-link) 300))))
 
+(defn distictify [key seqq]
+  (vals (reduce #(assoc %1 (get %2 key) %2) {} seqq)))
+
 (defn reload-css-file [{:keys [file] :as f-data}]
-  (if-let [link (get-correct-link f-data)]
+  (when-let [link (get-correct-link f-data)]
     (add-link-to-doc link (clone-link link (.-href link)))
-    (add-link-to-doc (create-link file))))
+    #_(add-link-to-doc (create-link file))))
 
 (defn reload-css-files [{:keys [on-cssload] :as opts} files-msg]
   (when (utils/html-env?)
-    (doseq [f (:files files-msg)] (reload-css-file f))
+    (doseq [f (distictify :file (:files files-msg))] (reload-css-file f))
     (js/setTimeout #(on-cssload (:files files-msg)) 100)))
-
