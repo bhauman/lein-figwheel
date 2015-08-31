@@ -1,3 +1,8 @@
+## 0.3.9-SNAPSHOT
+
+* fixes the incompatability with weasel and cljs browser repl
+* more to come ...
+
 ## 0.3.8
 
 #### Incompatable with weasel repl and others that use the cljs browser repl. Expect a new release very soon.
