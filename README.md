@@ -299,6 +299,13 @@ The following configuration options are available:
 ;; this is helpful if you want to broadcast to devices
 :websocket-host "localhost" ;; or "www.myhost.com", "192.168.0.112"
 
+;; An important configuration option for :websocket-host
+;; if you set it to :js-client-host it will set the host based on the
+;; js/location.host param of the browser
+;; This is helpful for multiple device settings where you are using
+;; fighweel to serve your app.
+;; :websocket-host :js-client-host
+
 ;; optional callback
 :on-jsload "example.core/fig-reload"
 
