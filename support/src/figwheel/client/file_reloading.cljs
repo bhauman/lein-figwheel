@@ -174,6 +174,8 @@
       (name-to-parent! req prov))))
 
 (defn figwheel-require [src reload]
+  ;; require is going to be called
+  (set! (.-require js/goog) figwheel-require)
   (when (= reload "reload-all")
     (doseq [ns (get-all-dependencies src)] (unprovide! ns)))
   (when reload (unprovide! src))
@@ -183,9 +185,11 @@
   "Reusable browser REPL bootstrapping. Patches the essential functions
   in goog.base to support re-loading of namespaces after page load."
   []
-  ;; Monkey-patch goog.provide if running under optimizations :none - David
+  ;; The biggest problem here is that clojure.browser.repl might have
+  ;; patched this or might patch this afterward
   (when-not js/COMPILED
-    (set! (.-require_figwheel_backup_ js/goog) js/goog.require)
+    ;; 
+    (set! (.-require_figwheel_backup_ js/goog) (or js/goog.require__ js/goog.require))
     ;; suppress useless Google Closure error about duplicate provides
     (set! (.-isProvided_ js/goog) (fn [name] false))
     ;; provide cljs.user
@@ -303,10 +307,11 @@
     (js-reload
      file-msg
      (fn [url]
-       (patch-goog-base)
+       #_(patch-goog-base)
        (put! out url)
        (close! out)))
     out))
+
 
 (defn load-all-js-files
   "Returns a chanel with one collection of loaded filenames on it."
