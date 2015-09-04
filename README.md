@@ -142,14 +142,14 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojure "1.7.0"]
-[org.clojure/clojurescript "1.7.48"]
+[org.clojure/clojurescript "1.7.122"]
 ```
 
 Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.3.8"]
+[lein-figwheel "0.3.9"]
 ```
 
 #### Configure your builds

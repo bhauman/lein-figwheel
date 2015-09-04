@@ -1,4 +1,4 @@
-(defproject figwheel-sidecar "0.3.9-SNAPSHOT"
+(defproject figwheel-sidecar "0.3.9"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -16,7 +16,7 @@
    [ring-cors "0.1.7"]
    [compojure "1.3.4"]
    [clj-stacktrace "0.2.8"]
-   [figwheel "0.3.9-SNAPSHOT"]
+   [figwheel "0.3.9"]
    [com.cemerick/piggieback "0.1.5"]
    [clojurescript-build "0.1.9"]
    [watchtower "0.1.1"] ;; why the heck am I still using this?
