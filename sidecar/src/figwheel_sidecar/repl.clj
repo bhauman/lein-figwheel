@@ -514,10 +514,22 @@
 
 (defn start-nrepl-server [figwheel-options autobuild-options]
   (when (:nrepl-port figwheel-options)
-    (let [middleware (if (require? 'cider.nrepl)
-                       (map resolve (deref (resolve 'cider.nrepl/cider-middleware)))
-                       (list))
-          middleware (conj middleware #'cemerick.piggieback/wrap-cljs-repl)]
+    (let [middleware (or
+                      (:nrepl-middleware figwheel-options)
+                      ["cemerick.piggieback/wrap-cljs-repl"])
+          resolve-mw (fn [name]
+                       (let [s (symbol name)
+                             ns (symbol (namespace s))]
+                         (if (and
+                              (require? ns)
+                              (resolve s))
+                           (let [var (resolve s)
+                                 val (deref var)]
+                             (if (vector? val)
+                               (map resolve val)
+                               (list var)))
+                           (println (format "WARNING: unable to load \"%s\" middleware" name)))))
+          middleware (mapcat resolve-mw middleware)]
       (nrepl-serv/start-server
        :port (:nrepl-port figwheel-options)
        :bind (:nrepl-host figwheel-options)
