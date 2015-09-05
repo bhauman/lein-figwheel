@@ -415,7 +415,7 @@ in the future)*.
 Though the CIDER middleware has been removed from the defaults, it is now
 possible to specify which middleware you want to load, including CIDER
 and refactor-nrepl. Of course you have to make sure all the middleware is
-available on the classpath.
+available on the classpath (dependencies/plugins).
 
 You can configure the middleware to load by adding the `:nrepl-middleware`
 option to the `:figwheel` config in `project.clj`
