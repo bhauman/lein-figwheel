@@ -389,6 +389,59 @@ $ rlwrap lein figwheel
 This will give you a much nicer REPL experience with history and line
 editing.
 
+#### Connecting to figwheel with an nREPL client
+
+If you ran `lein figwheel` and tried to connect to it with an nREPL based
+client like CIDER, you will have noticed that this doesn't work by default.
+
+To enable this you will need to add the `:nrepl-port` option to the
+`:figwheel` config in your `project.clj`
+```
+:figwheel {
+ ;; Start an nREPL server into the running figwheel process
+ :nrepl-port 7888
+}
+```
+
+Adding the `:nrepl-port` to the config will cause figwheel to start an 
+nREPL server into the running figwheel process.
+
+This nREPL server used to have CIDER and Piggieback middleware included.
+As of the latest figwheel version (> 0.3.9) this is no longer the case.
+By default only Piggieback middleware will be loaded. Figwheel currently
+depends on Piggieback and knows it's available *(this is likely to change
+in the future)*.
+
+Though the CIDER middleware has been removed from the defaults, it is now
+possible to specify which middleware you want to load, including CIDER
+and refactor-nrepl. Of course you have to make sure all the middleware is
+available on the classpath (dependencies/plugins).
+
+You can configure the middleware to load by adding the `:nrepl-middleware`
+option to the `:figwheel` config in `project.clj`
+```
+:figwheel {
+  ;; Start an nREPL server into the running figwheel process
+  :nrepl-port 7888
+  
+  ;; Load CIDER, refactor-nrepl and piggieback middleware
+  :nrepl-middleware ["cider.nrepl/cider-middleware"
+                     "refactor-nrepl.middleware/wrap-refactor"
+                     "cemerick.piggieback/wrap-cljs-repl"]
+}
+```
+
+This option will override the default middleware so make sure you add
+the Piggieback middleware as well.
+
+In case you want to run the nREPL without any middleware you can just
+provide an empty vector.
+```
+:nrepl-middleware []
+```
+
+Run `lein figwheel` to start the nREPL server.
+
 ##### REPL Figwheel control functions.
 
 The REPL has the following control functions:
