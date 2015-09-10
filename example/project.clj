@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
                  [org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.48"]
+                 [org.clojure/clojurescript "1.7.122"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
@@ -14,13 +14,11 @@
                  [com.andrewmcveigh/cljs-time "0.3.11"]
                  [cljs-http "0.1.35"]
                  
-                 [com.stuartsierra/component "0.2.3"]
-                 [figwheel "0.3.8-SNAPSHOT"]                 
-                 [figwheel-sidecar "0.3.8-SNAPSHOT"]]
+                 #_[com.stuartsierra/component "0.2.3"]]
 
   :plugins [[lein-ring "0.8.13"]
             #_[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.3.8"]
+            [lein-figwheel "0.4.0-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -46,7 +44,7 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
+                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      "example.core/fig-reload"

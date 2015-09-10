@@ -1,4 +1,4 @@
-(ns ^:figwheel-always example.core
+(ns example.core
   (:require
    [sablono.core :as sab :include-macros true]
    [om.core :as om]
@@ -19,7 +19,6 @@
    [cljs.core.async.macros :refer [go]]
    [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
-
 
 (prn (tabby/hello))
 (prn (tweaky/hello))
