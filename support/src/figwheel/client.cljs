@@ -1,6 +1,7 @@
 (ns figwheel.client
   (:require
    [goog.Uri :as guri]
+   [goog.userAgent.product :as product]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
    [figwheel.client.utils :as utils]   
@@ -107,6 +108,14 @@
   (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
               (string/split-lines stack-str)))
 
+(defn get-ua-product []
+  (cond
+    (utils/node-env?) :chrome
+    product/SAFARI    :safari
+    product/CHROME    :chrome
+    product/FIREFOX   :firefox
+    product/IE        :ie))
+
 (let [base-path (utils/base-url-path)]
   (defn eval-javascript** [code opts result-handler]
     (try
@@ -117,18 +126,21 @@
                 *print-newline* false]
         (result-handler
          {:status :success,
+          :ua-product (get-ua-product)
           :value (str (utils/eval-helper code opts))}))
       (catch js/Error e
         (result-handler
          {:status :exception
           :value (pr-str e)
+          :ua-product (get-ua-product)          
           :stacktrace (string/join "\n" (truncate-stack-trace (.-stack e)))
           :base-path base-path }))
-    (catch :default e
-      (result-handler
-       {:status :exception
-        :value (pr-str e)
-        :stacktrace "No stacktrace available."})))))
+      (catch :default e
+        (result-handler
+         {:status :exception
+          :ua-product (get-ua-product)          
+          :value (pr-str e)
+          :stacktrace "No stacktrace available."})))))
 
 (defn ensure-cljs-user
   "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
@@ -142,10 +154,10 @@
     (when (= :repl-eval msg-name)
       (ensure-cljs-user)
       (eval-javascript** (:code msg) opts
-       (fn [res]
-         (socket/send! {:figwheel-event "callback"
-                        :callback-name (:callback-name  msg)
-                        :content res}))))))
+                         (fn [res]
+                           (socket/send! {:figwheel-event "callback"
+                                          :callback-name (:callback-name  msg)
+                                          :content res}))))))
 
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]

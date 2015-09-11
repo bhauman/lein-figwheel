@@ -3,7 +3,8 @@
    [cljs.repl]
    [cljs.util]
    [cljs.analyzer :as ana]
-   [cljs.compiler]   
+   [cljs.compiler]
+   [cljs.stacktrace]
    [cljs.env :as env]
    [clojure.stacktrace :as trace]
    [clojure.pprint :as p]   
@@ -19,18 +20,6 @@
    [clojurescript-build.core :as cbuild]   
    [clojurescript-build.auto :as auto]))
 
-;; chrome error
-;;  at error_test2 (http://localhost:3449/js/out/figwheel/client.js?zx=c852wj4xz1qe:384:8)
-;; node error
-;;  at error_test2 (/Users/brucehauman/workspace/noderer/out/noderer/core.js:16:8)
-;; safari 
-;;  error_test2@http://localhost:3449/js/out/figwheel/client.js:384:11
-;; firefox is the same
-;;  error_test2@http://localhost:3449/js/out/figwheel/client.js:384:1
-
-;; canonical error form
-;; error_test2@http://localhost:3449/js/out/figwheel/client.js:384:11
-
 (def ^:dynamic *autobuild-env* false)
 
 ;; slow but works
@@ -42,48 +31,6 @@
 
 (defn repl-println [& args]
   (apply (resolve-repl-println) args))
-
-(defn at-start-line->canonical-stack-line [line]
-  (let [[_ function file-part] (re-matches #"\s*at\s*(\S*)\s*\((.*)\)" line)]
-    (str function "@" file-part)))
-
-(defn to-canonical-stack-line [line]
-  (if (re-matches #"\s*at\s*.*" line)
-    (at-start-line->canonical-stack-line line)
-    line))
-
-(defn output-dir-relative-file [base-path file]
-  (let [short (string/replace-first file base-path "")]
-    (first (string/split short #"\?"))))
-
-(defn stack-line->stack-line-map
-  [base-path stack-line]
-  (let [stack-line (to-canonical-stack-line stack-line)
-        [function file line column]
-        (rest (re-matches #"(.*)@(.*):([0-9]+):([0-9]+)"
-                stack-line))]
-    (when (and file function line column)
-      { :file      (output-dir-relative-file base-path file)
-        :function  function
-        :line      (Long/parseLong line)
-        :column    (Long/parseLong column) })))
-
-(defn stack-line? [l]
-  (and
-   (map? l)
-   (string?  (:file l))
-   (string?  (:function l))
-   (integer? (:line l))
-   (integer? (:column l))))
-
-(defn handle-stack-trace [base-path stk-str]
-  (let [stk-tr (string/split-lines stk-str)
-        grouped-lines (group-by stack-line? (mapv (partial stack-line->stack-line-map base-path)
-                                                  stk-tr))]
-    (if (< (count (grouped-lines true))
-           (count (grouped-lines nil)))
-      (string/join "\n" stk-tr)
-      (vec (grouped-lines true)))))
 
 (defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
   (let [out (chan)
@@ -120,6 +67,23 @@
     (swap! browser-callbacks assoc "figwheel-repl-print"
            (fn [args] (apply pr-fn args)))))
 
+(defn valid-stack-line? [{:keys [function file url line column]}]
+  (and (not (nil? function))
+       (not= "NO_SOURCE_FILE" file)))
+
+(defn extract-host-and-port [base-path]
+  (let [[host port] (-> base-path
+                      string/trim
+                      (string/replace-first #".*:\/\/" "")
+                      (string/split #"\/")
+                      first
+                      (string/split #":"))]
+    (if host
+      (if-not port
+        {:host host}
+        {:host host :port (Integer/parseInt port)})
+      {})))
+
 (defrecord FigwheelEnv [figwheel-server]
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
@@ -134,11 +98,15 @@
   (-tear-down [_] true)
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [repl-env stacktrace error build-options]
-    (handle-stack-trace (:base-path error) (:stacktrace error)))
+    (cljs.stacktrace/parse-stacktrace (merge repl-env
+                                             (extract-host-and-port (:base-path error)))
+                                      (:stacktrace error)
+                                      {:ua-product (:ua-product error)}
+                                      build-options))
   cljs.repl/IPrintStacktrace
   (-print-stacktrace [repl-env stacktrace error build-options]
-    (doseq [{:keys [function file url line column]}
-              (cljs.repl/mapped-stacktrace stacktrace build-options)]
+    (doseq [{:keys [function file url line column] :as line-tr}
+            (filter valid-stack-line? (cljs.repl/mapped-stacktrace stacktrace build-options))]
       (repl-println "\t" (str function " (" (str (or url file)) ":" line ":" column ")")))))
 
 (defn repl-env
