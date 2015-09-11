@@ -17,7 +17,6 @@
    [compojure "1.3.4"]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.4.0-SNAPSHOT"]
-   [com.cemerick/piggieback "0.1.5"]
    [clojurescript-build "0.1.9"]
    [watchtower "0.1.1"] ;; why the heck am I still using this?
    [digest "1.4.4"]])
