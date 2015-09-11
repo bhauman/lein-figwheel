@@ -406,11 +406,27 @@ To enable this you will need to add the `:nrepl-port` option to the
 Adding the `:nrepl-port` to the config will cause figwheel to start an 
 nREPL server into the running figwheel process.
 
-This nREPL server used to have CIDER and Piggieback middleware included.
-As of the latest figwheel version (> 0.3.9) this is no longer the case.
-By default only Piggieback middleware will be loaded. Figwheel currently
-depends on Piggieback and knows it's available *(this is likely to change
-in the future)*.
+##### Piggieback
+
+Since you're using nREPL it is likely you want to use Piggieback as well.
+As of version **0.4.0** figwheel no longer has a hard dependency on
+Piggieback. It will still try to load the Piggieback repl when you have
+an nREPL connection open, but if it isn't available it will start the
+default cljs repl.
+
+If you want to use Piggieback you'll need to add the dependency to your
+project yourself.
+
+*Note: because of the changes, figwheel no longer needs Piggieback 0.1.5.*
+*You can use either Piggieback 0.1.5 or 0.2.1+.*
+
+Example: `[com.cemerick/piggieback "0.2.1"]`
+
+##### Middleware
+
+The nREPL server used to have CIDER and Piggieback middleware included.
+As of figwheel version **0.4.0** this is no longer the case.
+By default figwheel will only try to load the Piggieback middleware.
 
 Though the CIDER middleware has been removed from the defaults, it is now
 possible to specify which middleware you want to load, including CIDER
