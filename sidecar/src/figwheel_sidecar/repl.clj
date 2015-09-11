@@ -13,7 +13,6 @@
    [cemerick.pomegranate :refer [add-dependencies]]
    [clojure.tools.nrepl.server :as nrepl-serv]
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
-   [cemerick.piggieback :as pback]
    [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.auto-builder :as autobuild]
@@ -153,6 +152,29 @@
 
 ;; add some repl functions for reloading local clj code
 
+(defmulti start-cljs-repl (fn [protocol figwheel-env opts]
+                            protocol))
+
+(defmethod start-cljs-repl :nrepl
+  [_ figwheel-env opts]
+  (try
+    (require 'cemerick.piggieback)
+    (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
+          special-fns (or (:special-fns opts) cljs.repl/default-special-fns)]
+      (try
+        ;; Piggieback version 0.2+
+        (cljs-repl figwheel-env :special-fns special-fns)
+        (catch Exception e
+          ;; Piggieback version 0.1.5
+          (cljs-repl :repl-env figwheel-env :special-fns special-fns))))
+    (catch Exception e
+      (println "INFO: nREPL connection found but unable to load piggieback. Starting default REPL")
+      (start-cljs-repl :default figwheel-env opts))))
+
+(defmethod start-cljs-repl :default
+  [_ figwheel-env opts]
+  (cljs.repl/repl* figwheel-env opts))
+
 (defn require? [symbol]
   (try (require symbol) true (catch Exception e false)))
 
@@ -163,12 +185,12 @@
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
                             :warn-on-undeclared true)
                      opts)
-         figwheel-repl-env (repl-env figwheel-server build)]
-     (if (thread-bound? #'nrepl-eval/*msg*)
-       (cemerick.piggieback/cljs-repl
-        :repl-env figwheel-repl-env
-        :special-fns (or (:special-fns opts) cljs.repl/default-special-fns))
-       (cljs.repl/repl* figwheel-repl-env (assoc opts :compiler-env (:compiler-env build)))))))
+         figwheel-repl-env (repl-env figwheel-server build)
+         repl-opts (assoc opts :compiler-env (:compiler-env build))
+         protocol (if (thread-bound? #'nrepl-eval/*msg*)
+                    :nrepl
+                    :default)]
+     (start-cljs-repl protocol figwheel-repl-env repl-opts))))
 
 (defn namify [arg]
   (if (seq? arg)
