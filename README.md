@@ -126,9 +126,29 @@ Or optionally:
     lein new figwheel hello-world -- --reagent  ;; for a reagent based project 
 ```
 
+## Learning ClojureScript
+
+If you are brand new to ClojureScript it is highly recommended that
+you do the [ClojureScript Quick
+Start](https://github.com/clojure/clojurescript/wiki/Quick-Start)
+first. If you skip this you will probably suffer.
+
+There is a **lot to learn** when you are first learning ClojureScript,
+I recommend that you bite off very small pieces at first. Smaller than
+you would bites you would take of other languages like JavaScript and Ruby.
+
+Please don't invest too much time trying to set up a sweet development
+environment, you really don't know enough to make these judgments and
+it can be very frustrating as there is a diverse set of tools that is
+constantly in flux. I recommend figwheel once you start to understand
+ClojureScript but others folks will have other recommendations. If you
+spend your time evaluating these options it will just get very frustrating.
+
+The key is to pick one and stick with it until you get a good footing.
+
 ## Quick Start 
 
-If you are new to Figwheel there is the brand new [Quick
+If you are new to Figwheel here is a [Quick
 Start](https://github.com/bhauman/lein-figwheel/wiki/Quick-Start) tutorial.
 Working through this Quick Start will probably save you a tremendous
 amount of time.
