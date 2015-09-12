@@ -138,11 +138,11 @@ I recommend that you bite off very small pieces at first. Smaller bites than
 you would take when learning other languages like JavaScript and Ruby.
 
 Please don't invest too much time trying to set up a sweet development
-environment, you really don't know enough to make these judgments and
-it can be very frustrating as there is a diverse set of tools that is
-constantly in flux. I recommend figwheel once you start to understand
-ClojureScript but others folks will have other recommendations. If you
-spend your time evaluating these options it will just get very frustrating.
+environment, there is a diverse set of tools that is constantly in
+flux and it's very difficult to suss out which ones will actually help
+you. If you spend a lot of time evaluating all these options it can
+become very frustrating. If you wait a while, and use simple
+tools you will have much more fun actually using the language itself.
 
 The key is to pick one and stick with it until you get a good footing.
 
