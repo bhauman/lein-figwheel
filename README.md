@@ -134,8 +134,8 @@ Start](https://github.com/clojure/clojurescript/wiki/Quick-Start)
 first. If you skip this you will probably suffer.
 
 There is a **lot to learn** when you are first learning ClojureScript,
-I recommend that you bite off very small pieces at first. Smaller than
-you would bites you would take of other languages like JavaScript and Ruby.
+I recommend that you bite off very small pieces at first. Smaller bites than
+you would take when learning other languages like JavaScript and Ruby.
 
 Please don't invest too much time trying to set up a sweet development
 environment, you really don't know enough to make these judgments and
