@@ -14,3 +14,4 @@
   (-> handler
       (wrap-resource "public")
       (wrap-file-info)))
+

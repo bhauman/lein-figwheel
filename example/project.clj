@@ -85,6 +85,11 @@
                                      :optimizations :whitespace
                                      }}]}
 
+  :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
+                                    #_[org.clojure/tools.nrepl "0.2.10"]]
+                    :plugins [[refactor-nrepl "1.2.0-SNAPSHOT"]
+                              [cider/cider-nrepl "0.10.0-SNAPSHOT"]]}}
+  
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
@@ -92,6 +97,10 @@
              :open-file-command "emacsclient"
              ;; Start an nREPL server into the running fighweel process
              :nrepl-port 7888
+
+             :nrepl-middleware ["cider.nrepl/cider-middleware"
+                                #_"refactor-nrepl.middleware/wrap-refactor"
+                                "cemerick.piggieback/wrap-cljs-repl"]
              ;; to disable to launched repl 
              ;; :repl false
              ;; to specify a server logfile

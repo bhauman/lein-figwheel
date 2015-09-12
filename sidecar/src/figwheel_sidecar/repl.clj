@@ -94,7 +94,9 @@
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server js))
       ;; this is not used for figwheel
-  (-load [this ns url] true)
+  (-load [this ns url]
+    (wait-for-connection figwheel-server)
+    (eval-js figwheel-server (slurp url)))
   (-tear-down [_] true)
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [repl-env stacktrace error build-options]
