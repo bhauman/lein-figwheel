@@ -1,6 +1,6 @@
 ## 0.4.0-SNAPSHOT
 
-* `:nrepl-middleware` server configuration has been added (see reedme)
+* `:nrepl-middleware` server configuration has been added (see readme)
   Thanks to Okke Thijhuis @otijhuis, give him a shout out!
 * both cider and piggieback have been removed, you must include the deps you
   want in your project.clj.
