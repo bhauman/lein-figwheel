@@ -453,7 +453,7 @@
   (when ring-handler (require (symbol (namespace (symbol ring-handler)))))
   (assoc opts :ring-handler
          (when ring-handler
-           (eval (symbol ring-handler)))))
+           (resolve (symbol ring-handler)))))
 
 (defn start-server
   ([] (start-server {}))
