@@ -5,6 +5,8 @@
 * both cider and piggieback have been removed, you must include the deps you
   want in your project.clj.
 * fix for #233: a stacktrace bug in the REPL
+* update string/replace usage, this could have affected REPL evaluations: @nikitonsky
+* make `:ring-handler` a var so it picks up changes - thanks to @nikitonsky
 
 ## 0.3.9
 
