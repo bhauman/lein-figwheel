@@ -22,6 +22,11 @@
                  :content args})
   args)
 
+(defonce autoload (atom true))
+
+(defn ^:export toggle_autoload []
+  (swap! autoload not))
+
 (defn console-print [args]
   (.apply (.-log js/console) js/console (into-array args))
   args)
@@ -85,13 +90,14 @@
                (let [msg-hist (focus-msgs #{:files-changed :compile-warning} msg-hist')
                      msg-names (map :msg-name msg-hist)
                      msg (first msg-hist)]
-                 #_(.log js/console (prn-str msg))
-                 (cond
-                  (reload-file-state? msg-names opts)
-                  (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
-                  
-                  (block-reload-file-state? msg-names opts)
-                  (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file)))
+                 (when @autoload
+                     #_(.log js/console (prn-str msg))
+                     (cond
+                       (reload-file-state? msg-names opts)
+                       (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
+                       
+                       (block-reload-file-state? msg-names opts)
+                       (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
@@ -171,6 +177,7 @@
           :compile-failed  (on-compile-fail msg)
           nil)))
 
+
 ;; this is seperate for live dev only
 (defn heads-up-plugin-msg-handler [opts msg-hist']
   (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
@@ -179,10 +186,10 @@
     (go
      (cond
       (reload-file-state? msg-names opts)
-      (if (:autoload opts)
+      (if (and @autoload (:autoload opts))
         (<! (heads-up/flash-loaded))
         (<! (heads-up/clear)))
-
+     
       (compile-refail-state? msg-names)
       (do
         (<! (heads-up/clear))
