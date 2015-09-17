@@ -22,10 +22,15 @@
                  :content args})
   args)
 
-(defonce autoload (atom true))
+(defn autoload? []
+  (condp = (or (.getItem js/localStorage "figwheel_autoload") "true")
+    "true" true
+    "false" false))
 
-(defn ^:export toggle_autoload []
-  (swap! autoload not))
+(defn ^:export toggle-autoload []
+  (.setItem js/localStorage "figwheel_autoload" (not (autoload?)))
+  (utils/log :info
+             (str "Figwheel autoloading " (if (autoload?) "ON" "OFF"))))
 
 (defn console-print [args]
   (.apply (.-log js/console) js/console (into-array args))
@@ -38,6 +43,7 @@
           (-> args
             console-print
             figwheel-repl-print))))
+
 
 (defn get-essential-messages [ed]
   (when ed
@@ -90,14 +96,17 @@
                (let [msg-hist (focus-msgs #{:files-changed :compile-warning} msg-hist')
                      msg-names (map :msg-name msg-hist)
                      msg (first msg-hist)]
-                 (when @autoload
-                     #_(.log js/console (prn-str msg))
+                 #_(.log js/console (prn-str msg))
+                 (if (autoload?)
                      (cond
                        (reload-file-state? msg-names opts)
                        (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
                        
                        (block-reload-file-state? msg-names opts)
-                       (.warn js/console "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
+                       (utils/log :warn (str "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
+                     (do
+                       (utils/log :warn "Figwheel: code autoloading is OFF")
+                       (utils/log :info (str "Not loading: " (map :file (:files msg))))))
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
@@ -177,7 +186,6 @@
           :compile-failed  (on-compile-fail msg)
           nil)))
 
-
 ;; this is seperate for live dev only
 (defn heads-up-plugin-msg-handler [opts msg-hist']
   (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
@@ -186,7 +194,8 @@
     (go
      (cond
       (reload-file-state? msg-names opts)
-      (if (and @autoload (:autoload opts))
+      (if (and (autoload?)
+               (:autoload opts))
         (<! (heads-up/flash-loaded))
         (<! (heads-up/clear)))
      
