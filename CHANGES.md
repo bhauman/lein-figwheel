@@ -1,12 +1,13 @@
-## 0.4.0-SNAPSHOT
+## 0.4.0
 
 * `:nrepl-middleware` server configuration has been added (see readme)
   Thanks to Okke Thijhuis @otijhuis, give him a shout out!
 * both cider and piggieback have been removed, you must include the deps you
   want in your project.clj.
 * fix for #233: a stacktrace bug in the REPL
-* update string/replace usage, this could have affected REPL evaluations: @nikitonsky
+* update string/replace usage, this could have affected REPL evaluations: thanks to @nikitonsky
 * make `:ring-handler` a var so it picks up changes - thanks to @nikitonsky
+* toggle auto loading on and off quickly with `(figwheel.client/toggle-autoload)` or `figwheel.client.toggle_autoload()` in the dev console
 
 ## 0.3.9
 

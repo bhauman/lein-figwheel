@@ -18,7 +18,7 @@
 
   :plugins [[lein-ring "0.8.13"]
             #_[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.0-SNAPSHOT"]
+            [lein-figwheel "0.4.0"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -48,7 +48,8 @@
                         
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      "example.core/fig-reload"
-                                     :debug true }
+                                    ; :debug true
+                                    }
                          :compiler { :main example.core
                                      :asset-path "js/out"
                                      :output-to "resources/public/js/example.js"
