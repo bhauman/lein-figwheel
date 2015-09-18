@@ -22,15 +22,19 @@
                  :content args})
   args)
 
-(defn autoload? []
-  (condp = (or (.getItem js/localStorage "figwheel_autoload") "true")
-    "true" true
-    "false" false))
+(def autoload?
+  (if (utils/html-env?)
+    (fn []
+      (condp = (or (.getItem js/localStorage "figwheel_autoload") "true")
+        "true" true
+        "false" false))
+    (fn [] true)))
 
 (defn ^:export toggle-autoload []
-  (.setItem js/localStorage "figwheel_autoload" (not (autoload?)))
-  (utils/log :info
-             (str "Figwheel autoloading " (if (autoload?) "ON" "OFF"))))
+  (when (utils/html-env?)
+    (.setItem js/localStorage "figwheel_autoload" (not (autoload?)))
+    (utils/log :info
+               (str "Figwheel autoloading " (if (autoload?) "ON" "OFF")))))
 
 (defn console-print [args]
   (.apply (.-log js/console) js/console (into-array args))
@@ -43,7 +47,6 @@
           (-> args
             console-print
             figwheel-repl-print))))
-
 
 (defn get-essential-messages [ed]
   (when ed
