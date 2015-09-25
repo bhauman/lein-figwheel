@@ -397,7 +397,7 @@ dependencies. In many cases you can just `(in-ns 'my.namespace)` and
 everything you need to access will be there already.
 
 The REPL doesn't currently have built-in readline support. To have a
-better experience please install **rlwrap**. You can to this on OSX
+better experience please install **rlwrap**. You can do this on OSX
 using brew: `brew install rlwrap`.
 
 When `rlwrap` is installed you can now execute lein figwheel as so:
