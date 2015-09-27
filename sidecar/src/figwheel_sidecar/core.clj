@@ -304,7 +304,11 @@
     (:provides (build-api/parse-js-ns js-file-path))))
 
 (defn cljs-target-file-from-foreign [output-dir file-path]
-  (io/file (str output-dir java.io.File/separator (.getName (io/file file-path)))) )
+  (io/file (str output-dir java.io.File/separator (.getName (io/file file-path)))))
+
+(defn closure-lib-target-file-for-ns [output-dir namesp]
+  (let [path (cljs.closure/lib-rel-path {:provides [namesp]})]
+    (io/file output-dir path)))
 
 (defn get-js-copies [{:keys [output-dir] :as state} changed-js]
   (keep
@@ -313,7 +317,7 @@
        {:output-file (cljs-target-file-from-foreign output-dir f)
         :file f}
        (when-let [namesp (first (js-file->namespaces state f))]
-         {:output-file (cbapi/cljs-target-file-from-ns output-dir namesp)
+         {:output-file (closure-lib-target-file-for-ns output-dir namesp)
           :file f})))
    changed-js))
 
@@ -343,7 +347,7 @@
   ;; this is the new way where if additional changes are needed they
   ;; are made explicitely
   ([state old-mtimes new-mtimes additional-ns]
-   (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)]
+   (let [change-source-file-paths (get-changed-source-file-paths old-mtimes new-mtimes)] 
      (copy-changed-js state (:js change-source-file-paths))
      (notify-cljs-ns-changes state
                              (set (concat additional-ns
