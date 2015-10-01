@@ -489,7 +489,7 @@ expect it to be easy or to just work.
 
 I do not recommend it at all.
 
-#### My Editor REPL reccomendations
+#### My Editor REPL recommendations
 
 If you are just starting out I would use the console REPL because it's
 aready set up and ready to go, complexity conquered!
@@ -497,7 +497,7 @@ aready set up and ready to go, complexity conquered!
 There is a cost to setting up other REPLs and this can lead to a long
 experience of "having no fun whatsoever". 
 
-Here are my top reccomendations:
+Here are my top recommendations:
 
 **Emacs**:   use `inf-clojure` as described on the [wiki page](https://github.com/bhauman/lein-figwheel/wiki/Running-figwheel-with-Emacs-Inferior-Clojure-Interaction-Mode)
 
