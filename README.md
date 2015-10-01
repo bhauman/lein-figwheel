@@ -578,44 +578,38 @@ provide an empty vector.
 
 Run `lein figwheel` to start the nREPL server.
 
-### Using figwheel from the REPL
+### Scripting figwheel
 
-This is still a work in progress. But you can use figwheel from a
-Clojure REPL like so:
+You can start figwheel from Clojure.
+
+You need to require the `figwheel-sidecar.repl-api` and provide your
+build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
 
 ```clojure
-(require '[figwheel-sidecar.auto-builder :as fig-auto])
-(require '[figwheel-sidecar.core :as fig])
-(require '[clojurescript-build.auto :as auto])
+(require '[figwheel-sidecar.repl-api :as ra])
 
-;; start the figwheel server
-(def figwheel-server
-  (fig/start-server { :css-dirs ["resources/public/css"] }))
+;; this will start figwheel and will start autocompiling the builds specified in `:builds-ids`
+(ra/start-figwheel!
+  {:figwheel-options {} ;; <-- figwheel server config goes here 
+   :build-ids ["dev"]   ;; <-- a vector of builds to autobuild
+   :all-builds          ;; <-- supply your build configs here
+   [{:id "dev"
+     :figwheel true
+     :source-paths ["src/main"]
+     :compiler {:main "example.core"
+                :asset-path "/out"
+                :output-to "resources/public/main.js"
+                :output-dir "resources/public/out"
+                :verbose true}}]})
 
-(def config {:builds [{ :id "example"
-                        :output-to "resources/public/checkbuild.js"
-                        :output-dir "resources/public/out"
-                        :optimizations :none }]
-             :figwheel-server figwheel-server })
-
-;; start the watching and building process
-;; this will not block and output will appear in the REPL
-(def fig-builder (fig-auto/autobuild* config))
-
-;; you can stop the building process like so:
-(auto/stop-autobuild! fig-builder)
-                                        
-;; you can then restart the watching and building process with a
-;; different config etc.
-
+;; optionally start a ClojureScript REPL
+#_(ra/cljs-repl)
 ```
 
-## Resources 
-
-[Figwheel keep om turning](http://blog.michielborkent.nl/blog/2014/09/25/figwheel-keep-Om-turning/) is an excellent blog post on how to use figwheel with Om.  It's also worth reading if you aren't using Om.
-
-[Chestnut](https://github.com/plexus/chestnut) is a very complete
-leiningen template that includes figwheel.
+Please see the
+[repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
+for more detail.
+```
 
 ### What actually happens
 
