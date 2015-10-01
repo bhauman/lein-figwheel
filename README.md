@@ -265,7 +265,14 @@ side configuration parameters:
 
    ;; to configure a different figwheel logfile path
    ;; :server-logfile "tmp/logs/figwheel-logfile.log" 
-   
+
+   ;; Start an nREPL server into the running figwheel process
+   ;; :nrepl-port 7888
+
+   ;; Load CIDER, refactor-nrepl and piggieback middleware
+   ;;  :nrepl-middleware ["cider.nrepl/cider-middleware"
+   ;;                     "refactor-nrepl.middleware/wrap-refactor"
+   ;;                     "cemerick.piggieback/wrap-cljs-repl"]
 } 
 ```
 
@@ -337,11 +344,6 @@ The following configuration options are available:
 ;; when the compiler emits warnings figwheel blocks the loading of files.
 ;; To disable this behavior:
 :load-warninged-code true
-
-;; a hook that will rewrite the urls that figwheel is using to
-;; fetch assets.
-:url-rewriter "example.core/fig-url-rewrite"
-
 ```
 
 Whole files will be reloaded on change so we have to make sure that
@@ -452,14 +454,14 @@ cleans.  They do not alter the implicit build ids.
 including whether the autobuilder is running, which build ids are in
 focus, and the number of client connections.
 
-# Editor REPLs and nREPL
+## Editor REPLs and nREPL
 
 You may want a REPL in your editor. This makes it much easier to ship code
 from your buffer to be evaluated.
 
 [Please see the Editor REPl and nREPL documentation.](https://github.com/bhauman/lein-figwheel/blob/master/doc/editor_repls.md)
 
-### Scripting figwheel
+## Scripting Figwheel
 
 You can start figwheel from Clojure.
 
