@@ -55,7 +55,7 @@ All of the above options use the figwheel REPL without nREPL.
 If you have to use nREPL ...
 
 
-#### Connecting to figwheel with an nREPL client
+#### Connecting to Figwheel with an nREPL client
 
 If you ran `lein figwheel` and tried to connect to it with an nREPL based
 client like CIDER, you will have noticed that this doesn't work by default.
@@ -72,9 +72,11 @@ To enable this you will need to add the `:nrepl-port` option to the
 Adding the `:nrepl-port` to the config will cause figwheel to start an 
 nREPL server into the running figwheel process.
 
-##### Piggieback
+##### Piggieback, nREPL support for the CLJS REPL
 
-Since you're using nREPL it is likely you want to use Piggieback as well.
+If you want to use the CLJS REPL over an nREPL connection you are
+going to need [Piggieback](https://github.com/cemerick/piggieback)
+
 As of version **0.4.0** figwheel no longer has a hard dependency on
 Piggieback. It will still try to load the Piggieback repl when you have
 an nREPL connection open, but if it isn't available it will start the
@@ -89,6 +91,9 @@ project yourself.
 Example: `[com.cemerick/piggieback "0.2.1"]`
 
 ##### Middleware
+
+There are several tools for developing/editing Clojure and
+ClojureScript that rely on nREPL middleware.
 
 The nREPL server used to have CIDER and Piggieback middleware included.
 As of figwheel version **0.4.0** this is no longer the case.
@@ -123,4 +128,5 @@ provide an empty vector.
 ```
 
 Run `lein figwheel` to start the nREPL server.
+
 
