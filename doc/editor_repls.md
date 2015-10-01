@@ -1,4 +1,4 @@
-# Editor REPLs
+# Editor REPLs and nREPL
 
 You may want a REPL in your editor. This makes it much easier to ship code
 from your buffer to be evaluated.
