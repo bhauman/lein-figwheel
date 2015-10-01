@@ -144,8 +144,6 @@ you. If you spend a lot of time evaluating all these options it can
 become very frustrating. If you wait a while, and use simple
 tools you will have much more fun actually using the language itself.
 
-The key is to pick one and stick with it until you get a good footing.
-
 ## Quick Start 
 
 If you are new to Figwheel here is a [Quick
@@ -230,7 +228,7 @@ by going to `http://localhost:3449/<yourfilename>.html`
 
 If you are using your own server please load your app from that server.
 
-### figwheel server side configuration
+### Figwheel server side configuration
 
 This is not neccessary but you can configure the figwheel system. At
 the root level of your `project.clj` you can add the following server
@@ -466,7 +464,7 @@ Clojure REPL. The ClojureScript REPL needs to compile code to
 JavaScript and then ship it off to an evaluation environment.
 
 Folks who have been using ClojureScript for a while had to deal with a
-REPL that didn't work very well and from this perspective are greatful
+REPL that didn't work very well and from this perspective are grateful
 for a REPL that just starts up and stays connected to the evaluation
 environment.
 
@@ -486,10 +484,10 @@ expressions and ship them off to an evaluation env but it also needs
 to work across an nREPL connection. This currently doesn't work very
 well as evidenced by failures in various software version combinations.
 
-**So be warey of setting up an nREPL workflow for CLJS.** Do not
+**So be wary of setting up an nREPL workflow for CLJS.** Do not
 expect it to be easy or to just work.
 
-I do not reccomend it at all.
+I do not recommend it at all.
 
 #### My Editor REPL reccomendations
 
