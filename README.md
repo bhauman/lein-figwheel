@@ -459,7 +459,7 @@ from your buffer to be evaluated.
 
 But ... we need a little context before you start on this journey.
 
-The ClojureScript REPL has much more inherit complexity than the
+The ClojureScript REPL has much more inherent complexity than the
 Clojure REPL. The ClojureScript REPL needs to compile code to
 JavaScript and then ship it off to an evaluation environment.
 
@@ -591,7 +591,7 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
 ;; this will start figwheel and will start autocompiling the builds specified in `:builds-ids`
 (ra/start-figwheel!
   {:figwheel-options {} ;; <-- figwheel server config goes here 
-   :build-ids ["dev"]   ;; <-- a vector of builds to autobuild
+   :build-ids ["dev"]   ;; <-- a vector of build ids to start autobuilding
    :all-builds          ;; <-- supply your build configs here
    [{:id "dev"
      :figwheel true
@@ -603,7 +603,7 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
                 :verbose true}}]})
 
 ;; optionally start a ClojureScript REPL
-#_(ra/cljs-repl)
+(ra/cljs-repl)
 ```
 
 Please see the
@@ -611,7 +611,7 @@ Please see the
 for more detail.
 
 
-### What actually happens
+### Not Magic, just plain old file reloading 
 
 This plugin starts a ClojureScript auto builder, opens a websocket and
 starts static file server. When you save a ClojureScript file,
