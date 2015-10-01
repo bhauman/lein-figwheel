@@ -9,14 +9,14 @@ The ClojureScript REPL has much more inherent complexity than the
 Clojure REPL. The ClojureScript REPL needs to compile code to
 JavaScript and then ship it off to an evaluation environment.
 
-Folks who have been using ClojureScript for a while had to deal with a
-REPL that didn't work very well and from this perspective are grateful
-for a REPL that just starts up and stays connected to the evaluation
-environment.
+Folks who have been using ClojureScript for a while initially had to
+deal with a REPL that didn't work very well, and from this perspective
+are grateful for a REPL that just starts up and stays connected to the
+evaluation environment.
 
 Folks who are new to ClojureScript and are familiar with the Clojure
 REPL workflow, often expect to reproduce this workflow in ClojureScript
-and are often quickly frustrated by this process.
+and are often quickly disappointed by the ClojureScript REPL.
 
 nREPL is the defacto REPL for remote Clojure REPL connections and
 while this works great for Clojure, ClojureScript support is a
@@ -28,22 +28,21 @@ and adds further complexity to an already complex story.
 Yes not only does a ClojureScript REPL need to compile your
 expressions and ship them off to an evaluation env but it also needs
 to work across an nREPL connection. This currently doesn't work very
-well as evidenced by failures in various software version combinations.
+well as evidenced by many failures in various software version
+combinations.
 
 **So be wary of setting up an nREPL workflow for CLJS.** Do not
 expect it to be easy or to just work.
 
-I do not recommend it at all.
+At this time I do not reccomend nREPL for CLJS development unless you
+have a lot of experience with all the moving parts of CLJS, nREPL etc.
 
 #### My Editor REPL recommendations
 
-If you are just starting out I would use the console REPL because it's
+If you are just starting out I would use the Figwheel console REPL because it's
 aready set up and ready to go, complexity conquered!
 
-There is a cost to setting up other REPLs and this can lead to a long
-experience of "having no fun whatsoever". 
-
-Here are my top recommendations:
+If you want a REPL in your editor here are my top recommendations:
 
 **Emacs**:   use `inf-clojure` as described on the [wiki page](https://github.com/bhauman/lein-figwheel/wiki/Running-figwheel-with-Emacs-Inferior-Clojure-Interaction-Mode)
 
@@ -54,6 +53,7 @@ Here are my top recommendations:
 All of the above options use the figwheel REPL without nREPL.
 
 If you have to use nREPL ...
+
 
 #### Connecting to figwheel with an nREPL client
 
