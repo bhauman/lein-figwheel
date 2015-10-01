@@ -23,16 +23,12 @@ while this works great for Clojure, ClojureScript support is a
 different story. Booting a ClojureScript REPL on top of an nREPL
 session is [not an easy
 task](https://github.com/cemerick/piggieback/blob/master/src/cemerick/piggieback.clj)
-and adds further complexity to an already complex story.
-
-Yes not only does a ClojureScript REPL need to compile your
-expressions and ship them off to an evaluation env but it also needs
-to work across an nREPL connection. This currently doesn't work very
+and adds further complexity to an already complex story. This currently doesn't work very
 well as evidenced by many failures in various software version
 combinations.
 
-**So be wary of setting up an nREPL workflow for CLJS.** Do not
-expect it to be easy or to just work.
+**So be wary of setting up an nREPL workflow for CLJS.** Do not expect
+it to be easy or to just work.
 
 At this time I do not reccomend nREPL for CLJS development unless you
 have a lot of experience with all the moving parts of CLJS, nREPL etc.
@@ -128,5 +124,4 @@ provide an empty vector.
 ```
 
 Run `lein figwheel` to start the nREPL server.
-
 
