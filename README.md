@@ -609,7 +609,7 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
 Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 for more detail.
-```
+
 
 ### What actually happens
 
