@@ -160,3 +160,7 @@ like so:
 (cljs-repl)
 ```
 
+Again, this will only work if you are connected to a process where the
+Fighweel server code is running.
+
+The above incantation will also work if you are not using nREPL.

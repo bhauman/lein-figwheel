@@ -151,9 +151,6 @@ Start](https://github.com/bhauman/lein-figwheel/wiki/Quick-Start) tutorial.
 Working through this Quick Start will probably save you a tremendous
 amount of time.
 
-As of right now this document is new and a bit rough, but it is the best
-getting started guide available at the moment.
-
 ## Usage
 
 First make sure you include the following `:dependencies` in your `project.clj` file.
