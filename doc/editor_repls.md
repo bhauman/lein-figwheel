@@ -5,11 +5,19 @@ figwheel process for Clojure development please skip ahead to
 [Connecting to the Figwheel process with an nREPL
 client](#connecting-to-the-figwheel-process-with-an-nrepl-client)
 
+If you are really wanting to use a ClojureScript REPL over an nREPL
+connection please read the following.
 
-You may want a ClojureScript REPL in your editor. This makes it much
-easier to ship code from your buffer to be evaluated.
+## Setting up an Editor REPL for Figwheel and ClojureScript
 
-But ... we need a little context before you start on this journey.
+When you start lein figwheel it launches a ClojureScript REPL. This
+may work for your but ...
+
+You may want ClojureScript REPL integration into your editor. This
+makes it much easier to ship code from your source buffer to a REPL
+where it can be evaluated.
+
+Unfortuantely ... we need a little context before you start on this journey.
 
 The ClojureScript REPL has much more inherent complexity than the
 Clojure REPL. The ClojureScript REPL needs to compile code to
@@ -17,8 +25,8 @@ JavaScript and then ship it off to an evaluation environment.
 
 Folks who have been using ClojureScript for a while initially had to
 deal with a REPL that didn't work very well, and from this perspective
-are grateful for a REPL that just starts up and stays connected to the
-evaluation environment.
+are they are now very grateful for a REPL that just starts up and
+stays connected to the evaluation environment.
 
 Folks who are new to ClojureScript and are familiar with the Clojure
 REPL workflow, often expect to reproduce this workflow in ClojureScript
@@ -72,7 +80,7 @@ To have figwheel launch an nREPL server you will need to add the `:nrepl-port` o
 }
 ```
 
-##### nREPL Middleware
+##### nREPL Middleware, CIDER, etc.
 
 There are several tools for developing/editing Clojure and
 ClojureScript that rely on nREPL middleware.
