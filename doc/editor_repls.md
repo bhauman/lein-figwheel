@@ -17,7 +17,7 @@ You may want ClojureScript REPL integration into your editor. This
 makes it much easier to ship code from your source buffer to a REPL
 where it can be evaluated.
 
-Unfortuantely ... we need a little context before you start on this journey.
+Unfortunately ... we need a little context before you start on this journey.
 
 The ClojureScript REPL has much more inherent complexity than the
 Clojure REPL. The ClojureScript REPL needs to compile code to
@@ -28,7 +28,7 @@ deal with a REPL that didn't work very well, and from this perspective
 are they are now very grateful for a REPL that just starts up and
 stays connected to the evaluation environment.
 
-Folks who are new to ClojureScript and are familiar with the Clojure
+Folks who are new to ClojureScript and are familiar with the **Clojure**
 REPL workflow, often expect to reproduce this workflow in ClojureScript
 and are often quickly disappointed by the ClojureScript REPL.
 
@@ -44,8 +44,9 @@ combinations.
 **So be wary of setting up an nREPL workflow for CLJS.** Do not expect
 it to be easy or to just work.
 
-At this time I do not reccomend nREPL for CLJS development unless you
-have a lot of experience with all the moving parts of CLJS, nREPL etc.
+At this time, I do not use nREPL for a CLJS REPL and I do not
+reccomend nREPL for CLJS development unless you have a lot of
+experience with all the moving parts of CLJS, nREPL etc.
 
 #### My Editor REPL recommendations
 
