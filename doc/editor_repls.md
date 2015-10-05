@@ -1,7 +1,9 @@
 # Editor REPLs, Figwheel, ClojureScript and nREPL
 
 If you are just wanting an nREPL connection into the underlying
-figwheel process please skip ahead to 
+figwheel process for Clojure development please skip ahead to
+[Connecting to the Figwheel process with an nREPL
+client](#connecting-to-the-figwheel-process-with-an-nrepl-client)
 
 
 You may want a ClojureScript REPL in your editor. This makes it much
@@ -52,7 +54,7 @@ If you want a REPL in your editor here are my top recommendations:
 
 All of the above options use the figwheel REPL without nREPL.
 
-#### Connecting to Figwheel process with an nREPL client
+#### Connecting to the Figwheel process with an nREPL client
 
 Leveraging the figwheel process for an nREPL connection can help in several ways:
 
