@@ -21,7 +21,8 @@ Unfortunately ... we need a little context before you start on this journey.
 
 The ClojureScript REPL has much more inherent complexity than the
 Clojure REPL. The ClojureScript REPL needs to compile code to
-JavaScript and then ship it off to an evaluation environment.
+JavaScript and then ship it off to a different process to be evaluated
+(a Browser, a Node.js process).
 
 Folks who have been using ClojureScript for a while initially had to
 deal with a REPL that didn't work very well, and from this perspective
@@ -33,7 +34,7 @@ REPL workflow, often expect to reproduce this workflow in ClojureScript
 and are often quickly disappointed by the ClojureScript REPL.
 
 nREPL is the defacto REPL for remote Clojure REPL connections and
-while this works great for Clojure, ClojureScript support is a
+while this works great for Clojure, but ClojureScript support is a
 different story. Booting a ClojureScript REPL on top of an nREPL
 session is [not an easy
 task](https://github.com/cemerick/piggieback/blob/master/src/cemerick/piggieback.clj)
@@ -53,7 +54,8 @@ experience with all the moving parts of CLJS, nREPL etc.
 If you are just starting out I would use the Figwheel console REPL because it's
 aready set up and ready to go, complexity conquered!
 
-If you want a REPL in your editor here are my top recommendations:
+If you want to integrate a REPL into your editor, here are my top
+recommendations:
 
 **Emacs**:   use `inf-clojure` as described on the [wiki page](https://github.com/bhauman/lein-figwheel/wiki/Running-figwheel-with-Emacs-Inferior-Clojure-Interaction-Mode)
 
@@ -93,8 +95,7 @@ middleware, if it is in your dependencies.
 
 Though the CIDER middleware has been removed from figwheel's default
 dependencies, it is now possible to specify which nREPL middleware you
-want figwheel to load. Of course you have to make sure all the
-middleware is available on the classpath (dependencies/plugins).
+want figwheel to load. 
 
 You can configure the middleware to load by adding the `:nrepl-middleware`
 option to the `:figwheel` config in `project.clj`
@@ -110,8 +111,13 @@ option to the `:figwheel` config in `project.clj`
 }
 ```
 
-This option will override the default inclusion of Piggieback
-middleware so make sure you add the Piggieback middleware as well.
+You will need to make sure that the specified middleware is available
+on your classpath. So make sure its included in `:depedencies`,
+`:plugins` etc of your `project.clj`.
+
+Specifying `:nrepl-middleware` will override the default inclusion of
+Piggieback middleware so make sure you add the Piggieback middleware
+as well.
 
 IF you want to run the nREPL without any middleware you can just
 provide an empty vector.
@@ -139,6 +145,9 @@ project yourself.
 *You can use either Piggieback 0.1.5 or 0.2.1+.*
 
 Example: `[com.cemerick/piggieback "0.2.1"]`
+
+Please see the piggieback
+[readme](https://github.com/cemerick/piggieback).
 
 
 
