@@ -1,7 +1,11 @@
-# Editor REPLs and nREPL
+# Editor REPLs, Figwheel, ClojureScript and nREPL
 
-You may want a REPL in your editor. This makes it much easier to ship code
-from your buffer to be evaluated.
+If you are just wanting an nREPL connection into the underlying
+figwheel process please skip ahead to 
+
+
+You may want a ClojureScript REPL in your editor. This makes it much
+easier to ship code from your buffer to be evaluated.
 
 But ... we need a little context before you start on this journey.
 
@@ -48,15 +52,16 @@ If you want a REPL in your editor here are my top recommendations:
 
 All of the above options use the figwheel REPL without nREPL.
 
-If you have to use nREPL ...
+#### Connecting to Figwheel process with an nREPL client
 
+Leveraging the figwheel process for an nREPL connection can help in several ways:
 
-#### Connecting to Figwheel with an nREPL client
+* reduce the number of JVM processes that are running on your machine
+* allows one to work on your server code interactively if you are using figwheel's `:ring-handler` option
+* allows you to work on `figwheel-sidecar` code interactively
+* boot a ClojureScript REPL over the nREPL connection (not currently reccomended)
 
-If you ran `lein figwheel` and tried to connect to it with an nREPL based
-client like CIDER, you will have noticed that this doesn't work by default.
-
-To enable this you will need to add the `:nrepl-port` option to the
+To have figwheel launch an nREPL server you will need to add the `:nrepl-port` option to the
 `:figwheel` config in your `project.clj`
 ```
 :figwheel {
@@ -65,8 +70,46 @@ To enable this you will need to add the `:nrepl-port` option to the
 }
 ```
 
-Adding the `:nrepl-port` to the config will cause figwheel to start an 
-nREPL server into the running figwheel process.
+##### nREPL Middleware
+
+There are several tools for developing/editing Clojure and
+ClojureScript that rely on nREPL middleware.
+
+Figwheel used to depend on and include the CIDER and Piggieback
+middleware. As of figwheel version **0.4.0** this is no longer the
+case. By default figwheel will only try to load the Piggieback
+middleware, if it is in your dependencies.
+
+Though the CIDER middleware has been removed from figwheel's default
+dependencies, it is now possible to specify which nREPL middleware you
+want figwheel to load. Of course you have to make sure all the
+middleware is available on the classpath (dependencies/plugins).
+
+You can configure the middleware to load by adding the `:nrepl-middleware`
+option to the `:figwheel` config in `project.clj`
+```
+:figwheel {
+  ;; Start an nREPL server into the running figwheel process
+  :nrepl-port 7888
+  
+  ;; Load CIDER, refactor-nrepl and piggieback middleware
+  :nrepl-middleware ["cider.nrepl/cider-middleware"
+                     "refactor-nrepl.middleware/wrap-refactor"
+                     "cemerick.piggieback/wrap-cljs-repl"]
+}
+```
+
+This option will override the default inclusion of Piggieback
+middleware so make sure you add the Piggieback middleware as well.
+
+IF you want to run the nREPL without any middleware you can just
+provide an empty vector.
+```
+:nrepl-middleware []
+```
+
+Now when you start figwheel `lein figwheel` the nREPL server will be
+started with your preferred middleware.
 
 ##### Piggieback, nREPL support for the CLJS REPL
 
@@ -86,42 +129,8 @@ project yourself.
 
 Example: `[com.cemerick/piggieback "0.2.1"]`
 
-##### Middleware
 
-There are several tools for developing/editing Clojure and
-ClojureScript that rely on nREPL middleware.
 
-The nREPL server used to have CIDER and Piggieback middleware included.
-As of figwheel version **0.4.0** this is no longer the case.
-By default figwheel will only try to load the Piggieback middleware.
 
-Though the CIDER middleware has been removed from the defaults, it is now
-possible to specify which middleware you want to load, including CIDER
-and refactor-nrepl. Of course you have to make sure all the middleware is
-available on the classpath (dependencies/plugins).
 
-You can configure the middleware to load by adding the `:nrepl-middleware`
-option to the `:figwheel` config in `project.clj`
-```
-:figwheel {
-  ;; Start an nREPL server into the running figwheel process
-  :nrepl-port 7888
-  
-  ;; Load CIDER, refactor-nrepl and piggieback middleware
-  :nrepl-middleware ["cider.nrepl/cider-middleware"
-                     "refactor-nrepl.middleware/wrap-refactor"
-                     "cemerick.piggieback/wrap-cljs-repl"]
-}
-```
-
-This option will override the default middleware so make sure you add
-the Piggieback middleware as well.
-
-In case you want to run the nREPL without any middleware you can just
-provide an empty vector.
-```
-:nrepl-middleware []
-```
-
-Run `lein figwheel` to start the nREPL server.
 
