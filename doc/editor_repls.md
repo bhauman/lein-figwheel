@@ -147,10 +147,16 @@ project yourself.
 Example: `[com.cemerick/piggieback "0.2.1"]`
 
 Please see the piggieback
-[readme](https://github.com/cemerick/piggieback).
+[readme](https://github.com/cemerick/piggieback)
 
+## Starting a Figwheel ClojureScript REPL from nREPL
 
+Once you are connected to an nREPL server in the Figwheel process with
+Piggieback middleware you can start the Figwheel ClojureScript REPL
+like so:
 
-
-
+```clojure
+(use 'figwheel-sidecar.repl-api)
+(cljs-repl)
+```
 
