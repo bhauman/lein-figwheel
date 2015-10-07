@@ -214,16 +214,20 @@
 (def reload-file*
   (condp = (utils/host-env?)
     :node
-    (let [sep (if (re-matches #"win.*" js/process.platform ) "\\" "/")]
+    (let [path-parts #(string/split %  #"[/\\]")
+          sep (if (re-matches #"win.*" js/process.platform ) "\\" "/")]
       (fn [request-url callback]
         (dev-assert (string? request-url) (not (nil? callback)))
-        (let [root (string/join sep (reverse (drop 2 (reverse (string/split js/__dirname #"[/\\]")))))
-              cache-path (str root sep (fix-node-request-url request-url))]
+        (let [root (string/join sep (pop (pop (path-parts js/__dirname))))
+              cache-path
+              (string/join
+               sep
+               (cons root (path-parts (fix-node-request-url request-url))))]
           (aset (.-cache js/require) cache-path nil)
           (callback (try
                       (js/require (string/join "/" ["." ".." request-url]))
                       (catch js/Error e
-                        (utils/log :error (str  "Figwheel: Error loading file " path))
+                        (utils/log :error (str  "Figwheel: Error loading file " cache-path))
                         (utils/log :error (.-stack e))
                         false))))))
     
