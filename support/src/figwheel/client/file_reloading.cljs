@@ -215,14 +215,15 @@
   (condp = (utils/host-env?)
     :node
     (let [path-parts #(string/split %  #"[/\\]")
-          sep (if (re-matches #"win.*" js/process.platform ) "\\" "/")]
+          sep (if (re-matches #"win.*" js/process.platform ) "\\" "/")
+          root (string/join sep (pop (pop (path-parts js/__dirname))))]
       (fn [request-url callback]
         (dev-assert (string? request-url) (not (nil? callback)))
-        (let [root (string/join sep (pop (pop (path-parts js/__dirname))))
-              cache-path
+        (let [cache-path
               (string/join
                sep
-               (cons root (path-parts (fix-node-request-url request-url))))]
+               (cons root
+                     (path-parts (fix-node-request-url request-url))))]
           (aset (.-cache js/require) cache-path nil)
           (callback (try
                       (js/require (string/join "/" ["." ".." request-url]))
