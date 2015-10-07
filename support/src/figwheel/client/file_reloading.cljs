@@ -7,7 +7,6 @@
    [goog.net.jsloader :as loader]
    [goog.string :as gstring]
    [clojure.string :as string]
-   
    [clojure.set :refer [difference]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
   (:require-macros
@@ -215,17 +214,19 @@
 (def reload-file*
   (condp = (utils/host-env?)
     :node
-    (fn [request-url callback]
-      (dev-assert (string? request-url) (not (nil? callback)))
-      (let [root (string/join "/" (reverse (drop 2 (reverse (string/split js/__dirname "/")))))
-            path (str root "/" (fix-node-request-url request-url))]
-        (aset (.-cache js/require) path nil)
-        (callback (try
-                    (js/require path)
-                    (catch js/Error e
-                      (utils/log :error (str  "Figwheel: Error loading file " path))
-                      (utils/log :error (.-stack e))
-                      false)))))
+    (let [sep (if (re-matches #"win.*" js/process.platform ) "\\" "/")]
+      (fn [request-url callback]
+        (dev-assert (string? request-url) (not (nil? callback)))
+        (let [root (string/join sep (reverse (drop 2 (reverse (string/split js/__dirname #"[/\\]")))))
+              cache-path (str root sep (fix-node-request-url request-url))]
+          (aset (.-cache js/require) cache-path nil)
+          (callback (try
+                      (js/require (string/join "/" ["." ".." request-url]))
+                      (catch js/Error e
+                        (utils/log :error (str  "Figwheel: Error loading file " path))
+                        (utils/log :error (.-stack e))
+                        false))))))
+    
     :html (fn [request-url callback]
             (dev-assert (string? request-url) (not (nil? callback)))  
             (let [deferred (loader/load (add-cache-buster request-url)

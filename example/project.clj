@@ -65,12 +65,10 @@
                        {:id "server"
                         :source-paths ["server_src" "../support/src"]
                         :figwheel true
-                        :compiler {;; :main "todo-server.core"
+                        :compiler {:main "todo-server.core"
                                    :output-to "server_out/todo_server.js"
                                    :output-dir "server_out"
                                    :target :nodejs
-                                   :optimizations :none
-                                   :cache-analysis true                                   
                                    :source-map true}}
                        { :id "example-admin"
                          :source-paths ["other_src" ]

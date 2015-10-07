@@ -490,7 +490,6 @@ Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 for more detail.
 
-
 ### Not Magic, just plain old file reloading 
 
 This plugin starts a ClojureScript auto builder, opens a websocket and
