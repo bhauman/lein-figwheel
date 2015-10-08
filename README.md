@@ -556,18 +556,19 @@ call `(start)`, `(repl)` and `(stop)` as you need.
 
 You can also call all of the functions in the [figwheel-sidecar.repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj).
 
-This is a much more powerful way to work, as you now have
-interactivity and the generality of the Clojure programming language
-available.
+This is a powerful way to work, as you now have the interactivity and
+generality of the Clojure programming language available.
 
 Need to start a server? Go for it.<br/>Need to watch and compile SASS files? No problem.
 
-I highly reccomend Stuart Sierra's
+#### Scripting with Component
+
+I highly recommend Stuart Sierra's
 [component](https://github.com/stuartsierra/component) library to
 compose all the services you will need in your development process.
 
-Below you can see an example of using component to start and stop
-figwheel and composing it with a Ring server to serve your application.
+Here is an example of creating a Figwheel component and composing it
+with a Ring server component to serve your application.
 
 ```clojure
 (require
