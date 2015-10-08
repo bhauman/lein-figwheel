@@ -525,20 +525,22 @@ Let's look at another way to script figwheel.
   (ra/cljs-repl))
 ```
 
-Now you can initialize the clojure.main repl and then call these
-functions as you see fit.
+The next line will call `clojure.main` and initialize it with our
+script and then continue on to launch a REPL.
 
 ```
 $ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
 ```
 
-That command will start a Clojure REPL and you can call the various
-functions to start and stop figwheel.
+After the Clojure REPL has launched you will now have the ability to
+call `(start)`, `(repl)` and `(stop)`.
 
-You have the power and composability of clojure available to you now.
+This is a much more powerful way to work as you have general
+composability of Clojure available to you now.
 
-You can start and stop the Figwheel as needed and launch a Figwheel
-REPL as well.
+Need to start a server? Go for it.
+Need to watch and compile SASS files? No problem
+
 
 
 ### Not Magic, just plain old file reloading 
