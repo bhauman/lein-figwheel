@@ -490,13 +490,16 @@ Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 for more detail.
 
-One way to use this is to use like so:
 
-Assuming the above script is in `script/figwheel.clj`.
+
+Assuming the above script is in `script/figwheel.clj` you can invoke it as follows:
 
 ```
 $ rlwrap lein run -m clojure.main script/figwheel.clj
 ```
+
+> Please note that the above command is not the same environment as
+> `lein repl` which starts an nREPL session.
 
 Let's look at another way to script figwheel.
 
@@ -609,7 +612,7 @@ Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command l
 Read more about [component](https://github.com/stuartsierra/component)
 
 > Please note that when you stop the Figwheel server, http-kit throws
-> `a java.util.concurrent.RejectedExecutionException`, this is expected
+> a `java.util.concurrent.RejectedExecutionException`, this is expected
 
 
 ### Not Magic, just plain old file reloading 
