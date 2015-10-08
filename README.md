@@ -533,14 +533,77 @@ $ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
 ```
 
 After the Clojure REPL has launched you will now have the ability to
-call `(start)`, `(repl)` and `(stop)`.
+call `(start)`, `(repl)` and `(stop)` as you need.
 
-This is a much more powerful way to work as you have general
-composability of Clojure available to you now.
+This is a much more powerful way to work, as you now have generality 
+of the Clojure programming language available.
 
-Need to start a server? Go for it.
-Need to watch and compile SASS files? No problem
+Need to start a server? Go for it.<br/>Need to watch and compile SASS files? No problem.
 
+I highly reccomend Stuart Sierra's
+[component](https://github.com/stuartsierra/component) library to
+compose all your the services you will need for development.
+
+Below you can see an example of using component to start and stop
+figwheel.
+
+```clojure
+(require
+ '[figwheel-sidecar.repl-api :as ra]
+ '[com.stuartsierra.component :as component]
+ '[ring.component.jetty :refer [jetty-server]])
+
+(def figwheel-config
+   {:figwheel-options {} ;; <-- figwheel server config goes here 
+    :build-ids ["dev"]   ;; <-- a vector of build ids to start autobuilding
+    :all-builds          ;; <-- supply your build configs here
+    [{:id "dev"
+      :figwheel true
+      :source-paths ["src/main"]
+      :compiler {:main "example.core"
+                 :asset-path "/out"
+                 :output-to "resources/public/main.js"
+                 :output-dir "resources/public/out"
+                 :verbose true}}]})
+
+(defrecord Figwheel []
+  component/Lifecycle
+  (start [comp]
+    (ra/start-figwheel! comp)
+    comp)
+  (stop [comp]
+    (ra/stop-figwheel!)))
+
+(defn handler [request]
+  {:status  200
+   :headers {"Content-Type" "text/plain"}
+   :body    "Hello World"})
+
+(def system
+  (atom
+   (component/system-map
+    :app-server (jetty-server {:app {:handler handler}, :port 3000})
+    :figwheel   (map->Figwheel figwheel-config))))
+
+(defn start []
+  (swap! system component/start))
+
+(defn stop []
+  (swap! system component/stop))
+
+(defn reload []
+  (stop)
+  (start))
+
+(defn repl []
+  (ra/cljs-repl))
+```
+
+As you can see with humble beginnings you can build up an arbitrary functionality.
+
+Read more about the [`clojure.main` optoins](http://clojure.org/repl_and_main)
+
+Read more about [component](https://github.com/stuartsierra/component)
 
 
 ### Not Magic, just plain old file reloading 
