@@ -518,6 +518,9 @@ Let's look at another way to script figwheel.
                   :output-dir "resources/public/out"
                   :verbose true}}]}))
 
+;; Please note that when you stop the Figwheel Server http-kit throws
+;; a java.util.concurrent.RejectedExecutionException, this is expected
+
 (defn stop []
   (ra/stop-figwheel!))
 
@@ -604,6 +607,9 @@ As you can see with humble beginnings you can build up an arbitrary functionalit
 Read more about the [`clojure.main` optoins](http://clojure.org/repl_and_main)
 
 Read more about [component](https://github.com/stuartsierra/component)
+
+> Please note that when you stop the Figwheel Server http-kit throws
+> a java.util.concurrent.RejectedExecutionException, this is expected
 
 
 ### Not Magic, just plain old file reloading 
