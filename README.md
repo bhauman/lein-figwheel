@@ -469,7 +469,7 @@ process.
 
 Figwheel has an
 [API](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
-that makes it easy to start, start and control Figwheel from Clojure.
+that makes it easy to start, stop and control Figwheel from Clojure.
 
 Let's start Figwheel from a script. You only need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -511,10 +511,13 @@ Assuming the above script is in `script/figwheel.clj` you can invoke it as follo
 $ rlwrap lein run -m clojure.main script/figwheel.clj
 ```
 
+The above command will start figwheel and it will behave just like
+running `lein figwheel`.
+
 > Please note that the above command is not the same environment as
 > `lein repl` which starts an nREPL session.
 
-Let's look at another way to script figwheel.
+Let's make a small helper library and then initialize a Clojure REPL with it:
 
 ```clojure
 (require
