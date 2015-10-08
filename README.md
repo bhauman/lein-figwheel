@@ -486,7 +486,8 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
 (ra/cljs-repl)
 ```
 
->  Build config
+>  **Build config notes**
+>
 >  It's important to remember that figwheel can autobuild and reload multiple
 >  builds at the same time. It can also switch between builds
 >  you are autobuilding. For this reason you need to supply the initial
