@@ -604,7 +604,7 @@ figwheel and composing it with a Ring server to serve your application.
 
 As you can see with humble beginnings you can build up an arbitrary functionality.
 
-Read more about the [`clojure.main` optoins](http://clojure.org/repl_and_main)
+Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command line options
 
 Read more about [component](https://github.com/stuartsierra/component)
 
