@@ -482,15 +482,12 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
                 :output-dir "resources/public/out"
                 :verbose true}}]})
 
-;; optionally start a ClojureScript REPL
 (ra/cljs-repl)
 ```
 
 Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 for more detail.
-
-
 
 Assuming the above script is in `script/figwheel.clj` you can invoke it as follows:
 
@@ -541,14 +538,15 @@ $ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
 After the Clojure REPL has launched you will now have the ability to
 call `(start)`, `(repl)` and `(stop)` as you need.
 
-This is a much more powerful way to work, as you now have generality 
-of the Clojure programming language available.
+This is a much more powerful way to work, as you now have
+interactivity and the generality of the Clojure programming language
+available.
 
 Need to start a server? Go for it.<br/>Need to watch and compile SASS files? No problem.
 
 I highly reccomend Stuart Sierra's
 [component](https://github.com/stuartsierra/component) library to
-compose all your the services you will need for development.
+compose all the services you will need in your development process.
 
 Below you can see an example of using component to start and stop
 figwheel and composing it with a Ring server to serve your application.
@@ -574,11 +572,12 @@ figwheel and composing it with a Ring server to serve your application.
 
 (defrecord Figwheel []
   component/Lifecycle
-  (start [comp]
-    (ra/start-figwheel! comp)
-    comp)
-  (stop [comp]
-    (ra/stop-figwheel!)))
+  (start [config]
+    (ra/start-figwheel! config)
+    config)
+  (stop [config]
+    (ra/stop-figwheel!)
+    config))
 
 (defn handler [request]
   {:status  200
@@ -605,7 +604,8 @@ figwheel and composing it with a Ring server to serve your application.
   (ra/cljs-repl))
 ```
 
-As you can see with humble beginnings you can build up an arbitrary functionality.
+As you can see with humble beginnings you can build up arbitrary
+functionality.
 
 Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command line options
 
