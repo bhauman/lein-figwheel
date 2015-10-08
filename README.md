@@ -504,10 +504,6 @@ Let's start Figwheel from a script. You only need to require the
 >  It's also helpful to supply your `:advanced` builds because while you can't
 >  autobuild them you can call `build-once` on them
 
-Please see the
-[repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
-for more detail.
-
 Assuming the above script is in `script/figwheel.clj` you can invoke it as follows:
 
 ```
