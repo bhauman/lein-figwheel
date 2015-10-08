@@ -1,20 +1,23 @@
 (ns figwheel-sidecar.repl-api
-  (:require
-   [figwheel-sidecar.repl :as fr]
-   [figwheel-sidecar.config :as fc]))
+  (:require [figwheel-sidecar.repl :as fr]))
 
 (defn start-figwheel!
   "If you aren't connected to an env where fighweel is running already,
   this method will start the figwheel server with the passed in build info."
   [{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
   (if-not fr/*autobuild-env*
-    (let [env (fr/create-autobuild-env
-               {:figwheel-options (fc/prep-options figwheel-options)
-                :all-builds (fc/prep-builds all-builds)
-                :build-ids (map name build-ids)})]
+    (let [env (fr/start-figwheel! autobuild-options)]
       (alter-var-root (var fr/*autobuild-env*) (fn [_] env))
       nil)
     (println "Figwheel system already initialized!")))
+
+(defn stop-figwheel!
+  "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."
+  []
+  (when fr/*autobuild-env*
+    (fr/stop-figwheel! fr/*autobuild-env*)
+    (alter-var-root (var fr/*autobuild-env*) (fn [_] false))
+    nil))
 
 (comment
   ;; example usage

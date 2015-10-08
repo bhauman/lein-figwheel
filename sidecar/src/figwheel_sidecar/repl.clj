@@ -442,12 +442,14 @@
 (defn get-build-choice [choices]
   (let [choices (set (map name choices))]
     (loop []
-      (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") > "))
+      (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") or quit > "))
       (flush)
       (let [res (read-line)]
         (cond
           (nil? res) false
-          (choices res) res
+          (choices res) res          
+          (= res "quit") false
+          (= res "exit") false
           :else
           (do
             (println (str "Error: " res " is not a valid choice"))
@@ -544,6 +546,30 @@
      :state-atom state-atom
      :output-writer log-writer
      :error-writer log-writer}))
+
+(defn start-figwheel!
+  [{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
+  (let [env (create-autobuild-env
+             {:figwheel-options (config/prep-options figwheel-options)
+              :all-builds (config/prep-builds all-builds)
+              :build-ids (map name build-ids)})]
+    (binding [*autobuild-env* env]
+      (start-autobuild (:build-ids env))
+      (start-nrepl-server figwheel-options env))
+    env))
+
+(defn start-figwheel-and-cljs-repl! [autobuild-options]
+  (binding [*autobuild-env* (start-figwheel! autobuild-options)]
+    (repl-switching-loop)))
+
+(defn stop-figwheel! [autobuild-env]
+  (when autobuild-env
+    (binding [*autobuild-env* autobuild-env]
+      (stop-autobuild))
+    (Thread/sleep 100)
+    (when-let [{:keys [figwheel-server]} autobuild-env]
+      (fig/stop-server figwheel-server)
+      (Thread/sleep 200))))
 
 (defn run-autobuilder [{:keys [figwheel-options all-builds build-ids] :as options}]
   (binding [*autobuild-env* (create-autobuild-env options)]
