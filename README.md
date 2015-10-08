@@ -482,8 +482,17 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
                 :output-dir "resources/public/out"
                 :verbose true}}]})
 
+;; start a ClojureScript REPL
 (ra/cljs-repl)
 ```
+
+>  Build config
+>  It's important to remember that figwheel can autobuild and reload multiple
+>  builds at the same time. It can also switch between builds
+>  you are autobuilding. For this reason you need to supply the initial
+> `:build-ids` to start building.
+>  It's also helpful to supply your `:advanced` builds because while you can't
+>  autobuild then you can call `build-once` on them
 
 Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
