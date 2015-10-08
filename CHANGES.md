@@ -1,3 +1,10 @@
+## 0.4.1-SNAPSHOT
+
+* fixed bug where GCL javascript modules with '-' in the namespace were not being hot reloaded
+* fixed Node.js support on windows (a path error ... who'd have guessed??)
+* improved the api for starting and stopping figwheel from scripts and such
+* added a way to quit out of the cljs-repl build choosing loop
+
 ## 0.4.0
 
 * `:nrepl-middleware` server configuration has been added (see readme)
