@@ -11,7 +11,7 @@
    [cljs.core.async :refer [<!]]
    [example.sss]
    ;; reload js oh yeah
-   [example.tester]
+   [example.fun-tester]
    [tabby]
    [tweaky]
    [wowzacore])
@@ -28,9 +28,10 @@
 
 #_(prn example.tester)
 
+
 #_(fw/start)
 
-(prn (example.tester/hello))
+(prn (example.fun-tester/hello))
 
 (enable-dev-blocks!)
 (enable-console-print!)
@@ -193,6 +194,7 @@
                                         (println "Transaction:")
                                         (prn x)
                                         (remote-transact x))})
+
 
 
 (defn fig-reload []
