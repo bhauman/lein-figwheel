@@ -460,10 +460,19 @@ from your buffer to be evaluated.
 
 ## Scripting Figwheel
 
-You can start figwheel from Clojure.
+As your development workflow grows in complexity, the declarative
+style of `lein` can be quite limiting when you want to launch and
+control different services (ie. SASS compilation). This is when there
+is great advantage in using Clojure directly where you have the
+expressive power to define whatever workflow services you want.
 
-You need to require the `figwheel-sidecar.repl-api` and provide your
-build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
+Figwheel has an
+[API](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
+that makes it easy to start, start and control Figwheel from Clojure.
+
+Let's start Figwheel from a script. You only need to require the
+`figwheel-sidecar.repl-api` and provide your build configuration to
+`figwheel-sidecar.repl-api/start-figwheel!` like so:
 
 ```clojure
 (require '[figwheel-sidecar.repl-api :as ra])
