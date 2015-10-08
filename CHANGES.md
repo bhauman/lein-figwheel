@@ -1,4 +1,4 @@
-## 0.4.1-SNAPSHOT
+## 0.4.1
 
 * fixed bug where GCL javascript modules with '-' in the namespace were not being hot reloaded
 * fixed Node.js support on windows (a path error ... who'd have guessed??)
