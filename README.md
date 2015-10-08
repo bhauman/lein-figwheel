@@ -464,7 +464,8 @@ As your development workflow grows in complexity, the declarative
 style of `lein` can be quite limiting when you want to launch and
 control different services (ie. SASS compilation). This is when there
 is great advantage in using Clojure directly where you have the
-expressive power to define whatever workflow services you want.
+expressive power to define whatever workflow services you want in one
+process.
 
 Figwheel has an
 [API](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
@@ -553,7 +554,7 @@ $ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
 After the Clojure REPL has launched, you will now have the ability to
 call `(start)`, `(repl)` and `(stop)` as you need.
 
-You can now call all of the functions in the [figwheel-sidecar.repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj).
+You can also call all of the functions in the [figwheel-sidecar.repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj).
 
 This is a much more powerful way to work, as you now have
 interactivity and the generality of the Clojure programming language
