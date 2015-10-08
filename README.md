@@ -493,7 +493,7 @@ build configuration to `figwheel-sidecar.repl-api/start-figwheel!` like so:
 >  you are autobuilding. For this reason you need to supply the initial
 > `:build-ids` to start building.
 >  It's also helpful to supply your `:advanced` builds because while you can't
->  autobuild then you can call `build-once` on them
+>  autobuild them you can call `build-once` on them
 
 Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
