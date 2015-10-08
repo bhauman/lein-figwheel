@@ -490,6 +490,57 @@ Please see the
 [repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 for more detail.
 
+One way to use this is to use like so:
+
+Assuming the above script is in `script/figwheel.clj`.
+
+```
+$ rlwrap lein run -m clojure.main script/figwheel.clj
+```
+
+Let's look at another way to script figwheel.
+
+```clojure
+(require
+ '[figwheel-sidecar.repl-api :as ra])
+
+(defn start []
+  (ra/start-figwheel!
+    {:figwheel-options {} ;; <-- figwheel server config goes here 
+     :build-ids ["dev"]   ;; <-- a vector of build ids to start autobuilding
+     :all-builds          ;; <-- supply your build configs here
+     [{:id "dev"
+       :figwheel true
+       :source-paths ["src/main"]
+       :compiler {:main "example.core"
+                  :asset-path "/out"
+                  :output-to "resources/public/main.js"
+                  :output-dir "resources/public/out"
+                  :verbose true}}]}))
+
+(defn stop []
+  (ra/stop-figwheel!))
+
+(defn repl []
+  (ra/cljs-repl))
+```
+
+Now you can initialize the clojure.main repl and then call these
+functions as you see fit.
+
+```
+$ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
+```
+
+That command will start a Clojure REPL and you can call the various
+functions to start and stop figwheel.
+
+You have the power and composability of clojure available to you now.
+
+You can start and stop the Figwheel as needed and launch a Figwheel
+REPL as well.
+
+
 ### Not Magic, just plain old file reloading 
 
 This plugin starts a ClojureScript auto builder, opens a websocket and
