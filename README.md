@@ -545,8 +545,10 @@ script and then continue on to launch a REPL.
 $ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
 ```
 
-After the Clojure REPL has launched you will now have the ability to
+After the Clojure REPL has launched, you will now have the ability to
 call `(start)`, `(repl)` and `(stop)` as you need.
+
+You can now call all of the functions in the [figwheel-sidecar.repl-api](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj).
 
 This is a much more powerful way to work, as you now have
 interactivity and the generality of the Clojure programming language
