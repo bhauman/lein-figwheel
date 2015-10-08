@@ -548,7 +548,7 @@ I highly reccomend Stuart Sierra's
 compose all your the services you will need for development.
 
 Below you can see an example of using component to start and stop
-figwheel.
+figwheel and composing it with a Ring server to serve your application.
 
 ```clojure
 (require
@@ -608,8 +608,8 @@ Read more about the [`clojure.main` optoins](http://clojure.org/repl_and_main)
 
 Read more about [component](https://github.com/stuartsierra/component)
 
-> Please note that when you stop the Figwheel Server http-kit throws
-> a java.util.concurrent.RejectedExecutionException, this is expected
+> Please note that when you stop the Figwheel server, http-kit throws
+> `a java.util.concurrent.RejectedExecutionException`, this is expected
 
 
 ### Not Magic, just plain old file reloading 
