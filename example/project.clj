@@ -18,7 +18,7 @@
 
   :plugins [[lein-ring "0.8.13"]
             #_[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.1-SNAPSHOT"]
+            [lein-figwheel "0.4.1"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -85,7 +85,7 @@
                                      }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [figwheel-sidecar "0.4.1-SNAPSHOT"]
+                                    #_[figwheel-sidecar "0.4.1"]
                                     #_[org.clojure/tools.nrepl "0.2.10"]]
                     :plugins [[refactor-nrepl "1.2.0-SNAPSHOT"]
                               [cider/cider-nrepl "0.10.0-SNAPSHOT"]]}}
