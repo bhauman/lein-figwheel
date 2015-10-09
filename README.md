@@ -503,12 +503,13 @@ To start Figwheel from a script, you will need to require the
 
 >  **Build config notes**
 >
->  It's important to remember that figwheel can autobuild and reload multiple
->  builds at the same time. It can also switch between builds
->  you are autobuilding. For this reason you need to supply the initial
-> `:build-ids` to start building.
->  It's also helpful to supply your `:advanced` builds because while you can't
->  autobuild them you can call `build-once` on them
+>  It's important to remember that figwheel can autobuild and reload
+>  multiple builds at the same time. It can also switch between builds
+>  and focus on autobuilding one at a time. For this reason you need
+>  to supply the initial `:build-ids` to tell figwheel which builds
+>  you want to start building. It's also really helpful to supply your
+>  `:advanced` builds because while you can't autobuild them you can
+>  call `build-once` on them
 
 Assuming the above script is in `script/figwheel.clj` you can invoke it as follows:
 
