@@ -520,10 +520,10 @@ $ rlwrap lein run -m clojure.main script/figwheel.clj
 The above command will start figwheel and it will behave just like
 running `lein figwheel`.
 
-Please note that the above command is not the same environment as
-`lein repl` or `cider-jack-in`. Both of these start an nREPL session.
-I am intentionally not using nREPL in order to remove a lot of
-complexity from ClojureScript REPL communication. 
+Please note that the above command is not running the script in the
+same environment as `lein repl` or `cider-jack-in`. Both of these
+start an nREPL session. I am intentionally not using nREPL in order to
+remove a lot of complexity from ClojureScript REPL communication.
 
 > If you are using nREPL, launching the ClojureScript REPL
 > requires that you have Piggieback installed. Please see the section
@@ -651,12 +651,13 @@ functionality.
 > requires that you have Piggieback installed. Please see the section
 > above titled "Editor REPLs and nREPL"
 
+> Please note that when you stop the Figwheel server, http-kit throws
+> a `java.util.concurrent.RejectedExecutionException`, this is expected
+
 Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command line options
 
 Read more about [component](https://github.com/stuartsierra/component)
 
-> Please note that when you stop the Figwheel server, http-kit throws
-> a `java.util.concurrent.RejectedExecutionException`, this is expected
 
 ### Not Magic, just plain old file reloading 
 
