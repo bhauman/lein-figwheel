@@ -473,9 +473,10 @@ Figwheel has a Clojure
 [API](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 that makes it easy to start, stop and control Figwheel from Clojure.
 
-You will need to have `[figwheel-sidecar "0.4.1"]` in your dependencies.
+In order for the following examples to work, you will need to have
+`[figwheel-sidecar "0.4.1"]` in your dependencies.
 
-To start Figwheel from a script, you only need to require the
+To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
 `figwheel-sidecar.repl-api/start-figwheel!` like so:
 
