@@ -456,6 +456,10 @@ focus, and the number of client connections.
 You may want a REPL in your editor. This makes it much easier to ship code
 from your buffer to be evaluated.
 
+> If you use `lein repl` or something that invokes it like CIDER, you
+> are using nREPL. A ClojureScript REPL will not just run over an nREPL
+> connection without Piggieback.
+
 [Please see the Editor REPl and nREPL documentation.](https://github.com/bhauman/lein-figwheel/blob/master/doc/editor_repls.md)
 
 ## Scripting Figwheel
@@ -468,6 +472,8 @@ Clojure itself to script whatever workflow services you want.
 Figwheel has a Clojure
 [API](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/repl_api.clj)
 that makes it easy to start, stop and control Figwheel from Clojure.
+
+You will need to have `[figwheel-sidecar "0.4.1"]` in your dependencies.
 
 To start Figwheel from a script, you only need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -512,8 +518,14 @@ $ rlwrap lein run -m clojure.main script/figwheel.clj
 The above command will start figwheel and it will behave just like
 running `lein figwheel`.
 
-> Please note that the above command is not the same environment as
-> `lein repl` which starts an nREPL session.
+Please note that the above command is not the same environment as
+`lein repl` or `cider-jack-in`. Both of these start an nREPL session.
+I am intentionally not using nREPL in order to remove a lot of
+complexity from ClojureScript REPL communication. 
+
+> If you are using nREPL, launching the ClojureScript REPL
+> requires that you have Piggieback installed. Please see the section
+> above titled "Editor REPLs and nREPL"
 
 Let's make a small helper library and then initialize a Clojure REPL with it:
 
@@ -624,8 +636,18 @@ with a Ring server component to serve your application.
   (ra/cljs-repl))
 ```
 
+Again you can run this script as so:
+
+```
+$ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
+```
+
 As you can see with humble beginnings you can build up arbitrary
 functionality.
+
+> If you are using nREPL, launching the ClojureScript REPL
+> requires that you have Piggieback installed. Please see the section
+> above titled "Editor REPLs and nREPL"
 
 Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command line options
 
@@ -633,7 +655,6 @@ Read more about [component](https://github.com/stuartsierra/component)
 
 > Please note that when you stop the Figwheel server, http-kit throws
 > a `java.util.concurrent.RejectedExecutionException`, this is expected
-
 
 ### Not Magic, just plain old file reloading 
 
