@@ -58,8 +58,8 @@
 
 (defn run-compiler [project {:keys [all-builds] :as autobuild-opts}]
   (run-local-project project all-builds
-     '(require 'figwheel-sidecar.repl)
-     `(figwheel-sidecar.repl/run-autobuilder ~autobuild-opts)))
+     '(require 'figwheel-sidecar.system)
+     `(figwheel-sidecar.system/run-autobuilder ~autobuild-opts)))
 
 (defn get-unique-id [prj]
   (let [{:keys [name version]} prj]

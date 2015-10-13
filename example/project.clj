@@ -12,13 +12,11 @@
                  [ankha "0.1.4"]
                  [datascript "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.3.11"]
-                 [cljs-http "0.1.35"]
-                 
-                 #_[com.stuartsierra/component "0.2.3"]]
+                 [cljs-http "0.1.35"]]
 
   :plugins [[lein-ring "0.8.13"]
             #_[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.1"]
+            [lein-figwheel "0.4.2-SNAPSHOT"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -85,8 +83,10 @@
                                      }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    #_[figwheel-sidecar "0.4.1"]
+                                    [com.stuartsierra/component "0.3.0"]
+                                    [figwheel-sidecar "0.4.2-SNAPTSHOT"]
                                     #_[org.clojure/tools.nrepl "0.2.10"]]
+                    :source-paths ["src" "../sidecar/src"]
                     :plugins [[refactor-nrepl "1.2.0-SNAPSHOT"]
                               [cider/cider-nrepl "0.10.0-SNAPSHOT"]]}}
   
