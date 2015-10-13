@@ -1,25 +1,36 @@
 (ns figwheel-sidecar.repl-api
-  (:require [figwheel-sidecar.system :as fs]))
+  (:require
+   [figwheel-sidecar.system :as fs]
+   [com.stuartsierra.component :as component]))
 
-(def ^:dynamic *figwheel-system* nil)
+(defonce ^:dynamic *figwheel-system* (atom nil))
+
+#_(def temp-config
+  {:figwheel-options {:css-dirs ["resources/public/css"]
+                      :nrepl-port 7888}
+   :build-ids  ["example"]
+   :all-builds (fs/get-project-builds)})
 
 (defn start-figwheel!
   "If you aren't connected to an env where fighweel is running already,
   this method will start the figwheel server with the passed in build info."
-  [{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
-  (if-not *fighweel-system*
-    (let [env (fs/start-figwheel! autobuild-options)]
-      (alter-var-root (var *figwheel-system*) (fn [_] env))
-      nil)
-    (println "Figwheel system already initialized!")))
+  ([{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
+   (when @*figwheel-system*
+     (swap! *figwheel-system* component/stop))
+   (reset! *figwheel-system* (fs/start-figwheel! autobuild-options)))
+  ([]
+   ;; TODO automatically pull in config if atom is empty
+   ;; we can check if there is a project.clj
+   ;; and we can pull in the config
+   (swap! *figwheel-system* component/start)))
+
+#_ (start-figwheel! temp-config)
 
 (defn stop-figwheel!
   "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."
   []
-  (when *figwheel-system*
-    (fs/stop-figwheel! *figwheel-system*)
-    (alter-var-root (var *figwheel-system*) (fn [_] false))
-    nil))
+  (when @*figwheel-system*
+    (swap! *figwheel-system* component/stop)))
 
 (comment
   ;; example usage
@@ -92,7 +103,7 @@
 (defn fig-status
   "Display the current status of the running Figwheel system."
   []
-  (ensure-system   (fs/fig-status *figwheel-system*)))
+  (ensure-system (fs/fig-status *figwheel-system*)))
 
 (defn- doc* [v]
   (let [{:keys [name doc arglists]} (meta v)]
