@@ -18,7 +18,6 @@
    [digest]
    [clj-stacktrace.core :refer [parse-exception]]
    [clj-stacktrace.repl :refer [pst-on]]
-   [clojurescript-build.api :as cbapi]
    [clojure.pprint :as p]))
 
 ;; get rid of fs dependancy
@@ -184,6 +183,18 @@
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
 
+(defn get-ns-from-source-file-path
+  "Takes a project relative file path and returns an underscored clojure namespace.
+  .ie a file that starts with (ns example.path-finder) -> example.path_finder"
+  [file-path]
+  (try
+    (when (.exists (as-file file-path))
+      (with-open [rdr (io/reader file-path)]
+        (let [forms (ana/forms-seq* rdr file-path)]
+          (second (first forms)))))
+    (catch java.lang.RuntimeException e
+      nil)))
+
 (defn file-changed?
   "Standard md5 check to see if a file actually changed."
   [{:keys [file-md5-atom]} filepath]  
@@ -217,7 +228,7 @@
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
   (let [n (-> nm name underscore)] ;; TODO I don't think this is needed
-    { :file (str (cbapi/cljs-target-file-from-ns "" nm))
+    { :file (str (build-api/target-file-for-cljs-ns nm))
       :namespace (cljs.compiler/munge n)
       :type :namespace}))
 
