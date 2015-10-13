@@ -84,7 +84,7 @@
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
                                     [com.stuartsierra/component "0.3.0"]
-                                    [figwheel-sidecar "0.4.2-SNAPTSHOT"]
+                                    [figwheel-sidecar "0.4.2-SNAPSHOT"]
                                     #_[org.clojure/tools.nrepl "0.2.10"]]
                     :source-paths ["src" "../sidecar/src"]
                     :plugins [[refactor-nrepl "1.2.0-SNAPSHOT"]
