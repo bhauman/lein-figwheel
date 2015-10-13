@@ -8,6 +8,7 @@
    [clojure.string :as string]
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
 
+   [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
    [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.config :as config]))
 
