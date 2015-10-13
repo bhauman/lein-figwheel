@@ -416,6 +416,7 @@
       (file-changed? state df)))
   (:file-md5-atom state))
 
+;; remove resource paths here
 (defn create-initial-state [{:keys [root name version resource-paths
                                     css-dirs ring-handler http-server-root
                                     server-port output-dir output-to
