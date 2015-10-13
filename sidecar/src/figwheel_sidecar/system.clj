@@ -8,7 +8,7 @@
    [figwheel-sidecar.notifications]
    [figwheel-sidecar.clj-reloading]
    [figwheel-sidecar.javascript-reloading]   
-   
+
    [com.stuartsierra.component :as component]
 
    [cljs.build.api :as bapi]
@@ -107,7 +107,6 @@
   (start [this]
     (if-not (:http-server this)
       (do
-        (println "Figwheel: Starting Server")
         (map->FigwheelServer (fig/start-server this)))
       this))
   (stop [this]
@@ -169,11 +168,14 @@
         (println "Figwheel: Watching build -" (:id build-config))
         (flush)
         ;; setup
-        (fig-inject/delete-connect-scripts! [build-config])
+        (figwheel-sidecar.injection/delete-connect-scripts! [build-config])
         ;; TODO this should be conditional based on a flag
         #_(clean-cljs-build* (:build-options build-config))
-        ;; initial build only needs the injection
-        ((figwheel-sidecar.injection/build-hook cljs-build) this)
+        ;; initial build only needs the injection and the
+        ;; start and end messages
+        ((-> cljs-build
+             figwheel-sidecar.injection/build-hook
+             figwheel-start-and-end-messages) this)
         (let [log-writer (or log-writer (io/writer "figwheel_server.log" :append true))]
           (assoc this
                  :file-watcher
@@ -209,7 +211,7 @@
            (do
              (if (:css-dirs this)
                (let [log-writer (or log-writer (io/writer "figwheel_server.log" :append true))]
-                 (println "Figwheel: starting CSS watcher for dirs " (prn-str (:css-dirs this)))
+                 (println "Figwheel: Starting CSS watcher for dirs " (pr-str (:css-dirs this)))
                  (assoc this :css-watcher-quit
                         (watcher (:css-dirs this)
                                  (fn [files]
@@ -235,13 +237,39 @@
 ;; nrepl component only really useful in a development env
 ;; considering making it idempotent so that it's only launched once
 
+(defn require? [symbol]
+  (try (require symbol) true (catch Exception e false)))
+
+(defn start-nrepl-server [figwheel-options autobuild-options]
+  (when (:nrepl-port figwheel-options)
+    (let [middleware (or
+                      (:nrepl-middleware figwheel-options)
+                      ["cemerick.piggieback/wrap-cljs-repl"])
+          resolve-mw (fn [name]
+                       (let [s (symbol name)
+                             ns (symbol (namespace s))]
+                         (if (and
+                              (require? ns)
+                              (resolve s))
+                           (let [var (resolve s)
+                                 val (deref var)]
+                             (if (vector? val)
+                               (map resolve val)
+                               (list var)))
+                           (println (format "WARNING: unable to load \"%s\" middleware" name)))))
+          middleware (mapcat resolve-mw middleware)]
+      (nrepl-serv/start-server
+       :port (:nrepl-port figwheel-options)
+       :bind (:nrepl-host figwheel-options)
+       :handler (apply nrepl-serv/default-handler middleware)))))
+
 (defrecord NreplComponent []
   component/Lifecycle
   (start [this]
     (if (not (:running-nrepl-server this))
       (do
         (println "Figwheel: Starting nREPL server on port:" (:nrepl-port this))
-        (assoc this :running-nrepl-server (frepl/start-nrepl-server this nil)))
+        (assoc this :running-nrepl-server (start-nrepl-server this nil)))
       (do
         (println "Figwheel: nREPL server already running")
         this)))
@@ -300,7 +328,7 @@
      (concat
       [:builds all-builds ;; this needs to be an array map
        :cljs-build-fn cljs-build-fn
-       :log-writer 
+       :log-writer log-writer
        :sync-executor (SyncExecutor.)
        :figwheel-server (map->FigwheelServer figwheel-options)]
       (mapcat (fn [build-config]
@@ -347,22 +375,22 @@
    :all-builds (get-project-builds)})
 
 ;; TODO just for dev
-(defonce system
+#_(defonce system
   (atom
    (create-figwheel-system* temp-config)))
 
 ;; TODO just for dev
-(count (:builds @system))
-(keys @system)
+#_(count (:builds @system))
+#_(keys @system)
 
 ;; TODO just for dev
-(defn start []
+#_(defn start []
   (swap! system component/start))
 ;; TODO just for dev
-(defn stop []
+#_(defn stop []
   (swap! system component/stop))
 ;; TODO just for dev
-(defn reload []
+#_(defn reload []
   (swap! system component/stop)
   (require 'figwheel-sidecar.system :reload)
   (swap! system component/start))
@@ -432,28 +460,33 @@
 
 (defn stop-autobuild [system ids]
   (repl-println "Figwheel: Stoping autobuild")
-  (swap! system component/stop-system (ids-or-all-build-keys system ids)))
+  (swap! system component/stop-system (ids-or-all-build-keys system ids))
+  nil)
 
 (defn start-autobuild [system ids]
   (repl-println "Figwheel: Starting autobuild")
   (when (not-empty ids)
     (patch-system-builds system ids))
-  (swap! system component/start-system (ids-or-all-build-keys system ids)))
+  (swap! system component/start-system (ids-or-all-build-keys system ids))
+  nil)
 
 (defn switch-to-build [system ids]
   (when (not-empty ids)
-    (start-autobuild system ids)))
+    (start-autobuild system ids))
+  nil)
 
 (defn clean-build [system id]
   (let [{:keys [builds]} @system]
     (when-let [{:keys [build-options]} (get builds (name id))]
       (repl-println "Figwheel: Cleaning build -" id)
-      (clean-cljs-build* build-options))))
+      (clean-cljs-build* build-options)))
+  nil)
 
 (defn clean-builds [system ids]
   (let [ids (map key->id (ids-or-all-build-keys system ids))]
     (doseq [id ids]
-      (clean-build system id))))
+      (clean-build system id)))
+  nil)
 
 (defn build-once* [system id]
   (when-let [build-config (get (:builds @system) (name id))]
@@ -463,19 +496,22 @@
 
 (defn build-once [system ids]
   (doseq [ky (ids-or-all-build-keys system ids)]
-    (build-once* system (key->id ky))))
+    (build-once* system (key->id ky)))
+  nil)
 
 (defn reset-autobuild [system]
   (swap! system component/stop-system (all-build-keys system))
   (clean-builds system nil)
-  (swap! system component/start-system (all-build-keys system)))
+  (swap! system component/start-system (all-build-keys system))
+  nil)
 
 (defn reload-config [system]
   (swap! system component/stop-system (all-build-keys system))
   (clean-builds system nil)
   (repl-println "Figwheel: Reloading build config information")
   (swap! system assoc :builds (get-project-builds))
-  (swap! system component/start-system (all-build-keys system)))
+  (swap! system component/start-system (all-build-keys system))
+  nil)
 
 (defn watchers-running [system]
   (filter (fn [key] (get-in @system [key :file-watcher]))
@@ -493,7 +529,8 @@
        (doseq [[id v] @connection-count]
          (repl-println "\t" (str (if (nil? id) "any-build" id) ":")
                   v (str "connection" (if (= 1 v) "" "s")))))
-     (repl-println "----------------------------------------------------")))
+     (repl-println "----------------------------------------------------"))
+    nil)
 
 ;; repl-launching
 
@@ -579,8 +616,9 @@
     (component/start system)))
 
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
-  (let [system (start-figwheel! autobuild-options)]
-    (build-switching-cljs-repl system)))
+  (let [system-atom (atom (start-figwheel! autobuild-options))]
+    (build-switching-cljs-repl system-atom)
+    system-atom))
 
 (defn stop-figwheel! [system]
   (component/stop system))
