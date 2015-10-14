@@ -53,57 +53,73 @@
                              :optimizations :none}}]})
   )
 
-(defmacro ensure-system [body]
-  `(if figwheel-sidecar.repl-api/*figwheel-system*
-     ~body
-     (println "Figwheel System not itnitialized.\n Please start it with figwheel-sidecar.repl-api/start-figwheel")))
+(defn figwheel-running? []
+  (or @*figwheel-system*
+      (do
+        (println "Figwheel System not itnitialized.\n Please start it with figwheel-sidecar.repl-api/start-figwheel")
+        nil)))
+
+(defn app-trans
+  ([func ids]
+   (when figwheel-running?
+     (reset! *figwheel-system* (func @*figwheel-system* ids))))
+  ([func]
+   (when figwheel-running?
+     (reset! *figwheel-system* (func @*figwheel-system*)))))
 
 (defn build-once
-  "Compiles the builds with the provided build ids (or the current default ids) once."
+  "Compiles the builds with the provided build ids
+(or the current default ids) once."
   [& ids]
-  (ensure-system (fs/build-once *figwheel-system* ids)))
+  (app-trans fs/build-once ids))
 
 (defn clean-builds
-  "Deletes the compiled artifacts for the builds with the provided build ids (or the current default ids)."
+  "Deletes the compiled artifacts for the builds with the provided
+build ids (or the current default ids)."
   [& ids]
-  (ensure-system (fs/clean-builds *figwheel-system* ids)))
+  (app-trans fs/clean-builds ids))
 
 (defn stop-autobuild
   "Stops the currently running autobuild process."
   [& ids]
-  (ensure-system (fs/stop-autobuild *figwheel-system* ids)))
+  (app-trans fs/stop-autobuild ids))
 
 (defn start-autobuild
-  "Starts a Figwheel autobuild process for the builds associated with the provided ids (or the current default ids)."
+  "Starts a Figwheel autobuild process for the builds associated with
+the provided ids (or the current default ids)."
   [& ids]
-  (ensure-system (fs/start-autobuild *figwheel-system* ids)))
+  (app-trans fs/start-autobuild ids))
 
 (defn switch-to-build
-  "Stops the currently running autobuilder and starts building the builds with the provided ids."
+  "Stops the currently running autobuilder and starts building the
+builds with the provided ids."
   [& ids]
-  (ensure-system (fs/switch-to-build *figwheel-system* ids)))
+  (app-trans fs/switch-to-build ids))
 
 (defn reset-autobuild
-  "Stops the currently running autobuilder, cleans the current builds, and starts building the default builds again."
+  "Stops the currently running autobuilder, cleans the current builds,
+and starts building the default builds again."
   []
-  (ensure-system (fs/reset-autobuild *figwheel-system*)))
+  (app-trans fs/reset-autobuild))
 
 (defn reload-config
   "Reloads the build config, and resets the autobuild."
   []
-  (ensure-system (fs/reload-config *figwheel-system*)))
+  (app-trans fs/reload-config))
 
 (defn cljs-repl
-  "Starts a Figwheel ClojureScript REPL for the provided build id (or the first default id)."
+  "Starts a Figwheel ClojureScript REPL for the provided build id (or
+the first default id)."
   ([]
-   (ensure-system (fs/build-switching-cljs-repl *figwheel-system*)))
+   (cljs-repl nil))
   ([id]
-   (ensure-system (fs/build-switching-cljs-repl *figwheel-system* id))))
+   (when (figwheel-running?)
+     (fs/build-switching-cljs-repl *figwheel-system* id))))
 
 (defn fig-status
   "Display the current status of the running Figwheel system."
   []
-  (ensure-system (fs/fig-status *figwheel-system*)))
+  (app-trans fs/fig-status))
 
 (defn- doc* [v]
   (let [{:keys [name doc arglists]} (meta v)]

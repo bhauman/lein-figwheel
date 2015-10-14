@@ -411,7 +411,7 @@
   (.startsWith (name k) "autobuild-"))
 
 (defn valid-key? [system key]
-  (if-let [key (get @system (name key))]
+  (if-let [key (get system (name key))]
     true
     (do
       (println "Figwheel: invalid build id -" (key->id key))
@@ -420,7 +420,7 @@
 (defn all-build-keys [system]
   (set
    (doall
-    (filter build-key? (keys @system)))))
+    (filter build-key? (keys system)))))
 
 (defn ids-or-all-build-keys [system ids]
   (set
@@ -431,10 +431,18 @@
               (all-build-keys system))))))
 
 (defn watchers-running [system]
-  (set
-   (doall
-    (filter (fn [key] (get-in @system [key :file-watcher]))
-            (all-build-keys system)))))
+  (doall
+   (filter (fn [key] (get-in system [key :file-watcher]))
+           (all-build-keys system))))
+
+;; going to work with an atom and swap!
+;; The commands are side effecting but they are also idempotent
+;; the mode of working is going to be one command after another in
+;; an interactive repl
+
+(defn system-setter [func system-atom]
+  (fn [& args]
+    (reset! system-atom (apply func @system-atom args))))
 
 ;; figwheel system control functions
 
@@ -446,68 +454,93 @@
     {:builds-to-add (map key->id (difference ids build-keys))
      :builds-to-remove (map key->id (difference build-keys ids))}))
 
+#_ (build-diff @system nil)
+
 (defn system-remove
   "Remove the ids from the system"
   [system ids]
-  (let [kys (map id->key ids)]
-    (swap! system component/stop-system kys)
-    (swap! system #(reduce dissoc % kys))))
+  (let [build-keys (map id->key ids)
+        system     (component/stop-system system build-keys)]
+    (reduce dissoc system build-keys)))
+
+#_ (swap! system system-remove ["example"])
+
+(defn add-autobuilder [system build-id]
+  (if-let [build-config (get (:builds system) build-id)]
+    (assoc system (id->key build-id)
+           (component/using
+            (map->CLJSWatcher {:build-config build-config})
+            [:figwheel-server :log-writer :sync-executor]))
+    system))
 
 (defn patch-system-builds [system ids]
-  (let [{:keys [builds-to-remove builds-to-add]} (build-diff system ids)]
-    (system-remove system builds-to-remove)
-    (doseq [id builds-to-add]
-      (when-let [build-config (get (:builds @system) id)]
-        (swap! system assoc (id->key id)
-               (component/using
-                (map->CLJSWatcher {:build-config build-config})
-                [:figwheel-server :log-writer :sync-executor]))))))
+  (let [{:keys [builds-to-remove builds-to-add]} (build-diff system ids)
+        system (system-remove system builds-to-remove)]
+    (reduce add-autobuilder system builds-to-add)))
+
+#_ (keys (get @system "autobuild-example"))
+
+#_ (swap! system patch-system-builds ["example"])
 
 ;; this will tear down the system and start it back up
 ;; where it left off
+;; TODO needs to be functional
 (defn stop-and-start-watchers [system build-ids thunk]
-  (let [ids (set (mapv key->id (ids-or-all-build-keys system build-ids)))
-        all-present-build-ids (set (mapv key->id (all-build-keys system)))
-        builds-keep-running (difference all-present-build-ids ids)
-        running-build-keys (watchers-running system)]
-    (patch-system-builds system (vec builds-keep-running))
-    (thunk) 
-    (patch-system-builds system ids)
-    (swap! system component/start-system running-build-keys))
-  nil)
+  (let [build-keys             (ids-or-all-build-keys system build-ids)
+        all-present-build-keys (all-build-keys system)
+        build-keys-keep        (difference all-present-build-keys build-keys)
+        running-build-keys     (watchers-running system)]
+    (-> system
+        (patch-system-builds (mapv key->id build-keys-keep))
+        thunk
+        (patch-system-builds (mapv key->id build-keys))
+        (component/start-system running-build-keys))))
+
+#_(defonce system-backup @system)
+#_(def system (atom system-backup))
+#_ (keys @system)
+#_ (swap! system stop-and-start-watchers nil (fn [x] x))
 
 ;; TODO ensure that repl printing works
 
 (defn stop-autobuild [system ids]
   (repl-println "Figwheel: Stoping autobuild")
-  (swap! system component/stop-system (ids-or-all-build-keys system ids))
-  nil)
+  (component/stop-system system (ids-or-all-build-keys system ids)))
+
+#_(def stop-auto (system-setter stop-autobuild system))
+
+#_(stop-auto nil)
+
+#_(swap! system stop-autobuild nil)
 
 (defn switch-to-build [system ids]
-  (when (not-empty ids)
-    (patch-system-builds system ids))
-  (swap! system component/start-system (ids-or-all-build-keys system ids))
-  nil)
+  (let [system (if (not-empty ids)
+                 (patch-system-builds system ids)
+                 system)]
+    (component/start-system system (ids-or-all-build-keys system ids))))
 
 (defn start-autobuild [system ids]
   (repl-println "Figwheel: Starting autobuild")
   (let [current-ids (set (mapv key->id (all-build-keys system)))
         total-ids   (union current-ids (set ids))]
-    (switch-to-build system total-ids))
-  nil)
+    (switch-to-build system total-ids)))
 
-(defn clear-compiler-env-for-build-id! [system build-id]
-  (swap! system update-in [:builds build-id] add-compiler-env))
+#_(keys @system)
+#_(swap! system start-autobuild nil)
+
+(defn clear-compiler-env-for-build-id [system build-id]
+  (update-in system [:builds build-id] add-compiler-env))
 
 #_ (clear-compiler-env-for-build-id! system "example")
 
 (defn clean-build [system id]
-  (let [{:keys [builds]} @system]
-    (when-let [{:keys [build-options]} (get builds (name id))]
+  (if-let [build-options 
+           (get-in system [:builds (name id) :build-options])]
+    (do
       (repl-println "Figwheel: Cleaning build -" id)
       (clean-cljs-build* build-options)
-      (clear-compiler-env-for-build-id! system id)))
-  nil)
+      (clear-compiler-env-for-build-id system id))
+    system))
 
 ;; this is going to require a stop and start of the ids
 ;; and clearing the compiler-env for these builds
@@ -515,40 +548,46 @@
   (let [ids (map key->id (ids-or-all-build-keys system ids))]
     (stop-and-start-watchers
      system ids
-     (fn []
-       (doseq [id ids]
-         (clean-build system id)))))
-  nil)
+     #(reduce clean-build % ids))))
 
+#_ (swap! system clean-builds nil)
+
+;; doesn't change the system
 (defn build-once* [system id]
-  (when-let [build-config (get (:builds @system) (name id))]
-    (repl-println "Figwheel: Building once -" (name id))
-    ((:cljs-build-fn @system)
-     (assoc @system :build-config build-config ))))
+  (when-let [build-config (get (:builds system) (name id))]
+    (do
+      (repl-println "Figwheel: Building once -" (name id))
+      ((:cljs-build-fn system)
+       (assoc system :build-config build-config)))
+    system))
 
+;; doesn't alter the system
 (defn build-once [system ids]
-  (doseq [ky (ids-or-all-build-keys system ids)]
-    (build-once* system (key->id ky)))
-  nil)
+  (doseq [build-ids (mapv key->id
+                          (ids-or-all-build-keys system ids))]
+    (build-once* system build-ids))
+  system)
+
+#_ (swap! system build-once nil)
 
 (defn reset-autobuild [system]
-  (clean-builds system nil)
-  nil)
+  (clean-builds system nil))
 
 (defn reload-config [system]
-  (let [ids (map key->id (all-build-keys system))]
+  (let [ids (mapv key->id (all-build-keys system))]
     (stop-and-start-watchers
      system ids
-     (fn []
+     (fn [system]
        (repl-println "Figwheel: Reloading build config information")
-       (doseq [id ids]
-         (clean-build system id))
-       (swap! system assoc :builds (get-project-builds)))))
-  nil)
+       (assoc (doall (reduce clean-build system ids))
+        :builds (get-project-builds))))))
 
+#_ (swap! system reload-config)
+
+;; doesn't alter the system
 (defn fig-status [system]
-    (let [connection-count (get-in @system [:figwheel-server :connection-count])
-          watched-builds   (map key->id (watchers-running system))]
+    (let [connection-count (get-in system [:figwheel-server :connection-count])
+          watched-builds   (mapv key->id (watchers-running system))]
      (repl-println "Figwheel System Status")
      (repl-println "----------------------------------------------------")
      (when (not-empty watched-builds)
@@ -559,7 +598,9 @@
          (repl-println "\t" (str (if (nil? id) "any-build" id) ":")
                   v (str "connection" (if (= 1 v) "" "s")))))
      (repl-println "----------------------------------------------------"))
-    nil)
+    system)
+
+;; TODO add build-config display
 
 ;; repl-launching
 ;; TODO not used
@@ -574,18 +615,25 @@
      (cljs.repl/repl* figwheel-repl-env (assoc opts :compiler-env (:compiler-env build))))))
 
 (defn build-figwheel-special-fns [system]
-  {'start-autobuild (frepl/make-special-fn (partial start-autobuild system))
-   'stop-autobuild  (frepl/make-special-fn (partial stop-autobuild system))
-   'switch-to-build (frepl/make-special-fn (partial switch-to-build system))
-   'clean-builds    (frepl/make-special-fn (partial clean-builds system)) 
-   'build-once      (frepl/make-special-fn (partial build-once system))
-   'reset-autobuild (frepl/make-special-fn (fn [_] (reset-autobuild system)))
-   'reload-config   (frepl/make-special-fn (fn [_] (reload-config system)))
-   'fig-status      (frepl/make-special-fn (fn [_] (fig-status system)))})
-
+  {'start-autobuild (frepl/make-special-fn (system-setter start-autobuild system))
+   'stop-autobuild  (frepl/make-special-fn (system-setter stop-autobuild system))
+   'switch-to-build (frepl/make-special-fn (system-setter switch-to-build system))
+   'clean-builds    (frepl/make-special-fn (system-setter clean-builds system)) 
+   'build-once      (frepl/make-special-fn (system-setter build-once system))
+   
+   'reset-autobuild (frepl/make-special-fn (system-setter
+                                            (fn [sys _] (reset-autobuild sys))
+                                            system))
+   'reload-config   (frepl/make-special-fn (system-setter
+                                            (fn [sys _] (reload-config sys))
+                                            system))
+   'fig-status      (frepl/make-special-fn (system-setter
+                                            (fn [sys _] (fig-status sys))
+                                            system))})
+(fn [_] (fig-status system))
 (defn start-figwheel-repl [system build repl-options]
   (let [{:keys [figwheel-server build-ids]} @system]
-    ;; TODO should this be conditional on not running?
+    ;; TODO should I add this this be conditional on not running?
     ;; (start-autobuild system build-ids)
     ;; (newline)
     (print "Launching ClojureScript REPL")
@@ -607,11 +655,11 @@
   (let [focused-build-ids (map key->id (all-build-keys system))]
     (if (not-empty focused-build-ids)
       (first focused-build-ids)
-      (let [{:keys [build-ids all-builds]} @system]
+      (let [{:keys [build-ids all-builds]} system]
         (:id (first (config/narrow-builds* all-builds build-ids)))))))
 
 (defn choose-repl-build [system build-id]
-  (let [{:keys [builds]} @system]
+  (let [{:keys [builds]} system]
     (or (and build-id
              (when-let [build (get builds build-id)]
                (and (config/optimizations-none? build)
@@ -621,7 +669,7 @@
 (defn figwheel-cljs-repl
   ([system] (figwheel-cljs-repl system {}))
   ([system {:keys [build-id repl-options]}]
-   (when-let [build (choose-repl-build system build-id)]
+   (when-let [build (choose-repl-build @system build-id)]
      (start-figwheel-repl system build repl-options))))
 
 (defn build-switching-cljs-repl
