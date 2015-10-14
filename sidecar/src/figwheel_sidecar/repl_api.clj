@@ -1,5 +1,6 @@
 (ns figwheel-sidecar.repl-api
   (:require
+   [clojure.repl :refer [doc]]
    [figwheel-sidecar.system :as fs]
    [com.stuartsierra.component :as component]))
 
@@ -121,26 +122,16 @@ the first default id)."
   []
   (app-trans fs/fig-status))
 
-(defn- doc* [v]
-  (let [{:keys [name doc arglists]} (meta v)]
-    (print name " ")
-    (prn arglists)
-    (println doc)
-    (newline)))
-
 (defn api-help
   "Print out help for the Figwheel REPL api"
   []
-  (mapv
-   doc*
-   [#'cljs-repl
-    #'fig-status
-    #'start-autobuild
-    #'stop-autobuild
-    #'build-once
-    #'clean-builds
-    #'switch-to-build
-    #'reset-autobuild
-    #'reload-config    
-    #'api-help])
-  nil)
+  (doc cljs-repl)
+  (doc fig-status)
+  (doc start-autobuild)
+  (doc stop-autobuild)
+  (doc build-once)
+  (doc clean-builds)
+  (doc switch-to-build)
+  (doc reset-autobuild)
+  (doc reload-config)
+  (doc api-help))
