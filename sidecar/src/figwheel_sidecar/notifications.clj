@@ -15,8 +15,8 @@
                          additional-changed-ns))]
     (when-not (empty? changed-ns)
       (binding [env/*compiler* (:compiler-env build-config)]
-        ;; TODO I want to change this signature to server build changed-ns
         (fig/notify-cljs-ns-changes
+         figwheel-server
          build-config
          changed-ns)))))
 

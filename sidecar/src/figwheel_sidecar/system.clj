@@ -117,10 +117,11 @@
 ;; synchronous execution component
 ;; this needed because watchers run asynchronously and can cause
 ;; builds to run in parallel, must sync them
-;; TODO dosync is something I should look at eh?
-;; refactor into a blocking queue arrangement?
 
-;; use dosync and a ref
+;; do builds need to run synchronously?
+;; I think its safer and sends a clearer signal to the browser
+
+;; after looking at this the go-loop is the most elegant
 
 (defrecord SyncExecutor []
   component/Lifecycle
@@ -630,7 +631,7 @@
    'fig-status      (frepl/make-special-fn (system-setter
                                             (fn [sys _] (fig-status sys))
                                             system))})
-(fn [_] (fig-status system))
+
 (defn start-figwheel-repl [system build repl-options]
   (let [{:keys [figwheel-server build-ids]} @system]
     ;; TODO should I add this this be conditional on not running?
