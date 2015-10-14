@@ -19,7 +19,7 @@
    [clojure.java.io :as io]
    [clojure.core.async :refer [go-loop chan <! close! put!]]   
    [clojure.tools.nrepl.server :as nrepl-serv]   
-   [clojure.set :refer [difference]]
+   [clojure.set :refer [difference union]]
    [clojure.string :as string]))
 
 ;; helpers 
@@ -88,8 +88,7 @@
         (println (str foreground-green
                       "Successfully compiled \""
                       output-to
-                      "\" in " (elapsed started-at) "."))
-        (print reset-color)
+                      "\" in " (elapsed started-at) "." reset-color))
         (flush)))))
 
 (def figwheel-build
@@ -374,7 +373,7 @@
    :all-builds (get-project-builds)})
 
 ;; TODO just for dev
-#_(defonce system
+#_(def system
   (atom
    (create-figwheel-system* temp-config)))
 
@@ -418,13 +417,32 @@
       (println "Figwheel: invalid build id -" (key->id key))
       false)))
 
+(defn all-build-keys [system]
+  (set
+   (doall
+    (filter build-key? (keys @system)))))
+
+(defn ids-or-all-build-keys [system ids]
+  (set
+   (doall
+    (filter (partial valid-key? system)
+            (if (not-empty ids)
+              (map id->key ids)
+              (all-build-keys system))))))
+
+(defn watchers-running [system]
+  (set
+   (doall
+    (filter (fn [key] (get-in @system [key :file-watcher]))
+            (all-build-keys system)))))
+
 ;; figwheel system control functions
 
 (defn build-diff
   "Makes sure that the autobuilds in the system match the build-ids provided" 
   [system ids]
   (let [ids (set (map id->key ids))
-        build-keys (set (filter build-key? (keys @system)))]
+        build-keys (all-build-keys system)]
     {:builds-to-add (map key->id (difference ids build-keys))
      :builds-to-remove (map key->id (difference build-keys ids))}))
 
@@ -448,29 +466,15 @@
 ;; this will tear down the system and start it back up
 ;; where it left off
 (defn stop-and-start-watchers [system build-ids thunk]
-  (let [ids (set (map key->id (ids-or-all-build-keys system build-ids)))
-        all-present-build-ids (set (map key->id (all-build-keys system)))
-        builds-keep-running (difference (set all-present-build-ids) (set ids))
+  (let [ids (set (mapv key->id (ids-or-all-build-keys system build-ids)))
+        all-present-build-ids (set (mapv key->id (all-build-keys system)))
+        builds-keep-running (difference all-present-build-ids ids)
         running-build-keys (watchers-running system)]
-    ;; need to remove these ids from 
-    (patch-system-builds system builds-keep-running)
-    (thunk)
+    (patch-system-builds system (vec builds-keep-running))
+    (thunk) 
     (patch-system-builds system ids)
-    (swap! system component/start-system running-build-keys)))
-
-(defn all-build-keys [system]
-  (filter build-key? (keys @system)))
-
-(defn ids-or-all-build-keys [system ids]
-  (filter (partial valid-key? system)
-          (if (not-empty ids)
-            (map id->key ids)
-            (all-build-keys system))))
-
-
-(defn watchers-running [system]
-  (filter (fn [key] (get-in @system [key :file-watcher]))
-                 (all-build-keys system)))
+    (swap! system component/start-system running-build-keys))
+  nil)
 
 ;; TODO ensure that repl printing works
 
@@ -479,21 +483,23 @@
   (swap! system component/stop-system (ids-or-all-build-keys system ids))
   nil)
 
-;; TODO semantics currently same as switch - should be additive
-(defn start-autobuild [system ids]
-  (repl-println "Figwheel: Starting autobuild")
+(defn switch-to-build [system ids]
   (when (not-empty ids)
     (patch-system-builds system ids))
   (swap! system component/start-system (ids-or-all-build-keys system ids))
   nil)
 
-(defn switch-to-build [system ids]
-  (when (not-empty ids)
-    (start-autobuild system ids))
+(defn start-autobuild [system ids]
+  (repl-println "Figwheel: Starting autobuild")
+  (let [current-ids (set (mapv key->id (all-build-keys system)))
+        total-ids   (union current-ids (set ids))]
+    (switch-to-build system total-ids))
   nil)
 
 (defn clear-compiler-env-for-build-id! [system build-id]
   (swap! system update-in [:builds build-id] add-compiler-env))
+
+#_ (clear-compiler-env-for-build-id! system "example")
 
 (defn clean-build [system id]
   (let [{:keys [builds]} @system]
@@ -508,7 +514,7 @@
 (defn clean-builds [system ids]
   (let [ids (map key->id (ids-or-all-build-keys system ids))]
     (stop-and-start-watchers
-     system
+     system ids
      (fn []
        (doseq [id ids]
          (clean-build system id)))))
@@ -526,24 +532,18 @@
   nil)
 
 (defn reset-autobuild [system]
-  ;we need to remember what was running
-  
-  (swap! system component/stop-system (all-build-keys system))
-  ;; perhaps clean without recopying files
   (clean-builds system nil)
-  (swap! system component/start-system (all-build-keys system))
   nil)
 
 (defn reload-config [system]
-  ;; we need to rember what was running
-  (swap! system component/stop-system (all-build-keys system))
-  (repl-println "Figwheel: Reloading build config information")
-  ;; perhaps clean without recopying files
-  (clean-builds system nil)
-  
-  (swap! system assoc :builds (get-project-builds))
-
-  (swap! system component/start-system (all-build-keys system))
+  (let [ids (map key->id (all-build-keys system))]
+    (stop-and-start-watchers
+     system ids
+     (fn []
+       (repl-println "Figwheel: Reloading build config information")
+       (doseq [id ids]
+         (clean-build system id))
+       (swap! system assoc :builds (get-project-builds)))))
   nil)
 
 (defn fig-status [system]
@@ -562,8 +562,8 @@
     nil)
 
 ;; repl-launching
-
-(defn repl
+;; TODO not used
+#_(defn repl
   ([build figwheel-server]
    (repl build figwheel-server {}))
   ([build figwheel-server opts]
@@ -572,9 +572,6 @@
                      opts)
          figwheel-repl-env (frepl/repl-env figwheel-server build)]
      (cljs.repl/repl* figwheel-repl-env (assoc opts :compiler-env (:compiler-env build))))))
-
-;; TODO make a bare repl function as example
-
 
 (defn build-figwheel-special-fns [system]
   {'start-autobuild (frepl/make-special-fn (partial start-autobuild system))
