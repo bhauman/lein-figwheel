@@ -355,8 +355,7 @@
                           (:compiler build))]
     (assoc build
            :build-options build-options
-           :compiler-env (or (:compiler-env build)
-                             (cljs.env/default-compiler-env build-options)))))
+           :compiler-env (cljs.env/default-compiler-env build-options))))
 
 (defn prep-all-options [{:keys [figwheel-options all-builds build-ids]}]
   {:figwheel-options (config/prep-options figwheel-options)
@@ -422,7 +421,7 @@
 ;; figwheel system control functions
 
 (defn build-diff
-  "Makes sure that the autobuilds in the system match the builds provided"
+  "Makes sure that the autobuilds in the system match the build-ids provided" 
   [system ids]
   (let [ids (set (map id->key ids))
         build-keys (set (filter build-key? (keys @system)))]
@@ -446,6 +445,19 @@
                 (map->CLJSWatcher {:build-config build-config})
                 [:figwheel-server :log-writer :sync-executor]))))))
 
+;; this will tear down the system and start it back up
+;; where it left off
+(defn stop-and-start-watchers [system build-ids thunk]
+  (let [ids (set (map key->id (ids-or-all-build-keys system build-ids)))
+        all-present-build-ids (set (map key->id (all-build-keys system)))
+        builds-keep-running (difference (set all-present-build-ids) (set ids))
+        running-build-keys (watchers-running system)]
+    ;; need to remove these ids from 
+    (patch-system-builds system builds-keep-running)
+    (thunk)
+    (patch-system-builds system ids)
+    (swap! system component/start-system running-build-keys)))
+
 (defn all-build-keys [system]
   (filter build-key? (keys @system)))
 
@@ -456,6 +468,10 @@
             (all-build-keys system))))
 
 
+(defn watchers-running [system]
+  (filter (fn [key] (get-in @system [key :file-watcher]))
+                 (all-build-keys system)))
+
 ;; TODO ensure that repl printing works
 
 (defn stop-autobuild [system ids]
@@ -463,6 +479,7 @@
   (swap! system component/stop-system (ids-or-all-build-keys system ids))
   nil)
 
+;; TODO semantics currently same as switch - should be additive
 (defn start-autobuild [system ids]
   (repl-println "Figwheel: Starting autobuild")
   (when (not-empty ids)
@@ -475,17 +492,26 @@
     (start-autobuild system ids))
   nil)
 
+(defn clear-compiler-env-for-build-id! [system build-id]
+  (swap! system update-in [:builds build-id] add-compiler-env))
+
 (defn clean-build [system id]
   (let [{:keys [builds]} @system]
     (when-let [{:keys [build-options]} (get builds (name id))]
       (repl-println "Figwheel: Cleaning build -" id)
-      (clean-cljs-build* build-options)))
+      (clean-cljs-build* build-options)
+      (clear-compiler-env-for-build-id! system id)))
   nil)
 
+;; this is going to require a stop and start of the ids
+;; and clearing the compiler-env for these builds
 (defn clean-builds [system ids]
   (let [ids (map key->id (ids-or-all-build-keys system ids))]
-    (doseq [id ids]
-      (clean-build system id)))
+    (stop-and-start-watchers
+     system
+     (fn []
+       (doseq [id ids]
+         (clean-build system id)))))
   nil)
 
 (defn build-once* [system id]
@@ -500,22 +526,25 @@
   nil)
 
 (defn reset-autobuild [system]
+  ;we need to remember what was running
+  
   (swap! system component/stop-system (all-build-keys system))
+  ;; perhaps clean without recopying files
   (clean-builds system nil)
   (swap! system component/start-system (all-build-keys system))
   nil)
 
 (defn reload-config [system]
+  ;; we need to rember what was running
   (swap! system component/stop-system (all-build-keys system))
-  (clean-builds system nil)
   (repl-println "Figwheel: Reloading build config information")
+  ;; perhaps clean without recopying files
+  (clean-builds system nil)
+  
   (swap! system assoc :builds (get-project-builds))
+
   (swap! system component/start-system (all-build-keys system))
   nil)
-
-(defn watchers-running [system]
-  (filter (fn [key] (get-in @system [key :file-watcher]))
-                 (all-build-keys system)))
 
 (defn fig-status [system]
     (let [connection-count (get-in @system [:figwheel-server :connection-count])

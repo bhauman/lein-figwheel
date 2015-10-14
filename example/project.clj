@@ -42,7 +42,7 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
+                         :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      "example.core/fig-reload"
@@ -69,9 +69,14 @@
                                    :target :nodejs
                                    :source-map true}}
                        { :id "example-admin"
-                         :source-paths ["other_src" ]
+                         :source-paths ["other_src" "src" #_"../support/src"]
                          :compiler { :output-to "resources/public/js/compiled/example_admin.js"
-                                     :output-dir "resources/public/js/compiled/admin"
+                                    :output-dir "resources/public/js/compiled/admin"
+                                     :libs ["libs_src" "libs_sscr/tweaky.js"]
+                                     ;; :externs ["foreign/wowza-externs.js"]
+                                    :foreign-libs [{:file "foreign/wowza.js"
+                                                    :provides ["wowzacore"]}]
+                                     ;; :recompile-dependents true                                    
                                      :source-map true
                                      :optimizations :none
                                     }}
