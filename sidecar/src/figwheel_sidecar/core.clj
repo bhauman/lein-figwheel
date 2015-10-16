@@ -153,25 +153,28 @@
                                     ring-handler
                                     resolved-ring-handler
                                     open-file-command
-                                    compile-wait-time] :as opts}]
+                                    compile-wait-time
+
+                                    ] :as opts}]
   ;; I'm spelling this all out as a reference
-  { :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
-    :http-server-root (or http-server-root "public")
-    :server-port (or server-port 3449)
-    :server-ip server-ip
-    :ring-handler ring-handler
-    :resolved-ring-handler (or resolved-ring-handler
+  (merge
+   opts ;; allow other options to flow through
+   { :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
+     :http-server-root (or http-server-root "public")
+     :server-port (or server-port 3449)
+     :server-ip server-ip
+     :ring-handler ring-handler
+     :resolved-ring-handler (or resolved-ring-handler
                                (utils/require-resolve-handler ring-handler))
     
-    :open-file-command open-file-command
-    :compile-wait-time (or compile-wait-time 10)
+     :open-file-command open-file-command
+     :compile-wait-time (or compile-wait-time 10)
 
-    :file-md5-atom (atom {})
+     :file-md5-atom (atom {})
    
-    :file-change-atom (atom (list))
-    :browser-callbacks (atom {})
-    :connection-count (atom {})
-   })
+     :file-change-atom (atom (list))
+     :browser-callbacks (atom {})
+     :connection-count (atom {}) }))
 
 (defn start-server
   ([] (start-server {}))

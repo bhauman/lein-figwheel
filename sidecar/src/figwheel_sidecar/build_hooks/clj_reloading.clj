@@ -80,15 +80,37 @@
         (env/with-compiler-env compiler-env
           (mark-known-dependants-for-recompile! build-options rel-files))))))
 
+(defn default-config [{:keys [reload-clj-files] :as figwheel-server}]
+  (cond
+    (false? reload-clj-files) false
+    (or (true? reload-clj-files)
+          (not (map? reload-clj-files))) 
+    {:cljc true :clj true}
+    :else reload-clj-files))
+
+(defn suffix-conditional [config]
+  #(reduce-kv
+    (fn [accum k v]
+      (or accum
+          (and v
+               (.endsWith % (str "." (name k))))))
+    false
+    config))
+
 (defn build-hook [build-fn]
   ;; TODO figwheel-server :reload-clj and :reload-cljc config flags
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
-    (if-let [changed-clj-files (filter #(.endsWith % ".clj") changed-files)]
-      (let [additional-changed-ns' (handle-clj-source-reloading build-config changed-clj-files)]
-        (build-fn (update-in
-                   build-state
-                   [:additional-changed-ns]
-                   concat
-                   additional-changed-ns')))
-      (build-fn build-state))))
+    (let [reload-config (default-config figwheel-server)]
+      (if-let [changed-clj-files (and
+                                  reload-config
+                                  (not-empty
+                                   (filter (suffix-conditional reload-config)
+                                           changed-files)))]
+        (let [additional-changed-ns' (handle-clj-source-reloading build-config changed-clj-files)]
+          (build-fn (update-in
+                     build-state
+                     [:additional-changed-ns]
+                     concat
+                     additional-changed-ns')))
+        (build-fn build-state)))))
 
