@@ -67,12 +67,14 @@
                              (when f
                                (let [f (io/file f)]
                                  (annotate-macro-file
-                                  {:source-file f
-                                   :source-dir (.getParentFile f)}))))
+                                  {:source-file f}))))
                            changed-clj-files)
         files-to-reload (get-files-to-reload build-options changed-clj-files)]
     (when (not-empty changed-clj-files)
       (doseq [clj-file files-to-reload]
+        ;; this could be a problem if the file isn't in the require
+        ;; chain
+        ;; it will be loaded anyway
         (load-file (.getCanonicalPath (:source-file clj-file))))
       (let [rel-files (relevant-macro-files
                        (fn [] (map annotate-macro-file (clj-files-in-dirs source-paths)))
