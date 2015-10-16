@@ -313,7 +313,7 @@
     (print "Launching ClojureScript REPL")
     (when-let [id (:id build)] (println " for build:" id))
     (println (frepl/repl-function-docs))
-    (println "Prompt will show when figwheel connects to your application")
+    (println "Prompt will show when Figwheel connects to your application")
     (frepl/repl
      build
      figwheel-server

@@ -11,8 +11,9 @@
                          (try
                            (thunk)
                            (catch Exception e
+                             ;; TODO better execption reporting
                              (println (.message e))))
-                           v)))
+                         v)))
 
 (defn clean-cljs-build* [{:keys [output-to output-dir]}]
   (when (and output-to output-dir)
