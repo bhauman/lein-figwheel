@@ -254,8 +254,12 @@
      system ids
      (fn [system]
        (repl-println "Figwheel: Reloading build config information")
-       (assoc (doall (reduce clean-build system ids))
-        :builds (get-project-builds))))))
+       (if-let [new-builds (not-empty (get-project-builds))]
+         (assoc (doall (reduce clean-build system ids))
+                :builds new-builds)
+         (do
+           (repl-println "No reload config found in project.clj")
+           system))))))
 
 ;; doesn't alter the system
 (defn fig-status [system]
