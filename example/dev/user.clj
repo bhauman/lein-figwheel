@@ -8,6 +8,7 @@
 (def temp-config
   {:figwheel-options {:css-dirs ["resources/public/css"]
                                         ; :nrepl-port 7888
+                      :cljs-build-fn "figwheel-sidecar.components.cljs-autobuild/figwheel-build-without-clj-reloading"
                       }
    :build-ids  ["example"]
    :all-builds (fs/get-project-builds)})

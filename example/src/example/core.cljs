@@ -23,7 +23,7 @@
    [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
 
-(prn (testmac "hey"))
+(prn (testmac "hey there"))
 
 (prn (tabby/hello))
 (prn (tweaky/hello))
@@ -32,14 +32,16 @@
 
 (prn (example.sss/adder 1 2))
 
-
 (prn (js/wowza.hello))
 
 #_(prn example.tester)
 
+
 #_(fw/start)
 
 (prn (example.fun-tester/hello))
+
+
 
 (enable-dev-blocks!)
 (enable-console-print!)

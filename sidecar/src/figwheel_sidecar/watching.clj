@@ -72,9 +72,17 @@
                  (some #(= (.getCanonicalPath %) file-path) acceptable-paths))))]
       (doseq [path paths]
         (watch-all path))
+
+      ;; it may be better to share one watch service
+      (add-watch quit :close-watch
+                 (fn [_ _ _ v]
+                   (when v
+                     (Thread/sleep 500)
+                     (.close srvc))))
+
       ;; I'm using go loop so it doesn't block.
       ;; too much complexity
-      ;; TODO should probably use a future for sure
+      ;; TODO should probably use a future for sure      
       (go-loop [key nil]
         (when (and (or (nil? quit) (not @quit))
                    (or (nil? key) (. ^WatchKey key reset)))
@@ -98,5 +106,6 @@
                                  (seq (.pollEvents key)))))]
                 (when-not (empty? files)
                   (callback files))))
-            (recur key)))))
+            (recur key)))
+        ))
     quit))
