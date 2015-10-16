@@ -4,9 +4,15 @@
    [cljs.analyzer :as ana]
    [clojure.string :as string]))
 
-(let [sync-agent (agent {})]
-  (defn sync-exec [thunk]
-    (send-off sync-agent (fn [v] (thunk) v))))
+(def sync-agent (agent {}))
+
+(defn sync-exec [thunk]
+  (send-off sync-agent (fn [v]
+                         (try
+                           (thunk)
+                           (catch Exception e
+                             (println (.message e))))
+                           v)))
 
 (defn clean-cljs-build* [{:keys [output-to output-dir]}]
   (when (and output-to output-dir)
