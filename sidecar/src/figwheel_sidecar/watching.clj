@@ -1,18 +1,8 @@
 (ns figwheel-sidecar.watching
   (:require
    [clojure.java.io :as io]
-   [clojure.core.async :refer [go-loop]])
-  (:import
-   [java.nio.file Path Paths Files StandardWatchEventKinds WatchKey
-    WatchEvent FileVisitor FileVisitResult]
-   [com.sun.nio.file SensitivityWatchEventModifier]
-   [java.util.concurrent TimeUnit]))
-
-;; general watcher that can watch individual files
-;; this is derived from the clojurescript watcher
-
-;; would be nice to have this throttled so it would collect changes
-;; perhaps waiting for the callback to finish
+   [clojure.core.async :refer [go-loop chan <! put! alts! timeout close!]]
+   [hawk.core :as hawk]))
 
 (defn single-files [files]
   (reduce (fn [acc f]
@@ -29,83 +19,74 @@
 (defn is-subdirectory [dir child]
   (.startsWith child (str dir java.io.File/separator)))
 
+;;; we are going to have to throttle this
+
+(defn take-until-timeout [in]
+  (let [time-out (timeout 50)]
+    (go-loop [collect []]
+      (when-let [[v ch] (alts! [in time-out])]
+        (if (= ch time-out)
+          collect
+          (recur (conj collect v)))))))
+
 (defn watcher [source-paths callback]
-  (let [;; setting up handling for watching individual files
+  (let [quit (atom false)
+        throttle-chan (chan)
+        
         {:keys [files dirs]} (files-and-dirs source-paths)
         individual-file-map   (single-files files)
         canonical-source-dirs (set (map #(.getCanonicalPath %) dirs))
-        ;; only watch dirs
-        paths (map #(Paths/get (.toURI %)) (concat dirs (map io/file (keys individual-file-map))))
-        path (first paths)
-        fs   (.getFileSystem path)
-        srvc (.newWatchService fs)
-        quit (atom false)
-        millis TimeUnit/MILLISECONDS]
-    (letfn [(watch-all [root]
-              (Files/walkFileTree root
-                                  (reify
-                                    FileVisitor
-                                    (preVisitDirectory [_ dir _]
-                                      (let [^Path dir dir]
-                                        (. dir
-                                           (register srvc
-                                                     (into-array [StandardWatchEventKinds/ENTRY_CREATE
-                                                                  StandardWatchEventKinds/ENTRY_DELETE
-                                                                  StandardWatchEventKinds/ENTRY_MODIFY])
-                                                     (into-array [SensitivityWatchEventModifier/HIGH]))))
-                                      FileVisitResult/CONTINUE)
-                                    (postVisitDirectory [_ dir exc]
-                                      FileVisitResult/CONTINUE)
-                                    (visitFile [_ file attrs]
-                                      FileVisitResult/CONTINUE)
-                                    (visitFileFailed [_ file exc]
-                                      FileVisitResult/CONTINUE))))
-            (valid-file? [dir-path file-path]
-              (or
-               ;; just skip this if
-               ;; there are no individual-files
-               (empty? individual-file-map)
-               ;; if file is on a path that is already being watched we are cool
-               (some #(is-subdirectory % file-path) canonical-source-dirs)
-               ;; if not we need to see if its an individually watched file
-               (when-let [acceptable-paths (get individual-file-map (str dir-path))]
-                 (some #(= (.getCanonicalPath %) file-path) acceptable-paths))))]
-      (doseq [path paths]
-        (watch-all path))
 
-      ;; it may be better to share one watch service
-      (add-watch quit :close-watch
-                 (fn [_ _ _ v]
-                   (when v
-                     (Thread/sleep 500)
-                     (.close srvc))))
+        source-paths (concat (map str dirs)
+                             (distinct (map #(.getParent %) files)))
+        
+        valid-file?   (fn [file]
+                        (and file
+                             (.isFile file)
+                             (let [file-path (.getCanonicalPath file)
+                                   n (.getName file)]
+                               (and
+                                (not= \. (first n))
+                                (not= \# (first n))
+                                (or
+                                 ;; just skip this if
+                                 ;; there are no individual-files
+                                 (empty? individual-file-map)
+                                 ;; if file is on a path that is already being watched we are cool
+                                 (some #(is-subdirectory % file-path) canonical-source-dirs)
+                                 ;; if not we need to see if its an individually watched file
+                                 (when-let [acceptable-paths
+                                            (get individual-file-map
+                                                 (.getCanonicalPath (.getParentFile file)))]
+                                   (some #(= (.getCanonicalPath %) file-path) acceptable-paths)))))))
+        
+        watcher (hawk/watch!
+                 [{:paths source-paths
+                   :filter hawk/file?
+                   :handler (fn [ctx e]
+                              (put! throttle-chan e))}])]
+    
+    (go-loop []
+      (when-let [v (<! throttle-chan)]
+        (let [files (<! (take-until-timeout throttle-chan))]
+          (callback (filter valid-file? (map :file (cons v files)))))
+        (recur)))
+    
+    (add-watch quit :close-watch
+               (fn [_ _ _ v]
+                 (when v
+                   (prn "stopping"))
+                   (close! throttle-chan)
+                   (hawk/stop! watcher)))
+    {:watcher watcher
+     :throttle-chan throttle-chan}))
 
-      ;; I'm using go loop so it doesn't block.
-      ;; too much complexity
-      ;; TODO should probably use a future for sure      
-      (go-loop [key nil]
-        (when (and (or (nil? quit) (not @quit))
-                   (or (nil? key) (. ^WatchKey key reset)))
-          (let [key     (. srvc (poll 300 millis))]
-            (when key
-              (let [files (map :file-path
-                               (filter
-                                (fn [{:keys [dir-path file-path]}]
-                                  (let [f (io/file file-path)
-                                        n (.getName f)]
-                                    (and (.exists f)
-                                         (not (.isDirectory f))
-                                         (not= \. (first n))
-                                         (not= \# (first n))
-                                         (valid-file? dir-path file-path))))
-                                (mapv
-                                 (fn [^WatchEvent e]
-                                   {:dir-path (.watchable key)
-                                    :file-path (str (.watchable key)
-                                                    java.io.File/separator  (.. e context))})
-                                 (seq (.pollEvents key)))))]
-                (when-not (empty? files)
-                  (callback files))))
-            (recur key)))
-        ))
-    quit))
+(defn stop! [{:keys [throttle-chan watcher]}]
+  (hawk/stop! watcher)
+  (Thread/sleep 200)
+  (close! throttle-chan))
+
+#_(def ww (hawk-watcher ["src" "foreign/wowza.js"
+                "libs_sscr/tweaky.js"] (fn [files] (prn files))))
+
+#_(reset! ww true)

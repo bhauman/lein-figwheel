@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
    [figwheel-sidecar.core :as fig]
-   [figwheel-sidecar.watching :refer [watcher]]
+   [figwheel-sidecar.watching :as watching :refer [watcher]]
    [figwheel-sidecar.utils :as utils]
 
       ;; build hooks
@@ -92,7 +92,7 @@
 (defn build-handler [{:keys [figwheel-server build-config] :as watcher}
                      cljs-build-fn
                      files]
-  (cljs-build-fn (assoc watcher :changed-files files)))
+  (cljs-build-fn (assoc watcher :changed-files (map str files))))
 
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
@@ -130,7 +130,7 @@
     (when (:file-watcher this)
       (println "Figwheel: Stopped watching build -" (:id build-config))
       (flush)
-      (reset! (:file-watcher this) true))
+      (watching/stop! (:file-watcher this)))
     (dissoc this :file-watcher)))
 
 (defn cljs-autobuild [build-config]

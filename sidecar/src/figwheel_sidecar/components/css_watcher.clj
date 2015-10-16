@@ -1,26 +1,23 @@
 (ns figwheel-sidecar.components.css-watcher
   (:require
    [figwheel-sidecar.core :as fig]
-   [figwheel-sidecar.watching :refer [watcher]]
+   [figwheel-sidecar.watching :as watching :refer [watcher]]
    [figwheel-sidecar.utils :as utils]
    [com.stuartsierra.component :as component]
    [clojure.java.io :as io]))
 
-(defn make-css-file [state path]
+(defn make-css-file [path]
   { :file (utils/remove-root-path path)
     :type :css } )
 
 (defn send-css-files [st files]
   (fig/send-message! st :css-files-changed { :files files}))
 
-(defn notify-css-file-changes [st files]
-  (send-css-files st (map #(make-css-file st %) files)))
-
 (defn handle-css-notification [figwheel-server files]
-  (let [changed-css-files (filter #(.endsWith % ".css") files)]
-    (when (not-empty changed-css-files)
-      (notify-css-file-changes figwheel-server changed-css-files)
-      (doseq [f files]
+  (when-let [changed-css-files (not-empty (filter #(.endsWith % ".css") (map str files)))]
+    (let [sendable-files (map #(make-css-file %) changed-css-files)]
+      (send-css-files figwheel-server sendable-files)
+      (doseq [f sendable-files]
         (println "sending changed CSS file:" (:file f))))))
 
 (defrecord CSSWatcher [css-dirs figwheel-server log-writer]
@@ -50,7 +47,7 @@
   (stop [this]
         (when (:css-watcher-quit this)
           (println "Figwheel: Stopped watching CSS")
-          (reset! (:css-watcher-quit this) true))
+          (watching/stop! (:css-watcher-quit this)))
     (dissoc this :css-watcher-quit)))
 
 (defn css-watcher [css-dirs]

@@ -16,6 +16,7 @@
    [ring-cors "0.1.7"]
    [compojure "1.3.4"]
    [clj-stacktrace "0.2.8"]
+   [digest "1.4.4"]
    [figwheel "0.5.0-SNAPSHOT"]
-   [digest "1.4.4"]])
+   [hawk "0.2.5"]])
 
