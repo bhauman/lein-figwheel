@@ -10,6 +10,7 @@
    [cljs-time.core]
    [cljs.core.async :refer [<!]]
    [example.sss]
+   
    ;; reload js oh yeah
    [example.fun-tester]
    [tabby]
@@ -17,9 +18,12 @@
    [wowzacore])
   
   (:require-macros
+   [example.macros :refer [testmac]]
    [cljs.core.async.macros :refer [go]]
    [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
+
+(prn (testmac "hey"))
 
 (prn (tabby/hello))
 (prn (tweaky/hello))
