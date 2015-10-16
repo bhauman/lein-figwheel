@@ -1,4 +1,4 @@
-(defproject figwheel-sidecar "0.4.2-SNAPSHOT"
+(defproject figwheel-sidecar "0.5.0-SNAPSHOT"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -15,6 +15,6 @@
    [ring-cors "0.1.7"]
    [compojure "1.3.4"]
    [clj-stacktrace "0.2.8"]
-   [figwheel "0.4.2-SNAPSHOT"]
+   [figwheel "0.5.0-SNAPSHOT"]
    [digest "1.4.4"]])
 
