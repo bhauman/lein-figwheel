@@ -100,7 +100,13 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
-             ;; Start an nREPL server into the running fighweel process
+
+            ;; :reload-clj-files {:clj true :cljc true}
+             
+             ;; Start an nREPL server into the running fighweel
+             ;; process
+
+             
              :nrepl-port 7888
 
              :nrepl-middleware ["cider.nrepl/cider-middleware"

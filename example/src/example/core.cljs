@@ -28,6 +28,11 @@
 (prn (tabby/hello))
 (prn (tweaky/hello))
 
+(prn (example.sss/add ))
+
+(prn (example.sss/adder 1 2))
+
+
 (prn (js/wowza.hello))
 
 #_(prn example.tester)

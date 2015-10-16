@@ -3,10 +3,11 @@
      (:require-macros
       [example.sss :refer [adder]])))
 
-(defn add [] (+ 1 2))
+(defn add [] (+ 1 1))
+
 
 #?(
 :clj
 (defmacro adder [a b]
-  `(+ ~a ~b 20))
+  `(+ ~a ~b 20 60))
 )
