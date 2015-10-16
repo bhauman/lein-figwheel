@@ -68,6 +68,20 @@
       javascript-reloading/build-hook
       figwheel-start-and-end-messages))
 
+(def figwheel-build-without-javascript-reloading
+  (-> cljs-build
+      injection/build-hook
+      notifications/build-hook
+      clj-reloading/build-hook
+      figwheel-start-and-end-messages))
+
+(def figwheel-build-without-clj-reloading
+  (-> cljs-build
+      injection/build-hook
+      notifications/build-hook
+      javascript-reloading/build-hook
+      figwheel-start-and-end-messages))
+
 (defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
   (let [{:keys [libs foreign-libs]} build-options]
     (concat
@@ -75,12 +89,12 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
-(defn build-handler [{:keys [figwheel-server build-config cljs-build-fn] :as watcher}
+(defn build-handler [{:keys [figwheel-server build-config] :as watcher}
+                     cljs-build-fn
                      files]
-  ((or cljs-build-fn figwheel-build)
-   (assoc watcher :changed-files files)))
+  (cljs-build-fn (assoc watcher :changed-files files)))
 
-(defrecord CLJSAutobuild [build-config figwheel-server log-writer]
+(defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
   (start [this]
     (if-not (:file-watcher this)
@@ -96,7 +110,12 @@
         ((-> cljs-build
              injection/build-hook
              figwheel-start-and-end-messages) this)
-        (let [log-writer (or log-writer (io/writer "figwheel_server.log" :append true))]
+        (let [log-writer (or (:log-writer this)
+                             (:log-writer figwheel-server)
+                             (io/writer "figwheel_server.log" :append true))
+              cljs-build-fn (or (:cljs-build-fn this)
+                                (:cljs-build-fn figwheel-server)
+                                figwheel-build)]
           (assoc this
                  :file-watcher
                  (watcher (source-paths-that-affect-build build-config)
@@ -105,7 +124,7 @@
                              (fn []
                                (binding [*out* log-writer
                                          *err* log-writer]
-                                 (#'build-handler this files)))))))))
+                                 (#'build-handler this cljs-build-fn files)))))))))
       this))
   (stop [this]
     (when (:file-watcher this)

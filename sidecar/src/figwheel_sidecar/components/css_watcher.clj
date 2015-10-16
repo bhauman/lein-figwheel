@@ -29,7 +29,9 @@
          (if (not (:css-watcher-quit this))
            (do
              (if (not-empty (:css-dirs this))
-               (let [log-writer (or log-writer (io/writer "figwheel_server.log" :append true))]
+               (let [log-writer (or log-writer
+                                    (:log-writer figwheel-server)
+                                    (io/writer "figwheel_server.log" :append true))]
                  (println "Figwheel: Starting CSS watcher for dirs " (pr-str (:css-dirs this)))
                  (assoc this :css-watcher-quit
                         (watcher (:css-dirs this)

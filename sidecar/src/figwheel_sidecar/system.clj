@@ -48,47 +48,32 @@
 
 (declare build-config->key)
 
-(defn get-cljs-build-fn [{:keys [cljs-build-fn]}]
-  (when cljs-build-fn
-    (if (fn? cljs-build-fn)
-      cljs-build-fn
-      (utils/require-resolve-handler cljs-build-fn))))
 
 ;; TODO still wrangling config in a peicemeal fashion
 ;; better to make this explicit
 
 (defn create-figwheel-system* [{:keys [figwheel-options all-builds build-ids]}]
-  (let [logfile-path    (or (:server-logfile figwheel-options) "figwheel_server.log")
-        log-writer      (if (false? (:repl figwheel-options))
-                          *out*
-                          (io/writer logfile-path :append true))
-        builds-to-start (config/narrow-builds* all-builds build-ids)
-        cljs-build-fn   (or (get-cljs-build-fn figwheel-options)
-                            autobuild/figwheel-build)
-
-        ;; all builds needs to be an array map 
-        all-builds      (into (array-map)
-                              (map (juxt :id identity)
-                                   (if (map? all-builds) (vals all-builds) all-builds)))]
+  (let [builds-to-start (config/narrow-builds* all-builds build-ids)]
     (apply
      component/system-map
      (concat
-      [:builds all-builds ;; this needs to be an array map
-       :cljs-build-fn cljs-build-fn
-       :log-writer log-writer
+      [;; :builds needs to be here for the system control functions
+       ;; this needs to be an array map
+       :builds all-builds 
        :figwheel-server (figwheel-server figwheel-options)]
+      ;; add in all of the starting autobuilds
       (mapcat (fn [build-config]
                 [(build-config->key build-config)
                  (component/using
                   (cljs-autobuild build-config)
-                  [:figwheel-server :log-writer :cljs-build-fn])])
+                  [:figwheel-server])])
               builds-to-start)
       (when-let [css-dirs (:css-dirs figwheel-options)]
         ;; TODO ensure directories exist
         [:css-watcher
          (component/using
           (css-watcher css-dirs)
-          [:figwheel-server :log-writer])])
+          [:figwheel-server])])
       (when (:nrepl-port figwheel-options)
         [:nrepl-server
          (nrepl-server-component
@@ -96,10 +81,34 @@
                                          :nrepl-host
                                          :nrepl-middleware]))])))))
 
+;; doing final config
+
+(defn log-writer [figwheel-options]
+  (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")]
+    (if (false? (:repl figwheel-options))
+      *out*
+      (io/writer logfile-path :append true))))
+
+(defn cljs-build-fn [{:keys [cljs-build-fn]}]
+  (or (utils/require-resolve-handler cljs-build-fn)
+      autobuild/figwheel-build))
+
+#_(cljs-build-fn {:cljs-build-fn "figwheel-sidecar.components.cljs-autobuild"})
+
+(defn ensure-array-map [all-builds]
+  (into (array-map)
+        (map (juxt :id identity)
+             (if (map? all-builds) (vals all-builds) all-builds))))
+
 (defn prep-all-options [{:keys [figwheel-options all-builds build-ids]}]
-  {:figwheel-options (config/prep-options figwheel-options)
-   :all-builds (map add-compiler-env (config/prep-builds all-builds))
-   :build-ids (map name build-ids)})
+  (let [prepped-fig-options (config/prep-options figwheel-options)
+        figwheel-opts (assoc prepped-fig-options
+                             :log-writer    (log-writer prepped-fig-options)
+                             :cljs-build-fn (cljs-build-fn prepped-fig-options))
+        all-builds (map add-compiler-env (config/prep-builds all-builds))]
+    {:figwheel-options figwheel-opts
+     :all-builds (ensure-array-map all-builds)
+     :build-ids (map name build-ids)}))
 
 (defn create-figwheel-system [options]
   (create-figwheel-system* (prep-all-options options)))
@@ -165,7 +174,7 @@
     (assoc system (id->key build-id)
            (component/using
             (cljs-autobuild build-config)
-            [:figwheel-server :log-writer :cljs-build-fn]))
+            [:figwheel-server]))
     system))
 
 (defn patch-system-builds [system ids]
