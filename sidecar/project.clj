@@ -11,6 +11,7 @@
    [org.clojure/clojurescript "1.7.122"
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+   [com.stuartsierra/component "0.3.0"]
    [http-kit "2.1.18"]
    [ring-cors "0.1.7"]
    [compojure "1.3.4"]
