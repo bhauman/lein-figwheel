@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.injection
+(ns figwheel-sidecar.build-hooks.injection
   (:require
    [figwheel-sidecar.config :as config]
    [clojure.java.io :as io]

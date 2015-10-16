@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.javascript-reloading
+(ns figwheel-sidecar.build-hooks.javascript-reloading
   (:require
    [clojure.java.io :as io]
    [cljs.build.api :as bapi]

@@ -1,6 +1,7 @@
-(ns figwheel-sidecar.clj-reloading
+(ns figwheel-sidecar.build-hooks.clj-reloading
   (:require
    [figwheel-sidecar.core :as fig]
+   [figwheel-sidecar.utils :as utils]
    [cljs.build.api :as bapi]
    [cljs.env :as env]
    [clojure.java.io :as io]))
@@ -13,7 +14,7 @@
 
 ;; TODO we should use tools.analyzer
 (defn get-clj-ns [x]
-  (-> x :source-file fig/get-ns-from-source-file-path))
+  (-> x :source-file utils/get-ns-from-source-file-path))
 
 (defn get-clj-namespaces [file-resources]
   (map get-clj-ns file-resources))
