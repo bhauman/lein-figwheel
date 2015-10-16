@@ -22,8 +22,12 @@
     (if (fn? handler)
       handler
       (let [h (symbol handler)]
-        (when (require? (symbol (namespace h)))
-          (resolve h))))))
+        (when-let [ns (namespace h)]
+          (when (require? (symbol ns))
+            (when-let [handler-var (resolve h)]
+              @handler-var)))))))
+
+#_(require-resolve-handler figwheel-sidecar.components.cljs-autobuild/figwheel-build)
 
 ;; TODO should use tools.analyzer
 (defn get-ns-from-source-file-path
