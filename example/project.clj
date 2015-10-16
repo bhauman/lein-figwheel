@@ -88,7 +88,6 @@
                                      }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [com.stuartsierra/component "0.3.0"]
                                     [figwheel-sidecar "0.5.0-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     #_[org.clojure/tools.nrepl "0.2.10"]]
