@@ -12,7 +12,7 @@
       this))
   (stop [this]
     (when (:http-server this)
-      (println "Figwheel: Stopping Server")
+      (println "Figwheel: Stopping WebSocket Server")
       (fig/stop-server this))
     (dissoc this :http-server)))
 
