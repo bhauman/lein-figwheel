@@ -30,7 +30,7 @@
           collect
           (recur (conj collect v)))))))
 
-(defn watcher [source-paths callback]
+(defn watch! [source-paths callback]
   (let [quit (atom false)
         throttle-chan (chan)
         

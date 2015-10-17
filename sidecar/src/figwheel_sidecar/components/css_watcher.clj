@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.components.css-watcher
   (:require
    [figwheel-sidecar.core :as fig]
-   [figwheel-sidecar.watching :as watching :refer [watcher]]
+   [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
    [com.stuartsierra.component :as component]
    [clojure.java.io :as io]))
@@ -31,7 +31,7 @@
                                     (io/writer "figwheel_server.log" :append true))]
                  (println "Figwheel: Starting CSS watcher for dirs " (pr-str (:css-dirs this)))
                  (assoc this :css-watcher-quit
-                        (watcher (:css-dirs this)
+                        (watching/watch! (:css-dirs this)
                                  (fn [files]
                                    (utils/sync-exec
                                     (fn []

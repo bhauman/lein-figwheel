@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
    [figwheel-sidecar.core :as fig]
-   [figwheel-sidecar.watching :as watching :refer [watcher]]
+   [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
       ;; build hooks
@@ -118,7 +118,7 @@
                                 figwheel-build)]
           (assoc this
                  :file-watcher
-                 (watcher (source-paths-that-affect-build build-config)
+                 (watching/watch! (source-paths-that-affect-build build-config)
                           (fn [files]
                             (utils/sync-exec
                              (fn []
