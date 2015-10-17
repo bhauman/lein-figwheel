@@ -20,6 +20,7 @@
   (.startsWith child (str dir java.io.File/separator)))
 
 ;;; we are going to have to throttle this
+;; so that we can catch more than one file at a time
 
 (defn take-until-timeout [in]
   (let [time-out (timeout 50)]
@@ -37,8 +38,9 @@
         individual-file-map   (single-files files)
         canonical-source-dirs (set (map #(.getCanonicalPath %) dirs))
 
-        source-paths (concat (map str dirs)
-                             (distinct (map #(.getParent %) files)))
+        source-paths (distinct
+                      (concat (map str dirs)
+                              (map #(.getParent %) files)))
         
         valid-file?   (fn [file]
                         (and file
@@ -69,15 +71,10 @@
     (go-loop []
       (when-let [v (<! throttle-chan)]
         (let [files (<! (take-until-timeout throttle-chan))]
-          (callback (filter valid-file? (map :file (cons v files)))))
+          (when-let [result-files (not-empty (filter valid-file? (map :file (cons v files))))]
+            (callback result-files)))
         (recur)))
     
-    (add-watch quit :close-watch
-               (fn [_ _ _ v]
-                 (when v
-                   (prn "stopping"))
-                   (close! throttle-chan)
-                   (hawk/stop! watcher)))
     {:watcher watcher
      :throttle-chan throttle-chan}))
 
