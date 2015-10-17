@@ -1,8 +1,9 @@
 (ns user
   (:require
    [figwheel-sidecar.system :as fs]
-   [com.stuartsierra.component :as component]
    [figwheel-sidecar.repl-api :as f]
+   
+   [com.stuartsierra.component :as component]
    [clojure.tools.namespace.repl :refer (refresh refresh-all)]))
 
 (def temp-config
