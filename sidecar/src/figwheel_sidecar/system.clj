@@ -19,20 +19,13 @@
    [clojure.set :refer [difference union]]
    [clojure.string :as string]))
 
-(defn add-compiler-env [build]
-  (let [build-options (or (:build-options build)
-                          (:compiler build))]
-    (assoc build
-           :build-options build-options
-           :compiler-env (cljs.env/default-compiler-env build-options))))
-
 ;; TODO does this belong here?
 (defn get-project-builds []
   (into (array-map)
         (map
          (fn [x]
            [(:id x)
-            (add-compiler-env x)])
+            (utils/add-compiler-env x)])
          (frepl/get-project-cljs-builds))))
 
 ;; TODO
@@ -41,77 +34,55 @@
   ;; secondary
 
   make sure the prep-builds is idempotent
-  
+   
   figwheel-server level :reload-clj and :reload-cljc config flags
   
   example html reload)
 
 (declare build-config->key)
 
+(defn add-builds [system build-configs]
+  (reduce
+   (fn [sys build-config]
+     (assoc sys
+            (build-config->key build-config)
+            (component/using
+             (cljs-autobuild build-config)
+             [:figwheel-server])))
+   system
+   build-configs))
 
-;; TODO still wrangling config in a peicemeal fashion
-;; better to make this explicit
+(defn get-builds-to-start [figwheel-server build-ids]
+  (config/narrow-builds* (:builds figwheel-server) build-ids))
 
-(defn create-figwheel-system* [{:keys [figwheel-options all-builds build-ids]}]
-  (let [builds-to-start (config/narrow-builds* all-builds build-ids)]
-    (apply
-     component/system-map
-     (concat
-      [;; :builds needs to be here for the system control functions
-       ;; this needs to be an array map
-       :builds all-builds 
-       :figwheel-server (figwheel-server figwheel-options)]
-      ;; add in all of the starting autobuilds
-      (mapcat (fn [build-config]
-                [(build-config->key build-config)
-                 (component/using
-                  (cljs-autobuild build-config)
-                  [:figwheel-server])])
-              builds-to-start)
-      (when-let [css-dirs (:css-dirs figwheel-options)]
-        ;; TODO ensure directories exist
-        [:css-watcher
-         (component/using
-          (css-watcher css-dirs)
-          [:figwheel-server])])
-      (when (:nrepl-port figwheel-options)
-        [:nrepl-server
-         (nrepl-server-component
-          (select-keys figwheel-options [:nrepl-port
-                                         :nrepl-host
-                                         :nrepl-middleware]))])))))
+(defn add-initial-builds [{:keys [figwheel-server] :as system} build-ids]
+  (let [builds-to-start (get-builds-to-start figwheel-server build-ids)]
+    (add-builds system builds-to-start)))
 
-;; doing final config
+(defn add-css-watcher [system css-dirs]
+  (if (not-empty css-dirs)
+    (assoc system
+           :css-watcher
+           (component/using
+            (css-watcher css-dirs)
+            [:figwheel-server]))
+    system))
 
-(defn log-writer [figwheel-options]
-  (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")]
-    (if (false? (:repl figwheel-options))
-      *out*
-      (io/writer logfile-path :append true))))
+(defn add-nrepl-server [system {:keys [nrepl-port] :as options}]
+  (if nrepl-port
+    (assoc system
+           :nrepl-server
+           (nrepl-server-component options))
+    system))
 
-(defn cljs-build-fn [{:keys [cljs-build-fn]}]
-  (or (utils/require-resolve-handler cljs-build-fn)
-      autobuild/figwheel-build))
-
-#_(cljs-build-fn {:cljs-build-fn "figwheel-sidecar.components.cljs-autobuild"})
-
-(defn ensure-array-map [all-builds]
-  (into (array-map)
-        (map (juxt :id identity)
-             (if (map? all-builds) (vals all-builds) all-builds))))
-
-(defn prep-all-options [{:keys [figwheel-options all-builds build-ids]}]
-  (let [prepped-fig-options (config/prep-options figwheel-options)
-        figwheel-opts (assoc prepped-fig-options
-                             :log-writer    (log-writer prepped-fig-options)
-                             :cljs-build-fn (cljs-build-fn prepped-fig-options))
-        all-builds (map add-compiler-env (config/prep-builds all-builds))]
-    {:figwheel-options figwheel-opts
-     :all-builds (ensure-array-map all-builds)
-     :build-ids (map name build-ids)}))
-
-(defn create-figwheel-system [options]
-  (create-figwheel-system* (prep-all-options options)))
+(defn create-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
+  (-> (component/system-map
+       :figwheel-server (figwheel-server figwheel-options all-builds))
+      (add-initial-builds (map name build-ids))
+      (add-css-watcher  (:css-dirs figwheel-options))
+      (add-nrepl-server (select-keys figwheel-options [:nrepl-port
+                                                       :nrepl-host
+                                                       :nrepl-middleware]))))
 
 ;; figwheel system
 
@@ -123,6 +94,9 @@
     (string/join "-")))
 
 (def build-config->key (comp id->key :id))
+
+(defn id->build-config [system id]
+  (get-in system [:figwheel-server :builds (name id)]))
 
 (defn build-key? [k]
   (.startsWith (name k) "autobuild-"))
@@ -170,7 +144,7 @@
     (reduce dissoc system build-keys)))
 
 (defn add-autobuilder [system build-id]
-  (if-let [build-config (get (:builds system) build-id)]
+  (if-let [build-config (id->build-config system build-id)]
     (assoc system (id->key build-id)
            (component/using
             (cljs-autobuild build-config)
@@ -210,11 +184,11 @@
     (switch-to-build system total-ids)))
 
 (defn clear-compiler-env-for-build-id [system build-id]
-  (update-in system [:builds build-id] add-compiler-env))
+  (update-in system [:figwheel-server :builds build-id] utils/add-compiler-env))
 
 (defn clean-build [system id]
   (if-let [build-options 
-           (get-in system [:builds (name id) :build-options])]
+           (get-in system [:figwheel-server :builds (name id) :build-options])]
     (do
       (repl-println "Figwheel: Cleaning build -" id)
       (utils/clean-cljs-build* build-options)
@@ -231,10 +205,16 @@
 
 ;; doesn't change the system
 (defn build-once* [system id]
-  (when-let [build-config (get (:builds system) (name id))]
+  (when-let [build-config
+             (id->build-config system (name id))
+             #_(get (:builds system) (name id))]
     (do
       (repl-println "Figwheel: Building once -" (name id))
-      ((:cljs-build-fn system)
+      ;; we are allwing build to be overridden at the system level
+      ((or
+        (:cljs-build-fn system)
+        (get-in system [:figwheel-server :cljs-build-fn])
+        autobuild/figwheel-build)
        (assoc system :build-config build-config)))
     system))
 
@@ -255,8 +235,9 @@
      (fn [system]
        (repl-println "Figwheel: Reloading build config information")
        (if-let [new-builds (not-empty (get-project-builds))]
-         (assoc (doall (reduce clean-build system ids))
-                :builds new-builds)
+         (assoc-in (doall (reduce clean-build system ids))
+                   [:figwheel-server :builds]
+                   new-builds)
          (do
            (repl-println "No reload config found in project.clj")
            system))))))

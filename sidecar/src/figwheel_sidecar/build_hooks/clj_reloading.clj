@@ -1,6 +1,5 @@
 (ns figwheel-sidecar.build-hooks.clj-reloading
   (:require
-   [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.utils :as utils]
    [cljs.build.api :as bapi]
    [cljs.env :as env]

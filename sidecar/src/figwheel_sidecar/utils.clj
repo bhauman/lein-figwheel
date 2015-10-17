@@ -2,6 +2,7 @@
   (:require
    [clojure.java.io :as io]
    [cljs.analyzer :as ana]
+   [cljs.env]
    [clojure.string :as string]))
 
 (def sync-agent (agent {}))
@@ -60,3 +61,10 @@
     "relativize to the local root just in case we have an absolute path"
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
+
+(defn add-compiler-env [build]
+  (let [build-options (or (:build-options build)
+                          (:compiler build))]
+    (assoc build
+           :build-options build-options
+           :compiler-env (cljs.env/default-compiler-env build-options))))

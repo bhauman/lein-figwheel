@@ -9,7 +9,8 @@
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
 
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
-   [figwheel-sidecar.core :as fig]
+   [figwheel-sidecar.components.figwheel-server :as server]
+   
    [figwheel-sidecar.config :as config]))
 
 ;; slow but works
@@ -29,7 +30,7 @@
                    (go
                      (<! (timeout 2000))
                      (close! out)))]
-    (fig/send-message! figwheel-server :repl-eval {:code js :callback callback})
+    (server/send-message! figwheel-server :repl-eval {:code js :callback callback})
     (let [[v ch] (alts!! [out (timeout 8000)])]
       (if (= ch out)
         v

@@ -1,6 +1,5 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
-   [figwheel-sidecar.core :as fig]
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
@@ -14,7 +13,6 @@
    [cljs.closure]
    [cljs.build.api :as bapi]
    [clojure.java.io :as io]))
-
 
 (defrecord CompilableSourcePaths [paths]
   cljs.closure/Compilable

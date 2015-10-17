@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.build-hooks.notifications
   (:require
-   [figwheel-sidecar.core :as fig]
+   [figwheel-sidecar.components.figwheel-server :as server]
    [figwheel-sidecar.utils :as utils]   
 
    [cljs.env :as env]
@@ -35,7 +35,7 @@
    Also reports this event to the console."
   [st files]
   (when (not-empty files)
-    (fig/send-message! st :files-changed {:files files
+    (server/send-message! st :files-changed {:files files
                                           :recompile-dependents (:recompile-dependents st)
                                           :figwheel-meta (find-figwheel-meta)})
     (doseq [f files]
@@ -101,7 +101,7 @@
         formatted-exception (let [out (java.io.ByteArrayOutputStream.)]
                               (pst-on (io/writer out) false exception)
                               (.toString out))]
-    (fig/send-message! st :compile-failed
+    (server/send-message! st :compile-failed
                        { :exception-data parsed-exception
                          :formatted-exception formatted-exception
                          :cause cause })))
@@ -113,7 +113,7 @@
    cause))
 
 (defn compile-warning-occured [st msg]
-  (fig/send-message! st :compile-warning { :message msg }))
+  (server/send-message! st :compile-warning { :message msg }))
 
 (defn notify-compile-warning [st build-config warning-msg]
   (compile-warning-occured (merge-build-into-server-state st build-config)
