@@ -1,9 +1,8 @@
 (ns figwheel-sidecar.system
   (:require
    [figwheel-sidecar.utils :as utils]   
-
-   [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
    [figwheel-sidecar.config :as config]
+   [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
 
    [figwheel-sidecar.components.nrepl-server     :refer [nrepl-server-component]]
    [figwheel-sidecar.components.css-watcher      :refer [css-watcher]]
@@ -18,15 +17,6 @@
    [clojure.java.io :as io]
    [clojure.set :refer [difference union]]
    [clojure.string :as string]))
-
-;; TODO does this belong here?
-(defn get-project-builds []
-  (into (array-map)
-        (map
-         (fn [x]
-           [(:id x)
-            (utils/add-compiler-env x)])
-         (frepl/get-project-cljs-builds))))
 
 ;; TODO
 (comment
@@ -233,7 +223,7 @@
      system ids
      (fn [system]
        (repl-println "Figwheel: Reloading build config information")
-       (if-let [new-builds (not-empty (get-project-builds))]
+       (if-let [new-builds (not-empty (config/get-project-builds))]
          (assoc-in (doall (reduce clean-build system ids))
                    [:figwheel-server :builds]
                    new-builds)
@@ -259,10 +249,9 @@
 
 ;; TODO add build-config display
 
-;; going to work with an atom and swap!
-;; The commands are side effecting but they are also idempotent
-;; the mode of working is going to be one command after another in
-;; an interactive repl
+
+;; repl interaction
+
 
 (defn namify [arg]
   (if (seq? arg)
@@ -276,6 +265,11 @@
     ([_ _ [_ & args] _]
      ;; are we only accepting string ids?
      (f (keep namify args)))))
+
+;; going to work with an atom and swap!
+;; The commands are side effecting but they are also idempotent
+;; the mode of working is going to be one command after another in
+;; an interactive repl
 
 (defn system-setter [func system-atom]
   (fn [& args]
@@ -298,6 +292,22 @@
                                             (fn [sys _] (fig-status sys))
                                             system))})
 
+(def repl-function-docs 
+  "Figwheel Controls:
+          (stop-autobuild)                ;; stops Figwheel autobuilder
+          (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
+          (switch-to-build id ...)        ;; switches autobuilder to different build
+          (reset-autobuild)               ;; stops, cleans, and starts autobuilder
+          (reload-config)                 ;; reloads build config and resets autobuild
+          (build-once [id ...])           ;; builds source one time
+          (clean-builds [id ..])          ;; deletes compiled cljs target files
+          (fig-status)                    ;; displays current state of system
+  Switch REPL build focus:
+          :cljs/quit                      ;; allows you to switch REPL to another build
+    Docs: (doc function-name-here)
+    Exit: Control+C or :cljs/quit
+ Results: Stored in vars *1, *2, *3, *e holds last exception object")
+
 (defn start-figwheel-repl [system build repl-options]
   (let [{:keys [figwheel-server build-ids]} @system]
     ;; TODO should I add this this be conditional on not running?
@@ -305,7 +315,7 @@
     ;; (newline)
     (print "Launching ClojureScript REPL")
     (when-let [id (:id build)] (println " for build:" id))
-    (println (frepl/repl-function-docs))
+    (println repl-function-docs)
     (println "Prompt will show when Figwheel connects to your application")
     (frepl/repl
      build
@@ -324,6 +334,22 @@
       (first focused-build-ids)
       (let [{:keys [build-ids all-builds]} system]
         (:id (first (config/narrow-builds* all-builds build-ids)))))))
+
+(defn get-build-choice [choices]
+  (let [choices (set (map name choices))]
+    (loop []
+      (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") or quit > "))
+      (flush)
+      (let [res (read-line)]
+        (cond
+          (nil? res) false
+          (choices res) res          
+          (= res "quit") false
+          (= res "exit") false
+          :else
+          (do
+            (println (str "Error: " res " is not a valid choice"))
+            (recur)))))))
 
 (defn choose-repl-build [system build-id]
   (let [{:keys [builds]} system]
@@ -345,7 +371,7 @@
    (loop [build-id start-build-id]
      (figwheel-cljs-repl system build-id)
      (let [{:keys [builds]} @system]
-       (when-let [chosen-build-id (frepl/get-build-choice
+       (when-let [chosen-build-id (get-build-choice
                                    (keep :id (filter config/optimizations-none? (vals builds))))]
          (recur chosen-build-id))))))
 

@@ -286,3 +286,29 @@
        (apply-to-key str :http-server-root)       
        (apply-to-key str :open-file-command)
        (apply-to-key str :server-logfile)))
+
+
+;; TODO move this to config
+
+(defn get-project-config []
+  (when (.exists (io/file "project.clj"))
+    (try
+      (into {} (map vec (partition 2 (drop 3 (read-string (slurp "project.clj"))))))
+      (catch Exception e
+        {}))))
+
+(defn get-project-cljs-builds []
+  (let [p (get-project-config)
+        builds (or
+                (get-in p [:figwheel :builds])
+                (get-in p [:cljsbuild :builds]))]
+    (when (> (count builds) 0)
+      (config/prep-builds builds))))
+
+(defn get-project-builds []
+  (into (array-map)
+        (map
+         (fn [x]
+           [(:id x)
+            (utils/add-compiler-env x)])
+         (get-project-cljs-builds))))
