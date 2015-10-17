@@ -10,8 +10,8 @@
   { :file (utils/remove-root-path path)
     :type :css } )
 
-(defn send-css-files [st files]
-  (fig/send-message! st :css-files-changed { :files files}))
+(defn send-css-files [figwheel-server files]
+  (fig/send-message! figwheel-server :css-files-changed { :files files}))
 
 (defn handle-css-notification [figwheel-server files]
   (when-let [changed-css-files (not-empty (filter #(.endsWith % ".css") (map str files)))]
