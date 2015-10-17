@@ -136,9 +136,6 @@
   [_ figwheel-env opts]
   (cljs.repl/repl* figwheel-env opts))
 
-#_(defn require? [symbol]
-    (try (require symbol) true (catch Exception e false)))
-
 (defn repl
   ([build figwheel-server]
    (repl build figwheel-server {}))
@@ -153,18 +150,7 @@
                     :default)]
      (start-cljs-repl protocol figwheel-repl-env repl-opts))))
 
-(defn namify [arg]
-  (if (seq? arg)
-    (when (= 'quote (first arg))
-      (str (second arg)))
-    (name arg)))
-
-(defn make-special-fn [f]
-  (fn self
-    ([a b c] (self a b c nil))
-    ([_ _ [_ & args] _]
-     ;; are we only accepting string ids?
-     (f (keep namify args)))))
+;; TODO move this to config
 
 (defn get-project-config []
   (when (.exists (io/file "project.clj"))

@@ -35,7 +35,6 @@
 
   make sure the prep-builds is idempotent
    
-  figwheel-server level :reload-clj and :reload-cljc config flags
   
   example html reload)
 
@@ -265,24 +264,37 @@
 ;; the mode of working is going to be one command after another in
 ;; an interactive repl
 
+(defn namify [arg]
+  (if (seq? arg)
+    (when (= 'quote (first arg))
+      (str (second arg)))
+    (name arg)))
+
+(defn make-special-fn [f]
+  (fn self
+    ([a b c] (self a b c nil))
+    ([_ _ [_ & args] _]
+     ;; are we only accepting string ids?
+     (f (keep namify args)))))
+
 (defn system-setter [func system-atom]
   (fn [& args]
     (reset! system-atom (apply func @system-atom args))))
 
 (defn build-figwheel-special-fns [system]
-  {'start-autobuild (frepl/make-special-fn (system-setter start-autobuild system))
-   'stop-autobuild  (frepl/make-special-fn (system-setter stop-autobuild system))
-   'switch-to-build (frepl/make-special-fn (system-setter switch-to-build system))
-   'clean-builds    (frepl/make-special-fn (system-setter clean-builds system)) 
-   'build-once      (frepl/make-special-fn (system-setter build-once system))
+  {'start-autobuild (make-special-fn (system-setter start-autobuild system))
+   'stop-autobuild  (make-special-fn (system-setter stop-autobuild system))
+   'switch-to-build (make-special-fn (system-setter switch-to-build system))
+   'clean-builds    (make-special-fn (system-setter clean-builds system)) 
+   'build-once      (make-special-fn (system-setter build-once system))
    
-   'reset-autobuild (frepl/make-special-fn (system-setter
+   'reset-autobuild (make-special-fn (system-setter
                                             (fn [sys _] (reset-autobuild sys))
                                             system))
-   'reload-config   (frepl/make-special-fn (system-setter
+   'reload-config   (make-special-fn (system-setter
                                             (fn [sys _] (reload-config sys))
                                             system))
-   'fig-status      (frepl/make-special-fn (system-setter
+   'fig-status      (make-special-fn (system-setter
                                             (fn [sys _] (fig-status sys))
                                             system))})
 
