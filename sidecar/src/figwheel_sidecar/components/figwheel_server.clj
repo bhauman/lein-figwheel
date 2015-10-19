@@ -226,9 +226,10 @@
 
 (defn figwheel-server [figwheel-options all-builds]
   (let [prepped-fig-options (config/prep-options figwheel-options)
-        initial-state       (create-initial-state figwheel-options)
-        all-builds (map utils/add-compiler-env (config/prep-builds all-builds))
+        all-builds          (map utils/add-compiler-env (config/prep-builds all-builds))
         all-builds (ensure-array-map all-builds)
+        
+        initial-state       (create-initial-state prepped-fig-options)
         figwheel-opts (assoc initial-state
                              :builds all-builds       
                              :log-writer    (log-writer prepped-fig-options)

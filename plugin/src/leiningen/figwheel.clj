@@ -56,40 +56,27 @@
            (System/exit 1))))
      requires)))
 
-(defn get-unique-id [prj]
-  (let [{:keys [name version]} prj]
-    (when (and name version)
-      (str name "--" version))))
-
-(defn run-compiler [project {:keys [all-builds
-                                    build-ids
-                                    needs-project-config] :as autobuild-opts}]
+(defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
   (run-local-project project all-builds
      '(require 'figwheel-sidecar.system)
-     (if needs-project-config
+     (if (fc/needs-lein-project-config?)
        `(figwheel-sidecar.system/run-autobuilder ~autobuild-opts)
        `(figwheel-sidecar.system/load-config-run-autobuilder {:build-ids ~build-ids}))))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
-  (let [needs-project-config? (fc/needs-lein-project-config? project)
-        {:keys [all-builds figwheel-options]}
+  (let [{:keys [all-builds figwheel-options]}
         (-> project
-            fc/figwheel-ambient-config
+            (fc/figwheel-ambient-config build-ids)
             fc/prep-figwheel-config)
-        figwheel-options (merge
-                          {:http-server-root "public"
-                           :unique-id (get-unique-id project)}
-                          figwheel-options)
-        errors           (fc/check-config figwheel-options
-                                          (fc/narrow-builds*
-                                           all-builds
-                                           build-ids))]
+        errors (fc/check-config figwheel-options
+                                (fc/narrow-builds*
+                                 all-builds
+                                 build-ids))]
     (if (empty? errors)
       (run-compiler project 
-                    { :needs-project-config needs-project-config?
-                      :figwheel-options figwheel-options
+                    { :figwheel-options figwheel-options
                       :all-builds all-builds
                       :build-ids  (vec build-ids)})
       (mapv println errors))))

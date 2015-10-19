@@ -384,6 +384,7 @@
     (component/start system)))
 
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
+  #_(p/pprint autobuild-options)
   (let [system-atom (atom (start-figwheel! autobuild-options))]
     (build-switching-cljs-repl system-atom)
     system-atom))
@@ -402,9 +403,8 @@
       (start-figwheel-and-cljs-repl! options)))
 
 (defn load-config-run-autobuilder [{:keys [build-ids]}]
-  (let [options (assoc (-> {} ;; not relying on project in the case of
-                              ;; being called from the plugin
-                           config/figwheel-ambient-config
-                           config/prep-figwheel-config)
-                       :build-ids build-ids)]
+  (let [options (-> {} ;; not relying on project in the case of
+                    ;; being called from the plugin
+                    (config/figwheel-ambient-config build-ids)
+                    config/prep-figwheel-config)]
     (run-autobuilder options)))

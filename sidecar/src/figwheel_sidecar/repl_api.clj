@@ -24,7 +24,10 @@
    (if @*figwheel-system*
      (swap! *figwheel-system* component/start)
      ;; if no system exists try to read in a configuration
-     (start-figwheel! (config/prep-figwheel-config (config/figwheel-ambient-config))))))
+     (start-figwheel!
+      (-> (config/get-project-config)
+          config/figwheel-ambient-config
+          config/prep-figwheel-config)))))
 
 #_ (start-figwheel! temp-config)
 

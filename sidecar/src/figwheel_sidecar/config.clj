@@ -290,18 +290,7 @@
        (apply-to-key str :open-file-command)
        (apply-to-key str :server-logfile)))
 
-
-;; TODO move this to config
-
-;; reading the config
-;; first we are going to read figwheel.edn for figwheel config and
-;; then figwheel-builds.edn for build config if this is successful clean up
-;; options
-
-;; next we are going to see if we can get builds information from the
-;; :builds key in figwheel.edn
-
-;; finally we are going to fall back on the project.clj
+;; high level configuration helpers
 
 (defn read-edn-file [file-name]
   (let [file (io/file file-name)]
@@ -321,37 +310,20 @@
   (or (get-in project [:figwheel :builds])
       (get-in project [:cljsbuild :builds])))
 
-(defn needs-lein-project-config? [project]
-    (let [[builds fig] (mapv #(.exists (io/file %))
-                             ["figwheel-builds.edn"
-                              "figwheel.edn"])]
-    (condp = [builds fig]
-      [false false] true
-      [true true]   false
-      [false true]  (not-empty (:builds (read-edn-file "figwheel.edn")))
-      [true false]  (:figwheel project))))
+(defn needs-lein-project-config? []
+  (not (.exists (io/file "figwheel.edn"))))
 
-(defn figwheel-ambient-config [project]
-  (let [[builds fig] (mapv #(.exists (io/file %))
-                           ["figwheel-builds.edn"
-                            "figwheel.edn"])]
-    (condp = [builds fig]
-
-      [false false] {:figwheel-options (dissoc (:figwheel project) :builds)
-                     :all-builds (project-builds project)}
-      
-      [true true]   {:figwheel-options (read-edn-file "figwheel.edn")
-                     :all-builds       (read-edn-file "figwheel-builds.edn")}
-      
-      [false true]  (let [fig-opts (read-edn-file "figwheel.edn")]
-                      {:figwheel-options fig-opts
-                       :all-builds (or (:builds fig-opts)
-                                       (project-builds project))})
-      
-      [true false]  (let [build-opts (read-edn-file "figwheel-builds.edn")]
-                      {:figwheel-options (dissoc (:figwheel project)
-                                                 :builds)
-                       :all-builds build-opts}))))
+(defn figwheel-ambient-config
+  ([project] (figwheel-ambient-config project nil))
+  ([project build-ids]
+   (assoc
+    (if-not (needs-lein-project-config?)
+      (let [fig-opts (read-edn-file "figwheel.edn")]
+        {:figwheel-options (dissoc fig-opts :builds)
+         :all-builds (:builds fig-opts)})
+      {:figwheel-options (dissoc (:figwheel project) :builds)
+       :all-builds (project-builds project)})
+    :build-ids build-ids)))
 
 (defn prep-figwheel-config [config]
   (let [prepped (-> config
@@ -361,7 +333,7 @@
            :build-ids
            (mapv :id
                  (narrow-builds* (:all-builds prepped)
-                                 (or (:build-ids prepped)
+                                 (or (not-empty (:build-ids prepped))
                                      (get-in prepped [:figwheel-options :builds-to-start])))))))
 
 (defn get-project-builds []
