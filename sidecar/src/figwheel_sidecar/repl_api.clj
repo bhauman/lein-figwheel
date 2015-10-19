@@ -2,6 +2,7 @@
   (:require
    [clojure.repl :refer [doc]]
    [figwheel-sidecar.system :as fs]
+   [figwheel-sidecar.config :as config]
    [com.stuartsierra.component :as component]))
 
 (defonce ^:dynamic *figwheel-system* (atom nil))
@@ -20,10 +21,10 @@
      (swap! *figwheel-system* component/stop))
    (reset! *figwheel-system* (fs/start-figwheel! autobuild-options)))
   ([]
-   ;; TODO automatically pull in config if atom is empty
-   ;; we can check if there is a project.clj
-   ;; and we can pull in the config
-   (swap! *figwheel-system* component/start)))
+   (if @*figwheel-system*
+     (swap! *figwheel-system* component/start)
+     ;; if no system exists try to read in a configuration
+     (start-figwheel! (config/prep-figwheel-config (config/figwheel-ambient-config))))))
 
 #_ (start-figwheel! temp-config)
 
