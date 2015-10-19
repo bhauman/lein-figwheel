@@ -308,8 +308,6 @@
     (when-let [body (and (.exists file) (slurp file))]
       (edn/read-string body))))
 
-(read-edn-file "figwheel-builds.edn")
-
 (defn get-project-config
   "This loads the project map form project.clj without merging profiles."
   []
@@ -323,15 +321,14 @@
   (or (get-in project [:figwheel :builds])
       (get-in project [:cljsbuild :builds])))
 
-(defn figwheel-ambient-config []
+(defn figwheel-ambient-config [project]
   (let [[builds fig] (mapv #(.exists (io/file %))
                            ["figwheel-builds.edn"
                             "figwheel.edn"])]
     (condp = [builds fig]
 
-      [false false] (let [project (get-project-config)]
-                      {:figwheel-options (dissoc (:figwheel project) :builds)
-                       :all-builds (project-builds project)})
+      [false false] {:figwheel-options (dissoc (:figwheel project) :builds)
+                     :all-builds (project-builds project)}
       
       [true true]   {:figwheel-options (read-edn-file "figwheel.edn")
                      :all-builds       (read-edn-file "figwheel-builds.edn")}
@@ -339,10 +336,10 @@
       [false true]  (let [fig-opts (read-edn-file "figwheel.edn")]
                       {:figwheel-options fig-opts
                        :all-builds (or (:builds fig-opts)
-                                       (project-builds (get-project-config)))})
+                                       (project-builds project))})
       
       [true false]  (let [build-opts (read-edn-file "figwheel-builds.edn")]
-                      {:figwheel-options (dissoc (:figwheel (get-project-config))
+                      {:figwheel-options (dissoc (:figwheel project)
                                                  :builds)
                        :all-builds build-opts}))))
 
@@ -363,4 +360,4 @@
          (fn [x]
            [(:id x)
             (utils/add-compiler-env x)])
-         (:all-builds (prep-figwheel-config (figwheel-ambient-config))))))
+         (:all-builds (prep-figwheel-config (figwheel-ambient-config (get-project-config)))))))

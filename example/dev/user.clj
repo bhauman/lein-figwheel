@@ -3,7 +3,6 @@
    [figwheel-sidecar.config :as config]   
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.repl-api :as f]
-   
    [com.stuartsierra.component :as component]
    [clojure.tools.namespace.repl :refer (refresh refresh-all)]))
 
@@ -12,7 +11,7 @@
                       ; :nrepl-port 7888
                       }
    :build-ids  ["example"]
-   :all-builds (confg/get-project-builds)})
+   :all-builds (config/get-project-builds)})
 
 (defn start []
   (f/start-figwheel! temp-config))

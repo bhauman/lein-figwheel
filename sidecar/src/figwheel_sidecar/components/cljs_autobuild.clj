@@ -14,25 +14,11 @@
    [cljs.build.api :as bapi]
    [clojure.java.io :as io]))
 
-
 ;; TODO can I run this without a figwheel server??
-;; it would be very nice if that was possible
-
-;; bapi/inputs should work but something wierd is happening
-(defrecord CompilableSourcePaths [paths]
-  cljs.closure/Compilable
-  (-compile [_ opts]
-    (reduce (fn [accum v]
-              (let [o (cljs.closure/-compile v opts)]
-                (if (seq? o)
-                  (concat accum o)
-                  (conj accum o))))
-            []
-            paths)))
 
 (defn cljs-build [{:keys [build-config]}]
   (bapi/build
-   (CompilableSourcePaths. (:source-paths build-config))
+   (apply bapi/inputs (:source-paths build-config))
    (:build-options build-config)
    (:compiler-env build-config)))
 
@@ -126,7 +112,7 @@
                              (fn []
                                (binding [*out* log-writer
                                          *err* log-writer]
-                                 (#'build-handler this cljs-build-fn files)))))))))
+                                 (build-handler this cljs-build-fn files)))))))))
       this))
   (stop [this]
     (when (:file-watcher this)
