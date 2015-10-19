@@ -15,6 +15,7 @@
    [clojure.java.io :as io]))
 
 ;; TODO can I run this without a figwheel server??
+;; that would make this component much more useful
 
 (defn cljs-build [{:keys [build-config]}]
   (bapi/build

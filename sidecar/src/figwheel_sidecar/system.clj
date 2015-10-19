@@ -352,7 +352,7 @@
             (recur)))))))
 
 (defn choose-repl-build [system build-id]
-  (let [{:keys [builds]} system]
+  (let [builds (get-in system [:figwheel-server :builds])]
     (or (and build-id
              (when-let [build (get builds build-id)]
                (and (config/optimizations-none? build)
@@ -370,9 +370,10 @@
   ([system start-build-id]
    (loop [build-id start-build-id]
      (figwheel-cljs-repl system build-id)
-     (let [{:keys [builds]} @system]
-       (when-let [chosen-build-id (get-build-choice
-                                   (keep :id (filter config/optimizations-none? (vals builds))))]
+     (let [builds (get-in @system [:figwheel-server :builds])]
+       (when-let [chosen-build-id
+                  (get-build-choice
+                   (keep :id (filter config/optimizations-none? (vals builds))))]
          (recur chosen-build-id))))))
 
 ;; figwheel starting and stopping helpers
@@ -383,6 +384,7 @@
     (component/start system)))
 
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
+  (prn autobuild-options)
   (let [system-atom (atom (start-figwheel! autobuild-options))]
     (build-switching-cljs-repl system-atom)
     system-atom))
