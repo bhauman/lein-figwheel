@@ -490,9 +490,9 @@ To start Figwheel from a script, you will need to require the
    :all-builds          ;; <-- supply your build configs here
    [{:id "dev"
      :figwheel true
-     :source-paths ["src/main"]
+     :source-paths ["src"]
      :compiler {:main "example.core"
-                :asset-path "/out"
+                :asset-path "out"
                 :output-to "resources/public/main.js"
                 :output-dir "resources/public/out"
                 :verbose true}}]})
@@ -542,9 +542,9 @@ Let's make a small helper library and then initialize a Clojure REPL with it:
      :all-builds          ;; <-- supply your build configs here
      [{:id "dev"
        :figwheel true
-       :source-paths ["src/main"]
+       :source-paths ["src"]
        :compiler {:main "example.core"
-                  :asset-path "/out"
+                  :asset-path "out"
                   :output-to "resources/public/main.js"
                   :output-dir "resources/public/out"
                   :verbose true}}]}))
