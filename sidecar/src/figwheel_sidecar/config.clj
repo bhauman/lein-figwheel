@@ -321,6 +321,16 @@
   (or (get-in project [:figwheel :builds])
       (get-in project [:cljsbuild :builds])))
 
+(defn needs-lein-project-config? [project]
+    (let [[builds fig] (mapv #(.exists (io/file %))
+                             ["figwheel-builds.edn"
+                              "figwheel.edn"])]
+    (condp = [builds fig]
+      [false false] true
+      [true true]   false
+      [false true]  (not-empty (:builds (read-edn-file "figwheel.edn")))
+      [true false]  (:figwheel project))))
+
 (defn figwheel-ambient-config [project]
   (let [[builds fig] (mapv #(.exists (io/file %))
                            ["figwheel-builds.edn"

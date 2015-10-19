@@ -384,7 +384,6 @@
     (component/start system)))
 
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
-  (prn autobuild-options)
   (let [system-atom (atom (start-figwheel! autobuild-options))]
     (build-switching-cljs-repl system-atom)
     system-atom))
@@ -397,7 +396,15 @@
 ;; todo rename or inline
 (defn run-autobuilder [{:keys [figwheel-options all-builds build-ids] :as options}]
   (if (false? (:repl figwheel-options))
-    (do
-      (start-figwheel! options)
-      (loop [] (Thread/sleep 30000) (recur)))
-    (start-figwheel-and-cljs-repl! options)))
+      (do
+        (start-figwheel! options)
+        (loop [] (Thread/sleep 30000) (recur)))
+      (start-figwheel-and-cljs-repl! options)))
+
+(defn load-config-run-autobuilder [{:keys [build-ids]}]
+  (let [options (assoc (-> {} ;; not relying on project in the case of
+                              ;; being called from the plugin
+                           config/figwheel-ambient-config
+                           config/prep-figwheel-config)
+                       :build-ids build-ids)]
+    (run-autobuilder options)))
