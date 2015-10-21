@@ -20,7 +20,6 @@
   (-send-message [this channel-id msg-data callback])
   (-connection-data [this]))
 
-
 (defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
   (when open-file-command
     (if (= open-file-command "emacsclient")
@@ -48,17 +47,6 @@
             (.exec (Runtime/getRuntime) (into-array String command))
             (catch Exception e
               (println "Figwheel: there was a problem running the open file command - " command))))))))
-
-(defn add-build-id [{:keys [build-id]} msg]
-  (if build-id
-    (assoc msg :build-id build-id)
-    msg))
-
-(defn message* [opts msg-name data]
-  (merge data
-         (add-build-id opts
-                       { :msg-name msg-name 
-                         :project-id (:unique-id opts)})))
 
 (defn update-connection-count [connection-count build-id f]
   (swap! connection-count update-in [build-id] (fnil f 0)))
@@ -101,7 +89,8 @@
     (go-loop []
       (<! (timeout 5000))
       (when (open? wschannel)
-        (send! wschannel (prn-str (message* server-state :ping {})))
+        (send! wschannel (prn-str  {:msg-name :ping
+                                    :project-id (:unique-id server-state)}))
         (recur)))))
 
 (defn reload-handler [server-state]
@@ -147,11 +136,6 @@
         (dissoc :callback)
         (assoc :callback-name callback-name)))
     msg-data))
-
-(defn send-message! [{:keys [file-change-atom] :as st} msg-name data]
-  (swap! file-change-atom append-msg
-         (message* st msg-name
-                   (setup-callback st data))))
 
 ;; remove resource paths here 
 (defn create-initial-state [{:keys [unique-id
@@ -241,7 +225,7 @@
   (-connection-data figwheel-server))
 
 
-
+;; setup server for overall system 
 
 (defn ensure-array-map [all-builds]
   (into (array-map)
