@@ -275,6 +275,7 @@
 (defn prep-builds [builds]
   (-> builds
       map-to-vec-builds
+      (->> (mapv #(dissoc % :warning-handlers)))
       fix-builds
       prep-builds-for-figwheel-client
       ensure-output-dirs
