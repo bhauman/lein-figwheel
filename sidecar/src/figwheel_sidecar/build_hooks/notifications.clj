@@ -33,11 +33,14 @@
 (defn send-changed-files
   "Formats and sends a files-changed message to the file-change-atom.
    Also reports this event to the console."
-  [st files]
+  [{:keys [build-id] :as figwheel-server} files]
   (when (not-empty files)
-    (server/send-message! st :files-changed {:files files
-                                          :recompile-dependents (:recompile-dependents st)
-                                          :figwheel-meta (find-figwheel-meta)})
+    (server/send-message figwheel-server
+                         build-id
+                         { :msg-name :files-changed
+                           :files files
+                           :recompile-dependents (:recompile-dependents figwheel-server)
+                           :figwheel-meta (find-figwheel-meta)})
     (doseq [f files]
       (println "notifying browser that file changed: " (:file f)))))
 
@@ -96,15 +99,17 @@
    (merge-build-into-server-state state build-config)
    ns-syms))
 
-(defn compile-error-occured [st exception cause]
+(defn compile-error-occured [figwheel-server exception cause]
   (let [parsed-exception (parse-exception exception)
         formatted-exception (let [out (java.io.ByteArrayOutputStream.)]
                               (pst-on (io/writer out) false exception)
                               (.toString out))]
-    (server/send-message! st :compile-failed
-                       { :exception-data parsed-exception
-                         :formatted-exception formatted-exception
-                         :cause cause })))
+    (server/send-message figwheel-server
+                          (:build-id figwheel-server)
+                          { :msg-name :compile-failed
+                            :exception-data parsed-exception
+                            :formatted-exception formatted-exception
+                            :cause cause })))
 
 (defn notify-compile-error [server-state build-config {:keys [exception cause]}]
   (compile-error-occured
@@ -112,8 +117,11 @@
    exception
    cause))
 
-(defn compile-warning-occured [st msg]
-  (server/send-message! st :compile-warning { :message msg }))
+(defn compile-warning-occured [figwheel-server msg]
+  (server/send-message figwheel-server
+                       (:build-id figwheel-server)
+                       { :msg-name :compile-warning
+                         :message msg }))
 
 (defn notify-compile-warning [st build-config warning-msg]
   (compile-warning-occured (merge-build-into-server-state st build-config)

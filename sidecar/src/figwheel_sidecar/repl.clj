@@ -30,7 +30,11 @@
                    (go
                      (<! (timeout 2000))
                      (close! out)))]
-    (server/send-message! figwheel-server :repl-eval {:code js :callback callback})
+    (server/send-message-with-callback figwheel-server
+                                       (:build-id figwheel-server)
+                                       {:msg-name :repl-eval
+                                        :code js}
+                                       callback)
     (let [[v ch] (alts!! [out (timeout 8000)])]
       (if (= ch out)
         v
@@ -39,17 +43,18 @@
          :stacktrace "No stacktrace available."}))))
 
 (defn connection-available?
-  [connection-count build-id]
-  (not
-   (zero?
-    (+ (or (get @connection-count build-id) 0)
-       (or (get @connection-count nil) 0)))))
+  [figwheel-server build-id]
+  (let [connection-count (server/connection-data figwheel-server)]
+    (not
+     (zero?
+      (+ (or (get connection-count build-id) 0)
+         (or (get connection-count nil) 0))))))
 
 ;; limit how long we wait?
-(defn wait-for-connection [{:keys [connection-count build-id]}]
-  (when-not (connection-available? connection-count build-id)
+(defn wait-for-connection [{:keys [build-id] :as figwheel-server}]
+  (when-not (connection-available? figwheel-server build-id)
     (loop []
-      (when-not (connection-available? connection-count build-id)
+      (when-not (connection-available? figwheel-server build-id)
         (Thread/sleep 500)
         (recur)))))
 
@@ -150,51 +155,3 @@
                     :default)]
      (start-cljs-repl protocol figwheel-repl-env repl-opts))))
 
-;; TODO move this to config
-
-(defn get-project-config []
-  (when (.exists (io/file "project.clj"))
-    (try
-      (into {} (map vec (partition 2 (drop 3 (read-string (slurp "project.clj"))))))
-      (catch Exception e
-        {}))))
-
-(defn get-project-cljs-builds []
-  (let [p (get-project-config)
-        builds (or
-                (get-in p [:figwheel :builds])
-                (get-in p [:cljsbuild :builds]))]
-    (when (> (count builds) 0)
-      (config/prep-builds builds))))
-
-(defn repl-function-docs  []
-  "Figwheel Controls:
-          (stop-autobuild)                ;; stops Figwheel autobuilder
-          (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
-          (switch-to-build id ...)        ;; switches autobuilder to different build
-          (reset-autobuild)               ;; stops, cleans, and starts autobuilder
-          (reload-config)                 ;; reloads build config and resets autobuild
-          (build-once [id ...])           ;; builds source one time
-          (clean-builds [id ..])          ;; deletes compiled cljs target files
-          (fig-status)                    ;; displays current state of system
-  Switch REPL build focus:
-          :cljs/quit                      ;; allows you to switch REPL to another build
-    Docs: (doc function-name-here)
-    Exit: Control+C or :cljs/quit
- Results: Stored in vars *1, *2, *3, *e holds last exception object")
-
-(defn get-build-choice [choices]
-  (let [choices (set (map name choices))]
-    (loop []
-      (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") or quit > "))
-      (flush)
-      (let [res (read-line)]
-        (cond
-          (nil? res) false
-          (choices res) res          
-          (= res "quit") false
-          (= res "exit") false
-          :else
-          (do
-            (println (str "Error: " res " is not a valid choice"))
-            (recur)))))))

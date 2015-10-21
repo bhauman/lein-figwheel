@@ -7,7 +7,7 @@
    [figwheel-sidecar.components.nrepl-server     :refer [nrepl-server-component]]
    [figwheel-sidecar.components.css-watcher      :refer [css-watcher]]
    [figwheel-sidecar.components.cljs-autobuild   :as autobuild :refer [cljs-autobuild]]
-   [figwheel-sidecar.components.figwheel-server  :refer [figwheel-server]]      
+   [figwheel-sidecar.components.figwheel-server  :refer [figwheel-server] :as server]      
    
    [com.stuartsierra.component :as component]
 
@@ -59,9 +59,7 @@
 
 (defn add-nrepl-server [system {:keys [nrepl-port] :as options}]
   (if nrepl-port
-    (assoc system
-           :nrepl-server
-           (nrepl-server-component options))
+    (assoc system :nrepl-server (nrepl-server-component options))
     system))
 
 (defn create-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
@@ -233,7 +231,7 @@
 
 ;; doesn't alter the system
 (defn fig-status [system]
-    (let [connection-count (get-in system [:figwheel-server :connection-count])
+    (let [connection-count (server/connection-data (:figwheel-server system))
           watched-builds   (mapv key->id (watchers-running system))]
      (repl-println "Figwheel System Status")
      (repl-println "----------------------------------------------------")
@@ -241,7 +239,7 @@
        (repl-println "Watching builds:" watched-builds))
      (repl-println "Client Connections")
      (when connection-count
-       (doseq [[id v] @connection-count]
+       (doseq [[id v] connection-count]
          (repl-println "\t" (str (if (nil? id) "any-build" id) ":")
                   v (str "connection" (if (= 1 v) "" "s")))))
      (repl-println "----------------------------------------------------"))

@@ -11,7 +11,10 @@
     :type :css } )
 
 (defn send-css-files [figwheel-server files]
-  (fig/send-message! figwheel-server :css-files-changed { :files files}))
+  (fig/send-message figwheel-server
+                    ::fig/broadcast
+                    { :msg-name :css-files-changed
+                      :files files}))
 
 (defn handle-css-notification [figwheel-server files]
   (when-let [changed-css-files (not-empty (filter #(.endsWith % ".css") (map str files)))]

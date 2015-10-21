@@ -16,6 +16,17 @@
    
    [com.stuartsierra.component :as component]))
 
+(defprotocol ChannelServer
+  (-send-message [this channel-id msg-data callback])
+  (-connection-data [this]))
+
+
+(defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
+  (when open-file-command
+    (if (= open-file-command "emacsclient")
+      ["emacsclient" "-n" (str "+" file-line) file-name] ;; we are emacs aware
+      [open-file-command file-name file-line])))
+
 (defn read-msg [data]
   (try
     (let [msg (edn/read-string data)]
@@ -24,12 +35,7 @@
       (println "Figwheel: message from client couldn't be read!")
       {})))
 
-(defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
-  (when open-file-command
-    (if (= open-file-command "emacsclient")
-      ["emacsclient" "-n" (str "+" file-line) file-name] ;; we are emacs aware
-      [open-file-command file-name file-line])))
-
+;; should make this extendable with multi-method
 (defn handle-client-msg [{:keys [browser-callbacks] :as server-state} data]
   (when data
     (let [msg (read-msg data)]
@@ -72,7 +78,7 @@
          (when (and msg
                     (or
                      ;; broadcast all css messages
-                     (= :css-files-changed (:msg-name msg))
+                     (= ::broadcast (:build-id msg))
                      ;; if its nil you get it all
                      (nil? desired-build-id)
                      ;; otherwise you only get messages for your build id
@@ -194,6 +200,19 @@
 (defn stop-server [{:keys [http-server]}]
   (http-server))
 
+(defn prep-message [{:keys [unique-id] :as this} channel-id msg-data callback]
+  (-> msg-data
+        (assoc
+               :project-id (:unique-id unique-id)
+               :build-id channel-id
+               :callback callback)
+        (->>
+         (filter (comp not nil? second))
+         (into {})
+         (setup-callback this))))
+
+;; external api
+
 (defrecord FigwheelServer []
   component/Lifecycle
   (start [this]
@@ -205,7 +224,24 @@
     (when (:http-server this)
       (println "Figwheel: Stopping Websocket Server")
       (stop-server this))
-    (dissoc this :http-server)))
+    (dissoc this :http-server))
+  ChannelServer
+  (-send-message [{:keys [file-change-atom] :as this} channel-id msg-data callback]
+    (->> (prep-message this channel-id msg-data callback)
+         (swap! file-change-atom append-msg)))
+  (-connection-data [{:keys [connection-count]}] @connection-count))
+
+(defn send-message [figwheel-server channel-id msg-data]
+  (-send-message figwheel-server channel-id msg-data nil))
+
+(defn send-message-with-callback [figwheel-server channel-id msg-data callback]
+  (-send-message figwheel-server channel-id msg-data callback))
+
+(defn connection-data [figwheel-server]
+  (-connection-data figwheel-server))
+
+
+
 
 (defn ensure-array-map [all-builds]
   (into (array-map)
