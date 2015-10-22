@@ -132,5 +132,11 @@
     (dissoc this :file-watcher)))
 
 (defn cljs-autobuild [{:keys [build-config] :as opts}]
-  ;; TODO if the build-config doesn't have a env we should add it here
-  (map->CLJSAutobuild opts))
+  ;; do a little preparation of the build config just in case
+  (let [build-config (if-not (config/prepped? build-config)
+                       (config/prep-build build-config)
+                       build-config)
+        build-config (if-not (:compiler-env build-config)
+                       (utils/add-compiler-env build-config)
+                       build-config)]
+    (map->CLJSAutobuild (assoc opts :build-config build-config))))
