@@ -350,8 +350,10 @@
              deps))))
 
 (defn sort-files [files]
-  (let [keep-files (set (keep :namespace files))]
-    (filter (comp keep-files :namespace) (expand-files files))))
+  (if (<= (count files) 1) ;; no need to sort if only one
+    files
+    (let [keep-files (set (keep :namespace files))]
+      (filter (comp keep-files :namespace) (expand-files files)))))
 
 (defn get-figwheel-always []
   (map (fn [[k v]] {:namespace k :type :namespace})
