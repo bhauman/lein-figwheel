@@ -232,13 +232,13 @@
         (map (juxt :id identity)
              (if (map? all-builds) (vals all-builds) all-builds))))
 
-(defn log-writer [figwheel-options]
+(defn extract-log-writer [figwheel-options]
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")]
     (if (false? (:repl figwheel-options))
       *out*
       (io/writer logfile-path :append true))))
 
-(defn cljs-build-fn [{:keys [cljs-build-fn]}]
+(defn extract-cljs-build-fn [{:keys [cljs-build-fn]}]
   (or (utils/require-resolve-handler cljs-build-fn)
       ;; should probably make a separate file of build function examples
       (when-let [default-handler (resolve 'figwheel-sidecar.components.cljs-autobuild/figwheel-build)]
@@ -252,6 +252,6 @@
         initial-state       (create-initial-state prepped-fig-options)
         figwheel-opts (assoc initial-state
                              :builds all-builds       
-                             :log-writer    (log-writer prepped-fig-options)
-                             :cljs-build-fn (cljs-build-fn prepped-fig-options))]
+                             :log-writer    (extract-log-writer prepped-fig-options)
+                             :cljs-build-fn (extract-cljs-build-fn prepped-fig-options))]
     (map->FigwheelServer figwheel-opts)))
