@@ -31,8 +31,7 @@
           (recur (conj collect v)))))))
 
 (defn watch! [source-paths callback]
-  (let [quit (atom false)
-        throttle-chan (chan)
+  (let [throttle-chan (chan)
         
         {:keys [files dirs]} (files-and-dirs source-paths)
         individual-file-map   (single-files files)
