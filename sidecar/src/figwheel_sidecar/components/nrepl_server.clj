@@ -4,7 +4,8 @@
    [clojure.tools.nrepl.server :as nrepl-serv]
    [com.stuartsierra.component :as component]   ))
 
-(defn start-nrepl-server [figwheel-options autobuild-options]
+(defn start-nrepl-server
+  [figwheel-options autobuild-options]
   (when (:nrepl-port figwheel-options)
     (let [middleware (or
                       (:nrepl-middleware figwheel-options)
@@ -44,5 +45,18 @@
           (nrepl-serv/stop-server (:running-nrepl-server this)))
     (dissoc this :running-nrepl-server)))
 
-(defn nrepl-server-component [options]
+(defn nrepl-server-component
+  "  Creates an nREPL server component and attempts to load
+  some default middleware to support a cljs workflow.
+
+  This function takes a map with the following keys
+  Options:
+  :nrepl-port   the port to start the server on; must exist or the server wont start
+  :nrepl-host   an optional network host to open the port on
+  :nrepl-middleware a optional list of nREPL middleware to include 
+
+  This function will attempt to require/load the
+  cemerick.piggieback/wrap-cljs-repl middleware which is needed to
+  start a ClojureSript REPL over nREPL."
+  [options]
   (map->NreplComponent options))
