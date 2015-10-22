@@ -78,11 +78,6 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
-(defn build-handler [{:keys [figwheel-server build-config] :as watcher}
-                     cljs-build-fn
-                     files]
-  (cljs-build-fn (assoc watcher :changed-files (map str files))))
-
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
   (start [this]
@@ -96,15 +91,27 @@
         #_(clean-cljs-build* (:build-options build-config))
         ;; initial build only needs the injection and the
         ;; start and end messages
-        ((-> cljs-build
-             injection/build-hook
-             figwheel-start-and-end-messages) this)
+
         (let [log-writer (or (:log-writer this)
                              (:log-writer figwheel-server)
                              (io/writer "figwheel_server.log" :append true))
               cljs-build-fn (or (:cljs-build-fn this)
                                 (:cljs-build-fn figwheel-server)
-                                figwheel-build)]
+                                ;; if no figwheel server
+                                ;; default build should be standard
+                                ;; cljs build
+                                (if figwheel-server
+                                  figwheel-build
+                                  (figwheel-start-and-end-messages cljs-build)))]
+          ;; build once before watching
+          ;; tiny experience tweak
+          ;; first build shouldn't send notifications
+          ((if (= cljs-build-fn figwheel-build)
+            (-> cljs-build
+                injection/build-hook
+                figwheel-start-and-end-messages)
+            cljs-build-fn) this)
+          
           (assoc this
                  :file-watcher
                  (watching/watch! (source-paths-that-affect-build build-config)
@@ -113,7 +120,9 @@
                              (fn []
                                (binding [*out* log-writer
                                          *err* log-writer]
-                                 (build-handler this cljs-build-fn files)))))))))
+                                 (cljs-build-fn
+                                  (assoc this
+                                         :changed-files (map str files)))))))))))
       this))
   (stop [this]
     (when (:file-watcher this)
