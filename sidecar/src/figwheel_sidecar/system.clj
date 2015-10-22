@@ -53,7 +53,7 @@
     (assoc system
            :css-watcher
            (component/using
-            (css-watcher css-dirs)
+            (css-watcher {:css-dirs css-dirs})
             [:figwheel-server]))
     system))
 

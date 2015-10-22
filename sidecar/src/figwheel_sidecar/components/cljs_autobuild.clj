@@ -132,8 +132,10 @@
       (watching/stop! (:file-watcher this)))
     (dissoc this :file-watcher)))
 
-
-(defn cljs-autobuild [{:keys [build-config] :as opts}]
+(defn cljs-autobuild
+  "  Creates a ClojureScript autobuilding component that watches
+  ClojureScript source files for changes and then compiles them."
+  [{:keys [build-config] :as opts}]
   ;; do a little preparation of the build config just in case
   (let [build-config (if-not (prepped? build-config)
                        (prep-build build-config)

@@ -53,5 +53,5 @@
           (watching/stop! (:css-watcher-quit this)))
     (dissoc this :css-watcher-quit)))
 
-(defn css-watcher [css-dirs]
-  (map->CSSWatcher {:css-dirs css-dirs}))
+(defn css-watcher [{:keys [css-dirs] :as options}]
+  (map->CSSWatcher options))
