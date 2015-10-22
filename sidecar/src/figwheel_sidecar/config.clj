@@ -11,46 +11,67 @@
   (let [f (io/file fpath)]
     (when-let [dir (.getParentFile f)] (.mkdirs dir))))
 
-(defn get-build-options
-  ([build]
+(defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))
-  ([build key]
-   (get (get-build-options build) key)))
-
-(defn ensure-output-dirs* [{:keys [build-options compiler]}]
-  (let [{:keys [output-to]} (or build-options compiler)]
-    (when output-to
-      (mkdirs output-to))))
 
 (defn optimizations-none?
-  "returns true if a build has :optimizations set to :none"
+  "Given a map of compiler options returns true if a build will be
+  compiled in :optimizations :none mode"
+  [{:keys [optimizations]}]
+  (or (nil? optimizations) (= optimizations :none)))
+
+;; TODO compiler probably handles this now
+(defn ensure-output-dirs!
+  "Given a build config ensures the existence of the output directories."
   [build]
-  (let [opt (get-build-options build :optimizations)]
-    (or (nil? opt) (= :none opt))))
+  (let [{:keys [output-to]} (get-build-options build)]
+    (when output-to
+      (mkdirs output-to))
+    build))
 
-;; checking to see if output dir is in right directory
-(defn norm-path
-  "Normalize paths to a forward slash separator to fix windows paths"
-  [p] (string/replace p  "\\" "/"))
+(defn no-seqs
+  "Given a walkable Clojure data structure turns the seqs into
+  vectors. This is mainly used to help get build configurations across
+  the serialization boundary from the lein plugin to the subprocess."
+  [b]
+  (walk/postwalk #(if (seq? %) (vec %) %) b))
 
-(defn relativize-resource-paths
-  "Relativize to the local root just in case we have an absolute path"
-  [resource-paths]
-  (mapv #(string/replace-first (norm-path (.getCanonicalPath (io/file %)))
-                               (str (norm-path (.getCanonicalPath (io/file ".")))
-                                    "/") "") resource-paths))
+;; fixing up the :figwheel client side options
 
-(defn make-serve-from-display [{:keys [http-server-root resource-paths] :as opts}]
-  (let [paths (relativize-resource-paths resource-paths)]
-    (str "(" (string/join "|" paths) ")/" http-server-root)))
+(defn fix-symbol-vals
+  "Given a map found make all symbol values into strings."
+  [mappish]
+  (zipmap (keys mappish)
+          (map #(if (symbol? %) (name %) %) (vals mappish))))
 
-(defn output-dir-in-resources-root?
-  "Check if the build output directory is in or below any of the configured resources directories."
-  [{:keys [output-dir] :as build-options}
-   {:keys [resource-paths http-server-root] :as opts}]
-  (and output-dir
-       (first (filter (fn [x] (.startsWith output-dir (str x "/" http-server-root)))
-                      (relativize-resource-paths resource-paths)))))
+(defn append-build-id
+  "Given a build config forward the build :id to the figwheel client config as a :build-id"
+  [figwheel build-id]
+  (if build-id
+    (assoc figwheel :build-id build-id)
+    figwheel))
+
+(defn forward-devcard-option
+  "Given a build-config has a [:figwheel :devcards] config it make
+  sure that the :build-options has :devcards set to true"
+  [{:keys [figwheel] :as build}]
+  (if (and figwheel (:devcards figwheel))
+    (assoc-in build [:build-options :devcards] true)
+    build))
+
+(defn prep-build-for-figwheel-client
+  "Given a build config that has a :figwheel config in it "
+  [{:keys [id figwheel] :as build}]
+  (if figwheel
+    (assoc build :figwheel
+           (-> (if (map? figwheel) figwheel {})
+               (append-build-id id)
+               fix-symbol-vals))
+    build))
+
+(defn figwheel-build? [{:keys [build-options] :as build}]
+  (and (optimizations-none? build-options)
+       (:figwheel build)))
 
 (defn map-to-vec-builds
   "Cljsbuild allows a builds to be specified as maps. We acommodate that with this function
@@ -129,13 +150,10 @@
                   module-map))
     module-map))
 
-(defn opt-none? [{:keys [optimizations]}]
-  (or (nil? optimizations) (= optimizations :none)))
-
-;; TODO this is a hack need to check all the places that I'm checking for
+;; TODO this is a hack! need to check all the places that I'm checking for
 ;; :optimizations :none and check for nil? or :none
 (defn default-optimizations-to-none [build-options]
-  (if (opt-none? build-options)
+  (if (optimizations-none? build-options)
     (assoc build-options :optimizations :none)
     build-options))
 
@@ -170,74 +188,33 @@
     (apply-to-key namify-module-entries :modules)
     (apply-to-key name :main)))
 
-(defn ensure-id [opts]
-  (if (nil? (:id opts))
-    (assoc opts :id (name (gensym "build_needs_id_")))
-    (assoc opts :id (name (:id opts)))))
-
 (defn move-compiler-to-build-options [build]
-  (if (and (not (:build-options build))
-           (:compiler build))
-    (-> build
-      (assoc :build-options (:compiler build))
-      (dissoc :compiler))
-    build))
-
-(defn fix-build [build]
   (-> build
-    ensure-id
-    move-compiler-to-build-options
-    (update-in [:build-options] fix-build-options)))
+      (assoc :build-options (get-build-options build))
+      (dissoc :compiler)))
 
-(defn fix-builds [builds]
-  (mapv fix-build builds))
+(defn ensure-id
+  "Converts given build :id to a string and if no :id exists generate and id."
+  [opts]
+  (assoc opts
+         :id (name (or
+                    (:id opts)
+                    (gensym "build_needs_id_")))))
 
-(defn no-seqs [b]
-  (walk/postwalk #(if (seq? %) (vec %) %) b))
+(defn prep-build [build]
+  (-> build
+      (dissoc :warning-handlers)
+      ensure-id
+      move-compiler-to-build-options
+      (update-in [:build-options] fix-build-options)
+      prep-build-for-figwheel-client
+      forward-devcard-option
+      ensure-output-dirs!
+      no-seqs
+      (vary-meta assoc ::prepped true)))
 
-(defn ensure-output-dirs [builds]
-  (mapv ensure-output-dirs* builds)
-  builds)
-
-(defn figwheel-client-options [{:keys [figwheel]}]
-  (if figwheel
-    (if-not (map? figwheel) {} figwheel)
-    {}))
-
-(comment
-  (figwheel-client-options {:figwheel {:hey 1}})
-
-  (figwheel-client-options {:figwheel true})
-  
-  )
-
-(defn fix-figwheel-symbol-keys [figwheel]
-  (into {} (map (fn [[k v]] [k (if (symbol? v) (name v) v)]) figwheel)))
-
-(defn append-build-id [figwheel build]
-  (if (:id build)
-    (assoc figwheel :build-id (:id build))
-    figwheel))
-
-(defn forward-devcard-option [{:keys [figwheel] :as build}]
-  (if (and figwheel (:devcards figwheel))
-    (assoc-in build [:build-options :devcards] true)
-    build))
-
-(defn prep-build-for-figwheel-client [{:keys [figwheel] :as build}]
-  (if figwheel
-    (assoc build :figwheel
-           (-> (figwheel-client-options build)
-             (append-build-id build)
-             (fix-figwheel-symbol-keys)))
-    build))
-
-(defn prep-builds-for-figwheel-client [builds]
-  (mapv (comp prep-build-for-figwheel-client forward-devcard-option) builds))
-
-(defn figwheel-build? [build]
-  (and (= (get-in build [:build-options :optimizations]) :none)
-       (:figwheel build)))
+(defn prepped? [build]
+  (-> build meta ::prepped))
 
 (defn update-figwheel-connect-options [figwheel-server build]
   (if (figwheel-build? build)
@@ -275,11 +252,7 @@
 (defn prep-builds [builds]
   (-> builds
       map-to-vec-builds
-      (->> (mapv #(dissoc % :warning-handlers)))
-      fix-builds
-      prep-builds-for-figwheel-client
-      ensure-output-dirs
-      no-seqs))
+      (->> (mapv prep-build))))
 
 (defn prep-options
   "Normalize various configuration input."
