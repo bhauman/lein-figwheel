@@ -36,7 +36,7 @@
      (assoc sys
             (build-config->key build-config)
             (component/using
-             (cljs-autobuild build-config)
+             (cljs-autobuild {:build-config build-config})
              [:figwheel-server])))
    system
    build-configs))
@@ -134,7 +134,7 @@
   (if-let [build-config (id->build-config system build-id)]
     (assoc system (id->key build-id)
            (component/using
-            (cljs-autobuild build-config)
+            (cljs-autobuild {:build-config build-config})
             [:figwheel-server]))
     system))
 
