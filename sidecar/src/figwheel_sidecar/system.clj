@@ -171,7 +171,7 @@
     (switch-to-build system total-ids)))
 
 (defn clear-compiler-env-for-build-id [system build-id]
-  (update-in system [:figwheel-server :builds build-id] utils/add-compiler-env))
+  (update-in system [:figwheel-server :builds build-id] config/add-compiler-env))
 
 (defn clean-build [system id]
   (if-let [build-options 

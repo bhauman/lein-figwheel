@@ -1,11 +1,12 @@
 (ns figwheel-sidecar.config
   (:require
-   [clojure.pprint :as p]
    [figwheel-sidecar.utils :as utils]
+   [clojure.pprint :as p]
    [clojure.tools.reader.edn :as edn]
    [clojure.string :as string]
    [clojure.java.io :as io]
-   [clojure.walk :as walk]))
+   [clojure.walk :as walk]
+   [cljs.env]))
 
 (defn mkdirs [fpath]
   (let [f (io/file fpath)]
@@ -310,10 +311,17 @@
                                  (or (not-empty (:build-ids prepped))
                                      (get-in prepped [:figwheel-options :builds-to-start])))))))
 
+(defn add-compiler-env [{:keys [build-options] :as build}]
+  (assoc build
+         :compiler-env
+         (cljs.env/default-compiler-env build-options)))
+
 (defn get-project-builds []
   (into (array-map)
         (map
          (fn [x]
            [(:id x)
-            (utils/add-compiler-env x)])
+            (add-compiler-env x)])
          (:all-builds (prep-figwheel-config (figwheel-ambient-config (get-project-config)))))))
+
+

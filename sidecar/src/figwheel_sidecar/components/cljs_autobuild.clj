@@ -1,5 +1,6 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
+   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped?]]   
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
@@ -131,12 +132,13 @@
       (watching/stop! (:file-watcher this)))
     (dissoc this :file-watcher)))
 
+
 (defn cljs-autobuild [{:keys [build-config] :as opts}]
   ;; do a little preparation of the build config just in case
-  (let [build-config (if-not (config/prepped? build-config)
-                       (config/prep-build build-config)
+  (let [build-config (if-not (prepped? build-config)
+                       (prep-build build-config)
                        build-config)
         build-config (if-not (:compiler-env build-config)
-                       (utils/add-compiler-env build-config)
+                       (add-compiler-env build-config)
                        build-config)]
     (map->CLJSAutobuild (assoc opts :build-config build-config))))
