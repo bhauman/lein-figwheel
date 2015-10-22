@@ -81,8 +81,3 @@
   (hawk/stop! watcher)
   (Thread/sleep 200)
   (close! throttle-chan))
-
-#_(def ww (hawk-watcher ["src" "foreign/wowza.js"
-                "libs_sscr/tweaky.js"] (fn [files] (prn files))))
-
-#_(reset! ww true)
