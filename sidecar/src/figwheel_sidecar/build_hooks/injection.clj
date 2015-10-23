@@ -22,6 +22,7 @@
 (def figwheel-client-hook-keys [:on-jsload
                                 :before-jsload
                                 :on-cssload
+                                :on-message
                                 :on-compile-fail
                                 :on-compile-warning])
 

@@ -266,5 +266,3 @@
            [(:id x)
             (add-compiler-env x)])
          (:all-builds (prep-figwheel-config (figwheel-ambient-config (get-project-config)))))))
-
-

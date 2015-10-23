@@ -194,7 +194,6 @@
         (vec (-> data :body))
         []))))
 
-
 (defonce init-data
   (go
     (let [todos (<! (get-todos))]
@@ -205,6 +204,11 @@
                                         (println "Transaction:")
                                         (prn x)
                                         (remote-transact x))})
+
+
+
+(defn on-message [msg-hist]
+  (prn (first msg-hist)))
 
 
 

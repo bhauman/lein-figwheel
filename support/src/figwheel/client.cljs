@@ -284,6 +284,8 @@
                        (if (utils/html-env?) js/location.host "localhost:3449")
                        "/figwheel-ws")
    :load-warninged-code false
+
+   ;; :on-message identity
    
    :on-jsload default-on-jsload
    :before-jsload default-before-load
@@ -323,6 +325,10 @@
                                   :comp-fail-warning-plugin
                                   :repl-plugin])
                base)
+        base (let [on-message (:on-message system-options)]
+               (if (fn? on-message)
+                 (assoc base :message-listener (fn [_] on-message))
+                 base))
         base (if (false? (:autoload system-options))
                (dissoc base :file-reloader-plugin)
                base)]
