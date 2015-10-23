@@ -60,7 +60,7 @@
   (run-local-project project all-builds
      '(require 'figwheel-sidecar.system)
      (if (fc/needs-lein-project-config?)
-       `(figwheel-sidecar.system/run-autobuilder ~autobuild-opts)
+       `(figwheel-sidecar.system/run-autobuilder '~autobuild-opts)
        `(figwheel-sidecar.system/load-config-run-autobuilder {:build-ids ~build-ids}))))
 
 (defn figwheel
