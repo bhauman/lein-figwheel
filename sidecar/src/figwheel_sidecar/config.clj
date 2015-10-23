@@ -8,18 +8,12 @@
    [clojure.walk :as walk]
    [cljs.env]))
 
-(defn mkdirs [fpath]
-  (let [f (io/file fpath)]
-    (when-let [dir (.getParentFile f)] (.mkdirs dir))))
-
 (defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))
 
-(defn optimizations-none?
-  "Given a map of compiler options returns true if a build will be
-  compiled in :optimizations :none mode"
-  [{:keys [optimizations]}]
-  (or (nil? optimizations) (= optimizations :none)))
+(defn mkdirs [fpath]
+  (let [f (io/file fpath)]
+    (when-let [dir (.getParentFile f)] (.mkdirs dir))))
 
 ;; TODO compiler probably handles this now
 (defn ensure-output-dirs!
@@ -30,27 +24,11 @@
       (mkdirs output-to))
     build))
 
-(defn no-seqs
-  "Given a walkable Clojure data structure turns the seqs into
-  vectors. This is mainly used to help get build configurations across
-  the serialization boundary from the lein plugin to the subprocess."
-  [b]
-  (walk/postwalk #(if (seq? %) (vec %) %) b))
-
-;; fixing up the :figwheel client side options
-
-(defn fix-symbol-vals
-  "Given a map found make all symbol values into strings."
-  [mappish]
-  (zipmap (keys mappish)
-          (map #(if (symbol? %) (name %) %) (vals mappish))))
-
-(defn append-build-id
-  "Given a build config forward the build :id to the figwheel client config as a :build-id"
-  [figwheel build-id]
-  (if build-id
-    (assoc figwheel :build-id build-id)
-    figwheel))
+(defn optimizations-none?
+  "Given a map of compiler options returns true if a build will be
+  compiled in :optimizations :none mode"
+  [{:keys [optimizations]}]
+  (or (nil? optimizations) (= optimizations :none)))
 
 (defn forward-devcard-option
   "Given a build-config has a [:figwheel :devcards] config it make
@@ -60,14 +38,13 @@
     (assoc-in build [:build-options :devcards] true)
     build))
 
-(defn prep-build-for-figwheel-client
+(defn forward-to-figwheel-build-id
   "Given a build config that has a :figwheel config in it "
   [{:keys [id figwheel] :as build}]
-  (if figwheel
-    (assoc build :figwheel
-           (-> (if (map? figwheel) figwheel {})
-               (append-build-id id)
-               fix-symbol-vals))
+  (if (and figwheel id)
+    (update build :figwheel
+            (fn [x] (assoc (if (map? x) x {})
+                          :build-id id)))
     build))
 
 (defn figwheel-build? [{:keys [build-options] :as build}]
@@ -89,20 +66,12 @@
   [builds build-ids]
   (let [builds (map-to-vec-builds builds)
         ;; ensure string ids
-        builds (map #(update-in % [:id] name) builds)]
+        builds (map #(update % :id name) builds)]
     (vec
      (keep identity
            (if-not (empty? build-ids)
              (keep (fn [bid] (first (filter #(= bid (:id %)) builds))) build-ids)
              [(first (filter optimizations-none? builds))])))))
-
-;; we are only going to work on one build
-;; still need to narrow this to optimizations none
-(defn narrow-builds
-  "Filters builds to the chosen build-id or if no build id specified returns the first
-   build with optimizations set to none."
-  [project build-ids]
-  (update-in project [:cljsbuild :builds] narrow-builds* build-ids))
 
 (defn check-for-valid-options
   "Check for various configuration anomalies."
@@ -139,17 +108,7 @@
 (defn apply-to-key
   "applies a function to a key, if key is defined."
   [f k opts]
-  (if (k opts) (update-in opts [k] f) opts))
-
-(defn namify-module-entries [module-map]
-  (if (map? module-map)
-    (into {} (map (fn [[k v]]
-                    (if (and (map? v)
-                             (get v :entries))
-                      [k (update-in v [:entries] #(set (map name %)))]
-                      [k v]))
-                  module-map))
-    module-map))
+  (if (k opts) (update opts k f) opts))
 
 ;; TODO this is a hack! need to check all the places that I'm checking for
 ;; :optimizations :none and check for nil? or :none
@@ -183,11 +142,9 @@
 
 (defn fix-build-options [build-options]
   (->> build-options
-    (default-optimizations-to-none)
-    (apply-to-key normalize-dir :output-dir)
-    (sane-output-to-dir)
-    (apply-to-key namify-module-entries :modules)
-    (apply-to-key name :main)))
+       default-optimizations-to-none
+       (apply-to-key normalize-dir :output-dir)
+       sane-output-to-dir))
 
 (defn move-compiler-to-build-options [build]
   (-> build
@@ -204,14 +161,12 @@
 
 (defn prep-build [build]
   (-> build
-      (dissoc :warning-handlers)
       ensure-id
       move-compiler-to-build-options
-      (update-in [:build-options] fix-build-options)
-      prep-build-for-figwheel-client
+      (update :build-options fix-build-options)
+      forward-to-figwheel-build-id
       forward-devcard-option
       ensure-output-dirs!
-      no-seqs
       (vary-meta assoc ::prepped true)))
 
 (defn prepped? [build]
@@ -219,15 +174,15 @@
 
 (defn update-figwheel-connect-options [figwheel-server build]
   (if (figwheel-build? build)
-    (let [build (prep-build-for-figwheel-client build)]
+    (let [build (forward-to-figwheel-build-id build)]
       (if-not (get-in build [:figwheel :websocket-url]) ;; prefer 
         (let [host (or (get-in build [:figwheel :websocket-host]) "localhost")]
           (if-not (= :js-client-host host)
             (-> build
-              (update-in [:figwheel] dissoc :websocket-host)
+              (update :figwheel dissoc :websocket-host)
               (assoc-in [:figwheel :websocket-url]
                         (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
-            (update-in build [:figwheel] dissoc :websocket-host)))
+            (update build :figwheel dissoc :websocket-host)))
         build))
     build))
 
@@ -254,16 +209,6 @@
   (-> builds
       map-to-vec-builds
       (->> (mapv prep-build))))
-
-(defn prep-options
-  "Normalize various configuration input."
-  [opts]
-  (->> opts
-       no-seqs
-       (apply-to-key str :ring-handler)
-       (apply-to-key str :http-server-root)       
-       (apply-to-key str :open-file-command)
-       (apply-to-key str :server-logfile)))
 
 ;; high level configuration helpers
 
@@ -301,9 +246,7 @@
     :build-ids build-ids)))
 
 (defn prep-figwheel-config [config]
-  (let [prepped (-> config
-                    (update-in [:all-builds] prep-builds)
-                    (update-in [:figwheel-options] prep-options))]
+  (let [prepped (update config :all-builds prep-builds)]
     (assoc prepped
            :build-ids
            (mapv :id
