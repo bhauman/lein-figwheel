@@ -245,13 +245,12 @@
         @default-handler)))
 
 (defn figwheel-server [figwheel-options all-builds]
-  (let [prepped-fig-options (config/prep-options figwheel-options)
-        all-builds          (map config/add-compiler-env (config/prep-builds all-builds))
+  (let [all-builds          (map config/add-compiler-env (config/prep-builds all-builds))
         all-builds (ensure-array-map all-builds)
         
-        initial-state       (create-initial-state prepped-fig-options)
+        initial-state       (create-initial-state figwheel-options)
         figwheel-opts (assoc initial-state
                              :builds all-builds       
-                             :log-writer    (extract-log-writer prepped-fig-options)
-                             :cljs-build-fn (extract-cljs-build-fn prepped-fig-options))]
+                             :log-writer    (extract-log-writer figwheel-options)
+                             :cljs-build-fn (extract-cljs-build-fn figwheel-options))]
     (map->FigwheelServer figwheel-opts)))
