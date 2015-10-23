@@ -226,7 +226,7 @@
                      (path-parts (fix-node-request-url request-url))))]
           (aset (.-cache js/require) cache-path nil)
           (callback (try
-                      (js/require (string/join "/" ["." ".." request-url]))
+                      (js/require cache-path)
                       (catch js/Error e
                         (utils/log :error (str  "Figwheel: Error loading file " cache-path))
                         (utils/log :error (.-stack e))
