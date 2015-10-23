@@ -262,10 +262,19 @@
 (defn fetch-config []
   (prep-config (config)))
 
+(defrecord CljsEnv [])
+(defmethod print-method :cljs/env [o ^java.io.Writer w]
+  (.write w "#figwheel-sidecar.config.CljsEnv{}"))
+
+(require 'com.stuartsierra.component)
+(defmethod print-method com.stuartsierra.component.SystemMap [o ^java.io.Writer w]
+  (.write w "#com.stuartsierra.component.SystemMap{}"))
+
 (defn add-compiler-env [{:keys [build-options] :as build}]
   (assoc build
          :compiler-env
-         (cljs.env/default-compiler-env build-options)))
+         (swap! (cljs.env/default-compiler-env build-options)
+                #(with-meta % {:type :cljs/env}))))
 
 (defn get-project-builds []
   (into (array-map)

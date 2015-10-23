@@ -73,8 +73,8 @@
   (-> (component/system-map
        :figwheel-server (server/figwheel-server options))
       (add-initial-builds (map name build-ids))
-      (add-css-watcher  (:css-dirs figwheel-options))
-      (add-nrepl-server (select-keys figwheel-options [:nrepl-port
+      #_(add-css-watcher  (:css-dirs figwheel-options))
+      #_(add-nrepl-server (select-keys figwheel-options [:nrepl-port
                                                        :nrepl-host
                                                        :nrepl-middleware]))))
 

@@ -112,6 +112,7 @@
                 injection/build-hook
                 figwheel-start-and-end-messages)
             cljs-build-fn) this)
+
           (assoc this
                  ;; for simple introspection
                  :cljs-autobuild true
