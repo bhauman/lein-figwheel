@@ -1,13 +1,4 @@
-(ns
-    ^:doc
-" Providing functionality to coerce a user supplied configuration into
-a configuration that Figwheel can use.
-
-
-"
-
-
-    figwheel-sidecar.config
+(ns figwheel-sidecar.config
   (:require
    [figwheel-sidecar.utils :as utils]
    [clojure.pprint :as p]

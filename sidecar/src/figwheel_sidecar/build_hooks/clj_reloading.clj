@@ -99,7 +99,6 @@
     config))
 
 (defn build-hook [build-fn]
-  ;; TODO figwheel-server :reload-clj and :reload-cljc config flags
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (let [reload-config (default-config figwheel-server)]
       (if-let [changed-clj-files (and
