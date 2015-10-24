@@ -10,6 +10,12 @@
 (defn send-message-with-callback [figwheel-server channel-id msg-data callback]
   (-send-message figwheel-server channel-id msg-data callback))
 
+(defn eval-js
+  ([figwheel-server channel-id code]
+   (eval-js figwheel-server channel-id code nil))
+  ([figwheel-server channel-id code callback]
+   (send-message-with-callback figwheel-server channel-id {:msg-name :repl-eval :code code} callback)))
+
 (defn connection-data [figwheel-server]
   (-connection-data figwheel-server))
 
