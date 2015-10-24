@@ -24,11 +24,13 @@
       (mkdirs output-to))
     build))
 
-(defn optimizations-none?
+(defn opt-none?
   "Given a map of compiler options returns true if a build will be
   compiled in :optimizations :none mode"
   [{:keys [optimizations]}]
   (or (nil? optimizations) (= optimizations :none)))
+
+(def optimizations-none? (comp opt-none? get-build-options))
 
 (defn forward-devcard-option
   "Given a build-config has a [:figwheel :devcards] config it make
@@ -47,8 +49,8 @@
                           :build-id id)))
     build))
 
-(defn figwheel-build? [{:keys [build-options] :as build}]
-  (and (optimizations-none? build-options)
+(defn figwheel-build? [build]
+  (and (optimizations-none? build)
        (:figwheel build)))
 
 (defn map-to-vec-builds
@@ -77,7 +79,8 @@
   "Check for various configuration anomalies."
   [{:keys [http-server-root] :as opts} print-warning build']
   (let [build-options (get-build-options build')
-        opts? (and (not (nil? build-options)) (optimizations-none? build'))]
+        opts? (and (not (nil? build-options))
+                   (optimizations-none? build'))]
     (map
      #(str "Figwheel Config Error (in project.clj) - " %)
      (filter identity
@@ -113,7 +116,7 @@
 ;; TODO this is a hack! need to check all the places that I'm checking for
 ;; :optimizations :none and check for nil? or :none
 (defn default-optimizations-to-none [build-options]
-  (if (optimizations-none? build-options)
+  (if (opt-none? build-options)
     (assoc build-options :optimizations :none)
     build-options))
 

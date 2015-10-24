@@ -42,11 +42,12 @@
 
   :cljsbuild {
               :builds [{ :id "example"
-                         :source-paths ["src" #_"dev" #_"tests" "../support/src"]
+                         :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
-                                    :on-jsload      "example.core/fig-reload"
-                                    :on-message     "example.core/on-message"
+                                    :on-jsload      example.core/fig-reload
+                                    
+                                    :on-message     example.core/on-message
                                     ; :debug true
                                     }
                          :compiler { :main example.core

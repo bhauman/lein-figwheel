@@ -230,7 +230,8 @@
            system))))))
 
 (defn print-config [system ids]
-  (let [ids (map key->id (ids-or-all-build-keys system ids))]
+  (let [ids (or (not-empty ids)
+                (keys (get-in system [:figwheel-server :builds])))]
     (doseq [build-confg (map (partial id->build-config system) ids)]
       (p/pprint (dissoc build-confg :compiler-env))))
   system)
