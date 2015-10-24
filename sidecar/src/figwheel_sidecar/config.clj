@@ -264,17 +264,24 @@
 
 (defrecord CljsEnv [])
 (defmethod print-method :cljs/env [o ^java.io.Writer w]
-  (.write w "#figwheel-sidecar.config.CljsEnv{}"))
+  (.write w "#figwheel_sidecar.config.CljsEnv{}"))
 
 (require 'com.stuartsierra.component)
 (defmethod print-method com.stuartsierra.component.SystemMap [o ^java.io.Writer w]
   (.write w "#com.stuartsierra.component.SystemMap{}"))
 
+(require 'aprint.core)
+(defmethod print-method clojure.lang.ExceptionInfo [o ^java.io.Writer w]
+  (let [msg (-> o .getMessage)
+        data (-> o .getData aprint.core/aprint with-out-str)]
+    (.write w (str msg "\n" data))))
+
 (defn add-compiler-env [{:keys [build-options] :as build}]
   (assoc build
          :compiler-env
-         (swap! (cljs.env/default-compiler-env build-options)
-                #(with-meta % {:type :cljs/env}))))
+         #_(cljs.env/default-compiler-env build-options)
+         (atom (swap! (cljs.env/default-compiler-env build-options)
+                      #(with-meta % {:type :cljs/env})))))
 
 (defn get-project-builds []
   (into (array-map)
