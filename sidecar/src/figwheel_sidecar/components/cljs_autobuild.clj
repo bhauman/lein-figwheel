@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
-   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped?]]   
+   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped? get-project-config]]
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
@@ -32,7 +32,7 @@
           (with-precision 2
             (str (/ (double elapsed-us) 1000) " seconds"))))]
   (defn figwheel-start-and-end-messages [build-fn]
-    (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
+    (fn [{:keys [build-config changed-files] :as build-state}]
       (let [started-at (System/currentTimeMillis)
             {:keys [build-options source-paths]} build-config
             {:keys [output-to]} build-options]
@@ -94,24 +94,24 @@
         ;; start and end messages
 
         (let [log-writer (or (:log-writer this)
-                             (:log-writer figwheel-server)
+                             ;; (:log-writer figwheel-server)
                              (io/writer "figwheel_server.log" :append true))
               cljs-build-fn (or (:cljs-build-fn this)
-                                (:cljs-build-fn figwheel-server)
+                                ;; (:cljs-build-fn figwheel-server)
                                 ;; if no figwheel server
                                 ;; default build should be standard
                                 ;; cljs build
                                 (if figwheel-server
                                   figwheel-build
-                                  (figwheel-start-and-end-messages cljs-build)))]
+                                  (figwheel-start-and-end-messages cljs-build)))
+              new-cljs-build-fn (if (= cljs-build-fn figwheel-build)
+                                  (-> cljs-build injection/build-hook figwheel-start-and-end-messages)
+                                  cljs-build-fn)
+              ]
           ;; build once before watching
           ;; tiny experience tweak
           ;; first build shouldn't send notifications
-          ((if (= cljs-build-fn figwheel-build)
-            (-> cljs-build
-                injection/build-hook
-                figwheel-start-and-end-messages)
-            cljs-build-fn) this)
+          (new-cljs-build-fn this)
 
           (assoc this
                  ;; for simple introspection
@@ -146,3 +146,12 @@
                        (add-compiler-env build-config)
                        build-config)]
     (map->CLJSAutobuild (assoc opts :build-config build-config))))
+
+(defn new-cljsbuild
+  ([opts] (new-cljsbuild opts (get-project-config)))
+  ([{:keys [build-id figwheel-server]} project-config]
+   (let [builds (-> project-config :cljsbuild :builds)]
+     (cljs-autobuild {:figwheel-server figwheel-server
+                      :build-config (or (->> builds (filter #(-> % :id (= build-id))) first)
+                                        (first builds))}))))
+

@@ -6,7 +6,15 @@
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.walk :as walk]
-   [cljs.env]))
+   [cljs.env])
+  (:import [com.stuartsierra.component SystemMap]))
+
+;; make inspecting more friendly to copy/paste/read-string
+(defrecord CljsEnv [])
+(defmethod print-method ::cljs-env [o ^java.io.Writer w]
+  (.write w "#figwheel_sidecar.config.CljsEnv{}"))
+(defmethod print-method SystemMap [o ^java.io.Writer w]
+  (.write w "#com.stuartsierra.component.SystemMap{}"))
 
 (defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))
@@ -279,9 +287,8 @@
 (defn add-compiler-env [{:keys [build-options] :as build}]
   (assoc build
          :compiler-env
-         #_(cljs.env/default-compiler-env build-options)
          (atom (swap! (cljs.env/default-compiler-env build-options)
-                      #(with-meta % {:type :cljs/env})))))
+                      #(with-meta % {:type ::cljs-env})))))
 
 (defn get-project-builds []
   (into (array-map)

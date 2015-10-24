@@ -121,7 +121,7 @@
                         config))))
     (catch java.net.BindException e
       (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
-      (System/exit 0))))
+      #_(System/exit 0))))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
@@ -197,7 +197,7 @@
 
 ;; external api
 
-(defrecord FigwheelServer []
+(defrecord FigwheelServer [handler]
   component/Lifecycle
   (start [this]
     (if-not (:http-server this)
@@ -214,6 +214,9 @@
     (->> (prep-message this channel-id msg-data callback)
          (swap! file-change-atom append-msg)))
   (-connection-data [{:keys [connection-count]}] @connection-count))
+
+(defn new-figwheel-server [& opts]
+  (map->FigwheelServer (or opts {})))
 
 (defn send-message [figwheel-server channel-id msg-data]
   (-send-message figwheel-server channel-id msg-data nil))
