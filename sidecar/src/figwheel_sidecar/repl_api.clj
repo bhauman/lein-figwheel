@@ -109,6 +109,12 @@ and starts building the default builds again."
   []
   (app-trans fs/reload-config))
 
+(defn print-config
+  "Prints out the build configs currently focused or optionally the
+  configs of the ids provided."
+  [& ids]
+  (fs/print-config @*figwheel-system* ids))
+
 (defn cljs-repl
   "Starts a Figwheel ClojureScript REPL for the provided build id (or
 the first default id)."

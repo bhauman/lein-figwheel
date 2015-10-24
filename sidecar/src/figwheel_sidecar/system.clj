@@ -229,6 +229,12 @@
            (repl-println "No reload config found in project.clj")
            system))))))
 
+(defn print-config [system ids]
+  (let [ids (map key->id (ids-or-all-build-keys system ids))]
+    (doseq [build-confg (map (partial id->build-config system) ids)]
+      (p/pprint (dissoc build-confg :compiler-env))))
+  system)
+
 ;; doesn't alter the system
 (defn fig-status [system]
     (let [connection-count (server/connection-data (:figwheel-server system))
@@ -286,6 +292,7 @@
    'reload-config   (make-special-fn (system-setter
                                             (fn [sys _] (reload-config sys))
                                             system))
+   'print-config   (make-special-fn (system-setter print-config system))
    'fig-status      (make-special-fn (system-setter
                                             (fn [sys _] (fig-status sys))
                                             system))})
@@ -299,6 +306,7 @@
           (reload-config)                 ;; reloads build config and resets autobuild
           (build-once [id ...])           ;; builds source one time
           (clean-builds [id ..])          ;; deletes compiled cljs target files
+          (print-config [id ...])         ;; prints out build configurations
           (fig-status)                    ;; displays current state of system
   Switch REPL build focus:
           :cljs/quit                      ;; allows you to switch REPL to another build
