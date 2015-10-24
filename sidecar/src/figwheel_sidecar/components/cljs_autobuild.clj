@@ -61,7 +61,7 @@
         ;; (with-meta {:hooks (conj build-hooks x)})
         )))
 
-(defrecord CLJSAutobuild [build-config hooks once-hooks]
+(defrecord CLJSAutobuild [build-config]
   component/Lifecycle
   (start [this]
     (if-not (:file-watcher this)
@@ -91,6 +91,10 @@
               ;;                     cljs-build-fn)
 
                                         ;(-> cljs-build injection/build-hook figwheel-start-and-end-messages)
+              components (-> this (dissoc :build-config) vals)
+              hooks (->> components (mapv :cljsbuild/hook) (filter some?))
+              once-hooks (->> components (mapv :cljsbuild/once-hook) (filter some?))
+
               first-cljs-build-fn (reduce comp-build-fn
                                     (with-meta cljs-build {:once-hooks []})
                                     (conj once-hooks figwheel-start-and-end-messages))
@@ -134,17 +138,8 @@
                        build-config)
         build-config (if-not (:compiler-env build-config)
                        (add-compiler-env build-config)
-                       build-config)
-        components (-> opts
-                       (dissoc :build-config)
-                       vals)
-        hooks (->> components
-                   (mapv :cljsbuild/hook)
-                   (filter some?))
-        once-hooks (->> components
-                        (mapv :cljsbuild/once-hook)
-                        (filter some?))]
-    (map->CLJSAutobuild {:hooks hooks :build-config build-config :once-hooks once-hooks})))
+                       build-config)]
+    (map->CLJSAutobuild {assoc opts :build-config build-config})))
 
 (defn new-cljsbuild
   ([opts] (new-cljsbuild opts (get-project-config)))
