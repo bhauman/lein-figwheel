@@ -64,7 +64,7 @@
 
 (defn create-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
   (-> (component/system-map
-       :figwheel-server (figwheel-server figwheel-options all-builds))
+       :figwheel-server (figwheel-server options))
       (add-initial-builds (map name build-ids))
       (add-css-watcher  (:css-dirs figwheel-options))
       (add-nrepl-server (select-keys figwheel-options [:nrepl-port
@@ -401,8 +401,6 @@
       (start-figwheel-and-cljs-repl! options)))
 
 (defn load-config-run-autobuilder [{:keys [build-ids]}]
-  (let [options (-> {} ;; not relying on project in the case of
-                    ;; being called from the plugin
-                    (config/figwheel-ambient-config build-ids)
-                    config/prep-figwheel-config)]
+  (let [options (-> (config/config {} build-ids)
+                    config/prep-config)]
     (run-autobuilder options)))

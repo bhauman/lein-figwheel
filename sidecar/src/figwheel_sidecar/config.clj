@@ -220,11 +220,12 @@
 (defn get-project-config
   "This loads the project map form project.clj without merging profiles."
   []
-  (when (.exists (io/file "project.clj"))
+  (if (.exists (io/file "project.clj"))
     (try
       (into {} (map vec (partition 2 (drop 3 (read-string (slurp "project.clj"))))))
       (catch Exception e
-        {}))))
+        {}))
+    {}))
 
 (defn project-builds [project]
   (or (get-in project [:figwheel :builds])
@@ -233,8 +234,9 @@
 (defn needs-lein-project-config? []
   (not (.exists (io/file "figwheel.edn"))))
 
-(defn figwheel-ambient-config
-  ([project] (figwheel-ambient-config project nil))
+(defn config
+  ([] (config (get-project-config) nil))
+  ([project] (config project nil))
   ([project build-ids]
    (assoc
     (if-not (needs-lein-project-config?)
@@ -245,7 +247,7 @@
        :all-builds (project-builds project)})
     :build-ids build-ids)))
 
-(defn prep-figwheel-config [config]
+(defn prep-config [config]
   (let [prepped (update config :all-builds prep-builds)]
     (assoc prepped
            :build-ids
@@ -253,6 +255,9 @@
                  (narrow-builds* (:all-builds prepped)
                                  (or (not-empty (:build-ids prepped))
                                      (get-in prepped [:figwheel-options :builds-to-start])))))))
+
+(defn fetch-config []
+  (prep-config (config)))
 
 (defn add-compiler-env [{:keys [build-options] :as build}]
   (assoc build
@@ -265,4 +270,4 @@
          (fn [x]
            [(:id x)
             (add-compiler-env x)])
-         (:all-builds (prep-figwheel-config (figwheel-ambient-config (get-project-config)))))))
+         (:all-builds (fetch-config)))))
