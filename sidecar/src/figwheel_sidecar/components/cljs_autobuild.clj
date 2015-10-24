@@ -132,7 +132,7 @@
       (println "Figwheel: Stopped watching build -" (:id build-config))
       (flush)
       (watching/stop! (:file-watcher this)))
-    (dissoc this :file-watcher)))
+    (assoc this :file-watcher nil)))
 
 (defn cljs-autobuild
   "  Creates a ClojureScript autobuilding component that watches

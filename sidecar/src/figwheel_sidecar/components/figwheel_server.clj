@@ -208,12 +208,21 @@
     (when (:http-server this)
       (println "Figwheel: Stopping Websocket Server")
       (stop-server this))
-    (dissoc this :http-server))
+    (assoc this :http-server nil))
   ChannelServer
   (-send-message [{:keys [file-change-atom] :as this} channel-id msg-data callback]
     (->> (prep-message this channel-id msg-data callback)
          (swap! file-change-atom append-msg)))
   (-connection-data [{:keys [connection-count]}] @connection-count))
+
+(defrecord FileChangeAtom [])
+(defmethod print-method ::file-change-atom [o ^java.io.Writer w]
+  (.write w "#figwheel_sidecar.components.figwheel_server.FileChangeAtom{}"))
+(defmethod print-method FigwheelServer [o ^java.io.Writer w]
+  (let [inspectable (update-in o [:file-change-atom] (fn [a] (atom (swap! a #(with-meta % {:type ::file-change-atom})))))]
+    ;; from print-method clojure.lang.IPersistentMap
+    (#'clojure.core/print-meta inspectable w)
+    (#'clojure.core/print-map inspectable #'clojure.core/pr-on w)))
 
 (defn new-figwheel-server [& opts]
   (map->FigwheelServer (or opts {})))
