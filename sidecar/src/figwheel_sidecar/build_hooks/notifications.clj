@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.build-hooks.notifications
   (:require
-   [figwheel-sidecar.components.figwheel-server :as server]
+   [figwheel-sidecar.channel-server :as server]
    [figwheel-sidecar.utils :as utils]   
 
    [cljs.env :as env]
@@ -60,6 +60,11 @@
 (defn dependency-files [{:keys [output-to output-dir]}]
    [output-to (str output-dir "/goog/deps.js") (str output-dir "/cljs_deps.js")])
 
+(defrecord DependencyFile [dependency-file type file eval-body])
+(defmethod print-method DependencyFile [o ^java.io.Writer w]
+  (let [inspectable (dissoc o :eval-body)]
+    (print-method inspectable w)))
+
 (defn get-dependency-files
   "Handling dependency files is different they don't have namespaces and their mtimes
    change on every compile even though their content doesn't. So we only want to include them
@@ -67,10 +72,11 @@
   [st]
   (keep
    #(when (file-changed? st %)
-      { :dependency-file true
+      (map->DependencyFile
+       {:dependency-file true
         :type :dependency-update
         :file (utils/remove-root-path %)
-        :eval-body (slurp %)})
+        :eval-body (slurp %)}))
    (dependency-files st)))
 
 (defn make-sendable-file
@@ -171,8 +177,8 @@
       (notify-compile-error figwheel-server build {:exception exception :cause cause}))))
 
 ;; ware in all figwheel notifications
-(defn build-hook [build-fn]
-  (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
+(defn build-hook [figwheel-server build-fn]
+  (fn [{:keys [build-config changed-files] :as build-state}]
     (binding [cljs.analyzer/*cljs-warning-handlers*
               (conj cljs.analyzer/*cljs-warning-handlers*
                     (warning-message-handler
@@ -180,7 +186,7 @@
       (try
         (binding [env/*compiler* (:compiler-env build-config)]
           (build-fn build-state)
-          (notify-change-helper build-state changed-files))
+          (notify-change-helper (assoc build-state :figwheel-server figwheel-server) changed-files))
         (catch Throwable e
           (handle-exceptions figwheel-server (assoc build-config :exception e)))))))
 

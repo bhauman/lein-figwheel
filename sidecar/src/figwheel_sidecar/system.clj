@@ -3,11 +3,12 @@
    [figwheel-sidecar.utils :as utils]   
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
+   [figwheel-sidecar.channel-server :as server]
 
    [figwheel-sidecar.components.nrepl-server   :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
    [figwheel-sidecar.components.cljs-autobuild   :as autobuild]
-   [figwheel-sidecar.components.figwheel-server :as server]      
+   [figwheel-sidecar.components.figwheel-server :as figwheel]
    
    [com.stuartsierra.component :as component]
 
@@ -20,7 +21,8 @@
 
 (def fetch-config config/fetch-config)
 
-(def figwheel-server server/figwheel-server)
+(def figwheel-server figwheel/figwheel-server)
+(def figwheel-build figwheel/figwheel-build)
 (def cljs-autobuild autobuild/cljs-autobuild)
 (def css-watcher css-watch/css-watcher)
 (def nrep-server-component nrepl-comp/nrepl-server-component)
@@ -198,7 +200,7 @@
      #(reduce clean-build % ids))))
 
 ;; doesn't change the system
-(defn build-once* [system id]
+(defn build-once* [{:keys [figwheel-server] :as system} id]
   (when-let [build-config
              (id->build-config system (name id))
              #_(get (:builds system) (name id))]
@@ -207,8 +209,7 @@
       ;; we are allwing build to be overridden at the system level
       ((or
         (:cljs-build-fn system)
-        (get-in system [:figwheel-server :cljs-build-fn])
-        autobuild/figwheel-build)
+        (figwheel-build figwheel-server))
        (assoc system :build-config build-config)))
     system))
 

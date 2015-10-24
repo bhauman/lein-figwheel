@@ -1,8 +1,7 @@
 (ns figwheel-sidecar.components.css-watcher
   (:require
    [figwheel-sidecar.components.file-system-watcher :as fsw]
-   [figwheel-sidecar.utils :as utils]
-   [figwheel-sidecar.components.figwheel-server :as fig]))
+   [figwheel-sidecar.utils :as utils]))
 
 (defn make-css-file [path]
   { :file (utils/remove-root-path path)

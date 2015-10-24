@@ -134,9 +134,9 @@
   (when (config/figwheel-build? build)
     (require-connection-script-js build)))
 
-(defn build-hook [build-fn]
-  (fn [{:keys [figwheel-server build-config] :as build-state}]
+(defn build-hook [figwheel-server build-fn]
+  (fn [{:keys [build-config] :as build-state}]
     (build-fn
      (assoc build-state
             :build-config (add-connect-script! figwheel-server build-config)))
-    (append-connection-init! build-config)))
+    (append-connection-init! (assoc build-config :figwheel-server figwheel-server))))

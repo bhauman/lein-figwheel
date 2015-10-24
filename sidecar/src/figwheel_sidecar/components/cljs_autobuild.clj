@@ -4,19 +4,12 @@
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
-      ;; build hooks
    [figwheel-sidecar.build-hooks.injection :as injection] 
-   [figwheel-sidecar.build-hooks.notifications :as notifications]
-   [figwheel-sidecar.build-hooks.clj-reloading :as clj-reloading]
-   [figwheel-sidecar.build-hooks.javascript-reloading :as javascript-reloading]   
-   
+
    [com.stuartsierra.component :as component]
    [cljs.closure]
    [cljs.build.api :as bapi]
    [clojure.java.io :as io]))
-
-;; TODO can I run this without a figwheel server??
-;; that would make this component much more useful
 
 (defn cljs-build [{:keys [build-config]}]
   (bapi/build
@@ -50,28 +43,6 @@
                       "\" in " (elapsed started-at) "." reset-color))
         (flush)))))
 
-(def figwheel-build
-  (-> cljs-build
-      injection/build-hook
-      notifications/build-hook
-      clj-reloading/build-hook
-      javascript-reloading/build-hook
-      figwheel-start-and-end-messages))
-
-(def figwheel-build-without-javascript-reloading
-  (-> cljs-build
-      injection/build-hook
-      notifications/build-hook
-      clj-reloading/build-hook
-      figwheel-start-and-end-messages))
-
-(def figwheel-build-without-clj-reloading
-  (-> cljs-build
-      injection/build-hook
-      notifications/build-hook
-      javascript-reloading/build-hook
-      figwheel-start-and-end-messages))
-
 (defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
   (let [{:keys [libs foreign-libs]} build-options]
     (concat
@@ -79,7 +50,18 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
-(defrecord CLJSAutobuild [build-config figwheel-server]
+(defn- comp-build-fn [build-fn x]
+  (let [build-hooks (-> build-fn meta :hooks)
+        ;; hook-meta  (-> x var meta)
+        ]
+    (-> build-fn
+        ;;hook-fn
+        x
+        ;; (with-meta {:hooks (conj build-hooks hook-meta)})
+        ;; (with-meta {:hooks (conj build-hooks x)})
+        )))
+
+(defrecord CLJSAutobuild [build-config hooks once-hooks]
   component/Lifecycle
   (start [this]
     (if-not (:file-watcher this)
@@ -96,26 +78,34 @@
         (let [log-writer (or (:log-writer this)
                              ;; (:log-writer figwheel-server)
                              (io/writer "figwheel_server.log" :append true))
-              cljs-build-fn (or (:cljs-build-fn this)
-                                ;; (:cljs-build-fn figwheel-server)
-                                ;; if no figwheel server
-                                ;; default build should be standard
-                                ;; cljs build
-                                (if figwheel-server
-                                  figwheel-build
-                                  (figwheel-start-and-end-messages cljs-build)))
-              new-cljs-build-fn (if (= cljs-build-fn figwheel-build)
-                                  (-> cljs-build injection/build-hook figwheel-start-and-end-messages)
-                                  cljs-build-fn)
-              ]
+              ;; cljs-build-fn (or (:cljs-build-fn this)
+              ;;                   ;; (:cljs-build-fn figwheel-server)
+              ;;                   ;; if no figwheel server
+              ;;                   ;; default build should be standard
+              ;;                   ;; cljs build
+              ;;                   (if figwheel-server
+              ;;                     figwheel-build
+              ;;                     (figwheel-start-and-end-messages cljs-build)))
+              ;; new-cljs-build-fn (if (= cljs-build-fn figwheel-build)
+              ;;                     (-> cljs-build injection/build-hook figwheel-start-and-end-messages)
+              ;;                     cljs-build-fn)
+
+                                        ;(-> cljs-build injection/build-hook figwheel-start-and-end-messages)
+              first-cljs-build-fn (reduce comp-build-fn
+                                    (with-meta cljs-build {:once-hooks []})
+                                    (conj once-hooks figwheel-start-and-end-messages))
+              cljs-build-fn (reduce comp-build-fn
+                                    (with-meta cljs-build {:hooks []})
+                                    (conj hooks figwheel-start-and-end-messages))]
           ;; build once before watching
           ;; tiny experience tweak
           ;; first build shouldn't send notifications
-          (new-cljs-build-fn this)
+          (first-cljs-build-fn this)
 
           (assoc this
                  ;; for simple introspection
                  :cljs-autobuild true
+                 :cljs-build-fn cljs-build-fn
                  :file-watcher
                  (watching/watch! (source-paths-that-affect-build build-config)
                           (fn [files]
@@ -144,8 +134,17 @@
                        build-config)
         build-config (if-not (:compiler-env build-config)
                        (add-compiler-env build-config)
-                       build-config)]
-    (map->CLJSAutobuild (assoc opts :build-config build-config))))
+                       build-config)
+        components (-> opts
+                       (dissoc :build-config)
+                       vals)
+        hooks (->> components
+                   (mapv :cljsbuild/hook)
+                   (filter some?))
+        once-hooks (->> components
+                        (mapv :cljsbuild/once-hook)
+                        (filter some?))]
+    (map->CLJSAutobuild {:hooks hooks :build-config build-config :once-hooks once-hooks})))
 
 (defn new-cljsbuild
   ([opts] (new-cljsbuild opts (get-project-config)))
