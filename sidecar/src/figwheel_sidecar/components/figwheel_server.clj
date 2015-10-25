@@ -125,30 +125,32 @@
     (with-channel request channel
       (setup-file-change-sender server-state (:params request) channel))))
 
+(defn- run-http-server [{:keys [server-port server-ip] :as server-state} handler]
+  (try
+    (run-server handler (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+                          (if server-ip
+                            (assoc config :ip server-ip)
+                            config)))
+    (catch java.net.BindException e
+      (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
+      (System/exit 0))))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
-  [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
-  (try
-    (-> (routes
-         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
-         (route/resources "/" {:root http-server-root})
-         (or resolved-ring-handler (fn [r] false))
-         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<h1>Page not found</h1>"))
-        ;; adding cors to support @font-face which has a strange cors error
-        ;; super promiscuous please don't uses figwheel as a production server :)
-        (cors/wrap-cors
-         :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
-        (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
-                      (if server-ip
-                        (assoc config :ip server-ip)
-                        config))))
-    (catch java.net.BindException e
-      (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
-      #_(System/exit 0))))
+  [{:keys [http-server-root resolved-ring-handler] :as server-state}]
+  (-> (routes
+       (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+       (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
+       (route/resources "/" {:root http-server-root})
+       ;; (or resolved-ring-handler (fn [r] false))
+       (GET "/" [] (resource-response "index.html" {:root http-server-root}))
+       (route/not-found "<h1>Page not found</h1>"))
+      ;; adding cors to support @font-face which has a strange cors error
+      ;; super promiscuous please don't uses figwheel as a production server :)
+      (cors/wrap-cors
+       :access-control-allow-origin #".*"
+       :access-control-allow-methods [:head :options :get :put :post :delete :patch])))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
@@ -173,7 +175,6 @@
                                     resolved-ring-handler
                                     open-file-command
                                     compile-wait-time
-
                                     ] :as opts}]
       (merge
        opts ;; allow other options to flow through
@@ -204,9 +205,14 @@
   ([opts]
    (let [state (if-not (:file-md5-atom opts)
                  (create-initial-state opts)
-                 opts)]
-     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
-     (assoc state :http-server (server state)))))
+                 opts)
+         handler (server state)]
+     ;; decomspose from http
+     (if (:httpless state)
+       (assoc state :handler handler)
+       (do
+         (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
+         (assoc state :http-server (run-http-server state handler)))))))
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
@@ -227,7 +233,7 @@
 (defrecord FigwheelServer [handler]
   component/Lifecycle
   (start [this]
-    (if-not (:http-server this)
+    (if-not (or (:http-server this) (:handler this))
       (let [state (start-server this)
             cljsbuild-hook (figwheel-build state)
             cljsbuild-once-hook (partial injection/build-hook state)]
@@ -239,7 +245,8 @@
     (when (:http-server this)
       (println "Figwheel: Stopping Websocket Server")
       (stop-server this))
-    (assoc this :http-server nil))
+    (assoc this :http-server nil :handler nil))
+
   ChannelServer
   (-send-message [{:keys [file-change-atom] :as this} channel-id msg-data callback]
     (->> (prep-message this channel-id msg-data callback)
