@@ -60,7 +60,7 @@
     (assoc system
            :css-watcher
            (component/using
-            (css-watch/css-watcher {:css-dirs css-dirs})
+            (css-watch/css-watcher {:watch-paths css-dirs})
             [:figwheel-server]))
     system))
 
