@@ -23,5 +23,5 @@
         (println "sending changed CSS file:" (:file f))))))
 
 (defn css-watcher [{:keys [watch-paths] :as options}]
-  (fsw/map->FileSystemWatcher (merge {:watcher-name "CSS Watcher"
-                                      :notification-handler #'handle-css-notification} options)))
+  (fsw/file-system-watcher (merge {:watcher-name "CSS Watcher"
+                                   :notification-handler #'handle-css-notification} options)))
