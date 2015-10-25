@@ -68,8 +68,8 @@
   [project & build-ids]
   (let [{:keys [all-builds figwheel-options]}
         (-> project
-            (fc/figwheel-ambient-config build-ids)
-            fc/prep-figwheel-config)
+            (fc/config build-ids)
+            fc/prep-config)
         errors (fc/check-config figwheel-options
                                 (fc/narrow-builds*
                                  all-builds
