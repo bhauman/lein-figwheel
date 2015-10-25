@@ -6,15 +6,17 @@
    [com.stuartsierra.component :as component]
    [clojure.tools.namespace.repl :refer (refresh refresh-all)]))
 
-(def temp-config
-  {:figwheel-options {:css-dirs ["resources/public/css"]
+(def temp-config (config/fetch-config)
+  #_{:figwheel-options {:css-dirs ["resources/public/css"]
                       ; :nrepl-port 7888
                       }
    :build-ids  ["example"]
    :all-builds (config/get-project-builds)})
 
+(def sys f/*figwheel-system*)
+
 (defn start []
-  (f/start-figwheel! temp-config))
+  (f/start-figwheel! (config/fetch-config)))
 
 (defn stop []
   (f/stop-figwheel!))

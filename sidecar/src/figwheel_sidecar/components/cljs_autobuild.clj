@@ -112,8 +112,9 @@
                 injection/build-hook
                 figwheel-start-and-end-messages)
             cljs-build-fn) this)
-          
           (assoc this
+                 ;; for simple introspection
+                 :cljs-autobuild true
                  :file-watcher
                  (watching/watch! (source-paths-that-affect-build build-config)
                           (fn [files]

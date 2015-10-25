@@ -4,10 +4,10 @@
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
 
-   [figwheel-sidecar.components.nrepl-server     :refer [nrepl-server-component]]
-   [figwheel-sidecar.components.css-watcher      :refer [css-watcher]]
-   [figwheel-sidecar.components.cljs-autobuild   :as autobuild :refer [cljs-autobuild]]
-   [figwheel-sidecar.components.figwheel-server  :refer [figwheel-server] :as server]      
+   [figwheel-sidecar.components.nrepl-server   :as nrepl-comp]
+   [figwheel-sidecar.components.css-watcher     :as css-watch]
+   [figwheel-sidecar.components.cljs-autobuild   :as autobuild]
+   [figwheel-sidecar.components.figwheel-server :as server]      
    
    [com.stuartsierra.component :as component]
 
@@ -17,6 +17,13 @@
    [clojure.java.io :as io]
    [clojure.set :refer [difference union]]
    [clojure.string :as string]))
+
+(def fetch-config config/fetch-config)
+
+(def figwheel-server server/figwheel-server)
+(def cljs-autobuild autobuild/cljs-autobuild)
+(def css-watcher css-watch/css-watcher)
+(def nrep-server-component nrepl-comp/nrepl-server-component)
 
 ;; TODO
 (comment
@@ -36,7 +43,7 @@
      (assoc sys
             (build-config->key build-config)
             (component/using
-             (cljs-autobuild {:build-config build-config})
+             (autobuild/cljs-autobuild {:build-config build-config})
              [:figwheel-server])))
    system
    build-configs))
@@ -53,18 +60,18 @@
     (assoc system
            :css-watcher
            (component/using
-            (css-watcher {:css-dirs css-dirs})
+            (css-watch/css-watcher {:css-dirs css-dirs})
             [:figwheel-server]))
     system))
 
 (defn add-nrepl-server [system {:keys [nrepl-port] :as options}]
   (if nrepl-port
-    (assoc system :nrepl-server (nrepl-server-component options))
+    (assoc system :nrepl-server (nrepl-comp/nrepl-server-component options))
     system))
 
 (defn create-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
   (-> (component/system-map
-       :figwheel-server (figwheel-server options))
+       :figwheel-server (server/figwheel-server options))
       (add-initial-builds (map name build-ids))
       (add-css-watcher  (:css-dirs figwheel-options))
       (add-nrepl-server (select-keys figwheel-options [:nrepl-port
