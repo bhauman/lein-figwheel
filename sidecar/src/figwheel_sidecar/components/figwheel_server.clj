@@ -238,8 +238,8 @@
             cljsbuild-hook (figwheel-build state)
             cljsbuild-once-hook (partial injection/build-hook state)]
         (map->FigwheelServer (assoc state
-                                    :cljsbuild/hook cljsbuild-hook
-                                    :cljsbuild/once-hook cljsbuild-once-hook)))
+                                    :cljsbuild/on-build cljsbuild-hook
+                                    :cljsbuild/on-first-build cljsbuild-once-hook)))
       this))
   (stop [this]
     (when (:http-server this)

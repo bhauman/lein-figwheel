@@ -50,16 +50,12 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
-(defn- comp-build-fn [build-fn x]
+(defn- comp-build-fn [build-fn hook-fn]
   (let [build-hooks (-> build-fn meta :hooks)
-        ;; hook-meta  (-> x var meta)
-        ]
+        hook-name (-> hook-fn class .getName)]
     (-> build-fn
-        ;;hook-fn
-        x
-        ;; (with-meta {:hooks (conj build-hooks hook-meta)})
-        ;; (with-meta {:hooks (conj build-hooks x)})
-        )))
+        hook-fn
+        (with-meta {:hooks (conj build-hooks hook-name)}))))
 
 (defrecord CLJSAutobuild [build-config]
   component/Lifecycle
@@ -76,31 +72,19 @@
         ;; start and end messages
 
         (let [log-writer (or (:log-writer this)
-                             ;; (:log-writer figwheel-server)
                              (io/writer "figwheel_server.log" :append true))
-              ;; cljs-build-fn (or (:cljs-build-fn this)
-              ;;                   ;; (:cljs-build-fn figwheel-server)
-              ;;                   ;; if no figwheel server
-              ;;                   ;; default build should be standard
-              ;;                   ;; cljs build
-              ;;                   (if figwheel-server
-              ;;                     figwheel-build
-              ;;                     (figwheel-start-and-end-messages cljs-build)))
-              ;; new-cljs-build-fn (if (= cljs-build-fn figwheel-build)
-              ;;                     (-> cljs-build injection/build-hook figwheel-start-and-end-messages)
-              ;;                     cljs-build-fn)
 
-                                        ;(-> cljs-build injection/build-hook figwheel-start-and-end-messages)
               components (->> this vals (filter #(satisfies? component/Lifecycle %)))
-              hooks (->> components (mapv :cljsbuild/hook) (filter some?))
-              once-hooks (->> components (mapv :cljsbuild/once-hook) (filter some?))
+              hooks (->> components (mapv :cljsbuild/on-build) (filter some?))
+              once-hooks (->> components (mapv :cljsbuild/on-first-build) (filter some?))
 
               first-cljs-build-fn (reduce comp-build-fn
-                                    (with-meta cljs-build {:once-hooks []})
-                                    (conj once-hooks figwheel-start-and-end-messages))
+                                          cljs-build
+                                          (conj once-hooks figwheel-start-and-end-messages))
               cljs-build-fn (reduce comp-build-fn
-                                    (with-meta cljs-build {:hooks []})
+                                    cljs-build
                                     (conj hooks figwheel-start-and-end-messages))]
+
           ;; build once before watching
           ;; tiny experience tweak
           ;; first build shouldn't send notifications
