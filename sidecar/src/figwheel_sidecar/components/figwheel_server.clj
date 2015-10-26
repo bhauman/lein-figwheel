@@ -127,12 +127,16 @@
       (if (ifn? on-connect)
         (on-connect server-state channel)))))
 
-(defn- run-http-server [{:keys [server-port server-ip] :as server-state} handler]
+(defn- run-http-server [{:keys [server-port server-ip resolved-ring-handler] :as server-state} handler]
   (try
-    (run-server handler (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
-                          (if server-ip
-                            (assoc config :ip server-ip)
-                            config)))
+    (let [routes-with-static (routes handler
+                                     (or resolved-ring-handler (fn [r] false))
+                                     (route/not-found "<h1>Page not found</h1>"))
+          config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+      (run-server routes-with-static
+                  (if server-ip
+                    (assoc config :ip server-ip)
+                    config)))
     (catch java.net.BindException e
       (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
       (System/exit 0))))
