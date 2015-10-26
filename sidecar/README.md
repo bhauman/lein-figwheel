@@ -77,7 +77,7 @@ nil
 `fetch-config` fetches the config from the `figwheel.edn` file and
 prepares it for consumption by figwheel components.
 
-The call to `fetch-config will attempt to get config first from
+The call to `fetch-config` will attempt to get config first from
 `figwheel.edn` and if there is no `figwheel.edn` available, it will
 look for and read the `project.clj` file and attempt to get the
 configuration info from the `:figwheel` and `:cljsbuild` entries. When
@@ -85,6 +85,8 @@ reading the `project.clj` directly **no leiningen profile merging will
 occur**.
 
 ## The Figwheel Server component
+
+Let's start with the simplest system that we can make:
 
 ```clojure
 => (require '[com.stuartsierra.component :as component])
@@ -133,6 +135,37 @@ is a new key:
 The `"autobuild-example"` component has been added to the system. So
 now we can start and stop the system and the newly added autobuild
 component will start and stop as well.
+
+To complete this simple example let's launch a Figwheel REPL:
+
+```
+=> (sys/build-switching-cljs-repl system)
+Launching ClojureScript REPL for build: example
+Figwheel Controls:
+          (stop-autobuild)                ;; stops Figwheel autobuilder
+          (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
+          (switch-to-build id ...)        ;; switches autobuilder to different build
+          (reset-autobuild)               ;; stops, cleans, and starts autobuilder
+          (reload-config)                 ;; reloads build config and resets autobuild
+          (build-once [id ...])           ;; builds source one time
+          (clean-builds [id ..])          ;; deletes compiled cljs target files
+          (print-config [id ...])         ;; prints out build configurations
+          (fig-status)                    ;; displays current state of system
+  Switch REPL build focus:
+          :cljs/quit                      ;; allows you to switch REPL to another build
+    Docs: (doc function-name-here)
+    Exit: Control+C or :cljs/quit
+ Results: Stored in vars *1, *2, *3, *e holds last exception object
+Prompt will show when Figwheel connects to your application
+To quit, type: :cljs/quit
+cljs.user=> (+ 1 2)
+3
+cljs.user=> :cljs/quit
+Choose focus build for CLJS REPL (example) or quit > quit
+```
+
+Remember that you won't see the REPL prompt until the repl connects to
+your running application.
 
 Let's stop the system and build another one.
 
