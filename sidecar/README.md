@@ -22,7 +22,7 @@ our project.
 }
 ```
 
-We'll use leinigen for dependencie and classpath management and our
+We'll use leinigen for dependency and classpath management and our
 `project.clj` should look like this:
 
 ```clojure
@@ -38,7 +38,7 @@ We'll use leinigen for dependencie and classpath management and our
 )
 ```
 
-Let's start the Clojure REPL as so:
+Start the Clojure REPL:
 
 ```
 rlwrap lein run -m clojure.main
@@ -76,11 +76,12 @@ nil
 `fetch-config` fetches the config from the `figwheel.edn` file and
 prepares it for consumption by figwheel components.
 
-The call to fetch config will attempt to get config first from
-`figwheel.edn` and if there is no config available there it will look
-for and read the `project.clj` file and attempt to get the config from
-the `:figwheel` and `:cljsbuild` entries. When reading the
-`project.clj` directly **no leiningen profile merging will occur**.
+The call to `fetch-config will attempt to get config first from
+`figwheel.edn` and if there is no `figwheel.edn` available, it will
+look for and read the `project.clj` file and attempt to get the
+configuration info from the `:figwheel` and `:cljsbuild` entries. When
+reading the `project.clj` directly **no leiningen profile merging will
+occur**.
 
 ## The Figwheel Server component
 
@@ -91,8 +92,9 @@ nil
                       :figwheel-server (sys/figwheel-server (sys/fetch-config)))))
 ```
 
-This creates a system with a figwheel server in it. Now lets start the
-server and start autobuilding our build.
+This creates a system with a `:figwheel-server` in it.
+
+Now lets start the server and start autobuilding our build.
 
 ```
 => (swap! system component/start)
@@ -100,7 +102,7 @@ Figwheel: Starting server at http://localhost:3449
 #<SystemMap>
 ```
 
-The figwheel server is running now and we can start autobuilds.
+Now that the figwheel server is running we can start autobuilds.
 
 Now we want to start autobuilding our ClojureScript.
 
