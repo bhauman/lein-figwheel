@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
-   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped? get-project-config]]
+   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped? fetch-config]]
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
@@ -115,21 +115,18 @@
 (defn cljs-autobuild
   "  Creates a ClojureScript autobuilding component that watches
   ClojureScript source files for changes and then compiles them."
-  [{:keys [build-config] :as opts}]
+  [{:keys [build-config build-id] :as opts}]
   ;; do a little preparation of the build config just in case
-  (let [build-config (if-not (prepped? build-config)
+  (let [build-config (or build-config
+                         (and build-id
+                              (->> (fetch-config)
+                                   :all-builds
+                                   (filter #(-> % :id (= build-id)))
+                                   first)))
+        build-config (if-not (prepped? build-config)
                        (prep-build build-config)
                        build-config)
         build-config (if-not (:compiler-env build-config)
                        (add-compiler-env build-config)
                        build-config)]
     (map->CLJSAutobuild {assoc opts :build-config build-config})))
-
-(defn new-cljsbuild
-  ([opts] (new-cljsbuild opts (get-project-config)))
-  ([{:keys [build-id figwheel-server]} project-config]
-   (let [builds (-> project-config :cljsbuild :builds)]
-     (cljs-autobuild {:figwheel-server figwheel-server
-                      :build-config (or (->> builds (filter #(-> % :id (= build-id))) first)
-                                        (first builds))}))))
-

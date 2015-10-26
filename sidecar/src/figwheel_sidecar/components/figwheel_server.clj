@@ -253,10 +253,6 @@
          (swap! file-change-atom append-msg)))
   (-connection-data [{:keys [connection-count]}] @connection-count))
 
-(defn new-figwheel-server [& opts]
-  (map->FigwheelServer (or opts {})))
-
-
 ;; setup server for overall system 
 
 (defn ensure-array-map [all-builds]
