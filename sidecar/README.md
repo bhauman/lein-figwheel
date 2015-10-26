@@ -183,7 +183,7 @@ java.util.concurrent.RejectedExecutionException:
 
 **This exception is expected** 
 
-## Adding the CLJSAutbuild component directly
+## Adding the CLJS Autobuild component directly
 
 This time let's add our autobuilder by hand. This is not necessary but
 it's helpful to understand what is going on.
@@ -203,6 +203,9 @@ it's helpful to understand what is going on.
                (sys/cljs-autobuild {:build-config build-config})
                [:figwheel-server])))))
 ```
+
+It's important to note that we could have added several autobuild
+conponents for concerent cljs autobuilding.
 
 The format of the "autobuild-example" key is used by the system
 control functions that start and stop cljs-autobuilds. If you aren't
@@ -232,6 +235,8 @@ Let's stop the system:
 ```
 => (swap! system component/stop)
 ```
+
+## Adding the CSSWatcher component
 
 and now let's define a system with a CSS Watcher:
 
