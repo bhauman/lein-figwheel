@@ -14,11 +14,38 @@
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    
-   [com.stuartsierra.component :as component]))
+   ;; build hooks
+   [figwheel-sidecar.build-hooks.injection :as injection] 
+   [figwheel-sidecar.build-hooks.notifications :as notifications]
+   [figwheel-sidecar.build-hooks.clj-reloading :as clj-reloading]
+   [figwheel-sidecar.build-hooks.javascript-reloading :as javascript-reloading]
+   
+   [com.stuartsierra.component :as component])
+  (:import [figwheel_sidecar.channel_server ChannelServer]))
 
-(defprotocol ChannelServer
-  (-send-message [this channel-id msg-data callback])
-  (-connection-data [this]))
+(defn- comp-partialed [arg & fns]
+  (->> fns
+       (map (fn [f] (partial f arg)))
+       (apply comp)))
+
+(defn figwheel-build [figwheel-server]
+  (comp-partialed figwheel-server
+   javascript-reloading/build-hook
+   clj-reloading/build-hook
+   notifications/build-hook
+   injection/build-hook))
+
+(defn figwheel-build-without-javascript-reloading [figwheel-server]
+  (comp-partialed figwheel-server
+   clj-reloading/build-hook
+   notifications/build-hook
+   injection/build-hook))
+
+(defn figwheel-build-without-clj-reloading [figwheel-server]
+  (comp-partialed figwheel-server
+   javascript-reloading/build-hook
+   notifications/build-hook
+   injection/build-hook))
 
 (defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
   (when open-file-command
@@ -93,35 +120,41 @@
                                     :project-id (:unique-id server-state)}))
         (recur)))))
 
-(defn reload-handler [server-state]
+(defn reload-handler [{:keys [on-connect] :as server-state}]
   (fn [request]
     (with-channel request channel
-      (setup-file-change-sender server-state (:params request) channel))))
+      (setup-file-change-sender server-state (:params request) channel)
+      (if (ifn? on-connect)
+        (on-connect server-state channel)))))
+
+(defn- run-http-server [{:keys [server-port server-ip resolved-ring-handler] :as server-state} handler]
+  (try
+    (let [routes-with-static (routes handler
+                                     (or resolved-ring-handler (fn [r] false))
+                                     (route/not-found "<h1>Page not found</h1>"))
+          config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+      (run-server routes-with-static
+                  (if server-ip
+                    (assoc config :ip server-ip)
+                    config)))
+    (catch java.net.BindException e
+      (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
+      (System/exit 0))))
 
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
-  [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
-  (try
-    (-> (routes
-         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
-         (route/resources "/" {:root http-server-root})
-         (or resolved-ring-handler (fn [r] false))
-         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<h1>Page not found</h1>"))
-        ;; adding cors to support @font-face which has a strange cors error
-        ;; super promiscuous please don't uses figwheel as a production server :)
-        (cors/wrap-cors
-         :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
-        (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
-                      (if server-ip
-                        (assoc config :ip server-ip)
-                        config))))
-    (catch java.net.BindException e
-      (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
-      (System/exit 0))))
+  [{:keys [http-server-root resolved-ring-handler] :as server-state}]
+  (-> (routes
+       (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+       (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
+       (route/resources "/" {:root http-server-root})
+       (GET "/" [] (resource-response "index.html" {:root http-server-root})))
+      ;; adding cors to support @font-face which has a strange cors error
+      ;; super promiscuous please don't uses figwheel as a production server :)
+      (cors/wrap-cors
+       :access-control-allow-origin #".*"
+       :access-control-allow-methods [:head :options :get :put :post :delete :patch])))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
@@ -146,7 +179,6 @@
                                     resolved-ring-handler
                                     open-file-command
                                     compile-wait-time
-
                                     ] :as opts}]
       (merge
        opts ;; allow other options to flow through
@@ -177,9 +209,14 @@
   ([opts]
    (let [state (if-not (:file-md5-atom opts)
                  (create-initial-state opts)
-                 opts)]
-     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
-     (assoc state :http-server (server state)))))
+                 opts)
+         handler (server state)]
+     ;; decomspose from http
+     (if (:httpless state)
+       (assoc state :handler handler)
+       (do
+         (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
+         (assoc state :http-server (run-http-server state handler)))))))
 
 (defn stop-server [{:keys [http-server]}]
   (http-server))
@@ -197,33 +234,28 @@
 
 ;; external api
 
-(defrecord FigwheelServer []
+(defrecord FigwheelServer [handler on-connect]
   component/Lifecycle
   (start [this]
-    (if-not (:http-server this)
-      (do
-        (map->FigwheelServer (start-server this)))
+    (if-not (or (:http-server this) (:handler this))
+      (let [state (start-server this)
+            cljsbuild-hook (figwheel-build state)
+            cljsbuild-once-hook (partial injection/build-hook state)]
+        (map->FigwheelServer (assoc state
+                                    :cljsbuild/on-build cljsbuild-hook
+                                    :cljsbuild/on-first-build cljsbuild-once-hook)))
       this))
   (stop [this]
     (when (:http-server this)
       (println "Figwheel: Stopping Websocket Server")
       (stop-server this))
-    (dissoc this :http-server))
+    (assoc this :http-server nil :handler nil))
+
   ChannelServer
   (-send-message [{:keys [file-change-atom] :as this} channel-id msg-data callback]
     (->> (prep-message this channel-id msg-data callback)
          (swap! file-change-atom append-msg)))
   (-connection-data [{:keys [connection-count]}] @connection-count))
-
-(defn send-message [figwheel-server channel-id msg-data]
-  (-send-message figwheel-server channel-id msg-data nil))
-
-(defn send-message-with-callback [figwheel-server channel-id msg-data callback]
-  (-send-message figwheel-server channel-id msg-data callback))
-
-(defn connection-data [figwheel-server]
-  (-connection-data figwheel-server))
-
 
 ;; setup server for overall system 
 
@@ -238,19 +270,11 @@
       *out*
       (io/writer logfile-path :append true))))
 
-(defn extract-cljs-build-fn [{:keys [cljs-build-fn]}]
-  (or (utils/require-resolve-handler cljs-build-fn)
-      ;; should probably make a separate file of build function examples
-      (when-let [default-handler (resolve 'figwheel-sidecar.components.cljs-autobuild/figwheel-build)]
-        @default-handler)))
-
 (defn figwheel-server [{:keys [figwheel-options all-builds] :as options}]
   (let [all-builds          (map config/add-compiler-env (config/prep-builds all-builds))
         all-builds (ensure-array-map all-builds)
-        
         initial-state       (create-initial-state figwheel-options)
         figwheel-opts (assoc initial-state
                              :builds all-builds       
-                             :log-writer    (extract-log-writer figwheel-options)
-                             :cljs-build-fn (extract-cljs-build-fn figwheel-options))]
+                             :log-writer (extract-log-writer figwheel-options))]
     (map->FigwheelServer figwheel-opts)))

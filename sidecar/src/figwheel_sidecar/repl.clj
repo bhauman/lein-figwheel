@@ -9,7 +9,7 @@
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
 
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
-   [figwheel-sidecar.components.figwheel-server :as server]
+   [figwheel-sidecar.channel-server :as server]
    
    [figwheel-sidecar.config :as config]))
 

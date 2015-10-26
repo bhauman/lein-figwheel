@@ -98,8 +98,8 @@
     false
     config))
 
-(defn build-hook [build-fn]
-  (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
+(defn build-hook [figwheel-server build-fn]
+  (fn [{:keys [build-config changed-files] :as build-state}]
     (let [reload-config (default-config figwheel-server)]
       (if-let [changed-clj-files (and
                                   reload-config

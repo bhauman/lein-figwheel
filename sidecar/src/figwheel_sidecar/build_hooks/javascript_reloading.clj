@@ -49,8 +49,8 @@
   (when-not (empty? changed-js)
     (make-copies (get-js-copies state changed-js))))
 
-(defn build-hook [build-fn]
-  (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
+(defn build-hook [figwheel-server build-fn]
+  (fn [{:keys [build-config changed-files] :as build-state}]
     (if-let [changed-js-files (filter #(.endsWith % ".js") changed-files)]
       (let [build-options (or (:build-options build-config) (:compiler build-config))
             additional-changed-ns   ;; add in js namespaces

@@ -1,15 +1,16 @@
 (ns figwheel-sidecar.components.css-watcher
   (:require
+   [figwheel-sidecar.channel-server :as server]
+   [figwheel-sidecar.components.figwheel-server :as fig]
    [figwheel-sidecar.components.file-system-watcher :as fsw]
-   [figwheel-sidecar.utils :as utils]
-   [figwheel-sidecar.components.figwheel-server :as fig]))
+   [figwheel-sidecar.utils :as utils]))
 
 (defn make-css-file [path]
   { :file (utils/remove-root-path path)
     :type :css } )
 
 (defn send-css-files [figwheel-server files]
-  (fig/send-message figwheel-server
+  (server/send-message figwheel-server
                     ::fig/broadcast
                     { :msg-name :css-files-changed
                       :files files}))
