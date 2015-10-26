@@ -62,3 +62,16 @@
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
 
+(defmethod print-method ::compiler-env [o ^java.io.Writer w]
+   (.write w "#CompilerEnv{}"))
+
+(defn compiler-env
+  "Creates a cljs.env compiler env that can be safely printed."
+  [build-options]
+  (let [env-atom (cljs.env/default-compiler-env build-options)]
+    (swap! env-atom #(vary-meta % assoc :type ::compiler-env))
+    env-atom))
+
+
+
+

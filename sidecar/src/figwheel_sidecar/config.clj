@@ -263,9 +263,7 @@
   (prep-config (config)))
 
 (defn add-compiler-env [{:keys [build-options] :as build}]
-  (assoc build
-         :compiler-env
-         (cljs.env/default-compiler-env build-options)))
+  (assoc build :compiler-env (utils/compiler-env build-options)))
 
 (defn get-project-builds []
   (into (array-map)
