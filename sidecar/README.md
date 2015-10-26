@@ -167,7 +167,10 @@ Choose focus build for CLJS REPL (example) or quit > quit
 Remember that you won't see the REPL prompt until the repl connects to
 your running application.
 
-Let's stop the system and build another one.
+Sweet! No you have all the functionality of figwheel and you can add
+any other components that your system needs.
+
+Let's stop this system in preparation for building another one.
 
 ```
 (swap! system component/stop)
