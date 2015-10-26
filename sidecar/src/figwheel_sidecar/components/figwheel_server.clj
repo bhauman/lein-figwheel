@@ -120,10 +120,12 @@
                                     :project-id (:unique-id server-state)}))
         (recur)))))
 
-(defn reload-handler [server-state]
+(defn reload-handler [{:keys [on-connect] :as server-state}]
   (fn [request]
     (with-channel request channel
-      (setup-file-change-sender server-state (:params request) channel))))
+      (setup-file-change-sender server-state (:params request) channel)
+      (if (ifn? on-connect)
+        (on-connect server-state channel)))))
 
 (defn- run-http-server [{:keys [server-port server-ip] :as server-state} handler]
   (try
@@ -228,7 +230,7 @@
 
 ;; external api
 
-(defrecord FigwheelServer [handler]
+(defrecord FigwheelServer [handler on-connect]
   component/Lifecycle
   (start [this]
     (if-not (or (:http-server this) (:handler this))

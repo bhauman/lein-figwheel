@@ -91,7 +91,7 @@
               ;;                     cljs-build-fn)
 
                                         ;(-> cljs-build injection/build-hook figwheel-start-and-end-messages)
-              components (-> this (dissoc :build-config) vals)
+              components (->> this vals (filter #(satisfies? component/Lifecycle %)))
               hooks (->> components (mapv :cljsbuild/hook) (filter some?))
               once-hooks (->> components (mapv :cljsbuild/once-hook) (filter some?))
 
