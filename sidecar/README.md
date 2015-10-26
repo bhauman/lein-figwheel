@@ -1,6 +1,8 @@
 # Fighweel Sidecar
 
-Let's start with a sketch of how we use the components in Figwheel Sidecar.
+__The following currently assumes familiarity with Figwheel and its function__
+
+Let's start with a sketch of how we can use the components in Figwheel Sidecar.
 
 First let's create a `figwheel.edn` configuration file in the root of
 our project.
@@ -47,7 +49,6 @@ rlwrap lein run -m clojure.main
 ## Loading the config
 
 You can get the config from the `figwheel.edn`
-
 
 ```clojure
 => (require '[figwheel-sidecar.system :as sys])
@@ -106,8 +107,8 @@ Now that the figwheel server is running we can start autobuilds.
 
 ## Starting an autobuild
 
-The varios system control functions that are available in the CLJS
-repl are in the `figwheel-sidecar.system` namespace. 
+The various system control functions that are available in the Figwheel CLJS
+REPL can be found in the `figwheel-sidecar.system` namespace. 
 
 We can use the `figwheel-sidecar.system/start-autobuild` function to
 start autobuilding our ClojureScript.
@@ -121,8 +122,8 @@ Successfully compiled "resources/public/js/tryfig.js" in 12.445 seconds.
 #<SystemMap>
 ```
 
-Now if we insect the keys of the system map we will see that there
-is a new key.
+Now if we inspect the keys of the system map we will see that there
+is a new key:
 
 ```
 => (keys @system)
@@ -130,8 +131,8 @@ is a new key.
 ```
 
 The `"autobuild-example"` component has been added to the system. So
-now wecan start and stop the system and the autobuild will start and
-stop as well.
+now we can start and stop the system and the newly added autobuild
+component will start and stop as well.
 
 Let's stop the system and build another one.
 
@@ -145,6 +146,8 @@ java.util.concurrent.RejectedExecutionException:
 ```
 
 **This exception is expected** 
+
+## Adding the CLJSAutbuild component directly
 
 This time let's add our autobuilder by hand. This is not necessary but
 it's helpful to understand what is going on.
@@ -165,11 +168,13 @@ it's helpful to understand what is going on.
                [:figwheel-server])))))
 ```
 
-The format of the "autobuild-example" key is used by the various
-system control functions that start and stop cljs-autobuilds and
-facilitates these special control functions in the repl.
+The format of the "autobuild-example" key is used by the system
+control functions that start and stop cljs-autobuilds. If you aren't
+going to be using the control functions, use whichever key you like.
+Otherwise use a string key that has the form `(str "autobuild-" <your
+build id>)`
 
-Now you can start this system.
+Now you can start this system:
 
 ```
 => (swap! system component/start)
