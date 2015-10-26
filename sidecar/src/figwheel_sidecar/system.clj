@@ -73,8 +73,8 @@
   (-> (component/system-map
        :figwheel-server (figwheel/figwheel-server options))
       (add-initial-builds (map name build-ids))
-      #_(add-css-watcher  (:css-dirs figwheel-options))
-      #_(add-nrepl-server (select-keys figwheel-options [:nrepl-port
+      (add-css-watcher  (:css-dirs figwheel-options))
+      (add-nrepl-server (select-keys figwheel-options [:nrepl-port
                                                        :nrepl-host
                                                        :nrepl-middleware]))))
 
@@ -332,7 +332,7 @@
     (println "Prompt will show when Figwheel connects to your application")
     (frepl/repl
      build
-     figwheel/figwheel-server
+     figwheel-server
      (update-in repl-options [:special-fns]
                 merge
                 (build-figwheel-special-fns system)))))
