@@ -21,8 +21,6 @@
 
 (def fetch-config config/fetch-config)
 
-(def figwheel-server figwheel/figwheel-server)
-(def figwheel-build figwheel/figwheel-build)
 (def cljs-autobuild autobuild/cljs-autobuild)
 (def css-watcher css-watch/css-watcher)
 (def nrep-server-component nrepl-comp/nrepl-server-component)
@@ -73,7 +71,7 @@
 
 (defn create-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
   (-> (component/system-map
-       :figwheel-server (server/figwheel-server options))
+       :figwheel-server (figwheel/figwheel-server options))
       (add-initial-builds (map name build-ids))
       #_(add-css-watcher  (:css-dirs figwheel-options))
       #_(add-nrepl-server (select-keys figwheel-options [:nrepl-port
@@ -209,7 +207,7 @@
       ;; we are allwing build to be overridden at the system level
       ((or
         (:cljs-build-fn system)
-        (figwheel-build figwheel-server))
+        (figwheel/figwheel-build figwheel-server))
        (assoc system :build-config build-config)))
     system))
 
@@ -334,7 +332,7 @@
     (println "Prompt will show when Figwheel connects to your application")
     (frepl/repl
      build
-     figwheel-server
+     figwheel/figwheel-server
      (update-in repl-options [:special-fns]
                 merge
                 (build-figwheel-special-fns system)))))
