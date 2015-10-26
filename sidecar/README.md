@@ -185,7 +185,7 @@ java.util.concurrent.RejectedExecutionException:
 
 ## Adding the CLJS Autobuild component directly
 
-This time let's add our autobuilder by hand. This is not necessary but
+This time let's add our autobuilder directly. This is not necessary but
 it's helpful to understand what is going on.
 
 ```clojure
@@ -236,7 +236,7 @@ Let's stop the system:
 => (swap! system component/stop)
 ```
 
-## Adding the CSSWatcher component
+## Adding the CSS Watcher component
 
 and now let's define a system with a CSS Watcher:
 
@@ -333,4 +333,11 @@ cljs.user=> :cljs/quit
 Choose focus build for CLJS REPL (example) or quit > quit
 ```
 
+There is only one build in our configuration so the build switching
+repl doesn't offer us much.
 
+# Creating a component that communicates with the client
+
+
+
+# Hooking into the autobuild with middleware
