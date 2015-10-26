@@ -5,10 +5,10 @@
    [figwheel-sidecar.utils :as utils]
 
       ;; build hooks
-   [figwheel-sidecar.build-hooks.injection :as injection] 
-   [figwheel-sidecar.build-hooks.notifications :as notifications]
-   [figwheel-sidecar.build-hooks.clj-reloading :as clj-reloading]
-   [figwheel-sidecar.build-hooks.javascript-reloading :as javascript-reloading]   
+   [figwheel-sidecar.build-middleware.injection :as injection] 
+   [figwheel-sidecar.build-middleware.notifications :as notifications]
+   [figwheel-sidecar.build-middleware.clj-reloading :as clj-reloading]
+   [figwheel-sidecar.build-middleware.javascript-reloading :as javascript-reloading]   
    
    [com.stuartsierra.component :as component]
    [cljs.closure]
@@ -52,24 +52,24 @@
 
 (def figwheel-build
   (-> cljs-build
-      injection/build-hook
-      notifications/build-hook
-      clj-reloading/build-hook
-      javascript-reloading/build-hook
+      injection/hook
+      notifications/hook
+      clj-reloading/hook
+      javascript-reloading/hook
       figwheel-start-and-end-messages))
 
 (def figwheel-build-without-javascript-reloading
   (-> cljs-build
-      injection/build-hook
-      notifications/build-hook
-      clj-reloading/build-hook
+      injection/hook
+      notifications/hook
+      clj-reloading/hook
       figwheel-start-and-end-messages))
 
 (def figwheel-build-without-clj-reloading
   (-> cljs-build
-      injection/build-hook
-      notifications/build-hook
-      javascript-reloading/build-hook
+      injection/hook
+      notifications/hook
+      javascript-reloading/hook
       figwheel-start-and-end-messages))
 
 (defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
@@ -109,7 +109,7 @@
           ;; first build shouldn't send notifications
           ((if (= cljs-build-fn figwheel-build)
             (-> cljs-build
-                injection/build-hook
+                injection/hook
                 figwheel-start-and-end-messages)
             cljs-build-fn) this)
           (assoc this

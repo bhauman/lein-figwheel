@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.build-hooks.injection
+(ns figwheel-sidecar.build-middleware.injection
   (:require
    [figwheel-sidecar.config :as config]
    [clojure.java.io :as io]
@@ -134,7 +134,7 @@
   (when (config/figwheel-build? build)
     (require-connection-script-js build)))
 
-(defn build-hook [build-fn]
+(defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config] :as build-state}]
     (build-fn
      (assoc build-state

@@ -167,8 +167,9 @@ Choose focus build for CLJS REPL (example) or quit > quit
 Remember that you won't see the REPL prompt until the repl connects to
 your running application.
 
-Sweet! No you have all the functionality of figwheel and you can add
-any other components that your system needs.
+Sweet! Now you have all the functionality of Figwheel within the
+context of a system map. This gives you the freedom to add arbitrary
+components according to your need.
 
 Let's stop this system in preparation for building another one.
 
@@ -336,8 +337,9 @@ Choose focus build for CLJS REPL (example) or quit > quit
 There is only one build in our configuration so the build switching
 repl doesn't offer us much.
 
-# Creating a component that communicates with the client
+## Hooking into the autobuild with middleware
 
 
 
-# Hooking into the autobuild with middleware
+## Creating a component that communicates with the Figwheel client
+

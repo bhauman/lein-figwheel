@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.build-hooks.notifications
+(ns figwheel-sidecar.build-middleware.notifications
   (:require
    [figwheel-sidecar.components.figwheel-server :as server]
    [figwheel-sidecar.utils :as utils]   
@@ -171,7 +171,7 @@
       (notify-compile-error figwheel-server build {:exception exception :cause cause}))))
 
 ;; ware in all figwheel notifications
-(defn build-hook [build-fn]
+(defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (binding [cljs.analyzer/*cljs-warning-handlers*
               (conj cljs.analyzer/*cljs-warning-handlers*

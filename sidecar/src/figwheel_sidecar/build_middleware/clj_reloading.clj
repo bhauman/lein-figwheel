@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.build-hooks.clj-reloading
+(ns figwheel-sidecar.build-middleware.clj-reloading
   (:require
    [figwheel-sidecar.utils :as utils]
    [cljs.build.api :as bapi]
@@ -98,7 +98,7 @@
     false
     config))
 
-(defn build-hook [build-fn]
+(defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (let [reload-config (default-config figwheel-server)]
       (if-let [changed-clj-files (and

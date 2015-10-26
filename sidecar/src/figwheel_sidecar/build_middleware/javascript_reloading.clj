@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.build-hooks.javascript-reloading
+(ns figwheel-sidecar.build-middleware.javascript-reloading
   (:require
    [clojure.java.io :as io]
    [cljs.build.api :as bapi]
@@ -49,7 +49,7 @@
   (when-not (empty? changed-js)
     (make-copies (get-js-copies state changed-js))))
 
-(defn build-hook [build-fn]
+(defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (if-let [changed-js-files (filter #(.endsWith % ".js") changed-files)]
       (let [build-options (or (:build-options build-config) (:compiler build-config))
