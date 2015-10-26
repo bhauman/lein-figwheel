@@ -120,7 +120,7 @@
    (filter (fn [key] (get-in system [key :file-watcher]))
            (all-build-keys system))))
 
-;; figwheel system control functions
+;; figwheel system control function helpers
 
 (defn build-diff
   "Makes sure that the autobuilds in the system match the build-ids provided" 
@@ -161,17 +161,29 @@
         (patch-system-builds (mapv key->id build-keys))
         (component/start-system running-build-keys))))
 
-(defn stop-autobuild [system ids]
+;; start System Control Functions
+;; These commands are intended to be run from a Clojure REPL or to be
+;; integrated as special functions in the CLJS REPL
+;; These commands alter the figwheel system and manage the running autobuilds
+
+(defn stop-autobuild
+  "Stops autobuilding the specific ids or all currently running autobuilds"
+  [system ids]
   (repl-println "Figwheel: Stoping autobuild")
   (component/stop-system system (ids-or-all-build-keys system ids)))
 
-(defn switch-to-build [system ids]
+(defn switch-to-build
+  "Switches autobuilding from the current autobuilds to the given build ids"
+  [system ids]
   (let [system (if (not-empty ids)
                  (patch-system-builds system ids)
                  system)]
     (component/start-system system (ids-or-all-build-keys system ids))))
 
-(defn start-autobuild [system ids]
+(defn start-autobuild
+  "Either starts all the current autobuilds or adds the supplied build
+  and starts autobuilding it."
+  [system ids]
   (repl-println "Figwheel: Starting autobuild")
   (let [current-ids (set (mapv key->id (all-build-keys system)))
         total-ids   (union current-ids (set ids))]
@@ -180,7 +192,9 @@
 (defn clear-compiler-env-for-build-id [system build-id]
   (update-in system [:figwheel-server :builds build-id] config/add-compiler-env))
 
-(defn clean-build [system id]
+(defn- clean-build
+  "Deletes compiled assets for given id."
+  [system id]
   (if-let [build-options 
            (get-in system [:figwheel-server :builds (name id) :build-options])]
     (do
@@ -191,14 +205,17 @@
 
 ;; this is going to require a stop and start of the ids
 ;; and clearing the compiler-env for these builds
-(defn clean-builds [system ids]
+(defn clean-builds
+  "Deletes the compiled assets for the given ids or cleans all the
+  current autobuilds. This command stops and starts the autobuilds."
+  [system ids]
   (let [ids (map key->id (ids-or-all-build-keys system ids))]
     (stop-and-start-watchers
      system ids
      #(reduce clean-build % ids))))
 
 ;; doesn't change the system
-(defn build-once* [system id]
+(defn- build-once* [system id]
   (when-let [build-config
              (id->build-config system (name id))
              #_(get (:builds system) (name id))]
@@ -213,16 +230,22 @@
     system))
 
 ;; doesn't alter the system
-(defn build-once [system ids]
+(defn build-once
+  "Builds the given ids or the current builds once"
+  [system ids]
   (doseq [build-ids (mapv key->id
                           (ids-or-all-build-keys system ids))]
     (build-once* system build-ids))
   system)
 
-(defn reset-autobuild [system]
+(defn reset-autobuild
+  "Alias for clean-builds"
+  [system]
   (clean-builds system nil))
 
-(defn reload-config [system]
+(defn reload-config
+  "Resets the system and reloads the the confgiguration as best it can."
+  [system]
   (let [ids (mapv key->id (all-build-keys system))]
     (stop-and-start-watchers
      system ids
@@ -236,7 +259,9 @@
            (repl-println "No reload config found in project.clj")
            system))))))
 
-(defn print-config [system ids]
+(defn print-config
+  "Prints out the build config for the given ids or all the build configs"
+  [system ids]
   (let [ids (or (not-empty ids)
                 (keys (get-in system [:figwheel-server :builds])))]
     (doseq [build-confg (map (partial id->build-config system) ids)]
@@ -244,7 +269,9 @@
   system)
 
 ;; doesn't alter the system
-(defn fig-status [system]
+(defn fig-status
+  "Prints out the status of the running figwheel system"
+  [system]
     (let [connection-count (server/connection-data (:figwheel-server system))
           watched-builds   (mapv key->id (watchers-running system))]
      (repl-println "Figwheel System Status")
@@ -259,8 +286,7 @@
      (repl-println "----------------------------------------------------"))
     system)
 
-;; TODO add build-config display
-
+;; end System Control Functions
 
 ;; repl interaction
 

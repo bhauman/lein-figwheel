@@ -104,7 +104,13 @@ Figwheel: Starting server at http://localhost:3449
 
 Now that the figwheel server is running we can start autobuilds.
 
-Now we want to start autobuilding our ClojureScript.
+## Starting an autobuild
+
+The varios system control functions that are available in the CLJS
+repl are in the `figwheel-sidecar.system` namespace. 
+
+We can use the `figwheel-sidecar.system/start-autobuild` function to
+start autobuilding our ClojureScript.
 
 ```
 => (swap! system sys/start-autobuild ["example"])
@@ -115,7 +121,7 @@ Successfully compiled "resources/public/js/tryfig.js" in 12.445 seconds.
 #<SystemMap>
 ```
 
-And if you look at the keys of the system map you will see that there
+Now if we insect the keys of the system map we will see that there
 is a new key.
 
 ```
@@ -124,8 +130,8 @@ is a new key.
 ```
 
 The `"autobuild-example"` component has been added to the system. So
-now you can start and stop the system and the autobuild will start and
-stop ass well.
+now wecan start and stop the system and the autobuild will start and
+stop as well.
 
 Let's stop the system and build another one.
 
