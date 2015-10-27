@@ -326,9 +326,13 @@
                                   :repl-plugin])
                base)
         base (let [on-message (:on-message system-options)]
-               (if (fn? on-message)
-                 (assoc base :message-listener (fn [_] on-message))
-                 base))
+               (assoc base
+                      :message-listener
+                      (fn [_]
+                        (fn [msg-hist]
+                          (when (fn? on-message)
+                            (on-message msg-hist))
+                          (utils/dispatch-custom-event "figwheel.on-message" msg-hist)))))
         base (if (false? (:autoload system-options))
                (dissoc base :file-reloader-plugin)
                base)]

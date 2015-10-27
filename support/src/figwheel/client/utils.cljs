@@ -14,6 +14,8 @@
 
 (defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" "$1"))
 
+;; actually we should probably lift the event system here off the DOM
+;; so that we work well in Node and other environments
 (defn dispatch-custom-event [event-name data]
   (when (and (html-env?) (aget js/window "CustomEvent"))
     (.dispatchEvent (.-body js/document)
