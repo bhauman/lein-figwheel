@@ -2,7 +2,8 @@
   (:require
    [figwheel-sidecar.components.file-system-watcher :as fsw]
    [figwheel-sidecar.utils :as utils]
-   [figwheel-sidecar.components.figwheel-server :as fig]))
+   [figwheel-sidecar.components.figwheel-server :as fig]
+   [com.stuartsierra.component :as component]))
 
 (defn make-css-file [path]
   { :file (utils/remove-root-path path)
@@ -22,6 +23,12 @@
       (doseq [f sendable-files]
         (println "sending changed CSS file:" (:file f))))))
 
-(defn css-watcher [{:keys [watch-paths] :as options}]
-  (fsw/file-system-watcher (merge {:watcher-name "CSS Watcher"
-                                   :notification-handler #'handle-css-notification} options)))
+(defn css-watcher* [{:keys [watch-paths] :as options}]
+  (fsw/file-system-watcher
+   (merge {:watcher-name "CSS Watcher"
+           :notification-handler handle-css-notification} options)))
+
+(defn css-watcher [opts]
+  (component/using
+   (css-watcher* opts)
+   [:figwheel-server]))

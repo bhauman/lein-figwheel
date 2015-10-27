@@ -42,9 +42,7 @@
    (fn [sys build-config]
      (assoc sys
             (build-config->key build-config)
-            (component/using
-             (autobuild/cljs-autobuild {:build-config build-config})
-             [:figwheel-server])))
+            (cljs-autobuild {:build-config build-config})))
    system
    build-configs))
 
@@ -57,11 +55,7 @@
 
 (defn add-css-watcher [system css-dirs]
   (if (not-empty css-dirs)
-    (assoc system
-           :css-watcher
-           (component/using
-            (css-watch/css-watcher {:watch-paths css-dirs})
-            [:figwheel-server]))
+    (assoc system :css-watcher (css-watcher {:watch-paths css-dirs}))
     system))
 
 (defn add-nrepl-server [system {:keys [nrepl-port] :as options}]
@@ -139,10 +133,9 @@
 
 (defn add-autobuilder [system build-id]
   (if-let [build-config (id->build-config system build-id)]
-    (assoc system (id->key build-id)
-           (component/using
-            (cljs-autobuild {:build-config build-config})
-            [:figwheel-server]))
+    (assoc system
+           (id->key build-id)
+           (cljs-autobuild {:build-config build-config}))
     system))
 
 (defn patch-system-builds [system ids]

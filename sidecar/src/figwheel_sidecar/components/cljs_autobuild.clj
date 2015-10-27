@@ -133,7 +133,7 @@
       (watching/stop! (:file-watcher this)))
     (dissoc this :file-watcher)))
 
-(defn cljs-autobuild
+(defn cljs-autobuild*
   "  Creates a ClojureScript autobuilding component that watches
   ClojureScript source files for changes and then compiles them."
   [{:keys [build-config] :as opts}]
@@ -145,3 +145,9 @@
                        (add-compiler-env build-config)
                        build-config)]
     (map->CLJSAutobuild (assoc opts :build-config build-config))))
+
+(defn cljs-autobuild [opts]
+  (component/using
+   (cljs-autobuild* opts)
+   [:figwheel-server]))
+
