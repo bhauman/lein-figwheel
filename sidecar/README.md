@@ -201,7 +201,7 @@ it's helpful to understand what is going on.
             :figwheel-server fig-server
             "autobuild-example"
             (component/using
-               (sys/cljs-autobuild {:build-config build-config})
+               (sys/cljs-autobuild* {:build-config build-config})
                [:figwheel-server])))))
 ```
 
@@ -251,15 +251,19 @@ and now let's define a system with a CSS Watcher:
            build-config (get (:builds fig-server) "example")]
         (component/system-map
             :figwheel-server fig-server
-            "autobuild-example"
-            (component/using
-               (sys/cljs-autobuild {:build-config build-config})
-               [:figwheel-server])
-            :css-watcher   
-            (component/using
-               (sys/css-watcher {:watch-paths ["resources/public/css"]})
-               [:figwheel-server])))))               
+            "autobuild-example" (sys/cljs-autobuild {:build-config build-config})
+            :css-watcher (sys/css-watcher {:watch-paths ["resources/public/css"]})))))
 ```
+
+Here we used the `sys/cljs-autobuild` function instead of
+`sys/cljs-autobuild*` (the asterisk is the difference) this function
+includes the call to `component/using` as a convenience. The same is
+true for `sys/css-watcher` which also depends on the reference to
+`:figwheel-server`
+
+The call to `sys/css-watcher` will create a file watcher that observes
+changes in the `:watch-paths` and then fires off notifications to
+listening figwheel clients.
 
 And we can start this as well:
 
@@ -273,7 +277,7 @@ Figwheel: Starting CSS Watcher for paths  ["resources/public/css"]
 #<SystemMap>
 ```
 
-The main idea here is that the figwheel server is the single dependent
+The main idea here is that the `:figwheel-server` is the single dependent
 for other components that want to send messages to the client.
 
 ## Starting the REPL
@@ -337,9 +341,65 @@ Choose focus build for CLJS REPL (example) or quit > quit
 There is only one build in our configuration so the build switching
 repl doesn't offer us much.
 
-## Hooking into the autobuild with middleware
-
-
-
 ## Creating a component that communicates with the Figwheel client
 
+Let's make a simple component that preiodically sends the current
+server side time to the client. This has no practical value but will
+just server as an example.
+
+```clojure
+(ns example.push-time-service
+  (:require
+    [com.stuartsierra.component :as component]
+    [figwheel-sidecar.components.figwheel-server :as server]
+    [clojure.core.async :refer [go-loop timeout]]))
+
+(defrecord PushTimeService [figwheel-server]
+  component/Lifecycle
+  (start [this]
+    (if-not (:time-service-run this)
+      (let [run-atom (atom true)]
+        (go-loop []
+          (when run-atom
+            (server/send-message figwheel-server
+                                 ::server/broadcast
+                                 {:msg-name :time-push :time (java.util.Date.)})
+             (timeout 1000)
+             (recur)))
+       (assoc this :time-service-run run-atom))
+     this))
+   (stop [this]
+     (if (:time-service-run this)
+        (do (reset! (:time-service-run this) false)
+            (dissoc this :time-service-run))
+        this)))
+```
+
+This creates a service that sends a periodic message to all connected figwheel clients.
+
+In the example above I am broadcasting the message if you want to
+target a certain build just replace the `::server/broadcast` above
+with the build id ("example" is build id from the config above).
+
+Now let's listen for this message on the client.
+
+```clojure
+(defonce my-timer-listener
+  (do
+   (.addEventListener js/document.body
+     "figwheel.on-message"
+     (fn [e]
+       (let [message-history (.-detail e)]
+         ;; print the last message to the console
+         (prn (last message-history))))))
+   true)
+```
+
+This will add a listener and whenever you recieve the message it
+will be printed in the console of the client.
+
+Communicating with the client via Figwheel should only be used for
+development tooling. Figwheel is not intended to provide support for
+application communication.
+
+## Hooking into the autobuild with middleware
