@@ -84,6 +84,12 @@ configuration info from the `:figwheel` and `:cljsbuild` entries. When
 reading the `project.clj` directly **no leiningen profile merging will
 occur**.
 
+If you wish to load your configuration from a merged `project.clj` you
+can load `leiningen.core` and read the configuration.
+
+One can store and load the configuration however one wants to.
+`fetch-config` is merely a convenience.
+
 ## The Figwheel Server component
 
 Let's start with the simplest system that we can make:
@@ -389,9 +395,11 @@ Now let's listen for this message on the client.
    (.addEventListener js/document.body
      "figwheel.on-message"
      (fn [e]
-       (let [message-history (.-detail e)]
-         ;; print the last message to the console
-         (prn (last message-history))))))
+       (let [message-history (.-detail e)
+             {:keys [msg-name] :as msg} (first message-history)]
+         (when (= msg-name :time-push) 
+           (println "Recieved time message:")
+           (prn msg))))))
    true)
 ```
 
