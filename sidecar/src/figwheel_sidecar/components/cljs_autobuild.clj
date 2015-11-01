@@ -139,9 +139,12 @@
   component relies on a :figwheel-server component and this component
   should satisfy the
   figwheel-sidecar.components.figwheel-server/ChannelServer protocol.
-"
+
+  You need to at least supply this component with a :build-config.
+  
+  You may optionally supply a :cljs-build-fn for this component to
+  use."
   [{:keys [build-config] :as opts}]
-  ;; do a little preparation of the build config just in case
   (let [build-config (if-not (prepped? build-config)
                        (prep-build build-config)
                        build-config)
@@ -149,6 +152,3 @@
                        (add-compiler-env build-config)
                        build-config)]
     (map->CLJSAutobuild (assoc opts :build-config build-config))))
-
-
-
