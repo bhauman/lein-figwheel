@@ -34,7 +34,7 @@ We'll use leinigen for dependency and classpath management and our
                  [org.clojure/clojurescript "1.7.145"]]
   :profiles {
     :dev {
-      :dependencies [[figwheel-sidecar "0.5.0"]]
+      :dependencies [[figwheel-sidecar "0.5.0-SNAPSHOT"]]
     }
   }  
 )
@@ -90,62 +90,35 @@ can load `leiningen.core` and read the configuration.
 One can store and load the configuration however one wants to.
 `fetch-config` is merely a convenience.
 
-## The Figwheel Server component
+## The Figwheel System component
 
 Let's start with the simplest system that we can make:
 
 ```clojure
 => (require '[com.stuartsierra.component :as component])
 nil
-=> (def system (atom (component/system-map
-                      :figwheel-server (sys/figwheel-server (sys/fetch-config)))))
+=> (def system
+     (component/system-map
+       :figwheel-system (sys/figwheel-system (sys/fetch-config)))))
 ```
 
-This creates a system with a `:figwheel-server` in it.
+This creates a system with a `:figwheel-system` in it.
 
 Now let's start our system:
 
 ```
-=> (swap! system component/start)
+=> (alter-var-root #'system component/start)
 Figwheel: Starting server at http://localhost:3449
-#<SystemMap>
-```
-
-Now that the figwheel server is running we can start autobuilds.
-
-## Starting an autobuild
-
-The various system control functions that are available in the Figwheel CLJS
-REPL can be found in the `figwheel-sidecar.system` namespace. 
-
-We can use the `figwheel-sidecar.system/start-autobuild` function to
-start autobuilding our ClojureScript.
-
-```
-=> (swap! system sys/start-autobuild ["example"])
-Figwheel: Starting autobuild
 Figwheel: Watching build - example
 Compiling "resources/public/js/tryfig.js" from ["src"]...
-Successfully compiled "resources/public/js/tryfig.js" in 12.445 seconds.
+Successfully compiled "resources/public/js/tryfig.js" in 3.247 seconds.
 #<SystemMap>
 ```
-
-Now if we inspect the keys of the system map we will see that there
-is a new key:
-
-```
-=> (keys @system)
-(:figwheel-server "autobuild-example")
-```
-
-The `"autobuild-example"` component has been added to the system. So
-now we can start and stop the system and the newly added autobuild
-component will start and stop as well.
 
 To complete this simple example let's launch a Figwheel REPL:
 
 ```
-=> (sys/build-switching-cljs-repl system)
+=> (sys/build-switching-cljs-repl (:figwheel-system system)
 Launching ClojureScript REPL for build: example
 Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
@@ -190,82 +163,19 @@ java.util.concurrent.RejectedExecutionException:
 
 **This exception is expected** 
 
-## Adding the CLJS Autobuild component directly
-
-This time let's add our autobuilder directly. This is not necessary but
-it's helpful to understand what is going on.
-
-```clojure
-(def system
-   (atom
-           ;; figwheel-server sets up and contains state for all
-           ;; figwheel interactions so we will get our prepared build-config
-           ;; from our instantiated figwheel-server component
-     (let [fig-server (sys/figwheel-server (sys/fetch-config))
-           build-config (get (:builds fig-server) "example")]
-        (component/system-map
-            :figwheel-server fig-server
-            "autobuild-example"
-            (component/using
-               (sys/cljs-autobuild* {:build-config build-config})
-               [:figwheel-server])))))
-```
-
-It's important to note that we could have added several autobuild
-conponents for concerent cljs autobuilding.
-
-The format of the "autobuild-example" key is used by the system
-control functions that start and stop cljs-autobuilds. If you aren't
-going to be using the control functions, use whichever key you like.
-Otherwise use a string key that has the form `(str "autobuild-" <your
-build id>)`
-
-Now you can start this system:
-
-```
-=> (swap! system component/start)
-Figwheel: Starting server at http://localhost:3449
-Figwheel: Watching build - example
-Compiling "resources/public/js/tryfig.js" from ["src"]...
-Successfully compiled "resources/public/js/tryfig.js" in 13.19 seconds.
-#<SystemMap>
-```
-
-Voila! We have our autobuild running allong with the figwheel server.
-
-You can edit your source files and everything will work in a very
-Figwheel way. This doesn't include CSS watching yet so let's add that
-next.
-
-Let's stop the system:
-
-```
-=> (swap! system component/stop)
-```
-
 ## Adding the CSS Watcher component
+
+The figwheel-system doesn't include css watching but we can add the
+CSS watching as a seperate component.
 
 and now let's define a system with a CSS Watcher:
 
 ```clojure
 (def system
-   (atom
-           ;; figwheel-server sets up and contains state for all
-           ;; figwheel interactions so we will get our prepared build-config
-           ;; from our instantiated figwheel-server component
-     (let [fig-server (sys/figwheel-server (sys/fetch-config))
-           build-config (get (:builds fig-server) "example")]
-        (component/system-map
-            :figwheel-server fig-server
-            "autobuild-example" (sys/cljs-autobuild {:build-config build-config})
-            :css-watcher (sys/css-watcher {:watch-paths ["resources/public/css"]})))))
+  (component/system-map
+    :figwheel-system (sys/figwheel-system (sys/fetch-config))
+    :css-watcher (sys/css-watcher {:watch-paths ["resources/public/css"]})))
 ```
-
-Here we used the `sys/cljs-autobuild` function instead of
-`sys/cljs-autobuild*` (the asterisk is the difference) this function
-includes the call to `component/using` as a convenience. The same is
-true for `sys/css-watcher` which also depends on the reference to
-`:figwheel-server`
 
 The call to `sys/css-watcher` will create a file watcher that observes
 changes in the `:watch-paths` and then fires off notifications to
@@ -288,11 +198,10 @@ for other components that want to send messages to the client.
 
 ## Starting the REPL
 
-Now that we have a system with a :figwheel-server key and some builds
-we can start a figwheel REPL.
+Now that we have a system with some builds running we can start a Figwheel REPL.
 
 ```
-=> (sys/figwheel-cljs-repl system)
+=> (sys/figwheel-cljs-repl (:figwheel-system system))
 Launching ClojureScript REPL for build: example
 Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
@@ -321,7 +230,7 @@ Or you can start a build switching repl which let's you switch to
 another build when you quit the REPL.
 
 ```
-=> (sys/build-switching-cljs-repl system)
+=> (sys/build-switching-cljs-repl (:figwheel system))
 Launching ClojureScript REPL for build: example
 Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
