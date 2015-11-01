@@ -23,12 +23,8 @@
       (doseq [f sendable-files]
         (println "sending changed CSS file:" (:file f))))))
 
-(defn css-watcher* [{:keys [watch-paths] :as options}]
+(defn css-watcher [{:keys [watch-paths] :as options}]
   (fsw/file-system-watcher
    (merge {:watcher-name "CSS Watcher"
            :notification-handler handle-css-notification} options)))
 
-(defn css-watcher [opts]
-  (component/using
-   (css-watcher* opts)
-   [:figwheel-server]))

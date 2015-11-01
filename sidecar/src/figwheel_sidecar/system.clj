@@ -20,18 +20,17 @@
 
 (def fetch-config config/fetch-config)
 
-(def figwheel-server server/figwheel-server)
-(def cljs-autobuild autobuild/cljs-autobuild)
-(def css-watcher css-watch/css-watcher)
+(defn css-watcher [opts]
+  (component/using
+   (css-watch/css-watcher opts)
+   {:figwheel-system :figwheel-server}))
+
 (def nrep-server-component nrepl-comp/nrepl-server-component)
 
 ;; TODO
 (comment
 
   ;; secondary
-
-  make sure the prep-builds is idempotent
-   
   
   example html reload)
 
@@ -42,7 +41,9 @@
    (fn [sys build-config]
      (assoc sys
             (build-config->key build-config)
-            (cljs-autobuild {:build-config build-config})))
+            (component/using
+             (autobuild/cljs-autobuild {:build-config build-config})
+             [:figwheel-server])))
    system
    build-configs))
 
@@ -63,10 +64,107 @@
     (assoc system :nrepl-server (nrepl-comp/nrepl-server-component options))
     system))
 
-(defn create-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
+
+;; Initially I really wanted a bunch of top level components that
+;; relied on a figwheel server. I wanted this to be simple and
+;; intuitive. Like so
+(comment
+  (component/system-map
+   :figwheel-server   (figwheel-server (config/fetch-config))
+   :example-autobuild (component/using
+                       (cljs-autobuild {:build-id "example" })
+                       [:figwheel-server])
+   :css-watcher       (component/using
+                       (css-watcher {:watch-paths ["resources/public/css"]})
+                       [:figwheel-server])))
+;; Unfortunately the requirement that the overal system be controlled
+;; from the CLJS repl make this difficult and forced invasive
+;; requirements on the overall system.  For this reason I have introduced and
+;; overall component called FigwheelSystem that is a containing
+;; component for a system that contains a figwheel-server and an ever
+;; changing set of autobuilds that can be controlled from the repl.
+;;
+;; The FigwheelSystem will start autobuilding the builds according to
+;; the supplied :build-ids, just as figwheel does now.
+;;
+;; This sets us up for a future that looks like this:
+
+(comment
+  (component/system-map
+   :figwheel-system (figwheel-system (config/fetch-config))
+   :css-watcher     (component/using
+                      (css-watcher {:build-id "example" })
+                      {:figwheel-system :figwheel-server})
+   :cljs-socket-repl (component/using
+                      (cljs-socket-repl {:build-id "example"})
+                      [:figwheel-system])))
+
+;; Being able to supply a mutable figwheel system that can be
+;; controled by a CLJS socket repl is very desirable.
+;;
+;; That being said if one doesn't want the CLJS repl to be able to
+;; control which builds are running etc then one can revert the method
+;; described first.
+;;
+;; Here is our FigwheelSystem it's just a wrapper component that
+;; provides the same behavior/protocol as the
+;; contained :figwheel-server
+;;
+;; This allows components in the greater system to send messages to
+;; the connected clients.
+
+(defrecord FigwheelSystem [system]
+  component/Lifecycle
+  (start [this]
+    (if-not (:system-running this)
+      (do
+        (swap! system component/start)
+        (assoc this :system-running true))
+      this))
+  (stop [this]
+    (if (:system-running this)
+      (do 
+        (swap! system component/stop)
+        (assoc this :system-running false))
+      this))
+  server/ChannelServer
+  (-send-message [this channel-id msg-data callback]
+    (server/-send-message (:figwheel-server @system)
+                   channel-id msg-data callback))
+  (-connection-data [this]
+    (server/-connection-data (:figwheel-server @system))))
+
+(defn figwheel-system [{:keys [build-ids] :as options}]
+  (let [system
+        (atom
+         (-> (component/system-map
+              :figwheel-server (server/figwheel-server options))
+             (add-initial-builds (map name build-ids))))]
+    (map->FigwheelSystem {:system system})))
+
+(defn create-figwheel-system
+  "This creates a complete Figwheel only system. It conditionally adds
+  a CSS watcher if the configuration contains :css-dirs and
+  conditionally adds an nREPL server component if the Figwheel
+  configuration contains an :nrepl-port key.
+
+  This takes a figwheel configuration consisting
+  of :fighweel-options, :all-builds, and :build-ids.
+
+  If you only have a few components to add to this system then you can
+  assoc them onto the created system before you start like so.
+
+  (def my-system 
+    (assoc (create-figwheel-system (config/fetch-config))
+           :html-reload 
+           (component/using 
+             (html-reloader {:watch-paths [\"resources/public\"]})
+             [:figwheel-system])
+           :web-server (my-webserver-component)))"
+  [{:keys [figwheel-options all-builds build-ids]
+    :as options}]
   (-> (component/system-map
-       :figwheel-server (server/figwheel-server options))
-      (add-initial-builds (map name build-ids))
+       :figwheel-server (figwheel-system options))
       (add-css-watcher  (:css-dirs figwheel-options))
       (add-nrepl-server (select-keys figwheel-options [:nrepl-port
                                                        :nrepl-host
@@ -135,7 +233,9 @@
   (if-let [build-config (id->build-config system build-id)]
     (assoc system
            (id->key build-id)
-           (cljs-autobuild {:build-config build-config}))
+           (component/using
+            (autobuild/cljs-autobuild {:build-config build-config})
+            [:figwheel-server]))
     system))
 
 (defn patch-system-builds [system ids]
@@ -392,22 +492,31 @@
                     build)))
         (get builds (choose-repl-build-id system)))))
 
-(defn figwheel-cljs-repl
-  ([system] (figwheel-cljs-repl system {}))
-  ([system {:keys [build-id repl-options]}]
-   (when-let [build (choose-repl-build @system build-id)]
-     (start-figwheel-repl system build repl-options))))
+(defn figwheel-cljs-repl* [system {:keys [build-id repl-options]}]
+  (when-let [build (choose-repl-build @system build-id)]
+     (start-figwheel-repl system build repl-options)))
 
+(defn build-switching-cljs-repl* [system start-build-id]
+  (loop [build-id start-build-id]
+    (figwheel-cljs-repl* system build-id)
+    (let [builds (get-in @system [:figwheel-server :builds])]
+      (when-let [chosen-build-id
+                 (get-build-choice
+                  (keep :id (filter config/optimizations-none? (vals builds))))]
+        (recur chosen-build-id)))))
+
+;; takes a FigwheelSystem
+(defn figwheel-cljs-repl
+  ([figwheel-system]
+   (figwheel-cljs-repl figwheel-system {}))
+  ([{:keys [system]} repl-options]
+   (figwheel-cljs-repl* system repl-options)))
+
+;; takes a FigwheelSystem
 (defn build-switching-cljs-repl
-  ([system] (build-switching-cljs-repl system nil))
-  ([system start-build-id]
-   (loop [build-id start-build-id]
-     (figwheel-cljs-repl system build-id)
-     (let [builds (get-in @system [:figwheel-server :builds])]
-       (when-let [chosen-build-id
-                  (get-build-choice
-                   (keep :id (filter config/optimizations-none? (vals builds))))]
-         (recur chosen-build-id))))))
+  ([figwheel-system] (build-switching-cljs-repl figwheel-system nil))
+  ([{:keys [system]} start-build-id]
+   (build-switching-cljs-repl* system start-build-id)))
 
 ;; figwheel starting and stopping helpers
 

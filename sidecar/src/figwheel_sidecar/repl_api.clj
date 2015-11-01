@@ -5,7 +5,9 @@
    [figwheel-sidecar.config :as config]
    [com.stuartsierra.component :as component]))
 
-(defonce ^:dynamic *figwheel-system* (atom nil))
+;; giving this var a uniq name anticipating this library to be
+;; included with clojure :use, and system could easily clash
+(defonce ^:dynamic *repl-api-system* (atom nil))
 
 #_(def temp-config
   {:figwheel-options {:css-dirs ["resources/public/css"]
@@ -17,12 +19,12 @@
   "If you aren't connected to an env where fighweel is running already,
   this method will start the figwheel server with the passed in build info."
   ([{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
-   (when @*figwheel-system*
-     (swap! *figwheel-system* component/stop))
-   (reset! *figwheel-system* (fs/start-figwheel! autobuild-options)))
+   (when @*repl-api-system*
+     (swap! *repl-api-system* component/stop))
+   (reset! *repl-api-system* (fs/start-figwheel! autobuild-options)))
   ([]
-   (if @*figwheel-system*
-     (swap! *figwheel-system* component/start)
+   (if @*repl-api-system*
+     (swap! *repl-api-system* component/start)
      ;; if no system exists try to read in a configuration
      (start-figwheel! (config/fetch-config)))))
 
@@ -31,8 +33,8 @@
 (defn stop-figwheel!
   "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."
   []
-  (when @*figwheel-system*
-    (swap! *figwheel-system* component/stop)))
+  (when @*repl-api-system*
+    (swap! *repl-api-system* component/stop)))
 
 (comment
   ;; example usage
@@ -56,7 +58,7 @@
   )
 
 (defn figwheel-running? []
-  (or @*figwheel-system*
+  (or @*repl-api-system*
       (do
         (println "Figwheel System not itnitialized.\n Please start it with figwheel-sidecar.repl-api/start-figwheel")
         nil)))
@@ -64,10 +66,12 @@
 (defn app-trans
   ([func ids]
    (when figwheel-running?
-     (reset! *figwheel-system* (func @*figwheel-system* ids))))
+     (let [system (get-in @*repl-api-system* [:figwheel-system :system])]
+       (reset! system (func @system ids)))))
   ([func]
    (when figwheel-running?
-     (reset! *figwheel-system* (func @*figwheel-system*)))))
+     (let [system (get-in @*repl-api-system* [:figwheel-system :system])]
+       (reset! system (func @system))))))
 
 (defn build-once
   "Compiles the builds with the provided build ids
@@ -113,7 +117,7 @@ and starts building the default builds again."
   "Prints out the build configs currently focused or optionally the
   configs of the ids provided."
   [& ids]
-  (fs/print-config @*figwheel-system* ids))
+  (fs/print-config @*repl-api-system* ids))
 
 (defn cljs-repl
   "Starts a Figwheel ClojureScript REPL for the provided build id (or
@@ -122,7 +126,7 @@ the first default id)."
    (cljs-repl nil))
   ([id]
    (when (figwheel-running?)
-     (fs/build-switching-cljs-repl *figwheel-system* id))))
+     (fs/build-switching-cljs-repl *repl-api-system* id))))
 
 (defn fig-status
   "Display the current status of the running Figwheel system."
