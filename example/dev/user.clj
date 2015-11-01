@@ -13,7 +13,7 @@
    :build-ids  ["example"]
    :all-builds (config/get-project-builds)})
 
-(def sys f/*figwheel-system*)
+(def sys f/*repl-api-system*)
 
 (defn start []
   (f/start-figwheel! (config/fetch-config)))
@@ -24,3 +24,4 @@
 (defn reset []
   (stop)
   (refresh :after 'user/start))
+

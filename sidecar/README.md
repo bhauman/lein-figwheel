@@ -103,7 +103,7 @@ nil
 
 This creates a system with a `:figwheel-server` in it.
 
-Now lets start the server and start autobuilding our build.
+Now let's start our system:
 
 ```
 => (swap! system component/start)
