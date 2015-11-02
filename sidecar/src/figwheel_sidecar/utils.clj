@@ -13,7 +13,8 @@
                            (thunk)
                            (catch Exception e
                              ;; TODO better execption reporting
-                             (println (.message e))))
+                             (println (.getMessage e))
+                             ))
                          v)))
 
 (defn clean-cljs-build* [{:keys [output-to output-dir]}]
