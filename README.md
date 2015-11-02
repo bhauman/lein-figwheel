@@ -248,6 +248,12 @@ side configuration parameters:
    ;; server
    :ring-handler example.server/handler
 
+   ;; Clojure Macro reloading
+   ;; disable clj file reloading
+   ; :reload-clj-files false
+   ; or specify which suffixes will cause the reloading
+   ; :reload-clj-files {:clj true :cljc false}
+
    ;; To be able to open files in your editor from the heads up display
    ;; you will need to put a script on your path.
    ;; that script will have to take a file path and a line number
