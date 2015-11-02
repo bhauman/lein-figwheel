@@ -42,8 +42,6 @@
 
 (prn (example.fun-tester/hello))
 
-
-
 (enable-dev-blocks!)
 (enable-console-print!)
 
