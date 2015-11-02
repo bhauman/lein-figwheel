@@ -5,7 +5,7 @@
 
    [clojure.java.io :as io]
    [clojure.edn :as edn]
-   
+
    [clojure.core.async :refer [go-loop <!! <! timeout]]
 
    [compojure.route :as route]
@@ -13,7 +13,7 @@
    [ring.util.response :refer [resource-response]]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
-   
+
    [com.stuartsierra.component :as component]))
 
 (defprotocol ChannelServer
@@ -74,18 +74,18 @@
            (<!! (timeout compile-wait-time))
            (when (open? wschannel)
              (send! wschannel (prn-str msg)))))))
-    
+
     (on-close wschannel
               (fn [status]
                 (update-connection-count connection-count desired-build-id dec)
                 (remove-watch file-change-atom watch-key)
                 #_(println "Figwheel: client disconnected " status)))
-    
+
     (on-receive wschannel
                 (fn [data] (handle-client-msg server-state data)))
 
     ;; Keep alive!!
-    ;; 
+    ;;
     (go-loop []
       (<! (timeout 5000))
       (when (open? wschannel)
@@ -105,7 +105,7 @@
   (try
     (-> (routes
          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
+         (GET "/figwheel-ws" {params :params} (reload-handler server-state))
          (route/resources "/" {:root http-server-root})
          (or resolved-ring-handler (fn [r] false))
          (GET "/" [] (resource-response "index.html" {:root http-server-root}))
@@ -137,7 +137,7 @@
         (assoc :callback-name callback-name)))
     msg-data))
 
-;; remove resource paths here 
+;; remove resource paths here
 (defn create-initial-state [{:keys [unique-id
                                     http-server-root
                                     server-port
@@ -153,7 +153,7 @@
        {
         ;; seems like this id should be different for every
         ;; server restart thus forcing the client to reload
-        :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
+        :unique-id (or unique-id (.getCanonicalPath (io/file ".")))
         :http-server-root (or http-server-root "public")
         :server-port (or server-port 3449)
         :server-ip server-ip
@@ -161,12 +161,12 @@
         ;; TODO handle this better
         :resolved-ring-handler (or resolved-ring-handler
                                    (utils/require-resolve-handler ring-handler))
-        
+
         :open-file-command open-file-command
         :compile-wait-time (or compile-wait-time 10)
-        
+
         :file-md5-atom (atom {})
-        
+
         :file-change-atom (atom (list))
         :browser-callbacks (atom {})
         :connection-count (atom {})
@@ -225,7 +225,7 @@
   (-connection-data figwheel-server))
 
 
-;; setup server for overall system 
+;; setup server for overall system
 
 (defn ensure-array-map [all-builds]
   (into (array-map)
@@ -247,10 +247,10 @@
 (defn figwheel-server [{:keys [figwheel-options all-builds] :as options}]
   (let [all-builds          (map config/add-compiler-env (config/prep-builds all-builds))
         all-builds (ensure-array-map all-builds)
-        
+
         initial-state       (create-initial-state figwheel-options)
         figwheel-opts (assoc initial-state
-                             :builds all-builds       
+                             :builds all-builds
                              :log-writer    (extract-log-writer figwheel-options)
                              :cljs-build-fn (extract-cljs-build-fn figwheel-options))]
     (map->FigwheelServer figwheel-opts)))
