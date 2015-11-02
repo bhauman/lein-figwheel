@@ -23,7 +23,7 @@
 (defn css-watcher [opts]
   (component/using
    (css-watch/css-watcher opts)
-   {:figwheel-system :figwheel-server}))
+   {:figwheel-server :figwheel-system}))
 
 (def nrep-server-component nrepl-comp/nrepl-server-component)
 
@@ -164,7 +164,7 @@
   [{:keys [figwheel-options all-builds build-ids]
     :as options}]
   (-> (component/system-map
-       :figwheel-server (figwheel-system options))
+       :figwheel-system (figwheel-system options))
       (add-css-watcher  (:css-dirs figwheel-options))
       (add-nrepl-server (select-keys figwheel-options [:nrepl-port
                                                        :nrepl-host
