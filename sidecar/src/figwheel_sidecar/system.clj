@@ -542,8 +542,3 @@
         (start-figwheel! options)
         (loop [] (Thread/sleep 30000) (recur)))
       (start-figwheel-and-cljs-repl! options)))
-
-(defn load-config-run-autobuilder [{:keys [build-ids]}]
-  (let [options (-> (config/config {} build-ids)
-                    config/prep-config)]
-    (run-autobuilder options)))

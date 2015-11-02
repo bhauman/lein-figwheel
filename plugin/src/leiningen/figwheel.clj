@@ -57,11 +57,10 @@
      requires)))
 
 (defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
-  (run-local-project project all-builds
-     '(require 'figwheel-sidecar.system)
-     (if (fc/needs-lein-project-config?)
-       `(figwheel-sidecar.system/run-autobuilder '~autobuild-opts)
-       `(figwheel-sidecar.system/load-config-run-autobuilder {:build-ids ~build-ids}))))
+  (run-local-project
+   project all-builds
+   '(require 'figwheel-sidecar.system)
+   `(figwheel-sidecar.system/run-autobuilder '~autobuild-opts)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
