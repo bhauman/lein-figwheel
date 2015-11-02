@@ -153,7 +153,7 @@ components according to your need.
 Let's stop this system in preparation for building another one.
 
 ```
-(swap! system component/stop)
+(alter-var-root #'system component/stop)
 Figwheel: Stopped watching build - example
 Figwheel: Stopping Websocket Server
 Mon Oct 26 10:41:31 EDT 2015 [main] ERROR - increase :queue-size if this happens often
@@ -184,7 +184,7 @@ listening figwheel clients.
 And we can start this as well:
 
 ```
-=> (swap! system component/start)
+=> (alter-var-root #'system component/start)
 Figwheel: Starting server at http://localhost:3449
 Figwheel: Watching build - example
 Compiling "resources/public/js/tryfig.js" from ["src"]...
