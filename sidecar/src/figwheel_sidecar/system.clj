@@ -528,7 +528,7 @@
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
   #_(p/pprint autobuild-options)
   (let [system-atom (atom (start-figwheel! autobuild-options))]
-    (build-switching-cljs-repl system-atom)
+    (build-switching-cljs-repl (:figwheel-system @system-atom))
     system-atom))
 
 (defn stop-figwheel! [system]
