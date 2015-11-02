@@ -269,14 +269,14 @@ just server as an example.
     [figwheel-sidecar.components.figwheel-server :as server]
     [clojure.core.async :refer [go-loop timeout]]))
 
-(defrecord PushTimeService [figwheel-server]
+(defrecord PushTimeService [figwheel-system]
   component/Lifecycle
   (start [this]
     (if-not (:time-service-run this)
       (let [run-atom (atom true)]
         (go-loop []
           (when run-atom
-            (server/send-message figwheel-server
+            (server/send-message figwheel-system
                                  ::server/broadcast
                                  {:msg-name :time-push :time (java.util.Date.)})
              (timeout 1000)
@@ -292,31 +292,45 @@ just server as an example.
 
 This creates a service that sends a periodic message to all connected figwheel clients.
 
+Let's add this to our system map.
+
+```
+(def system
+  (component/system-map
+    :figwheel-system (sys/figwheel-system (sys/fetch-config))
+    :css-watcher (sys/css-watcher {:watch-paths ["resources/public/css"]})
+    :time-pusher
+    (component/using
+      (PushTimeService.)
+      [:fighweel-system])))
+```
+
 In the example above I am broadcasting the message if you want to
 target a certain build just replace the `::server/broadcast` above
 with the build id ("example" is build id from the config above).
 
-Now let's listen for this message on the client.
+Now let's listen for this message on the client. You will need to add
+the following to your ClojureScript project source. You will probably
+want to create a developement build that includes the source directory
+that contains a source file as follows.
 
 ```clojure
-(defonce my-timer-listener
-  (do
-   (.addEventListener js/document.body
-     "figwheel.on-message"
-     (fn [e]
-       (let [message-history (.-detail e)
-             {:keys [msg-name] :as msg} (first message-history)]
-         (when (= msg-name :time-push) 
-           (println "Recieved time message:")
-           (prn msg))))))
-   true)
+(ns push-time.core
+  (:require [figwheel.client :as fig]))
+  
+(fig/add-message-watch
+  :time-pusher
+  (fn [{:keys [msg-name] :as msg}]
+    (when (= msg-name :time-push)
+      (println "Recieved time message:" (prn-str (:time msg))))))
 ```
 
-This will add a listener and whenever you recieve the message it
-will be printed in the console of the client.
+This will add a listener and whenever you receive a `:time-push`
+message it will be printed in the console of the client.
 
 Communicating with the client via Figwheel should only be used for
 development tooling. Figwheel is not intended to provide support for
 application communication.
+
 
 ## Hooking into the autobuild with middleware
