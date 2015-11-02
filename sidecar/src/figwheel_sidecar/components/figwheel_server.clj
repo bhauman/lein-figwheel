@@ -11,6 +11,7 @@
    [compojure.route :as route]
    [compojure.core :refer [routes GET]]
    [ring.util.response :refer [resource-response]]
+   [ring.util.codec :as codec]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
 
@@ -98,23 +99,38 @@
     (with-channel request channel
       (setup-file-change-sender server-state (:params request) channel))))
 
+(defn wrap-serve-index-file
+  [handler root-path]
+  (fn [request]
+    (if-not (= :get (:request-method request))
+      (handler request)
+      (let [path (.substring (codec/url-decode (:uri request)) 1)
+            final-path (if (= \/ (or (last path) \/))
+                           (str path "index.html")
+                           path)]
+        (or (resource-response final-path {:root root-path})
+            (handler request))))))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
   [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
   (try
     (-> (routes
-         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))
-         (route/resources "/" {:root http-server-root})
-         (or resolved-ring-handler (fn [r] false))
-         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<h1>Page not found</h1>"))
+          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+          (GET "/figwheel-ws" {params :params} (reload-handler server-state))
+          (route/resources "/" {:root http-server-root})
+          (or resolved-ring-handler (fn [r] false))
+          (route/not-found "<h1>Page not found</h1>"))
+
+        (wrap-serve-index-file http-server-root)
+
         ;; adding cors to support @font-face which has a strange cors error
         ;; super promiscuous please don't uses figwheel as a production server :)
         (cors/wrap-cors
-         :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+          :access-control-allow-origin #".*"
+          :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+
         (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
                       (if server-ip
                         (assoc config :ip server-ip)
