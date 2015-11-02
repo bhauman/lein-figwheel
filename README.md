@@ -647,9 +647,12 @@ $ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
 As you can see with humble beginnings you can build up arbitrary
 functionality.
 
-> If you are using nREPL, launching the ClojureScript REPL
-> requires that you have Piggieback installed. Please see the section
-> above titled "Editor REPLs and nREPL"
+Please see Daniel Szmulewicz's excellent [system](https://github.com/danielsz/system) which is
+a set of helpful [components](https://github.com/danielsz/system)
+
+> If you are using nREPL, launching the ClojureScript REPL requires
+> that you have Piggieback installed. Please see the section above
+> titled "Editor REPLs and nREPL"
 
 > Please note that when you stop the Figwheel server, http-kit throws
 > a `java.util.concurrent.RejectedExecutionException`, this is expected
