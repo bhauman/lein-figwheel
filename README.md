@@ -251,7 +251,7 @@ side configuration parameters:
    ;; Clojure Macro reloading
    ;; disable clj file reloading
    ; :reload-clj-files false
-   ; or specify which suffixes will cause the reloading
+   ;; or specify which suffixes will cause the reloading
    ; :reload-clj-files {:clj true :cljc false}
 
    ;; To be able to open files in your editor from the heads up display

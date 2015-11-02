@@ -8,13 +8,13 @@
         :dir "sidecar"}
   :dependencies
   [[org.clojure/clojure "1.7.0"]
-   [org.clojure/clojurescript "1.7.122"
+   [org.clojure/clojurescript "1.7.145"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+   [org.clojure/core.async "0.2.371"]   
    [com.stuartsierra/component "0.3.0"]
    [http-kit "2.1.18"]
    [ring-cors "0.1.7"]
-   [compojure "1.3.4"]
+   [compojure "1.4.0"]
    [clj-stacktrace "0.2.8"]
    [digest "1.4.4"]
    [figwheel "0.5.0-SNAPSHOT"]

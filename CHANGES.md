@@ -5,16 +5,16 @@
 * Figwheel is has undergone a large refactor and is now functioning better than ever
 * Figwheel is now internally composed of components and has been
   organized according to concerns - this is not quite finished yet so the internal api may be be unstable
-* this exposes the ability to compose systems as you see fit and offering the ability to
+* this exposes the ability to compose component systems as you see fit and offering the ability to
   send messages from your own components to the figwheel client
 * moved to a FSEvent file watching strategy using the hawk library, this
   should ease CPU usage quite a bit
 * you can override the build function with the new `:cljs-build-fn` figwheel option
 * you can opt out of `.clj` or `.cljc` macro reloading
 * the build function follows a middleware strategy allowing you to splice in build time functionality
-  - this can easiliy allow to to skip all magic figwheel injections and just run straight `cljs.build.api/build`
+  - this can easiliy allow you to skip all magic figwheel injections and just run straight `cljs.build.api/build`
 * hot loading javascript has been solidified even further
-* figwheel repl controls are much more sensible now, they alter the component system map
+* figwheel repl controls are much more sensible now, they alter a component system map
 * fixed various build config "parsing" problems
 * support for an external configuration file "figwheel.edn"
 * figwheel no longer overides `:recompile-dependents` default value bringing it inline with cljs compiler defaults
