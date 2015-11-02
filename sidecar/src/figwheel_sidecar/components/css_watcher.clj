@@ -27,4 +27,3 @@
   (fsw/file-system-watcher
    (merge {:watcher-name "CSS Watcher"
            :notification-handler handle-css-notification} options)))
-

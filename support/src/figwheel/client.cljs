@@ -319,20 +319,12 @@
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
               :repl-plugin      repl-plugin}
-       base  (if (not (utils/html-env?)) ;; we are in an html environment?
+        base  (if (not (utils/html-env?)) ;; we are in an html environment?
                (select-keys base [#_:enforce-project-plugin
                                   :file-reloader-plugin
                                   :comp-fail-warning-plugin
                                   :repl-plugin])
                base)
-        base (let [on-message (:on-message system-options)]
-               (assoc base
-                      :message-listener
-                      (fn [_]
-                        (fn [msg-hist]
-                          (when (fn? on-message)
-                            (on-message msg-hist))
-                          (utils/dispatch-custom-event "figwheel.on-message" msg-hist)))))
         base (if (false? (:autoload system-options))
                (dissoc base :file-reloader-plugin)
                base)]
@@ -340,6 +332,11 @@
              (utils/html-env?))
       (assoc base :heads-up-display-plugin heads-up-plugin)
       base)))
+
+(defn add-message-watch [key callback]
+  (add-watch
+   socket/message-history-atom key
+   (fn [_ _ _ msg-hist] (callback (first msg-hist)))))
 
 (defn add-plugins [plugins system-options]
   (doseq [[k plugin] plugins]
