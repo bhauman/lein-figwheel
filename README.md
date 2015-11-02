@@ -18,10 +18,12 @@ Read the [introductory blog post](http://rigsomelight.com/2014/05/01/interactive
 
 #### Live code reloading
 
-If you write [**reloadable code**](https://github.com/bhauman/lein-figwheel#writing-reloadable-code), figwheel can facilitate automated live
-interactive programming. Every time you save your ClojureScript source
-file, the changes are sent to the browser so that you can see the effects of
-modifying your code in real time. 
+If you write [**reloadable
+code**](https://github.com/bhauman/lein-figwheel#writing-reloadable-code),
+figwheel can facilitate automated live interactive programming. Every
+time you save your ClojureScript source file, the changes are sent to
+the browser so that you can see the effects of modifying your code in
+real time.
 
 #### Supports Node.js
 
@@ -37,6 +39,10 @@ handler into the figwheel server.
 #### Live CSS reloading
 
 Figwheel will reload your CSS live as well.
+
+#### Live JavaScript reloading
+
+Figwheel can live reload your JavaScript source files.
 
 #### Heads up display
 

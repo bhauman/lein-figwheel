@@ -1,11 +1,11 @@
-# Fighweel Sidecar
+# Figwheel Sidecar
 
 __The following currently assumes familiarity with Figwheel and its function__
 
 Let's start with a sketch of how we can use the components in Figwheel Sidecar.
 
-First let's create a `figwheel.edn` configuration file in the root of
-our project.
+First let's use a new means configuration and create a `figwheel.edn`
+file in the root directory of our project.
 
 ```clojure
 {
@@ -302,7 +302,7 @@ Let's add this to our system map.
     :time-pusher
     (component/using
       (PushTimeService.)
-      [:fighweel-system])))
+      [:figwheel-system])))
 ```
 
 In the example above I am broadcasting the message if you want to
@@ -328,9 +328,9 @@ that contains a source file as follows.
 This will add a listener and whenever you receive a `:time-push`
 message it will be printed in the console of the client.
 
-Communicating with the client via Figwheel should only be used for
-development tooling. Figwheel is not intended to provide support for
-application communication.
+Communicating with the figwheel client via Figwheel server should only
+be used for development tooling. Figwheel is not intended to provide
+support for application communication.
 
 
 ## Hooking into the autobuild with middleware
