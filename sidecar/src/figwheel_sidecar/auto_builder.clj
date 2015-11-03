@@ -9,8 +9,8 @@
 (defn autobuild* [{:keys [builds figwheel-server]}]
   (system/start-figwheel!
    {:all-builds builds
-    :build-ids (mapv :id (config/narrow-builds* builds []))}
-    :figwheel-options figwheel-server))
+    :build-ids (mapv :id (config/narrow-builds* builds []))
+    :figwheel-options figwheel-server}))
 
 (defn autobuild-ids [{:keys [all-builds build-ids figwheel-server]}]
   (let [builds (config/narrow-builds* all-builds build-ids)
