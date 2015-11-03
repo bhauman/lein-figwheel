@@ -146,3 +146,10 @@ the first default id)."
   (doc reset-autobuild)
   (doc reload-config)
   (doc api-help))
+
+(defn start-figwheel-from-lein [{:keys [figwheel-options all-builds build-ids] :as options}]
+  (let [system (fs/start-figwheel! options)]
+    (reset! figwheel-sidecar.repl-api/*repl-api-system* system)
+    (if (false? (:repl figwheel-options))
+      (loop [] (Thread/sleep 30000) (recur))
+      (fs/build-switching-cljs-repl (:figwheel-system system)))))

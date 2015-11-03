@@ -525,20 +525,10 @@
   (let [system (create-figwheel-system options)]
     (component/start system)))
 
+;; this is a blocking call
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
   (let [system (start-figwheel! autobuild-options)]
-    (build-switching-cljs-repl (:figwheel-system system))
-    system))
+    (build-switching-cljs-repl (:figwheel-system system))))
 
 (defn stop-figwheel! [system]
   (component/stop system))
-
-;; this is used from the lein plugin
-;; it blocks if the repl isn't started
-;; todo rename or inline
-(defn run-autobuilder [{:keys [figwheel-options all-builds build-ids] :as options}]
-  (if (false? (:repl figwheel-options))
-      (do
-        (start-figwheel! options)
-        (loop [] (Thread/sleep 30000) (recur)))
-      (start-figwheel-and-cljs-repl! options)))

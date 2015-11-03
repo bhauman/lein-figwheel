@@ -59,8 +59,8 @@
 (defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
   (run-local-project
    project all-builds
-   '(require 'figwheel-sidecar.system)
-   `(figwheel-sidecar.system/run-autobuilder '~autobuild-opts)))
+   '(require 'figwheel-sidecar.repl-api)
+   `(figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
