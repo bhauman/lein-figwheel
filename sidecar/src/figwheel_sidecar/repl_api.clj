@@ -117,7 +117,9 @@ and starts building the default builds again."
   "Prints out the build configs currently focused or optionally the
   configs of the ids provided."
   [& ids]
-  (fs/print-config @*repl-api-system* ids))
+  (fs/print-config
+   @(get-in @*repl-api-system* [:figwheel-system :system])
+   ids))
 
 (defn cljs-repl
   "Starts a Figwheel ClojureScript REPL for the provided build id (or
@@ -126,7 +128,7 @@ the first default id)."
    (cljs-repl nil))
   ([id]
    (when (figwheel-running?)
-     (fs/build-switching-cljs-repl *repl-api-system* id))))
+     (fs/cljs-repl (:figwheel-system @*repl-api-system*) id))))
 
 (defn fig-status
   "Display the current status of the running Figwheel system."
@@ -152,4 +154,5 @@ the first default id)."
     (reset! figwheel-sidecar.repl-api/*repl-api-system* system)
     (if (false? (:repl figwheel-options))
       (loop [] (Thread/sleep 30000) (recur))
-      (fs/build-switching-cljs-repl (:figwheel-system system)))))
+      ;; really should get the given initial build id here
+      (fs/cljs-repl (:figwheel-system system))))) 

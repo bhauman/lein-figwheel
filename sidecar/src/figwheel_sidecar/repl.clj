@@ -142,6 +142,9 @@
   [_ figwheel-env opts]
   (cljs.repl/repl* figwheel-env opts))
 
+(defn in-nrepl-env? []
+  (thread-bound? #'nrepl-eval/*msg*))
+
 (defn repl
   ([build figwheel-server]
    (repl build figwheel-server {}))
@@ -151,7 +154,7 @@
                      opts)
          figwheel-repl-env (repl-env figwheel-server build)
          repl-opts (assoc opts :compiler-env (:compiler-env build))
-         protocol (if (thread-bound? #'nrepl-eval/*msg*)
+         protocol (if (in-nrepl-env?)
                     :nrepl
                     :default)]
      (start-cljs-repl protocol figwheel-repl-env repl-opts))))
