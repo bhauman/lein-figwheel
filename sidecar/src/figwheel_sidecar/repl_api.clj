@@ -9,12 +9,6 @@
 ;; included with clojure :use, and system could easily clash
 (defonce ^:dynamic *repl-api-system* nil)
 
-#_(def temp-config
-  {:figwheel-options {:css-dirs ["resources/public/css"]
-                      :nrepl-port 7888}
-   :build-ids  ["example"]
-   :all-builds (fs/get-project-builds)})
-
 (defn start-figwheel!
   "If you aren't connected to an env where fighweel is running already,
   this method will start the figwheel server with the passed in build info."
@@ -27,8 +21,6 @@
      (alter-var-root #'*repl-api-system* component/start)
      ;; if no system exists try to read in a configuration
      (start-figwheel! (config/fetch-config)))))
-
-#_ (start-figwheel! temp-config)
 
 (defn stop-figwheel!
   "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."
