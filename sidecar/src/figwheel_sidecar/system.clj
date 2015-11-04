@@ -18,6 +18,9 @@
    [clojure.set :refer [difference union]]
    [clojure.string :as string]))
 
+;; exporting functionality inorder to make figwheel-sidecar.system
+;; the main require for scripting figwheel
+
 (def fetch-config config/fetch-config)
 
 (defn css-watcher [opts]
@@ -26,13 +29,6 @@
    {:figwheel-server :figwheel-system}))
 
 (def nrep-server-component nrepl-comp/nrepl-server-component)
-
-;; TODO
-(comment
-
-  ;; secondary
-  
-  example html reload)
 
 (declare build-config->key)
 
@@ -100,7 +96,7 @@
                       [:figwheel-system])))
 
 ;; Being able to supply a mutable figwheel system that can be
-;; controled by a CLJS socket repl is very desirable.
+;; controlled by a CLJS socket repl is very desirable.
 ;;
 ;; That being said if one doesn't want the CLJS repl to be able to
 ;; control which builds are running etc then one can revert the method
@@ -507,6 +503,13 @@
                     (keep :id (filter config/optimizations-none? (vals builds))))]
           (recur chosen-build-id))))))
 
+(defn cljs-repl*
+  ([system] (cljs-repl* system nil))
+  ([system start-build-id]
+   (if (frepl/in-nrepl-env?)
+     (figwheel-cljs-repl* system start-build-id) 
+     (build-switching-cljs-repl* system start-build-id))))
+
 ;; takes a FigwheelSystem
 (defn figwheel-cljs-repl
   ([figwheel-system]
@@ -520,12 +523,9 @@
   ([{:keys [system]} start-build-id]
    (build-switching-cljs-repl* system start-build-id)))
 
-(defn cljs-repl 
-  ([figwheel-system] (cljs-repl figwheel-system nil))
-  ([{:keys [system]} start-build-id]
-   (if (frepl/in-nrepl-env?)
-     (figwheel-cljs-repl* system start-build-id) 
-     (build-switching-cljs-repl* system start-build-id))))
+(defn cljs-repl
+  ([{:keys [system]}] (cljs-repl* system nil))
+  ([{:keys [system]} start-build-id] (cljs-repl* system start-build-id)))
 
 ;; figwheel starting and stopping helpers
 
@@ -534,10 +534,12 @@
   (let [system (create-figwheel-system options)]
     (component/start system)))
 
+(defn stop-figwheel! [system]
+  (component/stop system))
+
 ;; this is a blocking call
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
   (let [system (start-figwheel! autobuild-options)]
-    (build-switching-cljs-repl (:figwheel-system system))))
+    (cljs-repl (:figwheel-system system))))
 
-(defn stop-figwheel! [system]
-  (component/stop system))
+
