@@ -118,7 +118,7 @@ Successfully compiled "resources/public/js/tryfig.js" in 3.247 seconds.
 To complete this simple example let's launch a Figwheel REPL:
 
 ```
-=> (sys/build-switching-cljs-repl (:figwheel-system system)
+=> (sys/cljs-repl (:figwheel-system system))
 Launching ClojureScript REPL for build: example
 Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
@@ -140,7 +140,6 @@ To quit, type: :cljs/quit
 cljs.user=> (+ 1 2)
 3
 cljs.user=> :cljs/quit
-Choose focus build for CLJS REPL (example) or quit > quit
 ```
 
 Remember that you won't see the REPL prompt until the repl connects to
@@ -201,7 +200,7 @@ for other components that want to send messages to the client.
 Now that we have a system with some builds running we can start a Figwheel REPL.
 
 ```
-=> (sys/figwheel-cljs-repl (:figwheel-system system))
+=> (sys/cljs-repl (:figwheel-system system))
 Launching ClojureScript REPL for build: example
 Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
@@ -222,35 +221,6 @@ Prompt will show when Figwheel connects to your application
 To quit, type: :cljs/quit
 cljs.user=> (+ 1 2)
 3
-cljs.user=> :cljs/quit
-true
-```
-
-Or you can start a build switching repl which let's you switch to
-another build when you quit the REPL.
-
-```
-=> (sys/build-switching-cljs-repl (:figwheel system))
-Launching ClojureScript REPL for build: example
-Figwheel Controls:
-          (stop-autobuild)                ;; stops Figwheel autobuilder
-          (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
-          (switch-to-build id ...)        ;; switches autobuilder to different build
-          (reset-autobuild)               ;; stops, cleans, and starts autobuilder
-          (reload-config)                 ;; reloads build config and resets autobuild
-          (build-once [id ...])           ;; builds source one time
-          (clean-builds [id ..])          ;; deletes compiled cljs target files
-          (print-config [id ...])         ;; prints out build configurations
-          (fig-status)                    ;; displays current state of system
-  Switch REPL build focus:
-          :cljs/quit                      ;; allows you to switch REPL to another build
-    Docs: (doc function-name-here)
-    Exit: Control+C or :cljs/quit
- Results: Stored in vars *1, *2, *3, *e holds last exception object
-Prompt will show when Figwheel connects to your application
-To quit, type: :cljs/quit
-cljs.user=> :cljs/quit
-Choose focus build for CLJS REPL (example) or quit > quit
 ```
 
 There is only one build in our configuration so the build switching
