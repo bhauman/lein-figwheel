@@ -28,27 +28,6 @@
   (when *repl-api-system*
     (alter-var-root #'*repl-api-system* component/stop)))
 
-(comment
-  ;; example usage
-  (require 'figwheel-sidecar.repl-api)
-
-  (in-ns 'figwheel-sidecar.repl-api)
-  
-  (start-figwheel!
-   {:figwheel-options {}
-    :build-ids ["example"]
-    :all-builds [{ :id "example"
-                  :source-paths ["src" "dev"]
-                  :compiler {:main "example.dev"
-                             :asset-path "js/out"
-                             :output-to "resources/public/js/example.js"
-                             :output-dir "resources/public/js/out"
-                             :source-map true
-                             :source-map-timestamp true
-                             :cache-analysis true
-                             :optimizations :none}}]})
-  )
-
 (defn figwheel-running? []
   (or *repl-api-system*
       (do
