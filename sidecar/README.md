@@ -99,7 +99,7 @@ Let's start with the simplest system that we can make:
 nil
 => (def system
      (component/system-map
-       :figwheel-system (sys/figwheel-system (sys/fetch-config)))))
+       :figwheel-system (sys/figwheel-system (sys/fetch-config))))
 ```
 
 This creates a system with a `:figwheel-system` in it.
