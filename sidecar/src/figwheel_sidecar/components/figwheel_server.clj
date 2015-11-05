@@ -5,15 +5,16 @@
 
    [clojure.java.io :as io]
    [clojure.edn :as edn]
-   
+
    [clojure.core.async :refer [go-loop <!! <! timeout]]
 
    [compojure.route :as route]
    [compojure.core :refer [routes GET]]
    [ring.util.response :refer [resource-response]]
+   [ring.util.codec :as codec]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
-   
+
    [com.stuartsierra.component :as component]))
 
 (defprotocol ChannelServer
@@ -74,18 +75,18 @@
            (<!! (timeout compile-wait-time))
            (when (open? wschannel)
              (send! wschannel (prn-str msg)))))))
-    
+
     (on-close wschannel
               (fn [status]
                 (update-connection-count connection-count desired-build-id dec)
                 (remove-watch file-change-atom watch-key)
                 #_(println "Figwheel: client disconnected " status)))
-    
+
     (on-receive wschannel
                 (fn [data] (handle-client-msg server-state data)))
 
     ;; Keep alive!!
-    ;; 
+    ;;
     (go-loop []
       (<! (timeout 5000))
       (when (open? wschannel)
@@ -98,23 +99,38 @@
     (with-channel request channel
       (setup-file-change-sender server-state (:params request) channel))))
 
+(defn wrap-serve-index-file
+  [handler root-path]
+  (fn [request]
+    (if-not (= :get (:request-method request))
+      (handler request)
+      (let [path (.substring (codec/url-decode (:uri request)) 1)
+            final-path (if (= \/ (or (last path) \/))
+                           (str path "index.html")
+                           path)]
+        (or (resource-response final-path {:root root-path})
+            (handler request))))))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
   [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
   (try
     (-> (routes
-         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
-         (route/resources "/" {:root http-server-root})
-         (or resolved-ring-handler (fn [r] false))
-         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<h1>Page not found</h1>"))
+          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+          (GET "/figwheel-ws" {params :params} (reload-handler server-state))
+          (route/resources "/" {:root http-server-root})
+          (or resolved-ring-handler (fn [r] false))
+          (route/not-found "<h1>Page not found</h1>"))
+
+        (wrap-serve-index-file http-server-root)
+
         ;; adding cors to support @font-face which has a strange cors error
         ;; super promiscuous please don't uses figwheel as a production server :)
         (cors/wrap-cors
-         :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+          :access-control-allow-origin #".*"
+          :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+
         (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
                       (if server-ip
                         (assoc config :ip server-ip)
@@ -137,7 +153,7 @@
         (assoc :callback-name callback-name)))
     msg-data))
 
-;; remove resource paths here 
+;; remove resource paths here
 (defn create-initial-state [{:keys [unique-id
                                     http-server-root
                                     server-port
@@ -153,7 +169,7 @@
        {
         ;; seems like this id should be different for every
         ;; server restart thus forcing the client to reload
-        :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
+        :unique-id (or unique-id (.getCanonicalPath (io/file ".")))
         :http-server-root (or http-server-root "public")
         :server-port (or server-port 3449)
         :server-ip server-ip
@@ -161,12 +177,12 @@
         ;; TODO handle this better
         :resolved-ring-handler (or resolved-ring-handler
                                    (utils/require-resolve-handler ring-handler))
-        
+
         :open-file-command open-file-command
         :compile-wait-time (or compile-wait-time 10)
-        
+
         :file-md5-atom (atom {})
-        
+
         :file-change-atom (atom (list))
         :browser-callbacks (atom {})
         :connection-count (atom {})
@@ -225,7 +241,7 @@
   (-connection-data figwheel-server))
 
 
-;; setup server for overall system 
+;; setup server for overall system
 
 (defn ensure-array-map [all-builds]
   (into (array-map)
@@ -247,10 +263,10 @@
 (defn figwheel-server [{:keys [figwheel-options all-builds] :as options}]
   (let [all-builds          (map config/add-compiler-env (config/prep-builds all-builds))
         all-builds (ensure-array-map all-builds)
-        
+
         initial-state       (create-initial-state figwheel-options)
         figwheel-opts (assoc initial-state
-                             :builds all-builds       
+                             :builds all-builds
                              :log-writer    (extract-log-writer figwheel-options)
                              :cljs-build-fn (extract-cljs-build-fn figwheel-options))]
     (map->FigwheelServer figwheel-opts)))
