@@ -496,7 +496,7 @@
   (if (frepl/in-nrepl-env?)
     (figwheel-cljs-repl* system start-build-id) ;; no build switching
     (loop [build-id start-build-id]
-      (figwheel-cljs-repl* system build-id)
+      (figwheel-cljs-repl* system {:build-id build-id})
       (let [builds (get-in @system [:figwheel-server :builds])]
         (when-let [chosen-build-id
                    (get-build-choice
@@ -507,15 +507,15 @@
   ([system] (cljs-repl* system nil))
   ([system start-build-id]
    (if (frepl/in-nrepl-env?)
-     (figwheel-cljs-repl* system start-build-id) 
+     (figwheel-cljs-repl* system {:build-id start-build-id}) 
      (build-switching-cljs-repl* system start-build-id))))
 
 ;; takes a FigwheelSystem
 (defn figwheel-cljs-repl
   ([figwheel-system]
-   (figwheel-cljs-repl figwheel-system {}))
-  ([{:keys [system]} repl-options]
-   (figwheel-cljs-repl* system repl-options)))
+   (figwheel-cljs-repl figwheel-system nil))
+  ([{:keys [system]} build-id]
+   (figwheel-cljs-repl* system {:build-id build-id})))
 
 ;; takes a FigwheelSystem this will not work for nrepl
 (defn build-switching-cljs-repl
@@ -523,9 +523,16 @@
   ([{:keys [system]} start-build-id]
    (build-switching-cljs-repl* system start-build-id)))
 
+(defn initial-repl-focus-build-id [system]
+  (when-let [build-key (first (all-build-keys system))]
+    (key->id build-key)))
+
 (defn cljs-repl
   ([{:keys [system]}] (cljs-repl* system nil))
-  ([{:keys [system]} start-build-id] (cljs-repl* system start-build-id)))
+  ([{:keys [system]} start-build-id] (cljs-repl* system
+                                                 (or
+                                                  start-build-id
+                                                  (initial-repl-focus-build-id @system)))))
 
 ;; figwheel starting and stopping helpers
 
