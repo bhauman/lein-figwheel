@@ -90,7 +90,7 @@ can load `leiningen.core` and read the configuration.
 One can store and load the configuration however one wants to.
 `fetch-config` is merely a convenience.
 
-## The Figwheel System component
+## The FigwheelSystem Component
 
 Let's start with the simplest system that we can make:
 
@@ -302,5 +302,3 @@ Communicating with the figwheel client via Figwheel server should only
 be used for development tooling. Figwheel is not intended to provide
 support for application communication.
 
-
-## Hooking into the autobuild with middleware
