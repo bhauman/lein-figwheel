@@ -148,10 +148,15 @@
       (when-let [s (cljs.analyzer/error-message warning-type extra)]
         (callback (cljs.analyzer/message env s))))))
 
-(defmulti report-exception (fn [exception cause] (:type cause)))
+(defmulti report-exception (fn [exception cause] (or (:type cause) (:tag cause))))
 
 (defmethod report-exception :reader-exception [e {:keys [file line column]}]
   (println (format "ERROR: %s on file %s, line %d, column %d"
+                   (some-> e (.getCause) (.getMessage))
+                   file line column)))
+
+(defmethod report-exception :cljs/analysis-error [e {:keys [file line column]}]
+  (println (format "ANALYSIS ERROR: %s on file %s, line %d, column %d"
                    (some-> e (.getCause) (.getMessage))
                    file line column)))
 
@@ -183,5 +188,3 @@
           (notify-change-helper build-state changed-files))
         (catch Throwable e
           (handle-exceptions figwheel-server (assoc build-config :exception e)))))))
-
-
