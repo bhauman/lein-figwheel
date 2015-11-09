@@ -59,9 +59,8 @@
         (recur)))))
 
 (defn add-repl-print-callback! [{:keys [browser-callbacks]}]
-  (let [pr-fn (resolve-repl-println)]
-    (swap! browser-callbacks assoc "figwheel-repl-print"
-           (fn [args] (apply pr-fn args)))))
+  (swap! browser-callbacks assoc "figwheel-repl-print"
+         (fn [args] (apply repl-println args))))
 
 (defn valid-stack-line? [{:keys [function file url line column]}]
   (and (not (nil? function))
