@@ -79,6 +79,17 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
+;; this is just used for the initial build
+(defn catch-print-hook
+  "Build middleware hook that catches and prints errors."
+  [build-fn]
+  (fn [build-state]
+    (try
+      (build-fn build-state)
+      (catch Throwable e
+        (prn (ex-data (.getCause e)))
+        (notifications/report-exception e (ex-data (.getCause e)))))))
+
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
   (start [this]
@@ -108,10 +119,11 @@
           ;; tiny experience tweak
           ;; first build shouldn't send notifications
           ((if (= cljs-build-fn figwheel-build)
-            (-> cljs-build
-                injection/hook
-                figwheel-start-and-end-messages)
-            cljs-build-fn) this)
+             (-> cljs-build
+                 catch-print-hook
+                 injection/hook
+                 figwheel-start-and-end-messages)
+             cljs-build-fn) this)
           (assoc this
                  ;; for simple introspection
                  :cljs-autobuild true
