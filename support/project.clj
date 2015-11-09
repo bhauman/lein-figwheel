@@ -8,6 +8,6 @@
         :dir ".."}
   :dependencies
   [[org.clojure/clojure "1.7.0"]
-   [org.clojure/clojurescript "1.7.145"
+   [org.clojure/clojurescript "1.7.170"
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.2.371"]])
