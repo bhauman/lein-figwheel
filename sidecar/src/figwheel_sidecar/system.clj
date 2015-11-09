@@ -90,7 +90,7 @@
    :figwheel-system (figwheel-system (config/fetch-config))
    :css-watcher     (component/using
                       (css-watcher {:build-id "example" })
-                      {:figwheel-system :figwheel-server})
+                      {:figwheel-server :figwheel-system})
    :cljs-socket-repl (component/using
                       (cljs-socket-repl {:build-id "example"})
                       [:figwheel-system])))
