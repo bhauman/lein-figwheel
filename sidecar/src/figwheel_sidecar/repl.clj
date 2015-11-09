@@ -126,13 +126,19 @@
     (require 'cemerick.piggieback)
     (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
           special-fns (or (:special-fns opts) cljs.repl/default-special-fns)
-          output-dir (or (:output-dir opts) "out")]
+          output-dir (or (:output-dir opts) "out")
+          opts' (assoc opts
+                       :special-fns special-fns
+                       :output-dir output-dir)]
       (try
         ;; Piggieback version 0.2+
-        (cljs-repl figwheel-env :special-fns special-fns :output-dir output-dir)
+        (apply cljs-repl figwheel-env (apply concat opts'))
         (catch Exception e
           ;; Piggieback version 0.1.5
-          (cljs-repl :repl-env figwheel-env :special-fns special-fns :output-dir output-dir))))
+          (apply cljs-repl
+                 (apply concat
+                        (assoc opts'
+                               :repl-env figwheel-env))))))
     (catch Exception e
       (println "INFO: nREPL connection found but unable to load piggieback. Starting default REPL")
       (start-cljs-repl :default figwheel-env opts))))
