@@ -10,6 +10,6 @@
 
   :scm { :name "git"
          :url "https://github.com/bhauman/lein-figwheel"
-         :dir "plugin"}
+         :dir ".."}
 
   :eval-in-leiningen true)
