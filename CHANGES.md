@@ -1,10 +1,8 @@
-## 0.5.0-SNAPSHOT Complete Refactor
+## 0.5.0 Complete Refactor
 
-... this needs more work ...
-
-* Figwheel is has undergone a large refactor and is now functioning better than ever
+* Figwheel is has undergone a large refactor and is now working better than ever
 * Figwheel is now internally composed of components and has been
-  organized according to concerns - this is not quite finished yet so the internal api may be be unstable
+  re-organized according to concerns - this is not quite finished yet so the internal api may be be unstable
 * this exposes the ability to compose component systems as you see fit and offering the ability to
   send messages from your own components to the figwheel client
 * moved to a FSEvent file watching strategy using the hawk library, this

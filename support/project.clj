@@ -1,5 +1,5 @@
-(defproject figwheel "0.5.0-SNAPSHOT"
-  :description "Figwheel ClojureScript Autobuilder/Server which pushes changed files to the browser. This project contains the client side code for figwheel."
+(defproject figwheel "0.5.0"
+  :description "This project contains the client side code for Figwheel."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

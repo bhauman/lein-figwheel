@@ -6,7 +6,7 @@
   :dependencies [
                  [org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.170"]
-                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [org.clojure/core.async "0.2.371"]
                  [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
@@ -16,7 +16,7 @@
 
   :plugins [[lein-ring "0.8.13"]
             #_[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.5.0-SNAPSHOT"]
+            [lein-figwheel "0.5.0"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
