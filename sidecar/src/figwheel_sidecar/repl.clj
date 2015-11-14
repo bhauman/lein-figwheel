@@ -164,3 +164,6 @@
                     :default)]
      (start-cljs-repl protocol figwheel-repl-env repl-opts))))
 
+;; deprecated 
+(defn get-project-cljs-builds []
+  (:all-builds (config/fetch-config)))
