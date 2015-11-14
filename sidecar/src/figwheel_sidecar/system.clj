@@ -195,13 +195,18 @@
    (doall
     (filter build-key? (keys system)))))
 
+(defn ids-or-all-build-keys* [system ids]
+  (set
+   (doall
+    (if (not-empty ids)
+      (map id->key ids)
+      (all-build-keys system)))))
+
 (defn ids-or-all-build-keys [system ids]
   (set
    (doall
     (filter (partial valid-key? system)
-            (if (not-empty ids)
-              (map id->key ids)
-              (all-build-keys system))))))
+            (ids-or-all-build-keys* system ids)))))
 
 (defn watchers-running [system]
   (doall
@@ -305,9 +310,8 @@
 
 ;; doesn't change the system
 (defn- build-once* [system id]
-  (when-let [build-config
-             (id->build-config system (name id))
-             #_(get (:builds system) (name id))]
+  (if-let [build-config
+             (id->build-config system (name id))]
     (do
       (repl-println "Figwheel: Building once -" (name id))
       ;; we are allwing build to be overridden at the system level
@@ -315,15 +319,17 @@
         (:cljs-build-fn system)
         (get-in system [:figwheel-server :cljs-build-fn])
         autobuild/figwheel-build)
-       (assoc system :build-config build-config)))
-    system))
+       (assoc system :build-config build-config))
+      system)
+    (do
+      (repl-println (str "Build config for " id " not found.")))))
 
 ;; doesn't alter the system
 (defn build-once
   "Builds the given ids or the current builds once"
   [system ids]
   (doseq [build-ids (mapv key->id
-                          (ids-or-all-build-keys system ids))]
+                          (ids-or-all-build-keys* system ids))]
     (build-once* system build-ids))
   system)
 
