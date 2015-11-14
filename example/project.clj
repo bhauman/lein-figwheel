@@ -61,7 +61,15 @@
                                                     :provides ["wowzacore"]}]
                                      ;; :recompile-dependents true
                                      :optimizations :none}}
-
+                       { :id "example-prod"
+                         :source-paths ["src"]
+                         :compiler { :main example.core
+                                     :asset-path "js/out"
+                                     :output-to "resources/public/js/example-prod.js"
+                                     :libs ["libs_src" "libs_sscr/tweaky.js"]
+                                     :foreign-libs [{:file "foreign/wowza.js"
+                                                     :provides ["wowzacore"]}]
+                                     :optimizations :whitespace}}
                        {:id "server"
                         :source-paths ["server_src" "../support/src"]
                         :figwheel true
@@ -73,7 +81,7 @@
                        { :id "example-admin"
                          :source-paths ["other_src" "src" #_"../support/src"]
                          :compiler { :output-to "resources/public/js/compiled/example_admin.js"
-                                    :output-dir "resources/public/js/compiled/admin"
+                                     :output-dir "resources/public/js/compiled/admin"
                                      :libs ["libs_src" "libs_sscr/tweaky.js"]
                                      ;; :externs ["foreign/wowza-externs.js"]
                                     :foreign-libs [{:file "foreign/wowza.js"

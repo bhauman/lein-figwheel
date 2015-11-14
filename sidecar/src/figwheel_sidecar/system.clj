@@ -15,7 +15,7 @@
 
    [clojure.pprint :as p]   
    [clojure.java.io :as io]
-   [clojure.set :refer [difference union]]
+   [clojure.set :refer [difference union intersection]]
    [clojure.string :as string]))
 
 ;; exporting functionality inorder to make figwheel-sidecar.system
@@ -299,14 +299,30 @@
 
 ;; this is going to require a stop and start of the ids
 ;; and clearing the compiler-env for these builds
+
+(defn running-versus-not-running [system ids]
+  (let [running-set (set (map key->id (watchers-running system)))
+        id-set (set (map name ids))]
+  {:not-running-ids (difference id-set running-set)
+   :running-ids (intersection id-set running-set)}))
+
+;; this is actually really complicated based on what is running etc.
 (defn clean-builds
   "Deletes the compiled assets for the given ids or cleans all the
   current autobuilds. This command stops and starts the autobuilds."
   [system ids]
-  (let [ids (map key->id (ids-or-all-build-keys system ids))]
-    (stop-and-start-watchers
-     system ids
-     #(reduce clean-build % ids))))
+  (let [{:keys [not-running-ids running-ids]}
+        (running-versus-not-running system ids)
+        system (reduce clean-build system not-running-ids)
+        process-ids (if (empty? ids)
+                      (map key->id
+                           (ids-or-all-build-keys system running-ids))
+                      running-ids)]
+    (if-let [ids (not-empty process-ids)] 
+      (stop-and-start-watchers
+       system ids
+       #(reduce clean-build % ids))
+      system)))
 
 ;; doesn't change the system
 (defn- build-once* [system id]
