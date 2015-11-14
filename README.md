@@ -163,14 +163,14 @@ First make sure you include the following `:dependencies` in your `project.clj` 
 
 ```clojure
 [org.clojure/clojure "1.7.0"]
-[org.clojure/clojurescript "1.7.122"]
+[org.clojure/clojurescript "1.7.170"]
 ```
 
 Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.0"]
+[lein-figwheel "0.5.0-1"]
 ```
 
 #### Configure your builds
@@ -486,7 +486,7 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.0"]` in your dependencies.
+`[figwheel-sidecar "0.5.0-1"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -508,11 +508,15 @@ To start Figwheel from a script, you will need to require the
                 :output-to "resources/public/main.js"
                 :output-dir "resources/public/out"
                 :verbose true}}]})
+                
+;; you can also just call (ra/start-figwheel!)
+;; and figwheel will do its best to get your config from the
+;; project.clj or a figwheel.edn file
 
 ;; start a ClojureScript REPL
 (ra/cljs-repl)
 ;; you can optionally supply a build id
-(ra/cljs-repl "dev")
+;; (ra/cljs-repl "dev")
 ```
 
 >  **Build config notes**
