@@ -1,6 +1,6 @@
 ## 0.5.0-1
 
-* added back `figwheel-sidecar.repl/get-project-cljs-builds` and deplrecated
+* added back `figwheel-sidecar.repl/get-project-cljs-builds` and deprecated
 * made the repl special-fn `(build-once)` work for builds that aren't opt none
 * made the repl special-fn `(clean-builds)` work for builds that aren't opt none
 
