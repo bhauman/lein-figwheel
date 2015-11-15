@@ -4,9 +4,9 @@
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
 
-   [figwheel-sidecar.components.nrepl-server   :as nrepl-comp]
+   [figwheel-sidecar.components.nrepl-server    :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
-   [figwheel-sidecar.components.cljs-autobuild   :as autobuild]
+   [figwheel-sidecar.components.cljs-autobuild  :as autobuild]
    [figwheel-sidecar.components.figwheel-server :as server]      
    
    [com.stuartsierra.component :as component]
