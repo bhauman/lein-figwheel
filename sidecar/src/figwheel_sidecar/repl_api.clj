@@ -31,16 +31,16 @@
 (defn figwheel-running? []
   (or *repl-api-system*
       (do
-        (println "Figwheel System not itnitialized.\nPlease start it with figwheel-sidecar.repl-api/start-figwheel")
+        (println "Figwheel System not itnitialized.\nPlease start it with figwheel-sidecar.repl-api/start-figwheel!")
         nil)))
 
 (defn app-trans
   ([func ids]
-   (when figwheel-running?
+   (when (figwheel-running?)
      (let [system (get-in *repl-api-system* [:figwheel-system :system])]
        (reset! system (func @system ids)))))
   ([func]
-   (when figwheel-running?
+   (when (figwheel-running?)
      (let [system (get-in *repl-api-system* [:figwheel-system :system])]
        (reset! system (func @system))))))
 
