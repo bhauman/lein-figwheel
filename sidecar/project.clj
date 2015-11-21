@@ -12,7 +12,7 @@
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.2.374"]   
    [com.stuartsierra/component "0.3.0"]
-   [http-kit "2.1.18"]
+   [http-kit "2.1.19"]
    [ring-cors "0.1.7"]
    [compojure "1.4.0"]
    [clj-stacktrace "0.2.8"]
