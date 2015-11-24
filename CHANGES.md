@@ -1,3 +1,9 @@
+## 0.5.0-2
+
+* bumping http-kit to 0.2.19 get's rid of nasty exit exception
+* fix REPL helpers check for figwheel's running status
+* fixed REPL problem where pprint would produce extra output
+
 ## 0.5.0-1
 
 * added back `figwheel-sidecar.repl/get-project-cljs-builds` and deprecated

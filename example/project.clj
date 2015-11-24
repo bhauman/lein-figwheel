@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
-                 [org.clojure/clojure "1.7.0"]
+                 [org.clojure/clojure "1.8.0-RC2"]
                  [org.clojure/clojurescript "1.7.170"]
                  [org.clojure/core.async "0.2.374"]
                  [sablono "0.3.5"]
@@ -98,12 +98,13 @@
                                      }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [figwheel-sidecar "0.5.0-1"]
+                                    [figwheel-sidecar "0.5.0-2"]
                                     [org.clojure/tools.namespace "0.2.11"]
-                                    #_[org.clojure/tools.nrepl "0.2.10"]]
-                    :source-paths ["src" "../sidecar/src" "dev"]
-                    :plugins [[refactor-nrepl "1.2.0-SNAPSHOT"]
-                              [cider/cider-nrepl "0.10.0-SNAPSHOT"]]}}
+                                    [org.clojure/tools.nrepl "0.2.12"]]
+                    :source-paths ["src" "dev"]}
+             :repl { :plugins [ [cider/cider-nrepl "0.10.0-SNAPSHOT"]]}}
+
+  :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 

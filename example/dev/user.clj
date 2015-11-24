@@ -1,9 +1,6 @@
 (ns user
   (:require
-   [figwheel-sidecar.config :as config]   
-   [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.repl-api :as f]
-   [com.stuartsierra.component :as component]
    [clojure.tools.namespace.repl :refer (refresh refresh-all)]))
 
 (def sys f/*repl-api-system*)
