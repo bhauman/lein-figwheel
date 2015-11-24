@@ -40,13 +40,15 @@
   (.apply (.-log js/console) js/console (into-array args))
   args)
 
+(defn repl-print-fn [& args]
+  (-> args
+      console-print
+      figwheel-repl-print)
+  nil)
+
 (defn enable-repl-print! []
   (set! *print-newline* false)
-  (set! *print-fn*
-        (fn [& args]
-          (-> args
-            console-print
-            figwheel-repl-print))))
+  (set! *print-fn* repl-print-fn))
 
 (defn get-essential-messages [ed]
   (when ed
@@ -137,10 +139,7 @@
 (let [base-path (utils/base-url-path)]
   (defn eval-javascript** [code opts result-handler]
     (try
-      (binding [*print-fn* (fn [& args]
-                             (-> args
-                               console-print
-                               figwheel-repl-print))
+      (binding [*print-fn* repl-print-fn
                 *print-newline* false]
         (result-handler
          {:status :success,
