@@ -145,7 +145,7 @@
         (result-handler
          {:status :success,
           :ua-product (get-ua-product)
-          :value (str (utils/eval-helper code opts))}))
+          :value (utils/eval-helper code opts)}))
       (catch js/Error e
         (result-handler
          {:status :exception
