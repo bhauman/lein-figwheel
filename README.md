@@ -170,7 +170,7 @@ Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.0-1"]
+[lein-figwheel "0.5.0-2"]
 ```
 
 #### Configure your builds
@@ -502,7 +502,7 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.0-1"]` in your dependencies.
+`[figwheel-sidecar "0.5.0-2"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -644,6 +644,8 @@ with a Ring server component to serve your application.
     (ra/start-figwheel! config)
     config)
   (stop [config]
+    ;; you may want to restart other components but not Figwheel
+    ;; consider commenting out this next line if that is the case
     (ra/stop-figwheel!)
     config))
 
