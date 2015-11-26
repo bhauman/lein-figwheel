@@ -4,6 +4,20 @@
    [clojure.tools.nrepl.server :as nrepl-serv]
    [com.stuartsierra.component :as component]   ))
 
+(def nrepl-port-file
+  "The file that contains the nREPL port number."
+  (java.io.File. ".nrepl-port"))
+
+(defn write-nrepl-port-file
+  "Write the `port` of the nREPL server to `nrepl-port-file`."
+  [port]
+  (when port
+    (try
+      (spit nrepl-port-file (str port))
+      (catch Exception e
+        (println (format "Figwheel: Can't write nREPL server port to `%s`: %s"
+                         (str nrepl-port-file) (.getMessage e)))))))
+
 (defn start-nrepl-server
   [figwheel-options autobuild-options]
   (when (:nrepl-port figwheel-options)
@@ -22,11 +36,13 @@
                                (map resolve val)
                                (list var)))
                            (println (format "WARNING: unable to load \"%s\" middleware" name)))))
-          middleware (mapcat resolve-mw middleware)]
-      (nrepl-serv/start-server
-       :port (:nrepl-port figwheel-options)
-       :bind (:nrepl-host figwheel-options)
-       :handler (apply nrepl-serv/default-handler middleware)))))
+          middleware (mapcat resolve-mw middleware)
+          server (nrepl-serv/start-server
+                  :port (:nrepl-port figwheel-options)
+                  :bind (:nrepl-host figwheel-options)
+                  :handler (apply nrepl-serv/default-handler middleware))]
+      (write-nrepl-port-file (:nrepl-port figwheel-options))
+      server)))
 
 (defrecord NreplComponent []
   component/Lifecycle
@@ -42,7 +58,8 @@
   (stop [this]
         (when (:running-nrepl-server this)
           (println "Figwheel: Stopped nREPL server")
-          (nrepl-serv/stop-server (:running-nrepl-server this)))
+          (nrepl-serv/stop-server (:running-nrepl-server this))
+          (.delete nrepl-port-file))
     (dissoc this :running-nrepl-server)))
 
 (defn nrepl-server-component
