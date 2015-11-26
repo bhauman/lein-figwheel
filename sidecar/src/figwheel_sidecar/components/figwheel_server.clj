@@ -235,7 +235,9 @@
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")]
     (if (false? (:repl figwheel-options))
       *out*
-      (io/writer logfile-path :append true))))
+      (do
+        (io/make-parents logfile-path)
+        (io/writer logfile-path :append true)))))
 
 (defn extract-cljs-build-fn [{:keys [cljs-build-fn]}]
   (or (utils/require-resolve-handler cljs-build-fn)
