@@ -34,7 +34,7 @@
         (when-let [ns (namespace h)]
           (when (require? (symbol ns))
             (when-let [handler-var (resolve h)]
-              @handler-var)))))))
+              handler-var)))))))
 
 #_(require-resolve-handler figwheel-sidecar.components.cljs-autobuild/figwheel-build)
 
