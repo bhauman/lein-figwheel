@@ -10,13 +10,16 @@
   [[org.clojure/clojure "1.7.0"]
    [org.clojure/clojurescript "1.7.170"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.2.374"]   
+   [org.clojure/core.async "0.2.374"
+    :exclusions [org.clojure/tools.reader]]
    [com.stuartsierra/component "0.3.0"]
    [http-kit "2.1.19"]
-   [ring-cors "0.1.7"]
+   [ring-cors "0.1.7"
+    :exclusions [ring/ring-core]]
    [compojure "1.4.0"]
    [clj-stacktrace "0.2.8"]
    [digest "1.4.4"]
-   [figwheel "0.5.0-2"]
+   [figwheel "0.5.0-2"
+    :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.5"]])
 
