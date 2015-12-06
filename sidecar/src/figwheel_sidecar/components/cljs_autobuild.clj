@@ -1,19 +1,20 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
-   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped?]]   
+   [figwheel-sidecar.config :refer [add-compiler-env prep-build prepped?]]
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
 
       ;; build hooks
-   [figwheel-sidecar.build-middleware.injection :as injection] 
+   [figwheel-sidecar.build-middleware.injection :as injection]
    [figwheel-sidecar.build-middleware.notifications :as notifications]
    [figwheel-sidecar.build-middleware.clj-reloading :as clj-reloading]
-   [figwheel-sidecar.build-middleware.javascript-reloading :as javascript-reloading]   
-   
+   [figwheel-sidecar.build-middleware.javascript-reloading :as javascript-reloading]
+
    [com.stuartsierra.component :as component]
    [cljs.closure]
    [cljs.build.api :as bapi]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.java.shell :refer [sh]]))
 
 ;; TODO can I run this without a figwheel server??
 ;; that would make this component much more useful
@@ -136,7 +137,9 @@
                                          *err* log-writer]
                                  (cljs-build-fn
                                   (assoc this
-                                         :changed-files (map str files)))))))))))
+                                         :changed-files (map str files))))
+                               (when-let [notify-command (:notify-command build-config)]
+                                 (println (:out (apply sh notify-command)))))))))))
       this))
   (stop [this]
     (when (:file-watcher this)
@@ -153,7 +156,7 @@
   figwheel-sidecar.components.figwheel-server/ChannelServer protocol.
 
   You need to at least supply this component with a :build-config.
-  
+
   You may optionally supply a :cljs-build-fn for this component to
   use."
   [{:keys [build-config] :as opts}]
