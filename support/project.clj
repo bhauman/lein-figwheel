@@ -10,4 +10,5 @@
   [[org.clojure/clojure "1.7.0"]
    [org.clojure/clojurescript "1.7.170"
     :exclusions [org.apache.ant/ant]]
+   [com.cognitect/transit-cljs "0.8.232"]
    [org.clojure/core.async "0.2.374"]])

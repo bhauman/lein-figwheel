@@ -4,6 +4,7 @@
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
 
+   [figwheel-sidecar.protocols :refer [ChannelServer] :as protocols]
    [figwheel-sidecar.components.nrepl-server    :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
    [figwheel-sidecar.components.cljs-autobuild  :as autobuild]
@@ -11,10 +12,7 @@
    
    [com.stuartsierra.component :as component]
 
-   [cljs.env :as env]
-
-   [clojure.pprint :as p]   
-   [clojure.java.io :as io]
+   [clojure.pprint :as p]
    [clojure.set :refer [difference union intersection]]
    [clojure.string :as string]))
 
@@ -123,12 +121,12 @@
         (swap! system component/stop)
         (assoc this :system-running false))
       this))
-  server/ChannelServer
+  ChannelServer
   (-send-message [this channel-id msg-data callback]
-    (server/-send-message (:figwheel-server @system)
+    (protocols/-send-message (:figwheel-server @system)
                    channel-id msg-data callback))
   (-connection-data [this]
-    (server/-connection-data (:figwheel-server @system))))
+    (protocols/-connection-data (:figwheel-server @system))))
 
 (defn figwheel-system [{:keys [build-ids] :as options}]
   (let [system

@@ -2,10 +2,12 @@
   (:require
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.utils :as utils]
+   [figwheel-sidecar.repl.controller :as repl-controller]
+   [figwheel-sidecar.protocols :refer [ChannelServer] :as protocols]
 
    [clojure.java.io :as io]
-   [clojure.edn :as edn]
-   
+   [cognitect.transit :as transit]
+
    [clojure.core.async :refer [go-loop <!! <! timeout]]
 
    [compojure.route :as route]
@@ -13,12 +15,21 @@
    [ring.util.response :refer [resource-response]]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
-   
-   [com.stuartsierra.component :as component]))
 
-(defprotocol ChannelServer
-  (-send-message [this channel-id msg-data callback])
-  (-connection-data [this]))
+   [com.stuartsierra.component :as component])
+  (:import [java.io ByteArrayInputStream ByteArrayOutputStream]))
+
+(defn serialize-msg [msg]
+  (let [out (ByteArrayOutputStream. 4096)
+        writer (transit/writer out :json)]
+    (transit/write writer msg)
+    (.toString out)))
+
+(defn unserialize-msg [serialized-msg]
+  {:pre [(string? serialized-msg)]}
+  (let [in (ByteArrayInputStream. (.getBytes serialized-msg "UTF-8"))
+        reader (transit/reader in :json)]
+    (transit/read reader)))
 
 (defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
   (when open-file-command
@@ -28,25 +39,36 @@
 
 (defn read-msg [data]
   (try
-    (let [msg (edn/read-string data)]
+    (let [msg (unserialize-msg data)]
       (if (and (map? msg) (:figwheel-event msg)) msg {}))
     (catch Exception e
       (println "Figwheel: message from client couldn't be read!")
       {})))
 
+(defn handle-callback-msg [server-state msg]
+  (let [{:keys [browser-callbacks]} server-state
+        {:keys [callback-name content]} msg
+        callback (get @browser-callbacks callback-name)]
+    (if (fn? callback)
+      (callback content)
+      (println "Figwheel: unable to resolve callback '" callback-name "'"))))
+
+(defn handle-file-selected-msg [server-state msg]
+  (when-let [command (get-open-file-command server-state msg)]
+    (try
+      (.exec (Runtime/getRuntime) (into-array String command))
+      (catch Exception _e
+        (println "Figwheel: there was a problem running the open file command - " command)))))
+
 ;; should make this extendable with multi-method
-(defn handle-client-msg [{:keys [browser-callbacks] :as server-state} data]
+(defn handle-client-msg [server-state data]
   (when data
     (let [msg (read-msg data)]
-      (if (= "callback" (:figwheel-event msg))
-        (when-let [cb (get @browser-callbacks (:callback-name msg))]
-          (cb (:content msg)))
-        (when-let [command (and (= "file-selected" (:figwheel-event msg))
-                                (get-open-file-command server-state msg))]
-          (try
-            (.exec (Runtime/getRuntime) (into-array String command))
-            (catch Exception e
-              (println "Figwheel: there was a problem running the open file command - " command))))))))
+      (case (:figwheel-event msg)
+        "callback" (handle-callback-msg server-state msg)
+        "file-selected" (handle-file-selected-msg server-state msg)
+        "repl-driver" (repl-controller/handle-msg server-state msg)
+        (println "Figwheel: received unrecognized message" msg)))))
 
 (defn update-connection-count [connection-count build-id f]
   (swap! connection-count update-in [build-id] (fnil f 0)))
@@ -73,7 +95,7 @@
                      (= desired-build-id (:build-id msg))))
            (<!! (timeout compile-wait-time))
            (when (open? wschannel)
-             (send! wschannel (prn-str msg)))))))
+             (send! wschannel (serialize-msg msg)))))))
     
     (on-close wschannel
               (fn [status]
@@ -89,8 +111,9 @@
     (go-loop []
       (<! (timeout 5000))
       (when (open? wschannel)
-        (send! wschannel (prn-str  {:msg-name :ping
-                                    :project-id (:unique-id server-state)}))
+        (let [msg {:msg-name   :ping
+                   :project-id (:unique-id server-state)}]
+          (send! wschannel (serialize-msg msg)))
         (recur)))))
 
 (defn reload-handler [server-state]
@@ -215,13 +238,13 @@
   (-connection-data [{:keys [connection-count]}] @connection-count))
 
 (defn send-message [figwheel-server channel-id msg-data]
-  (-send-message figwheel-server channel-id msg-data nil))
+  (protocols/-send-message figwheel-server channel-id msg-data nil))
 
 (defn send-message-with-callback [figwheel-server channel-id msg-data callback]
-  (-send-message figwheel-server channel-id msg-data callback))
+  (protocols/-send-message figwheel-server channel-id msg-data callback))
 
 (defn connection-data [figwheel-server]
-  (-connection-data figwheel-server))
+  (protocols/-connection-data figwheel-server))
 
 
 ;; setup server for overall system 

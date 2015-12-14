@@ -1,13 +1,11 @@
 (ns figwheel.client
   (:require
-   [goog.Uri :as guri]
-   [goog.userAgent.product :as product]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
    [figwheel.client.utils :as utils]   
    [figwheel.client.heads-up :as heads-up]
    [figwheel.client.file-reloading :as reloading]
-   [clojure.string :as string]
+   [figwheel.plugin.repl-driver :as repl-driver]
    ;; to support repl doc
    [cljs.repl])
   (:require-macros
@@ -124,53 +122,16 @@
 #_(defn error-test []
    (error-test3))
 
-(defn truncate-stack-trace [stack-str]
-  (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
-              (string/split-lines stack-str)))
-
-(defn get-ua-product []
-  (cond
-    (utils/node-env?) :chrome
-    product/SAFARI    :safari
-    product/CHROME    :chrome
-    product/FIREFOX   :firefox
-    product/IE        :ie))
-
-(let [base-path (utils/base-url-path)]
-  (defn eval-javascript** [code opts result-handler]
-    (try
-      (binding [*print-fn* repl-print-fn
-                *print-newline* false]
-        (result-handler
-         {:status :success,
-          :ua-product (get-ua-product)
-          :value (utils/eval-helper code opts)}))
-      (catch js/Error e
-        (result-handler
-         {:status :exception
-          :value (pr-str e)
-          :ua-product (get-ua-product)          
-          :stacktrace (string/join "\n" (truncate-stack-trace (.-stack e)))
-          :base-path base-path }))
-      (catch :default e
-        (result-handler
-         {:status :exception
-          :ua-product (get-ua-product)          
-          :value (pr-str e)
-          :stacktrace "No stacktrace available."})))))
-
-(defn ensure-cljs-user
-  "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
-  []
-  ;; this should be included in the REPL
-  (when-not js/cljs.user
-    (set! js/cljs.user #js {})))
+(defn repl-driver-plugin [{:keys [build-id] :as opts}]
+  (fn [[msg & _]]
+    (when (= :repl-driver (:msg-name msg))
+      (repl-driver/handle-message msg opts))))
 
 (defn repl-plugin [{:keys [build-id] :as opts}]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
-      (ensure-cljs-user)
-      (eval-javascript** (:code msg) opts
+      (utils/ensure-cljs-user)
+      (utils/eval-javascript** (:code msg) repl-print-fn opts
                          (fn [res]
                            (socket/send! {:figwheel-event "callback"
                                           :callback-name (:callback-name  msg)
@@ -313,11 +274,12 @@
     config))
 
 (defn base-plugins [system-options]
-  (let [base {:enforce-project-plugin enforce-project-plugin
+  (let [base {:enforce-project-plugin   enforce-project-plugin
               :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
-              :repl-plugin      repl-plugin}
+              :repl-plugin              repl-plugin
+              :repl-driver-plugin       repl-driver-plugin}
         base  (if (not (utils/html-env?)) ;; we are in an html environment?
                (select-keys base [#_:enforce-project-plugin
                                   :file-reloader-plugin
