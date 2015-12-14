@@ -7,7 +7,8 @@
     [figwheel-sidecar.repl.sniffer :as sniffer]
     [figwheel-sidecar.repl.messaging :as messaging]
     [cljs.analyzer :as ana]
-    [figwheel-sidecar.repl.registry :as registry]))
+    [figwheel-sidecar.repl.registry :as registry])
+  (:import (clojure.lang IExceptionInfo)))
 
 ; -- driver construction ----------------------------------------------------------------------------------------------------
 
@@ -181,6 +182,21 @@
       (cljs-repl/repl-prompt)
       (sniffer/clear-content! @stdout-sniffer))))
 
+(defn custom-caught-factory [driver]
+  (fn [e repl-env opts]
+    (let [orig-call #(cljs-repl/repl-caught e repl-env opts)]
+      ; we want to prevent recording javascript errors and exceptions,
+      ; because those were already reported on client-side directly
+      ; other exceptional cases should be recorded as usual (for example exceptions originated in compiler)
+      (if (and (recording? driver)
+               (instance? IExceptionInfo e)
+               (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
+        (do
+          (stop-recording! driver)
+          (orig-call)
+          (start-recording! driver))
+        (orig-call)))))                                                                                                       ; TODO: in case of long clojure stacktraces we can do more user-friendly job
+
 ; -- sniffer handlers -------------------------------------------------------------------------------------------------------
 
 (defn flush-handler
@@ -208,6 +224,7 @@
                     :read (multiplexing-reader-factory driver)
                     :eval (custom-eval-factory driver)
                     :prompt (custom-prompt-factory driver)
+                    :caught (custom-caught-factory driver)
                     :bind-err false)]
     (let [stdout-sniffer (sniffer/make-sniffer *out* (partial flush-handler driver :stdout))
           stderr-sniffer (sniffer/make-sniffer *out* (partial flush-handler driver :stderr))]                                 ; *out* is here on purpose, see :bind-err and its effect when true (default)
