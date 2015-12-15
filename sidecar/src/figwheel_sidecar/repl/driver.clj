@@ -14,6 +14,7 @@
 
 (defn get-initial-settings []
   {:commands-channel                     (chan)                                                                               ; channel for REPL commands (actually command records) from *in* and also network
+   :last-ns                              (volatile! "")                                                                       ; string name of last namespace seen on prompt
    :current-job                          (volatile! nil)                                                                      ; command-record currently being processed {:request-id :kind :command}
    :active-repl-opts                     (volatile! nil)                                                                      ; cached repl opts
    :recording?                           (volatile! false)                                                                    ; should we record printing into *out* and *err*?
@@ -33,6 +34,12 @@
     (assert sniffer&)
     @sniffer&))
 
+(defn get-last-ns [driver]
+  @(:last-ns driver))
+
+(defn set-last-ns [driver name]
+  (vreset! (:last-ns driver) name))
+
 ; -- announcements ----------------------------------------------------------------------------------------------------------
 
 (defn announce-job-start [driver job]
@@ -44,7 +51,7 @@
     (messaging/announce-job-end (:server driver) request-id)))
 
 (defn announce-ns [driver]
-  (messaging/announce-repl-ns (:server driver) (str ana/*cljs-ns*)))
+  (messaging/announce-repl-ns (:server driver) (get-last-ns driver)))
 
 ; -- job management ---------------------------------------------------------------------------------------------------------
 
@@ -226,6 +233,7 @@
 (defn custom-prompt-factory [driver]
   (fn []
     (let [stdout-sniffer (get-sniffer driver :stdout)]
+      (set-last-ns driver (str ana/*cljs-ns*))
       (announce-ns driver)
       (suppress-flushing driver :stdout)
       (cljs-repl/repl-prompt)
