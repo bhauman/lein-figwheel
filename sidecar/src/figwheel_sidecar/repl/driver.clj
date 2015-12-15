@@ -23,6 +23,8 @@
 (defn make-driver [extra-settings]
   (merge (get-initial-settings) extra-settings))
 
+; -- getters/setters --------------------------------------------------------------------------------------------------------
+
 (defn set-sniffer! [driver sniffer-key sniffer]
   (vreset! (get-in driver [:sniffers sniffer-key]) sniffer))
 
@@ -244,7 +246,15 @@
             (stop-recording! driver)
             (orig-call)
             (start-recording! driver))
-          (orig-call))))))                                                                                                    ; TODO: in case of long clojure stacktraces we can do more user-friendly job
+          (do
+            ; we've got a java exception with a possibly long stack trace
+            ; it will be printed in cljs.repl/repl-caught via (.printStackTrace e *err*)
+            ; we capture output and send it to client side with special kind :java-trace
+            ; with this hint, client-side should implement a nice way how to present this to the user
+            (suppress-flushing driver :stderr)
+            (orig-call)
+            (unsuppress-flushing driver :stderr)
+            (flush-sniffer! driver :stderr :java-trace)))))))
 
 ; -- sniffer handlers -------------------------------------------------------------------------------------------------------
 
