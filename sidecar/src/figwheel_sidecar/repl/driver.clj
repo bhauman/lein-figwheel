@@ -12,12 +12,24 @@
 
 ; -- driver construction ----------------------------------------------------------------------------------------------------
 
-(defn make-driver [base]
-  (merge base {:commands-channel                     (chan)                                                                   ; channel for REPL commands (command-records) from *in* and also network
-               :current-job                          (volatile! nil)                                                          ; command-record currently being processed {:request-id :kind :command}
-               :recording?                           (volatile! false)                                                        ; recording of printing into *out* and *err*
-               :active-repl-opts                     (volatile! nil)                                                          ; cached repl opts
-               :suppress-print-recording-until-flush (volatile! false)}))                                                     ; temporary suppression of recording
+(defn get-initial-settings []
+  {:commands-channel                     (chan)                                                                               ; channel for REPL commands (actually command records) from *in* and also network
+   :current-job                          (volatile! nil)                                                                      ; command-record currently being processed {:request-id :kind :command}
+   :active-repl-opts                     (volatile! nil)                                                                      ; cached repl opts
+   :recording?                           (volatile! false)                                                                    ; should we record printing into *out* and *err*?
+   :suppress-flushing                    (volatile! #{})                                                                      ; temporary suppression of flushing, contains a set of sniffer-keys
+   :suppress-print-recording-until-flush (volatile! #{})})                                                                    ; temporary suppression of recording, contains a set of sniffer-keys)
+
+(defn make-driver [extra-settings]
+  (merge (get-initial-settings) extra-settings))
+
+(defn set-sniffer! [driver sniffer-key sniffer]
+  (vreset! (get-in driver [:sniffers sniffer-key]) sniffer))
+
+(defn get-sniffer [driver sniffer-key]
+  (let [sniffer& (get-in driver [:sniffers sniffer-key])]
+    (assert sniffer&)
+    @sniffer&))
 
 ; -- announcements ----------------------------------------------------------------------------------------------------------
 
@@ -47,34 +59,68 @@
   (announce-job-end driver (get-current-job driver))
   (vreset! (:current-job driver) nil))
 
+; -- recording/flushing suppression -----------------------------------------------------------------------------------------
+
+(defn suppress-recording-until-flush [driver sniffer-key]
+  (let [suppress-var (:suppress-print-recording-until-flush driver)]
+    (vreset! suppress-var (conj @suppress-var sniffer-key))))
+
+(defn unsuppress-recording-until-flush [driver sniffer-key]
+  (let [suppress-var (:suppress-print-recording-until-flush driver)]
+    (vreset! suppress-var (disj @suppress-var sniffer-key))))
+
+(defn suppressed-recording-until-flush? [driver sniffer-key]
+  (let [suppress-var (:suppress-print-recording-until-flush driver)]
+    (sniffer-key @suppress-var)))
+
+(defn suppress-flushing [driver sniffer-key]
+  (let [suppress-var (:suppress-flushing driver)]
+    (vreset! suppress-var (conj @suppress-var sniffer-key))))
+
+(defn unsuppress-flushing [driver sniffer-key]
+  (let [suppress-var (:suppress-flushing driver)]
+    (vreset! suppress-var (disj @suppress-var sniffer-key))))
+
+(defn suppressed-flushing? [driver sniffer-key]
+  (let [suppress-var (:suppress-flushing driver)]
+    (sniffer-key @suppress-var)))
+
 ; -- print recording --------------------------------------------------------------------------------------------------------
 
 (defn recording? [driver]
   @(:recording? driver))
 
+(defn reset-sniffer-state! [driver sniffer-key]
+  (unsuppress-recording-until-flush driver sniffer-key)
+  (unsuppress-flushing driver sniffer-key)
+  (sniffer/clear-content! (get-sniffer driver sniffer-key)))
+
 (defn start-recording! [driver]
-  (sniffer/clear-content! @(get-in driver [:sniffers :stdout]))
-  (sniffer/clear-content! @(get-in driver [:sniffers :stderr]))
+  (reset-sniffer-state! driver :stdout)
+  (reset-sniffer-state! driver :stderr)
   (vreset! (:recording? driver) true))
 
-(defn flush-remainder! [driver sniffer-key]
-  (let [sniffer (get-in driver [:sniffers sniffer-key])
-        content (sniffer/extract-content! @sniffer)]
-    (if-not (nil? content)
-      (let [{:keys [request-id]} (get-current-job driver)]
-        (messaging/report-output (:server driver) request-id sniffer-key content)))))
+(defn flush-sniffer!
+  ([driver sniffer-key]
+   (flush-sniffer! driver sniffer-key sniffer-key))
+  ([driver sniffer-key output-kind]
+   (let [sniffer (get-sniffer driver sniffer-key)
+         content (sniffer/extract-content! sniffer)]
+     (if-not (nil? content)
+       (let [{:keys [request-id]} (get-current-job driver)]
+         (messaging/report-output (:server driver) request-id output-kind content))))))
 
 (defn stop-recording! [driver]
   (when (recording? driver)
-    (flush-remainder! driver :stdout)
-    (flush-remainder! driver :stderr)
+    (flush-sniffer! driver :stdout)
+    (flush-sniffer! driver :stderr)
     (vreset! (:recording? driver) false)))
 
 ; -- detection of active REPL options ---------------------------------------------------------------------------------------
 
 (defn resolve-repl-opts []
-  (if-let [opts (resolve 'cljs.repl/*repl-opts*)]
-    @opts))
+  (if-let [repl-opts-var (resolve 'cljs.repl/*repl-opts*)]
+    @repl-opts-var))
 
 (defn resolve-active-repl-opts-if-needed! [driver]
   (if-not @(:active-repl-opts driver)
@@ -172,45 +218,49 @@
         ; main REPL loop calls eval and then immediatelly prints result value
         ; we want to prevent that printing to be recorded
         (if (recording? driver)
-          (vreset! (:suppress-print-recording-until-flush driver) true))
+          (suppress-recording-until-flush driver :stdout))
         result))))
 
 (defn custom-prompt-factory [driver]
   (fn []
-    (let [stdout-sniffer (get-in driver [:sniffers :stdout])]
+    (let [stdout-sniffer (get-sniffer driver :stdout)]
       (announce-ns driver)
+      (suppress-flushing driver :stdout)
       (cljs-repl/repl-prompt)
-      (sniffer/clear-content! @stdout-sniffer))))
+      (unsuppress-flushing driver :stdout)
+      (sniffer/clear-content! stdout-sniffer))))
 
 (defn custom-caught-factory [driver]
   (fn [e repl-env opts]
     (let [orig-call #(cljs-repl/repl-caught e repl-env opts)]
-      ; we want to prevent recording javascript errors and exceptions,
-      ; because those were already reported on client-side directly
-      ; other exceptional cases should be recorded as usual (for example exceptions originated in compiler)
-      (if (and (recording? driver)
-               (instance? IExceptionInfo e)
-               (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
-        (do
-          (stop-recording! driver)
-          (orig-call)
-          (start-recording! driver))
-        (orig-call)))))                                                                                                       ; TODO: in case of long clojure stacktraces we can do more user-friendly job
+      (if-not (recording? driver)
+        (orig-call)
+        (if (and (instance? IExceptionInfo e)
+                 (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
+          (do
+            ; we want to prevent recording javascript errors and exceptions,
+            ; because those were already reported on client-side directly
+            ; other exceptional cases should be recorded as usual (for example exceptions originated in compiler)
+            (stop-recording! driver)
+            (orig-call)
+            (start-recording! driver))
+          (orig-call))))))                                                                                                    ; TODO: in case of long clojure stacktraces we can do more user-friendly job
 
 ; -- sniffer handlers -------------------------------------------------------------------------------------------------------
 
 (defn flush-handler
   "This method gets callled every time *out* (or *err*) gets flushed.
-  Our job is to send accumulated (recorded) output to client side."
+  If flushing is allowed, our job is to send accumulated (recorded) output to client side.
+  In case of recording was suppressed, we throw away the conente and just flip the flag back instead."
   [driver sniffer-key]
-  (let [sniffer (get-in driver [:sniffers sniffer-key])
-        content (sniffer/extract-all-lines-but-last! @sniffer)]
-    (if-not (nil? content)
-      (if (recording? driver)
-        (let [{:keys [request-id]} (get-current-job driver)]
-          (if @(:suppress-print-recording-until-flush driver)
-            (vreset! (:suppress-print-recording-until-flush driver) false)
-            (messaging/report-output (:server driver) request-id sniffer-key content)))))))
+  (if-not (suppressed-flushing? driver sniffer-key)
+    (let [sniffer (get-sniffer driver sniffer-key)]
+      (if-let [content (sniffer/extract-all-lines-but-last! sniffer)]
+        (if (recording? driver)
+          (let [{:keys [request-id]} (get-current-job driver)]
+            (if (suppressed-recording-until-flush? driver sniffer-key)
+              (unsuppress-recording-until-flush driver sniffer-key)
+              (messaging/report-output (:server driver) request-id sniffer-key content))))))))
 
 
 ; -- initialization ---------------------------------------------------------------------------------------------------------
@@ -229,8 +279,8 @@
     (let [stdout-sniffer (sniffer/make-sniffer *out* (partial flush-handler driver :stdout))
           stderr-sniffer (sniffer/make-sniffer *out* (partial flush-handler driver :stderr))]                                 ; *out* is here on purpose, see :bind-err and its effect when true (default)
       (try
-        (vreset! (get-in driver [:sniffers :stdout]) stdout-sniffer)
-        (vreset! (get-in driver [:sniffers :stderr]) stderr-sniffer)
+        (set-sniffer! driver :stdout stdout-sniffer)
+        (set-sniffer! driver :stderr stderr-sniffer)
         (registry/register-driver! :current-repl driver)
         (binding [*out* stdout-sniffer
                   *err* stderr-sniffer]
