@@ -52,7 +52,8 @@
         ([]
          (.flush writer)
          (proxy-super flush)
-         (flush-handler))))))
+         (if flush-handler
+           (flush-handler)))))))
 
 ; note: some cljs.repl code expects *err* to be PrintWriter instance, not just a Writer instance
 ;       e.g. it calls (.printStackTrace e *err*)
@@ -63,7 +64,7 @@
     sniffer))
 
 (defn destroy-sniffer [sniffer]
-  {:pre  [(instance? PrintWriter sniffer)]}
+  {:pre [(instance? PrintWriter sniffer)]}
   (swap! sniffer->proxy dissoc sniffer))
 
 ; -- helpers ----------------------------------------------------------------------------------------------------------------
@@ -74,12 +75,12 @@
   (get @sniffer->proxy sniffer))
 
 (defn clear-content! [sniffer]
-  {:pre  [(instance? PrintWriter sniffer)]}
+  {:pre [(instance? PrintWriter sniffer)]}
   (let [buffer (.getBuffer (get-writer sniffer))]
     (.setLength buffer 0)))
 
 (defn extract-all-lines-but-last! [sniffer]
-  {:pre  [(instance? PrintWriter sniffer)]}
+  {:pre [(instance? PrintWriter sniffer)]}
   (let [content (.toString (get-writer sniffer))]
     (if-not (empty? content)
       (let [lines (string/split content #"\n" -1)                                                                             ; http://stackoverflow.com/a/29614863/84283
@@ -90,7 +91,7 @@
         (string/join "\n" lines-ready)))))
 
 (defn extract-content! [sniffer]
-  {:pre  [(instance? PrintWriter sniffer)]}
+  {:pre [(instance? PrintWriter sniffer)]}
   (let [content (.toString (get-writer sniffer))]
     (when-not (empty? content)
       (clear-content! sniffer)

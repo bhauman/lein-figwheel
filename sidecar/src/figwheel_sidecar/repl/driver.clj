@@ -8,7 +8,8 @@
     [figwheel-sidecar.repl.messaging :as messaging]
     [cljs.analyzer :as ana]
     [figwheel-sidecar.repl.registry :as registry])
-  (:import (clojure.lang IExceptionInfo)))
+  (:import (clojure.lang IExceptionInfo)
+           (java.io PrintWriter StringWriter)))
 
 ; -- driver construction ----------------------------------------------------------------------------------------------------
 
@@ -26,19 +27,19 @@
 
 ; -- getters/setters --------------------------------------------------------------------------------------------------------
 
-(defn set-sniffer! [driver sniffer-key sniffer]
-  (vreset! (get-in driver [:sniffers sniffer-key]) sniffer))
-
 (defn get-sniffer [driver sniffer-key]
   (let [sniffer& (get-in driver [:sniffers sniffer-key])]
     (assert sniffer&)
     @sniffer&))
 
-(defn get-last-ns [driver]
-  @(:last-ns driver))
+(defn set-sniffer! [driver sniffer-key sniffer]
+  (vreset! (get-in driver [:sniffers sniffer-key]) sniffer))
 
 (defn set-last-ns [driver name]
   (vreset! (:last-ns driver) name))
+
+(defn get-last-ns [driver]
+  @(:last-ns driver))
 
 ; -- announcements ----------------------------------------------------------------------------------------------------------
 
@@ -125,6 +126,18 @@
     (flush-sniffer! driver :stderr)
     (vreset! (:recording? driver) false)))
 
+(defn report-java-trace! [driver f]
+  (suppress-flushing driver :stderr)
+  (f)
+  (unsuppress-flushing driver :stderr)
+  (flush-sniffer! driver :stderr :java-trace))
+
+(defn extract-and-report-java-trace! [driver request-id e]
+  (let [string-writer (StringWriter.)
+        writer (PrintWriter. string-writer)]
+    (.printStackTrace e writer)
+    (messaging/report-output (:server driver) request-id :java-trace (.toString string-writer))))
+
 ; -- detection of active REPL options ---------------------------------------------------------------------------------------
 
 (defn resolve-repl-opts []
@@ -171,13 +184,17 @@
   ; then we try to parse the code and put result on the channel
   ; in case the code is a special-fn call, we execute user's input
   ; otherwise we execute code provided from client (which may be a modified version of user's input)
-  (let [effective-code (if (is-special-fn-call? driver input) input code)
-        command (read-input effective-code)
-        command-record {:kind       :external
-                        :command    command
-                        :request-id request-id}]
-    (go
-      (>!! (:commands-channel driver) command-record))))
+  (try
+    (let [effective-code (if (is-special-fn-call? driver input) input code)
+          command (read-input effective-code)
+          command-record {:kind       :external
+                          :command    command
+                          :request-id request-id}]
+      (go
+        (>!! (:commands-channel driver) command-record)))
+    (catch Exception e
+      (extract-and-report-java-trace! driver request-id e)
+      (throw e))))
 
 ; -- REPL handler factories -------------------------------------------------------------------------------------------------
 
@@ -245,24 +262,21 @@
     (let [orig-call #(cljs-repl/repl-caught e repl-env opts)]
       (if-not (recording? driver)
         (orig-call)
+        ; we want to prevent recording javascript errors and exceptions,
+        ; because those were already reported on client-side directly
+        ; other exceptional cases should be recorded as usual (for example exceptions originated in the compiler)
         (if (and (instance? IExceptionInfo e)
                  (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
           (do
-            ; we want to prevent recording javascript errors and exceptions,
-            ; because those were already reported on client-side directly
-            ; other exceptional cases should be recorded as usual (for example exceptions originated in compiler)
             (stop-recording! driver)
             (orig-call)
             (start-recording! driver))
           (do
-            ; we've got a java exception with a possibly long stack trace
+            ; we've got a java exception with possibly long stack trace
             ; it will be printed in cljs.repl/repl-caught via (.printStackTrace e *err*)
             ; we capture output and send it to client side with special kind :java-trace
             ; with this hint, client-side should implement a nice way how to present this to the user
-            (suppress-flushing driver :stderr)
-            (orig-call)
-            (unsuppress-flushing driver :stderr)
-            (flush-sniffer! driver :stderr :java-trace)))))))
+            (report-java-trace! driver orig-call)))))))
 
 ; -- sniffer handlers -------------------------------------------------------------------------------------------------------
 
