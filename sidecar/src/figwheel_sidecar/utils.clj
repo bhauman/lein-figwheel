@@ -24,7 +24,13 @@
       (when (.exists file) (.delete file)))))
 
 (defn require? [symbol]
-  (try (require symbol) true (catch Exception e false)))
+  (try
+    (require symbol)
+    true
+    (catch Exception e
+      (println (.getMessage e))
+      (.printStackTrace e)
+      false)))
 
 (defn require-resolve-handler [handler]
   (when handler
