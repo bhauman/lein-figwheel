@@ -699,6 +699,16 @@ Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command l
 
 Read more about [component](https://github.com/stuartsierra/component)
 
+### Tips and Support
+
+If you like Figwheel and want to support its development:
+
+<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+<input type="hidden" name="cmd" value="_s-xclick">
+<input type="hidden" name="hosted_button_id" value="B8B3LKTXKV69C">
+<input type="image" src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+<img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
+</form>
 
 ### Not Magic, just plain old file reloading 
 
