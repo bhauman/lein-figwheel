@@ -708,7 +708,7 @@ it is not currently sponsored in anyway.
 If you like Figwheel and want to support its development:
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=B8B3LKTXKV69C">
-<img src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png">
+<img src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png" width="200">
 </a>
 
 ### Not Magic, just plain old file reloading 
