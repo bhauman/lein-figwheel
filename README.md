@@ -703,7 +703,7 @@ Read more about [component](https://github.com/stuartsierra/component)
 
 Figwheel was created out of the pure desire to make programming more
 fun. While I have been lucky to receive a couple spontaneous donations,
-it is not currently sponsored in anyway.
+it is not currently sponsored in any way.
 
 If you like Figwheel and want to support its development:
 
