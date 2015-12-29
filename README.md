@@ -701,6 +701,10 @@ Read more about [component](https://github.com/stuartsierra/component)
 
 ### Tips and Support
 
+Figwheel was created out of the pure desire to make programming more
+fun. While I have been lucky to receive a couple spontaneous donations,
+it is not currently sponsored in anyway.
+
 If you like Figwheel and want to support its development:
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=B8B3LKTXKV69C">
