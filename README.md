@@ -159,7 +159,9 @@ amount of time.
 
 ## Usage
 
-First make sure you include the following `:dependencies` in your `project.clj` file.
+Make sure you have the [latest version of leiningen installed](https://github.com/technomancy/leiningen#installation).
+
+Then include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
 [org.clojure/clojure "1.7.0"]
