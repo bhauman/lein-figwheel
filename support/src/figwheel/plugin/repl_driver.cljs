@@ -9,11 +9,11 @@
 (defn has-subscriber? [state subscriber]
   (boolean (some #(= subscriber %) state)))
 
-(defn add-subscriber! [state subscriber]
+(defn add-subscriber [state subscriber]
   (assert (not (has-subscriber? state subscriber)))
   (conj state subscriber))
 
-(defn remove-subscriber! [state subscriber]
+(defn remove-subscriber [state subscriber]
   (assert (has-subscriber? state subscriber))
   (remove #(= subscriber %) state))
 
@@ -33,10 +33,10 @@
 ; -- API available for client use -------------------------------------------------------------------------------------------
 
 (defn ^:export subscribe [subscriber-callback]
-  (swap! subscribers add-subscriber! subscriber-callback))
+  (swap! subscribers add-subscriber subscriber-callback))
 
 (defn ^:export unsubscribe [subscriber-callback]
-  (swap! subscribers remove-subscriber! subscriber-callback))
+  (swap! subscribers remove-subscriber subscriber-callback))
 
 (defn ^:export is-socket-connected []
   (socket/connected?))
