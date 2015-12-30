@@ -1,7 +1,7 @@
 (ns figwheel.client.socket
   (:require
    [figwheel.client.utils :as utils]
-   [cljs.reader :refer [read-string]]))
+   [cognitect.transit :as transit]))
 
 (defn get-websocket-imp []
   (cond
@@ -35,16 +35,33 @@
 (defonce message-history-atom (atom (list)))
 
 (defonce socket-atom (atom false))
+(defonce socket-reader (transit/reader :json))
+(defonce socket-writer (transit/writer :json))
+
+(defn serialize-message [msg]
+  (transit/write socket-writer msg))
+
+(defn unserialize-message [payload]
+  (transit/read socket-reader payload))
+
+(defn connected? []
+  (boolean @socket-atom))
 
 (defn send!
   "Send a end message to the server."
   [msg]
-  (when @socket-atom
-    (.send @socket-atom (pr-str msg))))
+  (when (connected?)
+    (utils/debug-prn (pr-str msg))
+    (.send @socket-atom (serialize-message msg))))
+
+(defn clear-socket-atom []
+  (reset! socket-atom false))
 
 (defn close! []
   (set! (.-onclose @socket-atom) identity)
-  (.close @socket-atom))
+  (let [socket @socket-atom]
+    (clear-socket-atom)
+    (.close socket)))
 
 (defn open [{:keys [retry-count retried-count websocket-url build-id] :as opts}]
   (if-let [WebSocket (get-websocket-imp)]
@@ -53,7 +70,7 @@
       (let [url (str websocket-url (if build-id (str "/" build-id) ""))
             socket (WebSocket. url)]
         (set! (.-onmessage socket) (fn [msg-str]
-                                     (when-let [msg (read-string (.-data msg-str))]
+                                     (when-let [msg (unserialize-message (.-data msg-str))]
                                        (utils/debug-prn msg)
                                        (and (map? msg)
                                             (:msg-name msg)
@@ -67,6 +84,7 @@
                                      (.addEventListener js/window "beforeunload" close!))
                                    (utils/log :debug "Figwheel: socket connection established")))
         (set! (.-onclose socket) (fn [x]
+                                   (clear-socket-atom) ; socket close can be triggered by someone external, not only via close!
                                    (let [retried-count (or retried-count 0)]
                                      (utils/debug-prn "Figwheel: socket closed or failed to open")
                                      (when (> retry-count retried-count)

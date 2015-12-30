@@ -12,6 +12,7 @@
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.2.374"
     :exclusions [org.clojure/tools.reader]]
+   [com.cognitect/transit-clj "0.8.285"]
    [com.stuartsierra/component "0.3.0"]
    [http-kit "2.1.19"]
    [ring-cors "0.1.7"

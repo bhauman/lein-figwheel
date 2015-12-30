@@ -2,15 +2,13 @@
   (:require
    [cljs.repl]
    [cljs.stacktrace]
-   [cljs.env :as env]
 
-   [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
 
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
    [figwheel-sidecar.components.figwheel-server :as server]
-   
+   [figwheel-sidecar.repl.driver :as driver]
    [figwheel-sidecar.config :as config]))
 
 ;; slow but works
@@ -161,8 +159,10 @@
          repl-opts (assoc opts :compiler-env (:compiler-env build))
          protocol (if (in-nrepl-env?)
                     :nrepl
-                    :default)]
-     (start-cljs-repl protocol figwheel-repl-env repl-opts))))
+                    :default)
+         start-fn (fn [updated-repl-opts]
+                    (start-cljs-repl protocol figwheel-repl-env updated-repl-opts))]
+     (driver/start-repl-with-driver build figwheel-server repl-opts start-fn))))
 
 ;; deprecated 
 (defn get-project-cljs-builds []
