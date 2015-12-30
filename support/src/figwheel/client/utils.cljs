@@ -41,10 +41,22 @@
             #(.log js/console %))]
      (f arg))))
 
-(defn eval-helper [code {:keys [eval-fn] :as opts}]
-  (if eval-fn
-    (eval-fn code opts)
-    (js* "eval(~{code})")))
+(defn async-eval-fn? [eval-fn]
+  (boolean (:async (meta eval-fn))))
+
+(defn eval-helper
+  "Evaluates javascript code in way specified by figwheel config (opts).
+   If there is custom eval-fn defined use it, otherwise call javascript eval on passed code.
+   Custom eval-fn can be marked as async. This can be used by Dirac DevTools."
+  ([code opts]
+   (eval-helper code opts identity))
+  ([code opts result-callback]
+    (let [{:keys [eval-fn]} opts]
+      (if eval-fn
+        (if (async-eval-fn? eval-fn)
+          (eval-fn code opts result-callback)
+          (result-callback (eval-fn code opts)))
+        (result-callback (js* "eval(~{code})"))))))
 
 (defn truncate-stack-trace [stack-str]
   (take-while #(not (re-matches #".*eval_javascript_STAR__STAR_.*" %))
@@ -64,10 +76,11 @@
   (try
     (binding [*print-fn* repl-print-fn
               *print-newline* false]
-      (result-handler
-        {:status     :success,
-         :ua-product (get-ua-product)
-         :value      (eval-helper code opts)}))
+      (eval-helper code opts (fn [result]
+                               (result-handler
+                                 {:status     :success,
+                                  :ua-product (get-ua-product)
+                                  :value      result}))))
     (catch js/Error e
       (result-handler
         {:status     :exception
