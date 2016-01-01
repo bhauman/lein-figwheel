@@ -22,4 +22,3 @@
    [figwheel "0.5.0-3"
     :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.5"]])
-
