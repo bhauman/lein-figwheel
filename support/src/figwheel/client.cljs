@@ -25,16 +25,24 @@
 (def autoload?
   (if (utils/html-env?)
     (fn []
-      (condp = (or (.getItem js/localStorage "figwheel_autoload") "true")
+      (condp = (or (try
+                     (.getItem js/localStorage "figwheel_autoload")
+                     (catch js/Error e
+                       false))
+                   "true")
         "true" true
         "false" false))
     (fn [] true)))
 
 (defn ^:export toggle-autoload []
   (when (utils/html-env?)
-    (.setItem js/localStorage "figwheel_autoload" (not (autoload?)))
-    (utils/log :info
-               (str "Figwheel autoloading " (if (autoload?) "ON" "OFF")))))
+    (try
+      (.setItem js/localStorage "figwheel_autoload" (not (autoload?)))
+      (utils/log :info
+                 (str "Figwheel autoloading " (if (autoload?) "ON" "OFF")))
+      (catch js/Error e
+        (utils/log :info
+                   (str "Unable to access localStorage"))))))
 
 (defn console-print [args]
   (.apply (.-log js/console) js/console (into-array args))
