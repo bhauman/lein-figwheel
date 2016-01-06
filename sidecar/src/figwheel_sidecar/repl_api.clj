@@ -15,10 +15,13 @@
   ([{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
    (when *repl-api-system*
      (alter-var-root #'*repl-api-system* component/stop))
-   (alter-var-root #'*repl-api-system* (fn [_] (fs/start-figwheel! autobuild-options))))
+   (alter-var-root #'*repl-api-system* (fn [_] (fs/start-figwheel! autobuild-options)))
+   nil)
   ([]
    (if *repl-api-system*
-     (alter-var-root #'*repl-api-system* component/start)
+     (do
+       (alter-var-root #'*repl-api-system* component/start)
+       nil)
      ;; if no system exists try to read in a configuration
      (start-figwheel! (config/fetch-config)))))
 
@@ -26,7 +29,8 @@
   "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."
   []
   (when *repl-api-system*
-    (alter-var-root #'*repl-api-system* component/stop)))
+    (alter-var-root #'*repl-api-system* component/stop)
+    nil))
 
 (defn figwheel-running? []
   (or (get-in *repl-api-system* [:figwheel-system :system-running] false)
@@ -38,11 +42,13 @@
   ([func ids]
    (when (figwheel-running?)
      (let [system (get-in *repl-api-system* [:figwheel-system :system])]
-       (reset! system (func @system ids)))))
+       (reset! system (func @system ids))
+       nil)))
   ([func]
    (when (figwheel-running?)
      (let [system (get-in *repl-api-system* [:figwheel-system :system])]
-       (reset! system (func @system))))))
+       (reset! system (func @system))
+       nil))))
 
 (defn build-once
   "Compiles the builds with the provided build ids
@@ -88,9 +94,11 @@ and starts building the default builds again."
   "Prints out the build configs currently focused or optionally the
   configs of the ids provided."
   [& ids]
-  (fs/print-config
-   @(get-in *repl-api-system* [:figwheel-system :system])
-   ids))
+  (do
+    (fs/print-config
+     @(get-in *repl-api-system* [:figwheel-system :system])
+     ids)
+    nil))
 
 (defn cljs-repl
   "Starts a Figwheel ClojureScript REPL for the provided build id (or
