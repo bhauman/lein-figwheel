@@ -29,7 +29,7 @@
     (alter-var-root #'*repl-api-system* component/stop)))
 
 (defn figwheel-running? []
-  (or *repl-api-system*
+  (or (get-in *repl-api-system* [:figwheel-system :system-running] false)
       (do
         (println "Figwheel System not itnitialized.\nPlease start it with figwheel-sidecar.repl-api/start-figwheel!")
         nil)))
@@ -126,4 +126,4 @@ the first default id)."
     (if (false? (:repl figwheel-options))
       (loop [] (Thread/sleep 30000) (recur))
       ;; really should get the given initial build id here
-      (fs/cljs-repl (:figwheel-system system))))) 
+      (fs/cljs-repl (:figwheel-system system)))))
