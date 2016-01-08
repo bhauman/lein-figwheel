@@ -1,3 +1,15 @@
+## 0.5.0-3
+
+* change repl-api commands like `figwheel-start!` so that they don't return the SystemMap
+  as this was behaving badly in various REPL configurations 28e03af
+* figwheel-running? checks if figwheel is actually running now bb146e1
+* guard access to localStorage on client fdb49a2
+* Print exception when requiring ring handler fails f663acc
+* add support for notify-command back a475c59
+* Add exclusions to fix sidecar confusing dependencies b263835
+* For custom ring handler, bind to var, not to its value 789ff03
+* create directories for logfile ce39ac0
+
 ## 0.5.0-2
 
 * bumping http-kit to 0.2.19 get's rid of nasty exit exception
