@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
                  [org.clojure/clojure "1.8.0-RC2"]
-                 [org.clojure/clojurescript "1.7.170"]
+                 [org.clojure/clojurescript "1.7.228"]
                  [org.clojure/core.async "0.2.374"]
                  [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
@@ -84,8 +84,8 @@
                                      :output-dir "resources/public/js/compiled/admin"
                                      :libs ["libs_src" "libs_sscr/tweaky.js"]
                                      ;; :externs ["foreign/wowza-externs.js"]
-                                    :foreign-libs [{:file "foreign/wowza.js"
-                                                    :provides ["wowzacore"]}]
+                                     :foreign-libs [{:file "foreign/wowza.js"
+                                                     :provides ["wowzacore"]}]
                                      ;; :recompile-dependents true                                    
                                      :source-map true
                                      :optimizations :none
@@ -95,14 +95,14 @@
                          :compiler { :output-to "resources/public/js/prod/example_admin.js"
                                      :output-dir "resources/public/js/prod/admin"
                                      :optimizations :whitespace
-                                     }}]}
+                                    }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
                                     [figwheel-sidecar "0.5.0-3"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]]
-                    :source-paths ["src" "dev"]}
-             :repl { :plugins [ [cider/cider-nrepl "0.10.0-SNAPSHOT"]]}}
+                    :source-paths ["src" "dev"]
+                    :plugins [[cider/cider-nrepl "0.10.1"]]}}
 
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
@@ -112,13 +112,13 @@
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
 
-            ;; :reload-clj-files {:clj true :cljc true}
+             ;; :reload-clj-files {:clj true :cljc true}
              
              ;; Start an nREPL server into the running fighweel
              ;; process
 
              
-             :nrepl-port 7888
+             ;; :nrepl-port 7888
 
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 #_"refactor-nrepl.middleware/wrap-refactor"
