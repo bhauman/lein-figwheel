@@ -45,9 +45,9 @@
                          :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
-                                    :on-jsload      example.core/fig-reload
+                                     :on-jsload      example.core/fig-reload
                                     
-                                    :on-message     example.core/on-message
+                                     :on-message     example.core/on-message
                                     ; :debug true
                                     }
                          :compiler { :main example.core
@@ -57,8 +57,8 @@
                                      :source-map-timestamp true
                                      :libs ["libs_src" "libs_sscr/tweaky.js"]
                                      ;; :externs ["foreign/wowza-externs.js"]
-                                    :foreign-libs [{:file "foreign/wowza.js"
-                                                    :provides ["wowzacore"]}]
+                                     :foreign-libs [{:file "foreign/wowza.js"
+                                                     :provides ["wowzacore"]}]
                                      ;; :recompile-dependents true
                                      :optimizations :none}}
                        { :id "example-prod"
@@ -99,11 +99,19 @@
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
                                     [figwheel-sidecar "0.5.0-3"]
+                                    
                                     [org.clojure/tools.namespace "0.2.11"]
-                                    [org.clojure/tools.nrepl "0.2.12"]]
+                                    [org.clojure/tools.nrepl "0.2.12"]
+                                    
+                                    [prismatic/schema "1.0.4"]
+                                    [clj-fuzzy "0.3.1"]
+                                    [fipp "0.6.4"]
+                                    [clansi "1.0.0"]
+                                    ]
                     :source-paths ["src" "dev"]
+                    :repl-options {:init (set! *print-length* 50)}
                     :plugins [[cider/cider-nrepl "0.10.1"]]}}
-
+  
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
   :figwheel {
