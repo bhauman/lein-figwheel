@@ -172,7 +172,7 @@ Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.0-2"]
+[lein-figwheel "0.5.0-3"]
 ```
 
 #### Configure your builds
