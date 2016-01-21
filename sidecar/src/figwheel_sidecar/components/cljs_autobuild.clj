@@ -91,6 +91,33 @@
         (prn (ex-data (.getCause e)))
         (notifications/report-exception e (ex-data (.getCause e)))))))
 
+(defn extract-cljs-build-fn
+  [{:keys [figwheel-server] :as cljs-autobuild}]
+  (or (:cljs-build-fn cljs-autobuild)
+      (:cljs-build-fn figwheel-server)
+      ;; if no figwheel server
+      ;; default build should be standard
+      ;; cljs build
+      (if figwheel-server
+        figwheel-build
+        (figwheel-start-and-end-messages cljs-build))))
+
+(defn execute-build
+  [{:keys [figwheel-server] :as cljs-autobuild} files]
+  (let [log-writer (or (:log-writer cljs-autobuild)
+                       (:log-writer figwheel-server)
+                       (io/writer "figwheel_server.log" :append true))
+        cljs-build-fn (extract-cljs-build-fn cljs-autobuild)]
+    (utils/sync-exec
+     (fn []
+       (binding [*out* log-writer
+                 *err* log-writer]
+         (cljs-build-fn
+          (assoc cljs-autobuild
+            :changed-files (map str files))))
+       (when-let [notify-command (-> cljs-autobuild :build-config :notify-command)]
+         (println (:out (apply sh notify-command))))))))
+
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
   (start [this]
@@ -105,17 +132,7 @@
         ;; initial build only needs the injection and the
         ;; start and end messages
 
-        (let [log-writer (or (:log-writer this)
-                             (:log-writer figwheel-server)
-                             (io/writer "figwheel_server.log" :append true))
-              cljs-build-fn (or (:cljs-build-fn this)
-                                (:cljs-build-fn figwheel-server)
-                                ;; if no figwheel server
-                                ;; default build should be standard
-                                ;; cljs build
-                                (if figwheel-server
-                                  figwheel-build
-                                  (figwheel-start-and-end-messages cljs-build)))]
+        (let [cljs-build-fn (extract-cljs-build-fn this)]
           ;; build once before watching
           ;; tiny experience tweak
           ;; first build shouldn't send notifications
@@ -130,16 +147,7 @@
                  :cljs-autobuild true
                  :file-watcher
                  (watching/watch! (source-paths-that-affect-build build-config)
-                          (fn [files]
-                            (utils/sync-exec
-                             (fn []
-                               (binding [*out* log-writer
-                                         *err* log-writer]
-                                 (cljs-build-fn
-                                  (assoc this
-                                         :changed-files (map str files))))
-                               (when-let [notify-command (:notify-command build-config)]
-                                 (println (:out (apply sh notify-command)))))))))))
+                                  (partial execute-build this)))))
       this))
   (stop [this]
     (when (:file-watcher this)
