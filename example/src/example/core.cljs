@@ -16,13 +16,12 @@
    [tabby]
    [tweaky]
    [wowzacore])
-  
+
   (:require-macros
    [example.macros :refer [testmac]]
    [cljs.core.async.macros :refer [go]]
    [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
-
 
 (prn (testmac "hey there"))
 

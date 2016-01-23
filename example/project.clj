@@ -15,7 +15,7 @@
                  [com.andrewmcveigh/cljs-time "0.3.11"]
                  [cljs-http "0.1.35"]]
 
-  :plugins [[lein-ring "0.8.13"]
+  :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
             [lein-figwheel "0.5.0-5"]
             [lein-npm "0.4.0"]]
@@ -113,6 +113,10 @@
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
 
+
+
+             
+             
              ;; :reload-clj-files {:clj true :cljc true}
              
              ;; Start an nREPL server into the running fighweel
@@ -124,10 +128,15 @@
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 #_"refactor-nrepl.middleware/wrap-refactor"
                                 "cemerick.piggieback/wrap-cljs-repl"]
+
              ;; to disable to launched repl 
              ;; :repl false
              ;; to specify a server logfile
              ;; :server-logfile "tmp/logs/test-server-logfile.log"
              ;; if you want to embed a server in figwheel do it like so:
              ;; :ring-handler example.server/handler
+
+             ;; if you need polling instead of FS events
+             ;; :hawk-options {:watcher :polling} 
+             
              })
