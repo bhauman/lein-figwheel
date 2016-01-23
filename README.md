@@ -284,6 +284,11 @@ side configuration parameters:
    ;;  :nrepl-middleware ["cider.nrepl/cider-middleware"
    ;;                     "refactor-nrepl.middleware/wrap-refactor"
    ;;                     "cemerick.piggieback/wrap-cljs-repl"]
+
+   ;; if you need to watch files with polling instead of FS events
+   ;; :hawk-options {:watcher :polling}     
+   ;; ^ this can be useful in Docker environments
+ 
 } 
 ```
 
