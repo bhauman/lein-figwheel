@@ -146,8 +146,10 @@
                  ;; for simple introspection
                  :cljs-autobuild true
                  :file-watcher
-                 (watching/watch! (source-paths-that-affect-build build-config)
-                                  (partial execute-build this)))))
+                 (watching/watch!
+                  (:hawk-options figwheel-server)
+                  (source-paths-that-affect-build build-config)
+                  (partial execute-build this)))))
       this))
   (stop [this]
     (when (:file-watcher this)

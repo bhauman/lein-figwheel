@@ -30,8 +30,16 @@
           collect
           (recur (conj collect v)))))))
 
-(defn watch! [source-paths callback]
-  (let [throttle-chan (chan)
+(defn default-hawk-options [hawk-options]
+  (let [hawk-options (or hawk-options {})]
+    (if (= (:watcher hawk-options)
+           :polling)
+      (merge {:sensitivity :high} hawk-options)
+      hawk-options)))
+
+(defn watch! [hawk-options source-paths callback]
+  (let [hawk-options (default-hawk-options hawk-options)
+        throttle-chan (chan)
         
         {:keys [files dirs]} (files-and-dirs source-paths)
         individual-file-map   (single-files files)
@@ -60,8 +68,7 @@
                                             (get individual-file-map
                                                  (.getCanonicalPath (.getParentFile file)))]
                                    (some #(= (.getCanonicalPath %) file-path) acceptable-paths)))))))
-        
-        watcher (hawk/watch!
+        watcher (hawk/watch! hawk-options
                  [{:paths source-paths
                    :filter hawk/file?
                    :handler (fn [ctx e]
