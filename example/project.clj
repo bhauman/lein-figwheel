@@ -104,10 +104,12 @@
                                     [org.clojure/tools.nrepl "0.2.12"]
                                     
                                     [prismatic/schema "1.0.4"]
+                                    [org.clojure/core.logic "0.8.10"]
                                     [clj-fuzzy "0.3.1"]
                                     [fipp "0.6.4"]
-                                    [clansi "1.0.0"]
-                                    ]
+                                    [alandipert/intension "1.0.0"]
+                                    [datascript "0.14.0"]]
+                    
                     :source-paths ["src" "dev"]
                     :repl-options {:init (set! *print-length* 50)}
                     :plugins [[cider/cider-nrepl "0.10.1"]]}}

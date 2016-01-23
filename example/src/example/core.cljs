@@ -61,7 +61,6 @@
 (defn todos* []
   (om/ref-cursor (:todos (om/root-cursor app-state))))
 
-
 ;; transactions
 
 (defn add-todo [form-todo todos]
