@@ -4,9 +4,10 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
-                 [org.clojure/clojure "1.8.0-RC2"]
+                 [org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.7.228"]
-                 [org.clojure/core.async "0.2.374"]
+                 [org.clojure/core.async "0.2.374"
+                  :exclusions [org.clojure/tools.reader]]
                  [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
@@ -15,8 +16,8 @@
                  [cljs-http "0.1.35"]]
 
   :plugins [[lein-ring "0.8.13"]
-            #_[lein-cljsbuild "1.1.1"]
-            [lein-figwheel "0.5.0-4"]
+            #_[lein-cljsbuild "1.1.2"]
+            [lein-figwheel "0.5.0-5"]
             [lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -98,7 +99,7 @@
                                     }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [figwheel-sidecar "0.5.0-4"]
+                                    [figwheel-sidecar "0.5.0-5"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]]
                     :source-paths ["src" "dev"]
