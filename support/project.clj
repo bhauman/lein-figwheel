@@ -1,4 +1,4 @@
-(defproject figwheel "0.5.0-3"
+(defproject figwheel "0.5.0-4"
   :description "This project contains the client side code for Figwheel."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -10,4 +10,5 @@
   [[org.clojure/clojure "1.7.0"]
    [org.clojure/clojurescript "1.7.170"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.2.374"]])
+   [org.clojure/core.async "0.2.374"
+    :exclusions [org.clojure/tools.reader]]])
