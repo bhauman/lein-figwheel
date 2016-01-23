@@ -1,3 +1,7 @@
+## 0.5.0-4
+
+* finally fixing the dependency conflicts
+
 ## 0.5.0-3
 
 * change repl-api commands like `figwheel-start!` so that they don't return the SystemMap
