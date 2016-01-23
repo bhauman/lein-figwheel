@@ -65,6 +65,7 @@
 ;; relied on a figwheel server. I wanted this to be simple and
 ;; intuitive. Like so
 (comment
+  ;; Example: THIS DOES NOT WORK!!!
   (component/system-map
    :figwheel-server   (figwheel-server (config/fetch-config))
    :example-autobuild (component/using
@@ -128,7 +129,8 @@
     (server/-send-message (:figwheel-server @system)
                    channel-id msg-data callback))
   (-connection-data [this]
-    (server/-connection-data (:figwheel-server @system))))
+    (server/-connection-data (:figwheel-server @system)))
+  (-actual [this] (:figwheel-server @system)))
 
 (defn figwheel-system [{:keys [build-ids] :as options}]
   (let [system

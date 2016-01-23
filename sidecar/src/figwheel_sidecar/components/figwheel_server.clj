@@ -18,7 +18,8 @@
 
 (defprotocol ChannelServer
   (-send-message [this channel-id msg-data callback])
-  (-connection-data [this]))
+  (-connection-data [this])
+  (-actual [this]))
 
 (defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
   (when open-file-command
@@ -212,7 +213,8 @@
   (-send-message [{:keys [file-change-atom] :as this} channel-id msg-data callback]
     (->> (prep-message this channel-id msg-data callback)
          (swap! file-change-atom append-msg)))
-  (-connection-data [{:keys [connection-count]}] @connection-count))
+  (-connection-data [{:keys [connection-count]}] @connection-count)
+  (-actual [this] this))
 
 (defn send-message [figwheel-server channel-id msg-data]
   (-send-message figwheel-server channel-id msg-data nil))
@@ -223,6 +225,8 @@
 (defn connection-data [figwheel-server]
   (-connection-data figwheel-server))
 
+(defn config-options [figwheel-server]
+  (-actual figwheel-server))
 
 ;; setup server for overall system 
 
