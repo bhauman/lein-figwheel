@@ -1,7 +1,8 @@
 ## 0.5.0-5 More work on system dependency conflicts
 
-* adding system asserts to ensure and worn if not using Java 1.8 or Clojure 1.7.0
+* adding system asserts to ensure and warn if not using Java 1.8 or Clojure 1.7.0
 * adding polling option for hawk file watcher; just add :hawk-options {:watcher :polling} to base figwheel config
+* added friendlier 404 page
 
 ## 0.5.0-4
 
