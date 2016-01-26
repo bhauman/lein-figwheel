@@ -24,7 +24,8 @@
                           "\nPlease install Java 1.8.0 at least."))
     (friendly-assert (>= (compare (clojure-version) "1.7.0") 0)
                      (str "Clojure >= 1.7.0 - Figwheel requires Clojure 1.7.0 at least. Current version  "
-                          (clojure-version) ".\nCheck lein deps :tree or lein deps :plugin-tree"))))
+                          (clojure-version) ".\nCheck lein deps :tree or lein deps :plugin-tree\n"
+                          "Also, don't forget the influence of profiles.clj"))))
 
 (defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))

@@ -7,7 +7,9 @@
 (defn add-compiler-env [{:keys [build-options] :as build}]
   (assoc build :compiler-env (utils/compiler-env build-options)))
 
-(defn assert-clojurescript-version []
+;; likely useless to call this in current process:
+;; really needs to be checked in lein process
+#_(defn assert-clojurescript-version []
   (let [cljs-version ((juxt :major :minor :qualifier) cljs.util/*clojurescript-version*)]
     (config/friendly-assert
      (>= (compare cljs-version [1 7 170]) 0)
