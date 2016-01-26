@@ -357,6 +357,14 @@
   [system]
   (clean-builds system nil))
 
+(defn get-project-builds []
+  (into (array-map)
+        (map
+         (fn [x]
+           [(:id x)
+            (butils/add-compiler-env x)])
+         (:all-builds (fetch-config)))))
+
 (defn reload-config
   "Resets the system and reloads the the confgiguration as best it can."
   [system]
@@ -365,7 +373,7 @@
      system ids
      (fn [system]
        (repl-println "Figwheel: Reloading build config information")
-       (if-let [new-builds (not-empty (butils/get-project-builds))]
+       (if-let [new-builds (not-empty (get-project-builds))]
          (assoc-in (doall (reduce clean-build system ids))
                    [:figwheel-server :builds]
                    new-builds)

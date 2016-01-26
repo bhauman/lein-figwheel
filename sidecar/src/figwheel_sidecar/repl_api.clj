@@ -3,11 +3,16 @@
    [clojure.repl :refer [doc]]
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.config :as config]
+   [figwheel-sidecar.build-utils :as butils]
    [com.stuartsierra.component :as component]))
 
 ;; giving this var a uniq name anticipating this library to be
 ;; included with clojure :use, and system could easily clash
 (defonce ^:dynamic *repl-api-system* nil)
+
+(defn system-asserts []
+  (config/system-asserts)
+  (butils/assert-clojurescript-version))
 
 (defn start-figwheel!
   "If you aren't connected to an env where fighweel is running already,

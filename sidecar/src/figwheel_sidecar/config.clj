@@ -9,6 +9,23 @@
 ;; trying to keep this whole file clojure 1.6 compatible because
 ;; it is required by the leiningen process in the plugin
 
+(defn friendly-assert [v message]
+  (when-not v
+    (do
+      (print "System Assertion: ")
+      (println message)
+      (System/exit 1))))
+
+(defn system-asserts []
+  (let [java-version (System/getProperty "java.version")]
+    (friendly-assert (>= (compare java-version "1.8.0") 0)
+                     (str "Java >= 1.8.0 - Figwheel requires Java 1.8.0 at least. Current version  "
+                          java-version
+                          "\nPlease install Java 1.8.0 at least."))
+    (friendly-assert (>= (compare (clojure-version) "1.7.0") 0)
+                     (str "Clojure >= 1.7.0 - Figwheel requires Clojure 1.7.0 at least. Current version  "
+                          (clojure-version) ".\nCheck lein deps :tree or lein deps :plugin-tree"))))
+
 (defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))
 
