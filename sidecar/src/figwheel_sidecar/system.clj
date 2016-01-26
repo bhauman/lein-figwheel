@@ -1,13 +1,14 @@
 (ns figwheel-sidecar.system
   (:require
-   [figwheel-sidecar.utils :as utils]   
+   [figwheel-sidecar.utils :as utils]
+   [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
 
    [figwheel-sidecar.components.nrepl-server    :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
    [figwheel-sidecar.components.cljs-autobuild  :as autobuild]
-   [figwheel-sidecar.components.figwheel-server :as server]      
+   [figwheel-sidecar.components.figwheel-server :as server]
    
    [com.stuartsierra.component :as component]
 
@@ -286,7 +287,7 @@
     (switch-to-build system total-ids)))
 
 (defn clear-compiler-env-for-build-id [system build-id]
-  (update-in system [:figwheel-server :builds build-id] config/add-compiler-env))
+  (update-in system [:figwheel-server :builds build-id] butils/add-compiler-env))
 
 (defn- clean-build
   "Deletes compiled assets for given id."
@@ -364,7 +365,7 @@
      system ids
      (fn [system]
        (repl-println "Figwheel: Reloading build config information")
-       (if-let [new-builds (not-empty (config/get-project-builds))]
+       (if-let [new-builds (not-empty (butils/get-project-builds))]
          (assoc-in (doall (reduce clean-build system ids))
                    [:figwheel-server :builds]
                    new-builds)

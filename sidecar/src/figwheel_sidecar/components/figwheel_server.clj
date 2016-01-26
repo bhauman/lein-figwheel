@@ -2,6 +2,7 @@
   (:require
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.utils :as utils]
+   [figwheel-sidecar.build-utils :as butils]
 
    [clojure.java.io :as io]
    [clojure.edn :as edn]
@@ -250,7 +251,7 @@
         @default-handler)))
 
 (defn figwheel-server [{:keys [figwheel-options all-builds] :as options}]
-  (let [all-builds          (map config/add-compiler-env (config/prep-builds all-builds))
+  (let [all-builds          (map butils/add-compiler-env (config/prep-builds all-builds))
         all-builds (ensure-array-map all-builds)
         
         initial-state       (create-initial-state figwheel-options)

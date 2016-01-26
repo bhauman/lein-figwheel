@@ -1,12 +1,13 @@
 (ns figwheel-sidecar.config
   (:require
-   [figwheel-sidecar.utils :as utils]
    [clojure.pprint :as p]
    [clojure.tools.reader.edn :as edn]
    [clojure.string :as string]
    [clojure.java.io :as io]
-   [clojure.walk :as walk]
-   [cljs.env]))
+   [clojure.walk :as walk]))
+
+;; trying to keep this whole file clojure 1.6 compatible because
+;; it is required by the leiningen process in the plugin
 
 (defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))
@@ -261,14 +262,3 @@
 
 (defn fetch-config []
   (prep-config (config)))
-
-(defn add-compiler-env [{:keys [build-options] :as build}]
-  (assoc build :compiler-env (utils/compiler-env build-options)))
-
-(defn get-project-builds []
-  (into (array-map)
-        (map
-         (fn [x]
-           [(:id x)
-            (add-compiler-env x)])
-         (:all-builds (fetch-config)))))
