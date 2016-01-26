@@ -111,7 +111,7 @@
          (route/resources "/" {:root http-server-root})
          (or resolved-ring-handler (fn [r] false))
          (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<h1>Page not found</h1>"))
+         (route/not-found "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
         ;; adding cors to support @font-face which has a strange cors error
         ;; super promiscuous please don't uses figwheel as a production server :)
         (cors/wrap-cors
