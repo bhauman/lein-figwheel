@@ -6,9 +6,11 @@
    [clojure.java.io :as io]
    [clojure.walk :as walk]))
 
-;; trying to keep this whole file clojure 1.6 compatible because
-;; it is required by thye leiningen process in the plugin
-;; this should be a temporary situation as we wait for leiningen
+;; trying to keep this whole file clojure 1.5.1 compatible because
+;; it is required by the leiningen process in the plugin
+;; this should be a temporary situation
+
+;; test this by loading the file into a 1.5.1 process
 
 (defn friendly-assert [v message]
   (when-not v
