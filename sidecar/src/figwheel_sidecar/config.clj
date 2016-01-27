@@ -63,7 +63,7 @@
   "Given a build config that has a :figwheel config in it "
   [{:keys [id figwheel] :as build}]
   (if (and figwheel id)
-    (update build :figwheel
+    (update-in build [:figwheel]
             (fn [x] (assoc (if (map? x) x {})
                           :build-id id)))
     build))
@@ -87,7 +87,7 @@
   [builds build-ids]
   (let [builds (map-to-vec-builds builds)
         ;; ensure string ids
-        builds (map #(update % :id name) builds)]
+        builds (map #(update-in % [:id] name) builds)]
     (vec
      (keep identity
            (if-not (empty? build-ids)
@@ -130,7 +130,7 @@
 (defn apply-to-key
   "applies a function to a key, if key is defined."
   [f k opts]
-  (if (k opts) (update opts k f) opts))
+  (if (k opts) (update-in opts [k] f) opts))
 
 ;; TODO this is a hack! need to check all the places that I'm checking for
 ;; :optimizations :none and check for nil? or :none
@@ -185,7 +185,7 @@
   (-> build
       ensure-id
       move-compiler-to-build-options
-      (update :build-options fix-build-options)
+      (update-in [:build-options] fix-build-options)
       forward-to-figwheel-build-id
       forward-devcard-option
       ensure-output-dirs!
@@ -201,10 +201,10 @@
         (let [host (or (get-in build [:figwheel :websocket-host]) "localhost")]
           (if-not (= :js-client-host host)
             (-> build
-              (update :figwheel dissoc :websocket-host)
+                (update-in [:figwheel] dissoc :websocket-host)
               (assoc-in [:figwheel :websocket-url]
                         (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
-            (update build :figwheel dissoc :websocket-host)))
+            (update-in build [:figwheel] dissoc :websocket-host)))
         build))
     build))
 
@@ -270,7 +270,7 @@
     :build-ids build-ids)))
 
 (defn prep-config [config]
-  (let [prepped (update config :all-builds prep-builds)]
+  (let [prepped (update-in config [:all-builds] prep-builds)]
     (assoc prepped
            :build-ids
            (mapv :id
