@@ -1,13 +1,14 @@
 (ns figwheel-sidecar.config
   (:require
    [clojure.pprint :as p]
-   [clojure.tools.reader.edn :as edn]
+   [clojure.edn :as edn]
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.walk :as walk]))
 
 ;; trying to keep this whole file clojure 1.6 compatible because
-;; it is required by the leiningen process in the plugin
+;; it is required by thye leiningen process in the plugin
+;; this should be a temporary situation as we wait for leiningen
 
 (defn friendly-assert [v message]
   (when-not v
@@ -21,11 +22,16 @@
     (friendly-assert (>= (compare java-version "1.8.0") 0)
                      (str "Java >= 1.8.0 - Figwheel requires Java 1.8.0 at least. Current version  "
                           java-version
-                          "\nPlease install Java 1.8.0 at least."))
-    (friendly-assert (>= (compare (clojure-version) "1.7.0") 0)
-                     (str "Clojure >= 1.7.0 - Figwheel requires Clojure 1.7.0 at least. Current version  "
-                          (clojure-version) ".\nCheck lein deps :tree or lein deps :plugin-tree\n"
-                          "Also, don't forget the influence of profiles.clj"))))
+                          "\n  Please install Java 1.8.0 at least."))
+    (when-not (>= (compare (clojure-version) "1.7.0") 0)
+      (println
+       (str
+        "System Warning: Detected Clojure Version " (clojure-version) "\n"
+        "  Figwheel requires Clojure 1.7.0 at least.\n"
+        "  This may only be occuring in the Leinigen (bootstrapping) process but still something to be aware of.\n"
+        "  Especially if this message is immediately followed by an strange stack trace.\n"
+        "  Check lein deps :tree or lein deps :plugin-tree for clues.\n"
+        "  Also, don't forget the influence of profiles.clj")))))
 
 (defn get-build-options [build]
    (or (:build-options build) (:compiler build) {}))
