@@ -49,25 +49,41 @@
       :SEQQ (into [] (map (fn [[k v]] (un-seqify v)) (rest coll))))
     coll))
 
+(defn prep-key [k]
+  (if (fn? k)
+    (keyword (gensym 'pred-key))
+    k))
+
+(defn handle-key-type [orig-key predicate-key-name node t]
+  (if (fn? orig-key)
+    [[predicate-key-name :?- [node :> t]]
+     [predicate-key-name :k= orig-key]]
+    [[orig-key :- [node :> t]]]))
+
 (defn decompose [type-gen-fn node' s']
   (letfn [(decomp [node s]
             (if (nil? s)
               nil
-              (let [[[k v] & r] s
+              (let [[[k' v] & r] s
+                    k (prep-key k')
                     t (type-gen-fn node k)]
                 (if (or (list?? v) (map?? v))
-                  (concat [[t :=> (first v)]
-                           [k :- [node :> t]]]
-                          (decomp t (rest v))
-                          (decomp node r))
-                  (concat (cond (fn? v) 
-                                [[t := v]
-                                 [k :- [node :> t]]]
+                  (concat
+                   (cons
+                    [t :=> (first v)]
+                    (handle-key-type k' k node t))
+                   (decomp t (rest v))
+                   (decomp node r))
+                  (concat (cond (fn? v)
+                                (cons
+                                 [t := v]
+                                 (handle-key-type k' k node t))
                                 (-> v meta :ref)
-                                [[k :- [node :> v]]]
+                                (handle-key-type k' k node v)
                                 :else ;this is a value comparison
-                                [[t :== v]
-                                 [k :- [node :> t]]])
+                                (cons
+                                 [t :== v]
+                                 (handle-key-type k' k node t)))
                           (decomp node r))))))]
     (cond
       (or (list?? s') (map?? s'))
@@ -77,30 +93,29 @@
       (fn? 's)
       [[node' := s']]
       :else
-      [[node' :== s']]
-      )))
+      [[node' :== s']])))
 
 (defn ref-schema [s]
-  (with-meta s {:ref true}))
+  (vary-meta s #(assoc % :ref true)))
 
-(spec 'Hey {:asdf {:hey 5
-                   :something (ref-schema 'BadAss)}})
+(defn type-gen [node k]
+  (symbol (str (name node) k)))
 
 (defn spec [type body]
-  (#'decompose (fn [node k] (symbol (str (name node) k))) type (seqify body)))
-
+  (#'decompose type-gen type (seqify body)))
 
 (comment
   (spec 'Hey {integer? :hey})
-  
-  
+   
+  (spec 'Hey {:asdf {:hey 5
+                     :something (ref-schema 'BadAss)}})
+
+  (spec 'Hey {:asdf {string? 5}})
   
   )
 
 (def parse-rules    (comp (partial decompose #(gensym 'type) :RootMap) seqify))
 (def analyze-config (comp (partial decompose (fn [_] (l/lvar)) :RootMap) seqify))
-
-
 
 (comment
   (spec 'RootMap
@@ -181,15 +196,64 @@
     (l/fresh [pred? conf-val errv conf-val-type norm-key]
       (l/membero [k conf-val] config)
       (norm-coll-key coll-type k norm-key)
-      (l/membero [norm-key :- [parent-type :> typ]] schema-rules)
-      (type-check schema-rules conf-val typ rt rk errv)
-      (type-check-val schema-rules parent-type config errv errors)))))
+      (l/conda
+       [(l/membero [norm-key :- [parent-type :> typ]] schema-rules)
+        (type-check schema-rules conf-val typ rt rk errv)
+        (type-check-val schema-rules parent-type config errv errors)]
+       [(l/fresh [key-pred-key key-pred?]
+          (l/membero [key-pred-key :?- [parent-type :> typ]] schema-rules)
+          (l/membero [key-pred-key :k= key-pred?] schema-rules)
+          (l/conde
+           [(l/project [key-pred?] (l/pred k key-pred?))
+            (type-check schema-rules conf-val typ rt rk errv)
+            (type-check-val schema-rules parent-type config errv errors)]
+           [(l/project [key-pred?]
+               (l/project [k]
+                 (l/== true (not (key-pred? k)))))
+            (l/== rt [])
+            (l/== rk [])
+            (l/== errors [[:Error :key-doesnt-match-pred :k k :pred key-pred?]])]))]
+       [(l/fresh [unknown-key]
+          ;; close out values
+          (l/== typ :unknown)
+          (l/== rt [])
+          (l/== rk [])
+          (l/== errors [[:Error :unknown-key :val k]])
+          )])))))
 
-(type-check!!! (spec 'RootMap {:figwheel 5}) {:figwheel 5})
+#_(type-check!!! (spec 'RootMap
+                       {:figwheel {string? integer?}})
+                 {:figwheel {6 5}})
 
-(type-check!!! (spec 'RootMap {:figwheel {:stuff integer?}}) {:figwheel {}})
+(defn type-check!!! [grammer config]
+  (walk/postwalk
+   #(if (seq? %) (vec %) %)
+   (l/run* [q]
+           (l/fresh [a t b err]
+                    (type-check grammer
+                                (seqify config)
+                                t #_'RootMap
+                                a #_'(FigwheelOptions FigwheelOptions:server-port)
+                                b
+                                err)
+                    (l/== q [t a b err])))))
+
+#_(type-check!!! (spec 'RootMap {:figwheel 5}) {:figwheel 5})
 
 
+
+#_(type-check!!! (spec 'RootMap {:figwheel {:stuff integer?
+                                            :rash 4}}) {:figwheel {:asdf 4
+                                                                   :robby 3}})
+
+#_(type-check!!! (spec 'RootMap {:figwheel {:stuff integer?
+                                            :rash 4}
+                                 :cljsbuild {:thing integer?}})
+                 {:figwheel {:stuff 5
+                             :robby 3}
+                  :cljsbuild {:thing "asdf"}})
+
+(comment
 
 (l/run* [q]
   (l/fresh [a t b err]
@@ -202,11 +266,6 @@
                 
                 err)
     (l/== q [t a b err])))
-
-(l/run* [q]
-  (l/fresh [a b]
-    (l/membero [a b] [:mapp [1 2] [3 4]])
-    (l/== q [a b])))
 
 (l/run* [q]
   (l/fresh [a t b err]
@@ -222,8 +281,7 @@
                 err)
     (l/== q [t a b err])))
 
-(comment
-
+  
   (l/run* [q]
           (l/membero [:figwheel q] (seqify {:figwheel {:server-port 5}})))
 
@@ -243,18 +301,7 @@
 
   )
 
-(defn type-check!!! [grammer config]
-  (walk/postwalk
-   #(if (seq? %) (vec %) %)
-   (l/run* [q]
-           (l/fresh [a t b err]
-                    (type-check grammer
-                                (seqify config)
-                                t #_'RootMap
-                                a #_'(FigwheelOptions FigwheelOptions:server-port)
-                                b
-                                err)
-                    (l/== q [t a b err])))))
+
 
 ;; Below here not in use
 
