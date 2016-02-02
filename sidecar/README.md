@@ -24,7 +24,7 @@ file in the root directory of our project.
 }
 ```
 
-We'll use leinigen for dependency and classpath management and our
+We'll use leiningen for dependency and classpath management and our
 `project.clj` should look like this:
 
 ```clojure
