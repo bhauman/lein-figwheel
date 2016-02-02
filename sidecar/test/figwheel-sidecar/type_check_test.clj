@@ -74,6 +74,17 @@
   
   )
 
+(deftest predicate-keys
+  (is-matche
+   [['RootMap
+     '[RootMap:figwheel RootMap:figwheel:pred-key_1549686445]
+     [:figwheel 6]
+     [[:Error :key-doesnt-match-pred :k 6 :pred _]]]]
+   (type-check!!!
+    (spec 'RootMap
+          {:figwheel {string? integer?}})
+    {:figwheel {6 5}})))
+
 (deftest vector-matching
   (let [gram (spec 'RootMap {:figwheel [{:asdf integer?}]})]
 

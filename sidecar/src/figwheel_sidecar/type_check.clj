@@ -51,7 +51,7 @@
 
 (defn prep-key [k]
   (if (fn? k)
-    (keyword (gensym 'pred-key))
+    (keyword (str "pred-key_" (hash k)))
     k))
 
 (defn handle-key-type [orig-key predicate-key-name node t]
@@ -177,6 +177,120 @@
   ([:MAPP x x])
   ([:SEQQ x 0]))
 
+(metrics/dice "asfdff" "asdf")
+
+(defn named? [x]
+  (or (string? x) (instance? clojure.lang.Named x)))
+
+(defn key-like [thresh key other-key]
+  (l/project [key]
+             (l/project [other-key]
+               (l/== true
+                     (and
+                      (named? key)
+                      (named? other-key)
+                      (> (metrics/dice (name key)
+                                       (name other-key)) thresh))))))
+
+(declare type-check pass-type-check?)
+
+(defn path-for-type [schema-rules t result]
+  (l/matche
+   [t result]
+   (['RootMap []])
+   ([typ [k . rk]]
+    (l/fresh [parent]
+      (l/conde
+       [(l/membero [k :- [parent :> typ]] schema-rules)
+        (path-for-type schema-rules parent rk)]
+       [(l/membero [k :?- [parent :> typ]] schema-rules)
+         (path-for-type schema-rules parent rk)])))))
+
+(l/defne complex-config? [config-val]
+  ([[:MAPP [k v] . _]])
+  ([[:SEQQ [k v] . _]]))
+
+(l/run* [q]
+  (complex-config? [:SEQQ [1 2]])
+  )
+
+(l/run* [q]
+  (path-for-type (spec 'RootMap
+                       {:figwheel {string? integer?}
+                        :cljsbuild {:forest integer?
+                                    :trees 7}})
+                 'RootMap:cljsbuild:forest
+                 q))
+
+(defn unknown-key-error [schema-rules parent-type typ bad-key config-val result]
+  ;; check error conditions in order
+  (l/conda
+   ;; first error is where this key is mispelled and the config below
+   ;; it checks out 
+   [(l/fresh [k rt rk]
+      (l/membero [k :- [parent-type :> typ]]  schema-rules)
+      (key-like 0.4 bad-key k)
+      ;; even more sophisicated if the config below only has
+      ;; spelling errors !!:mind-blown:!!
+      #_(type-check schema-rules config-val typ rt rk [])
+      (pass-type-check? schema-rules config-val typ)
+      (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :high]))]
+   ;; second error is if key is suppossed to be located somewhere else
+   [(l/fresh [other-parent-type corrected-path rt rk]
+      (l/membero [bad-key :- [other-parent-type :> typ]] schema-rules)
+      ;; no errors below
+      (pass-type-check? schema-rules config-val typ)
+      #_(type-check schema-rules config-val typ rt rk [])
+      (path-for-type schema-rules typ corrected-path)
+      (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
+                    :correct-path corrected-path
+                    :confidence :high]))]
+   ;; now its possible to be a mispelled global with correct chilren
+   [(l/fresh [other-parent-type corrected-path rt rk potential-key]
+      (l/membero [potential-key :- [other-parent-type :> typ]] schema-rules)
+      (key-like 0.4 bad-key potential-key)
+      ;; no errors below
+      (pass-type-check? schema-rules config-val typ)
+      #_(type-check schema-rules config-val typ rt rk [])
+      (path-for-type schema-rules typ corrected-path)
+      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
+                    :correct-path corrected-path
+                    :confidence :high]))]
+   ;; well if there is a better place for the configuration value?
+   [(l/fresh [rt rk other-type potential-key]
+      (complex-config? config-val)
+      (l/membero [potential-key :- [parent-type :> typ]] schema-rules)
+      (type-check schema-rules config-val typ rt rk [])
+      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
+                    :correct-path corrected-path
+                    :confidence :high])
+      )]
+   
+   ;; now we can consider the cases where the types don't checkout below
+   ;; most likely its a mispelled local
+   [(l/fresh [k]
+      (l/membero [k :- [parent-type :> typ]]  schema-rules)
+      (key-like 0.4 bad-key k) ;; perhaps raise spelling requirement
+      (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :low]))]
+   ;; misplaced global
+   [(l/fresh [other-parent-type corrected-path]
+      (l/membero [bad-key :- [other-parent-type :> typ]] schema-rules)
+      (path-for-type schema-rules typ corrected-path)
+      (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
+                    :correct-path corrected-path
+                    :confidence :low]))]
+   ;; misplaced mispelled
+   [(l/fresh [other-parent-type corrected-path potential-key]
+      (l/membero [potential-key :- [other-parent-type :> typ]] schema-rules)
+      (key-like 0.4 bad-key potential-key) ;; perhaps raise spelling requirement
+      (path-for-type schema-rules typ corrected-path)
+      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
+                    :correct-path corrected-path
+                    :confidence :low]))]
+   
+   [#_(l/== typ :unknown-type)
+    (l/== result [:Error :unknown-key :val bad-key])]))
+
 (defn type-check [schema-rules config parent-type type-sig path err]
   (l/matche
    [type-sig path err config]
@@ -213,17 +327,44 @@
             (l/== rt [])
             (l/== rk [])
             (l/== errors [[:Error :key-doesnt-match-pred :k k :pred key-pred?]])]))]
-       [(l/fresh [unknown-key]
+       [(l/fresh [unknown-key error-res]
           ;; close out values
-          (l/== typ :unknown)
+          (unknown-key-error schema-rules parent-type typ k conf-val error-res)
           (l/== rt [])
           (l/== rk [])
-          (l/== errors [[:Error :unknown-key :val k]])
+          (l/== errors [error-res])
+          #_(l/== errors [[:Error :unknown-key :val k]])
           )])))))
 
 #_(type-check!!! (spec 'RootMap
-                       {:figwheel {string? integer?}})
-                 {:figwheel {6 5}})
+                       {:figwheel {string? integer?}
+                        :cljsbuild {:forest {:aaa 5 :bbb 6}
+                                    :trees 7}})
+                 {:asdf {:figwhel {"asdf" 5}}
+                  :forst {:aaa 5 :bbb 6}
+                  :cljsbuild {:forst 4}
+                  })
+
+(defn pass-type-check? [schema-rules root-type config]
+  (l/project [schema-rules]
+             (l/project [root-type]
+                        (l/project [config]
+                                   (l/fresh [a b]
+                                     (let [res (l/run* [q]
+                                                 (type-check schema-rules
+                                                             config
+                                                             root-type
+                                                             a 
+                                                             b
+                                                             q))]
+                                       (if (empty? (flatten res)) l/succeed l/fail)))))))
+
+
+(l/run* [q]
+  (pass-type-check? (spec 'RootMap {:figwheel 5})
+                    q
+                    (seqify {:figwheel 5})))
+
 
 (defn type-check!!! [grammer config]
   (walk/postwalk
@@ -232,11 +373,11 @@
            (l/fresh [a t b err]
                     (type-check grammer
                                 (seqify config)
-                                t #_'RootMap
+                                'RootMap
                                 a #_'(FigwheelOptions FigwheelOptions:server-port)
                                 b
                                 err)
-                    (l/== q [t a b err])))))
+                    (l/== q ['RootMap a b err])))))
 
 #_(type-check!!! (spec 'RootMap {:figwheel 5}) {:figwheel 5})
 
