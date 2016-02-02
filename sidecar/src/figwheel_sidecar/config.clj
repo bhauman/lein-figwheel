@@ -30,7 +30,7 @@
        (str
         "System Warning: Detected Clojure Version " (clojure-version) "\n"
         "  Figwheel requires Clojure 1.7.0 at least.\n"
-        "  This may only be occuring in the Leinigen (bootstrapping) process but still something to be aware of.\n"
+        "  This may only be occuring in the Leiningen (bootstrapping) process but still something to be aware of.\n"
         "  Especially if this message is immediately followed by an strange stack trace.\n"
         "  Check lein deps :tree or lein deps :plugin-tree for clues.\n"
         "  Also, don't forget the influence of profiles.clj")))))
