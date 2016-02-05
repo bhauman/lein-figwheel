@@ -185,12 +185,13 @@
 (defn key-like [thresh key other-key]
   (l/project [key]
              (l/project [other-key]
-               (l/== true
-                     (and
-                      (named? key)
-                      (named? other-key)
-                      (> (metrics/dice (name key)
-                                       (name other-key)) thresh))))))
+                        (let [score (metrics/dice (name key)
+                                                  (name other-key))]
+                          (l/== true
+                                (and
+                                 (named? key)
+                                 (named? other-key)
+                                 (> score thresh)))))))
 
 (declare type-check pass-type-check?)
 
@@ -207,8 +208,8 @@
          (path-for-type schema-rules parent rk)])))))
 
 (l/defne complex-config? [config-val]
-  ([[:MAPP [k v] . _]])
-  ([[:SEQQ [k v] . _]]))
+  ([[:MAPP [k v] [k2 v2] . _]])
+  ([[:SEQQ [k v] [k2 v2]. _]]))
 
 (l/run* [q]
   (complex-config? [:SEQQ [1 2]])
@@ -222,6 +223,7 @@
                  'RootMap:cljsbuild:forest
                  q))
 
+()
 (defn unknown-key-error [schema-rules parent-type typ bad-key config-val result]
   ;; check error conditions in order
   (l/conda
@@ -233,13 +235,13 @@
       ;; even more sophisicated if the config below only has
       ;; spelling errors !!:mind-blown:!!
       #_(type-check schema-rules config-val typ rt rk [])
-      (pass-type-check? schema-rules config-val typ)
+      (pass-type-check? schema-rules typ config-val)
       (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :high]))]
    ;; second error is if key is suppossed to be located somewhere else
    [(l/fresh [other-parent-type corrected-path rt rk]
       (l/membero [bad-key :- [other-parent-type :> typ]] schema-rules)
       ;; no errors below
-      (pass-type-check? schema-rules config-val typ)
+      (pass-type-check? schema-rules typ config-val)
       #_(type-check schema-rules config-val typ rt rk [])
       (path-for-type schema-rules typ corrected-path)
       (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
@@ -250,21 +252,22 @@
       (l/membero [potential-key :- [other-parent-type :> typ]] schema-rules)
       (key-like 0.4 bad-key potential-key)
       ;; no errors below
-      (pass-type-check? schema-rules config-val typ)
+      (pass-type-check? schema-rules typ config-val)
       #_(type-check schema-rules config-val typ rt rk [])
       (path-for-type schema-rules typ corrected-path)
       (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
                     :correct-path corrected-path
                     :confidence :high]))]
-   ;; well if there is a better place for the configuration value?
+   ;; is there a key that most likely should be the name of this?
    [(l/fresh [rt rk other-type potential-key]
       (complex-config? config-val)
       (l/membero [potential-key :- [parent-type :> typ]] schema-rules)
-      (type-check schema-rules config-val typ rt rk [])
-      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :high])
-      )]
+      (pass-type-check? schema-rules typ config-val)
+      (l/== result [:Error :wrong-key-used :key bad-key :correct-key potential-key
+                    :confidence :high]))]
+   ;; does this exact config belong somewhere else?
+
+
    
    ;; now we can consider the cases where the types don't checkout below
    ;; most likely its a mispelled local
@@ -361,9 +364,10 @@
 
 
 (l/run* [q]
-  (pass-type-check? (spec 'RootMap {:figwheel 5})
-                    q
-                    (seqify {:figwheel 5})))
+  (pass-type-check? (spec 'RootMap {:figwheel {:asdf 4}
+                                    :cljsbuild {:fda 7}})
+                    'RootMap:cljsbuild
+                    (seqify {:asdf 4})))
 
 
 (defn type-check!!! [grammer config]

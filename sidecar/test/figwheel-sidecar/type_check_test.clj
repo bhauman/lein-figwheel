@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.type-check-test
   (:require
-   [figwheel-sidecar.type-check :as tc :refer [spec type-check!!! seqify un-seqify ref-schema]]
+   [figwheel-sidecar.type-check :as tc :refer [spec type-check!!! seqify un-seqify ref-schema pass-type-check?]]
    [clojure.walk :as walk]
    [clojure.core.logic :as l]
    [clojure.test :as t :refer [deftest is run-tests]]))
@@ -83,7 +83,222 @@
    (type-check!!!
     (spec 'RootMap
           {:figwheel {string? integer?}})
-    {:figwheel {6 5}})))
+    {:figwheel {6 5}}))
+  (is-matche
+   '[[RootMap [RootMap:figwheel RootMap:figwheel:pred-key_1549686445] [:figwheel "asdf"] []]]
+   (type-check!!!
+    (spec 'RootMap
+          {:figwheel {string? integer?}})
+    {:figwheel {"asdf" 5}})))
+
+
+(deftest smart-key-errors
+  (is-matche
+   '[[RootMap
+      [CljsBuildOptions CljsBuildOptions:repl-listen-port]
+      [:cljsbuild :repl-listn-port]
+      [[:Error :mispelled-key :key :repl-listn-port :correction :repl-listen-port :confidence :high]]]]
+   (type-check!!!
+    (test-grammer)
+    {:cljsbuild {:repl-listn-port 1234}}))
+  (is-matche
+   '[[RootMap
+      [CljsBuildOptions CljsBuildOptions:repl-listen-port]
+      [:cljsbuild :repl-lisn-prt]
+      [[:Error :mispelled-key :key :repl-lisn-prt :correction :repl-listen-port :confidence :high]]]]
+   (type-check!!!
+    (test-grammer)
+    {:cljsbuild {:repl-lisn-prt 1234}}))
+  (is-matche
+   '[[RootMap
+      [FigwheelOptions CljsBuildOptions:repl-listen-port]
+      [:figwheel :repl-listen-port]
+      [[:Error
+        :misplaced-key
+        :key
+        :repl-listen-port
+        :correct-type
+        [CljsBuildOptions :> CljsBuildOptions:repl-listen-port]
+        :correct-path
+        [:repl-listen-port :cljsbuild]
+        :confidence
+        :high]]]]
+   (type-check!!!
+    (test-grammer)
+    {:figwheel {:repl-listen-port 1234}}))
+
+  (is-matche
+   '[[RootMap
+      [CljsBuildOptions FigwheelOptions:server-port]
+      [:cljsbuild :server-port]
+      [[:Error
+        :misplaced-key
+        :key
+        :server-port
+        :correct-type
+        [FigwheelOptions :> FigwheelOptions:server-port]
+        :correct-path
+        [:server-port :figwheel]
+        :confidence
+        :high]]]
+     [RootMap
+      [CljsBuildOptions FigwheelOptions:server-ip]
+      [:cljsbuild :server-ip]
+      [[:Error
+        :misplaced-key
+        :key
+        :server-ip
+        :correct-type
+        [FigwheelOptions :> FigwheelOptions:server-ip]
+        :correct-path
+        [:server-ip :figwheel]
+        :confidence
+        :high]]]]
+   (type-check!!!
+    (test-grammer)
+    {:cljsbuild
+     {:server-port 1234
+      :server-ip   "asdf"}}))
+
+
+  (is-matche
+   '[[RootMap [FigwheelOptions] [:cljsbuilderer] [[:Error :wrong-key-used :key :cljsbuilderer :correct-key :figwheel :confidence :high]]]]
+   (type-check!!!
+    (test-grammer)
+    {:cljsbuilderer
+     {:server-port 1234
+      :server-ip   "asdf"}}))
+
+  (is-matche
+   '[[RootMap
+      [CljsBuildOptions FigwheelOptions:server-port]
+      [:cljsbuild :server-port]
+      [[:Error
+        :misplaced-key
+        :key
+        :server-port
+        :correct-type
+        [FigwheelOptions :> FigwheelOptions:server-port]
+        :correct-path
+        [:server-port :figwheel]
+        :confidence
+        :high]]]
+     [RootMap
+      [CljsBuildOptions FigwheelOptions:server-ip]
+      [:cljsbuild :server-ip]
+      [[:Error
+        :misplaced-key
+        :key
+        :server-ip
+        :correct-type
+        [FigwheelOptions :> FigwheelOptions:server-ip]
+        :correct-path
+        [:server-ip :figwheel]
+        :confidence
+        :high]]]]
+   (type-check!!!
+    (test-grammer)
+    {:cljsbuild
+     {:server-port 1234
+      :server-ip   "asdf"}}))
+
+    (is-matche
+     '[[RootMap
+        [CljsBuildOptions FigwheelOptions:server-port]
+        [:cljsbuild :server-porter]
+        [[:Error
+          :mispelled-and-misplaced-key
+          :key
+          :server-porter
+          :correct-type
+          [FigwheelOptions :> FigwheelOptions:server-port]
+          :correct-path
+          [:server-port :figwheel]
+          :confidence
+          :high]]]
+       [RootMap
+        [CljsBuildOptions FigwheelOptions:server-ip]
+        [:cljsbuild :server-iper]
+        [[:Error
+          :mispelled-and-misplaced-key
+          :key
+          :server-iper
+          :correct-type
+          [FigwheelOptions :> FigwheelOptions:server-ip]
+          :correct-path
+          [:server-ip :figwheel]
+          :confidence
+          :high]]]]
+     (type-check!!!
+      (test-grammer)
+      {:cljsbuild
+       {:server-porter 1234
+        :server-iper   "asdf"}}))
+  
+  (is-matche
+   '[[RootMap [FigwheelOptions] [:figwheeler] [[:Error :mispelled-key :key :figwheeler :correction :figwheel :confidence :low]]]]
+   (type-check!!!
+    (test-grammer)
+    {:figwheeler
+     {:what 1234
+      :water   "asdf"}}))
+
+  (is-matche
+   '[[RootMap
+      [CljsBuildOptions FigwheelOptions:server-port]
+      [:cljsbuild :server-port]
+      [[:Error
+        :misplaced-key
+        :key
+        :server-port
+        :correct-type
+        [FigwheelOptions :> FigwheelOptions:server-port]
+        :correct-path
+        [:server-port :figwheel]
+        :confidence
+        :low]]]]
+   (type-check!!!
+    (test-grammer)
+    {:cljsbuild
+     {:server-port []}}))
+
+    (is-matche
+     '[[RootMap
+        [CljsBuildOptions FigwheelOptions:server-port]
+        [:cljsbuild :server-rt]
+        [[:Error
+          :mispelled-and-misplaced-key
+          :key
+          :server-rt
+          :correct-type
+          [FigwheelOptions :> FigwheelOptions:server-port]
+          :correct-path
+          [:server-port :figwheel]
+          :confidence
+          :low]]]
+       [RootMap
+        [CljsBuildOptions FigwheelOptions:server-ip]
+        [:cljsbuild :server-rt]
+        [[:Error
+          :mispelled-and-misplaced-key
+          :key
+          :server-rt
+          :correct-type
+          [FigwheelOptions :> FigwheelOptions:server-ip]
+          :correct-path
+          [:server-ip :figwheel]
+          :confidence
+          :low]]]]
+     (type-check!!!
+      (test-grammer)
+      {:cljsbuild
+       {:server-rt []}}))
+  
+
+  )
+
+
+
 
 (deftest vector-matching
   (let [gram (spec 'RootMap {:figwheel [{:asdf integer?}]})]
