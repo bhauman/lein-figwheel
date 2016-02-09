@@ -111,17 +111,14 @@
                      :something (ref-schema 'BadAss)}})
 
   (spec 'Hey {:asdf {string? 5}})
-  
-  )
 
-(def parse-rules    (comp (partial decompose #(gensym 'type) :RootMap) seqify))
-(def analyze-config (comp (partial decompose (fn [_] (l/lvar)) :RootMap) seqify))
-
-(comment
-  (spec 'RootMap
+  (def parse-rules    (comp (partial decompose #(gensym 'type) :RootMap) seqify))
+  (def analyze-config (comp (partial decompose (fn [_] (l/lvar)) :RootMap) seqify))
+    (spec 'RootMap
         {:cljsbuild 'CljsBuildOptions
          :welwel [integer?]
-         :figwheel  'FigwheelOptions}))
+         :figwheel  'FigwheelOptions})
+  )
 
 (def grammer
   (concat
@@ -134,8 +131,6 @@
    (spec 'FigwheelOptions
          {:server-port integer?
           :server-ip   string?})))
-
-
 
 #_(spec 'RootMap
         {:figwheel {:server-port 5}
@@ -177,7 +172,7 @@
   ([:MAPP x x])
   ([:SEQQ x 0]))
 
-(metrics/dice "asfdff" "asdf")
+#_(metrics/dice "asfdff" "asdf")
 
 (defn named? [x]
   (or (string? x) (instance? clojure.lang.Named x)))
@@ -211,19 +206,24 @@
   ([[:MAPP [k v] [k2 v2] . _]])
   ([[:SEQQ [k v] [k2 v2]. _]]))
 
-(l/run* [q]
-  (complex-config? [:SEQQ [1 2]])
-  )
 
-(l/run* [q]
-  (path-for-type (spec 'RootMap
-                       {:figwheel {string? integer?}
-                        :cljsbuild {:forest integer?
-                                    :trees 7}})
-                 'RootMap:cljsbuild:forest
-                 q))
 
-()
+(comment
+  (l/run* [q]
+    (complex-config? [:SEQQ [1 2]])
+    )
+  
+  (l/run* [q]
+    (path-for-type (spec 'RootMap
+                         {:figwheel {string? integer?}
+                          :cljsbuild {:forest integer?
+                                      :trees 7}})
+                   'RootMap:cljsbuild:forest
+                   q))
+  
+)
+
+
 (defn unknown-key-error [schema-rules parent-type typ bad-key config-val result]
   ;; check error conditions in order
   (l/conda
@@ -348,6 +348,8 @@
                   :cljsbuild {:forst 4}
                   })
 
+;; really would be interesting to ignore confidence :high spelling errors
+
 (defn pass-type-check? [schema-rules root-type config]
   (l/project [schema-rules]
              (l/project [root-type]
@@ -362,18 +364,38 @@
                                                              q))]
                                        (if (empty? (flatten res)) l/succeed l/fail)))))))
 
-
-(l/run* [q]
+#_(l/run* [q]
   (pass-type-check? (spec 'RootMap {:figwheel {:asdf 4}
                                     :cljsbuild {:fda 7}})
                     'RootMap:cljsbuild
                     (seqify {:asdf 4})))
 
+;; it is hard to have or and return validation errors from a logic
+;; system
+
+;; this allows a for a simple "or" system where you just add more rules
+;; and if one passes you have valid result
+
+;; this is subtle but very interesting because it allows for the
+;; simple extention of a set configuration rules
+
+;; also, if it fails all, the failures are present in the result
+
+(defn fix-or
+  "Remove error results when we have a passing case for that key."
+  [results]
+  (let [res (set results)]
+    (filter (fn [x]
+              (not (and
+                    (res (concat (take 3 x) [[]]))
+                    (not-empty (last x)))))
+            results)))
 
 (defn type-check!!! [grammer config]
   (walk/postwalk
    #(if (seq? %) (vec %) %)
-   (l/run* [q]
+   (fix-or
+    (l/run* [q]
            (l/fresh [a t b err]
                     (type-check grammer
                                 (seqify config)
@@ -381,7 +403,14 @@
                                 a #_'(FigwheelOptions FigwheelOptions:server-port)
                                 b
                                 err)
-                    (l/== q ['RootMap a b err])))))
+                    (l/== q ['RootMap a b err]))))))
+
+#_(type-check!!!
+   (distinct
+    (concat
+     (spec 'RootMap {:figwheel 5})
+     (spec 'RootMap {:figwheel 6})))
+   {:figwheel 8})
 
 #_(type-check!!! (spec 'RootMap {:figwheel 5}) {:figwheel 5})
 
