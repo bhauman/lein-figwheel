@@ -235,7 +235,7 @@ If you are using your own server please load your app from that server.
 
 ### Figwheel server side configuration
 
-This is not neccessary but you can configure the figwheel system. At
+This is not necessary but you can configure the figwheel system. At
 the root level of your `project.clj` you can add the following server
 side configuration parameters:
 
