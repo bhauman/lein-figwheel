@@ -9,17 +9,22 @@
 
 (defn enum [& args]
   (let [enums (set args)]
-    (fn [x] (enums x))))
+    (fn [x] (boolean (enums x)))))
 
 (defn or-pred [& args]
-  (fn [x] (some #(% x) args)))
+  (fn [x] (boolean (some #(% x) args))))
 
 (def symbol-or-string? (or-pred symbol? string?))
 
 (def bool-or-string? (or-pred boolean? string?))
 
-(def optimisation? (enum :none :whitespace :simple :advanced))
-(def module-type?  (enum :commonjs :amd :es6))
+(def optimisation?    (enum :none :whitespace :simple :advanced))
+(def module-type?     (enum :commonjs :amd :es6))
+(def closure-warning? (enum :error :warning :off))
+(def javascript-lang? (enum :ecmascript3 :ecmascript5 :ecmascript5-strict))
+(def anon-fn-naming-policy? (enum :off :unmapped :mapped))
+
+
 
 (def CompilerWarningsSpec
   (->>
@@ -47,6 +52,35 @@
     :invoke-ctor]
    (map #(vector % boolean?))
    (into {})))
+
+(def ClosureWarningsSpec
+  (->> [:access-controls
+        :ambiguous-function-decl
+        :debugger-statement-present
+        :check-regexp
+        :check-types
+        :check-useless-code
+        :check-variables
+        :const
+        :constant-property
+        :deprecated
+        :duplicate-message
+        :es5-strict
+        :externs-validation
+        :fileoverview-jsdoc
+        :global-this
+        :internet-explorer-checks
+        :invalid-casts
+        :missing-properties
+        :non-standard-jsdoc
+        :strict-module-dep-check
+        :tweaks
+        :undefined-names
+        :undefined-variables
+        :unknown-defines
+        :visiblity]
+       (map #(vector % closure-warning?))
+       (into {})))
 
 (def schema-rules
   (distinct
@@ -82,6 +116,8 @@
     (spec 'CljsBuilds
           [(ref-schema 'BuildOptionsMap)])
     (spec 'BuildOptionsMap
+          { :figwheel        boolean?})
+    (spec 'BuildOptionsMap
           { :id named?
             :source-paths    [string?]
             :figwheel        (ref-schema 'FigwheelClientOptions)
@@ -90,8 +126,6 @@
             :jar             boolean?
             :incremental     boolean?
             :assert          boolean? })
-    (spec 'BuildOptionsMap
-          { :figwheel        boolean?})
     (spec 'FigwheelClientOptions
           {:websocket-host      string?
            :websocket-url       string?
@@ -112,7 +146,7 @@
           {:websocket-host      :js-client-host
            :eval-fn             named?})
     (spec 'CompilerOptions
-          :main           symbol-or-string?
+          {:main           symbol-or-string?
           :asset-path     string?
           :output-to      string?
           :output-dir     string?
@@ -133,10 +167,56 @@
           :cache-analysis    boolean?
           :recompile-dependents boolean?
           :static-fns  boolean?
-          :warnings    boolean?)
+          :warnings    boolean?
+          :elide-asserts boolean?
+          :pseudo-names boolean?
+          :print-input-delimiter boolean?
+          :output-wrapper boolean?
+          :libs [string?]
+          :preamble [string?]
+          :hashbang  boolean?
+          :compiler-stats  boolean?
+          :language-in javascript-lang?
+          :language-out javascript-lang?
+          :closure-warnings ClosureWarningsSpec
+          :closure-defines  {anything? anything?}
+          :closure-extra-annotations [string?]
+          :anon-fn-naming-policy anon-fn-naming-policy?
+          :optimize-constants boolean?
+          :parallel-build boolean?
+          :devcards boolean?}
+          )
     (spec 'CompilerOptions
           {:warnings (ref-schema 'CompilerWarnings)})
     (spec 'CompilerWarnings CompilerWarningsSpec)
     ))
 
   )
+
+(time
+ (type-check!!! schema-rules {  :cljsbuild {
+                                            :builds [{:id "example"
+                                                      :figwheel { :websocket-host "localhost"
+                                                                  :on-jsload      'example.core/fig-reload
+                                                                 
+                                                                   ; :on-message     'example.core/on-message
+                                                                   ; :debug "asdf"
+                                                                 }
+                                                      :compiler { :main 'example.core
+                                                                 :asset-path "js/out"
+                                                                 :output-to "resources/public/js/example.js"
+                                                                 :output-dir "resources/public/js/out"
+                                                                 :source-map-timestamp true
+                                                                 :libs ["libs_src" "libs_sscr/tweaky.js"]
+                                                                 ;; :externs ["foreign/wowza-externs.js"]
+                                                                 :foreign-libs [{:file "foreign/wowza.js"
+                                                                                 :provides ["wowzacore"]}]
+                                                                 ;; :recompile-dependents true
+                                                                 :optimizations :none}
+                                                      }]}
+                              
+                              :figwheel {
+                                        :http-server-root "public" ;; default and assumes "resources" 
+                                        :server-port 3449 ;; default
+                                        :css-dirs ["resources/public/css"]
+                                        :open-file-command "emacsclient"}}))

@@ -50,19 +50,20 @@
     (is-every [_ _ _ _] (type-check!!! (test-grammer) {:cljsbuild {}}))))
 
 (deftest other-test
-  (is-matche [['RootMap
+  (is-matche ['[RootMap [FigwheelOptions FigwheelOptions:server-port] [:figwheel :server-port] []]
+              ['RootMap
                '[CljsBuildOptions CljsBuildOptions:repl-listen-port]
                [:cljsbuild :repl-listen-port]
                [[:Error "asdf" :not integer?]]]
-              '[RootMap [FigwheelOptions FigwheelOptions:server-port] [:figwheel :server-port] []]]
+              ]
              (type-check!!! (test-grammer) {:figwheel {:server-port 5}
                                             :cljsbuild {:repl-listen-port "asdf"}}))
   (is-matche 
-   ['[RootMap [CljsBuildOptions CljsBuildOptions:repl-listen-port] [:cljsbuild :repl-listen-port] []]
-    ['RootMap
+   [['RootMap
      '[FigwheelOptions FigwheelOptions:server-port]
      [:figwheel :server-port]
-     [[:Error "asdf" :not integer?]]]]
+     [[:Error "asdf" :not integer?]]]
+    '[RootMap [CljsBuildOptions CljsBuildOptions:repl-listen-port] [:cljsbuild :repl-listen-port] []]]
    (type-check!!! (test-grammer) {:figwheel {:server-port "asdf"}
                                   :cljsbuild {:repl-listen-port 5}}))
   (is-matche '[[RootMap [CljsBuildOptions] [:cljsbuild] []]]

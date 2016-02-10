@@ -5,11 +5,12 @@
    [alandipert.intension :refer [make-db]]
    [datascript.core      :refer [q]]
    [clojure.core.logic :as l]
+   [clojure.core.logic.pldb :as pldb]
    [clojure.test :as t :refer [deftest is run-tests]]))
 
 (def ^:dynamic *schema-rules* [])
 
-(defn db-rel [db q]
+(defn db-query [q db]
   (fn [a]
     (l/to-stream
      (map #(l/unify a % q) db))))
@@ -150,23 +151,25 @@
 (defn type-check-val [schema-rules parent-type value
                       errors-in
                       errors-out]
-  (l/fresh [pred?]
-    (l/conde
-     [(l/membero [parent-type := pred?] schema-rules)
-      (l/conda
-       [(l/project [pred?] (l/pred value pred?))
-        (l/== errors-out errors-in)]
-       [(l/conso [:Error value :not pred?] errors-in errors-out)])]
-     [(l/membero [parent-type :== pred?] schema-rules)
+  (l/project
+   [parent-type]
+   (l/fresh [pred?]
+     (l/conde
+      [(db-query [parent-type := pred?] (schema-rules [:= parent-type]))
+       (l/conda
+        [(l/project [pred?] (l/pred value pred?))
+         (l/== errors-out errors-in)]
+        [(l/conso [:Error value :not pred?] errors-in errors-out)])]
+      [(db-query [parent-type :== pred?] (schema-rules [:== parent-type]))
       (l/conda
        [(l/== value pred?)
         (l/== errors-out errors-in)]
        [(l/conso [:Error value :not pred?] errors-in errors-out)])]
-     [(l/membero [parent-type :=> pred?] schema-rules)
-      (l/conda
-       [(l/firsto value pred?)
-        (l/== errors-out errors-in)]
-       [(l/conso [:Error value :not pred?] errors-in errors-out)])])))
+      [(db-query [parent-type :=> pred?] (schema-rules [:=> parent-type]))
+       (l/conda
+        [(l/firsto value pred?)
+         (l/== errors-out errors-in)]
+        [(l/conso [:Error value :not pred?] errors-in errors-out)])]))))
 
 (l/defne norm-coll-key [coll-type coll-key norm-key]
   ([:MAPP x x])
@@ -180,13 +183,14 @@
 (defn key-like [thresh key other-key]
   (l/project [key]
              (l/project [other-key]
-                        (let [score (metrics/dice (name key)
-                                                  (name other-key))]
-                          (l/== true
-                                (and
-                                 (named? key)
-                                 (named? other-key)
-                                 (> score thresh)))))))
+                        (if-not (and (named? key)
+                                     (named? other-key))
+                          l/fail
+                          (let [score (metrics/dice (name key)
+                                                    (name other-key))]
+                            (l/== true
+                                  (> score thresh))))
+                        )))
 
 (declare type-check pass-type-check?)
 
@@ -197,9 +201,9 @@
    ([typ [k . rk]]
     (l/fresh [parent]
       (l/conde
-       [(l/membero [k :- [parent :> typ]] schema-rules)
+       [(db-query [k :- [parent :> typ]] (:- schema-rules))
         (path-for-type schema-rules parent rk)]
-       [(l/membero [k :?- [parent :> typ]] schema-rules)
+       [(db-query [k :?- [parent :> typ]] (:?- schema-rules))
          (path-for-type schema-rules parent rk)])))))
 
 (l/defne complex-config? [config-val]
@@ -230,7 +234,7 @@
    ;; first error is where this key is mispelled and the config below
    ;; it checks out 
    [(l/fresh [k rt rk]
-      (l/membero [k :- [parent-type :> typ]]  schema-rules)
+      (db-query [k :- [parent-type :> typ]]  (:- schema-rules))
       (key-like 0.4 bad-key k)
       ;; even more sophisicated if the config below only has
       ;; spelling errors !!:mind-blown:!!
@@ -239,7 +243,7 @@
       (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :high]))]
    ;; second error is if key is suppossed to be located somewhere else
    [(l/fresh [other-parent-type corrected-path rt rk]
-      (l/membero [bad-key :- [other-parent-type :> typ]] schema-rules)
+      (db-query [bad-key :- [other-parent-type :> typ]] (:- schema-rules))
       ;; no errors below
       (pass-type-check? schema-rules typ config-val)
       #_(type-check schema-rules config-val typ rt rk [])
@@ -249,7 +253,7 @@
                     :confidence :high]))]
    ;; now its possible to be a mispelled global with correct chilren
    [(l/fresh [other-parent-type corrected-path rt rk potential-key]
-      (l/membero [potential-key :- [other-parent-type :> typ]] schema-rules)
+      (db-query [potential-key :- [other-parent-type :> typ]] (:- schema-rules))
       (key-like 0.4 bad-key potential-key)
       ;; no errors below
       (pass-type-check? schema-rules typ config-val)
@@ -261,31 +265,29 @@
    ;; is there a key that most likely should be the name of this?
    [(l/fresh [rt rk other-type potential-key]
       (complex-config? config-val)
-      (l/membero [potential-key :- [parent-type :> typ]] schema-rules)
+      (db-query [potential-key :- [parent-type :> typ]] (:- schema-rules))
       (pass-type-check? schema-rules typ config-val)
       (l/== result [:Error :wrong-key-used :key bad-key :correct-key potential-key
                     :confidence :high]))]
    ;; does this exact config belong somewhere else?
-
-
    
    ;; now we can consider the cases where the types don't checkout below
    ;; most likely its a mispelled local
    [(l/fresh [k]
-      (l/membero [k :- [parent-type :> typ]]  schema-rules)
-      (key-like 0.4 bad-key k) ;; perhaps raise spelling requirement
+      (db-query [k :- [parent-type :> typ]]  (:- schema-rules))
+      (key-like 0.6 bad-key k) ;; perhaps raise spelling requirement
       (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :low]))]
    ;; misplaced global
    [(l/fresh [other-parent-type corrected-path]
-      (l/membero [bad-key :- [other-parent-type :> typ]] schema-rules)
+      (db-query [bad-key :- [other-parent-type :> typ]] (:- schema-rules))
       (path-for-type schema-rules typ corrected-path)
       (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
                     :correct-path corrected-path
                     :confidence :low]))]
    ;; misplaced mispelled
    [(l/fresh [other-parent-type corrected-path potential-key]
-      (l/membero [potential-key :- [other-parent-type :> typ]] schema-rules)
-      (key-like 0.4 bad-key potential-key) ;; perhaps raise spelling requirement
+      (db-query [potential-key :- [other-parent-type :> typ]] (:- schema-rules))
+      (key-like 0.7 bad-key potential-key) ;; perhaps raise spelling requirement
       (path-for-type schema-rules typ corrected-path)
       (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
                     :correct-path corrected-path
@@ -313,31 +315,52 @@
     (l/fresh [pred? conf-val errv conf-val-type norm-key]
       (l/membero [k conf-val] config)
       (norm-coll-key coll-type k norm-key)
-      (l/conda
-       [(l/membero [norm-key :- [parent-type :> typ]] schema-rules)
-        (type-check schema-rules conf-val typ rt rk errv)
-        (type-check-val schema-rules parent-type config errv errors)]
-       [(l/fresh [key-pred-key key-pred?]
-          (l/membero [key-pred-key :?- [parent-type :> typ]] schema-rules)
-          (l/membero [key-pred-key :k= key-pred?] schema-rules)
-          (l/conde
-           [(l/project [key-pred?] (l/pred k key-pred?))
-            (type-check schema-rules conf-val typ rt rk errv)
-            (type-check-val schema-rules parent-type config errv errors)]
-           [(l/project [key-pred?]
-               (l/project [k]
-                 (l/== true (not (key-pred? k)))))
-            (l/== rt [])
-            (l/== rk [])
-            (l/== errors [[:Error :key-doesnt-match-pred :k k :pred key-pred?]])]))]
-       [(l/fresh [unknown-key error-res]
+      (l/project
+       [norm-key]
+       (l/conda
+        [(db-query [norm-key :- [parent-type :> typ]] (schema-rules [:- norm-key]))
+         (l/conda
+          [(type-check-val schema-rules parent-type config [] [])
+           (type-check schema-rules conf-val typ rt rk errors)]
+          [(type-check-val schema-rules parent-type config [] errors)])]       
+        [(l/fresh [key-pred-key key-pred?]
+           (db-query [key-pred-key :?- [parent-type :> typ]] (:?- schema-rules))
+           (db-query [key-pred-key :k= key-pred?] (:k= schema-rules))
+           (l/conda
+            [(l/project [key-pred?] (l/pred k key-pred?))
+             (type-check-val schema-rules parent-type config [] [])
+             (type-check schema-rules conf-val typ rt rk errors)]
+            [(l/project [key-pred?] (l/pred k key-pred?))
+             (type-check-val schema-rules parent-type config errv errors)
+             #_(type-check schema-rules conf-val typ rt rk errv)]           
+            [(l/project [key-pred?]
+                        (l/project [k]
+                                   (l/== true (not (key-pred? k)))))
+             (l/== rt [])
+             (l/== rk [])
+             (l/== errors [[:Error :key-doesnt-match-pred :k k :pred key-pred?]])]))]
+        [(l/fresh [unknown-key error-res]
           ;; close out values
-          (unknown-key-error schema-rules parent-type typ k conf-val error-res)
-          (l/== rt [])
-          (l/== rk [])
-          (l/== errors [error-res])
-          #_(l/== errors [[:Error :unknown-key :val k]])
-          )])))))
+           (unknown-key-error schema-rules parent-type typ k conf-val error-res)
+           (l/== rt [])
+           (l/== rk [])
+           (l/== errors [error-res])
+           #_(l/== errors [[:Error :unknown-key :val k]])
+           )])        )
+      ))))
+
+(type-check!!!
+ (distinct
+  (concat
+   (spec 'RootMap
+         {:figwheel (ref-schema 'FigOpt)})
+   (spec 'RootMap
+         {:figwheel string?})
+   (spec 'FigOpt
+         {:aaa 3
+          :bbb 2})
+   ))
+ {:figwheel {:aaa 3}})
 
 #_(type-check!!! (spec 'RootMap
                        {:figwheel {string? integer?}
@@ -347,6 +370,16 @@
                   :forst {:aaa 5 :bbb 6}
                   :cljsbuild {:forst 4}
                   })
+
+(defn index-spec [spc]
+  (merge
+   (group-by second spc)
+   (group-by (juxt second first) spc)))
+
+(index-spec (spec 'ROOT
+                  {:figwheel {:asdf 1
+                              :bbb 3}
+                   :cljsbuild {:asaa integer?}}))
 
 ;; really would be interesting to ignore confidence :high spelling errors
 
@@ -384,10 +417,11 @@
 (defn fix-or
   "Remove error results when we have a passing case for that key."
   [results]
-  (let [res (set results)]
+  results
+  #_(let [res (set (map (partial drop 2) results))]
     (filter (fn [x]
               (not (and
-                    (res (concat (take 3 x) [[]]))
+                    (res (concat [(nth x 2)] [[]]))
                     (not-empty (last x)))))
             results)))
 
@@ -397,7 +431,7 @@
    (fix-or
     (l/run* [q]
            (l/fresh [a t b err]
-                    (type-check grammer
+                    (type-check (index-spec grammer)
                                 (seqify config)
                                 'RootMap
                                 a #_'(FigwheelOptions FigwheelOptions:server-port)
@@ -410,7 +444,7 @@
     (concat
      (spec 'RootMap {:figwheel 5})
      (spec 'RootMap {:figwheel 6})))
-   {:figwheel 8})
+   {:figwheel 6})
 
 #_(type-check!!! (spec 'RootMap {:figwheel 5}) {:figwheel 5})
 
@@ -457,7 +491,7 @@
 
   
   (l/run* [q]
-          (l/membero [:figwheel q] (seqify {:figwheel {:server-port 5}})))
+          (membero [:figwheel q] (seqify {:figwheel {:server-port 5}})))
 
   (l/run* [q]
           (l/fresh [a t b err]
@@ -510,17 +544,17 @@
   (l/defna type-path [root-type path typed]
     ([_ [] []])
     ([rt [k . xs] [[k :- [rt :> o]] . res]]
-     (l/membero [k :- [rt :> o]] grammer)
+     (membero [k :- [rt :> o]] grammer)
      (type-path o xs res)))
 
   (l/defna type-path2 [root-type path typed]
     ([_ [] []])
     ([rt [k] [rt o]]
-     (l/membero [k :- [rt :> o]] grammer))
+     (membero [k :- [rt :> o]] grammer))
     ([rt [k . xs] [rt . res]]
      (l/fresh [o]
               (type-path2 o xs res)
-              (l/membero [k :- [rt :> o]] grammer)))
+              (membero [k :- [rt :> o]] grammer)))
     ([rt [k . xs] [k . res]] ;; error path
      (l/fresh [o]
               (type-path2 o xs res))))
@@ -531,7 +565,7 @@
                     ; :cljsbuild {:repl-listen-port "asdf"}
                                    })pths)
                    (mapper l/firsto pths firsts)
-                   (l/membero single-path firsts)
+                   (membero single-path firsts)
                    (type-path2 'RootMap single-path path-type)
                    (l/== q path-type)))
 
@@ -540,3 +574,4 @@
     ([i [x . r]]
      (l/!= i x)
      (not-membero i r))))
+
