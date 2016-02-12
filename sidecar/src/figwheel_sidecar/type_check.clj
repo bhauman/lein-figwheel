@@ -188,29 +188,13 @@
 (def ^:dynamic *schema-rules* {})
 
 (defn fetch-pred [pred-type parent-type]
-  (prn *schema-rules*)
   (when-let [res (first (map last (*schema-rules* [pred-type parent-type])))]
-    [pred-type res]))
+    [pred-type res parent-type]))
 
 (defn leaf-pred? [parent-type]
   (or (fetch-pred :=  parent-type)
       (fetch-pred :== parent-type)
       (fetch-pred :=> parent-type)))
-
-(defn to-leaf-types [parent-type]
-  (prn parent-type)
-  (if-let [types (not-empty (map last (*schema-rules* [:-- parent-type])))]
-    (do
-      (prn types)
-      #_(prn (concat (filter leaf-pred? (cons parent-type types))
-                   
-                   (mapcat to-leaf-types types)
-              ))
-      (concat (filter leaf-pred? (cons parent-type types))
-              (mapcat to-leaf-types types)
-              )
-      )
-    [parent-type]))
 
 (defn all-types [parent-type]
   (let [res (map last (*schema-rules* [:-- parent-type]))]
@@ -242,15 +226,20 @@
                                                 :else :_____BAD)
                                               pred))
 
+(defn type-check-pred [pred value state]
+  (if-not (apply-pred pred value)
+    [{:Error-type :failed-predicate
+      :not (second pred)
+      :value value
+      :type-sig (:type-sig state)
+      :path     (:path state)}]
+    {:success-type (last pred)}))
+
 (defn type-check-value [parent-type value state]
-  (if-let [pred (leaf-pred? parent-type)]
-    (if-not (apply-pred pred value)
-      [{:Error-type :failed-predicate
-        :not (second pred)
-        :value value
-        :type-sig (:type-sig state)
-        :path     (:path state)}]
-      [])
+  (if-let [preds (all-predicates parent-type)]
+    (let [errors   (map #(type-check-pred % value state) preds)
+          success? (first (filter map? errors))]
+      (if success? success? (apply concat errors)))
     (throw (Exception. (str "parent-type " parent-type "has no predicate.")))))
 
 (defn compound-type? [parent-type]
@@ -259,6 +248,8 @@
 (defn get-types-from-key-parent [parent-type ky]
   (map (comp last last)
        (filter #(= parent-type (-> % last first)) (*schema-rules* [:- ky]))))
+
+
 
 #_(get-types-from-key-parent 'RootMap :figwheel)
 
@@ -309,13 +300,15 @@
       (cond
         (map? value)                      (f value)
         (or (vector? value) (seq? value)) (f (map vector (range) value))
-        :else (throw (Exception. (str "Expected compound type: " (class value) " is not a Map, Vector, or Sequence")))))))
+        :else (throw (Exception. (str "Expected compound type: " (class value)
+                                      " is not a Map, Vector, or Sequence")))))))
 
 (defn type-checker [parent-type value state]
   (let [state (update-in state [:type-sig] conj parent-type)]
-    (if-let [errors (not-empty (type-check-value parent-type value state))]
-      errors
-      (type-checker-help parent-type value state))))
+    (let [res (type-check-value parent-type value state)]
+      (if (and (map? res) (:success-type res))
+        (type-checker-help (:success-type res) value state)        
+        res))))
 
 (def tttt (index-spec
            (spec 'RootMap

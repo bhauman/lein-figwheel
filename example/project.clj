@@ -112,7 +112,7 @@
                                     [datascript "0.14.0"]]
                     
                     :source-paths ["src" "dev"]
-                    :repl-options {:init (set! *print-length* 50)}
+                    :repl-options {:init (set! *print-length* 500)}
                     :plugins [[cider/cider-nrepl "0.10.1"]]}}
   
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}

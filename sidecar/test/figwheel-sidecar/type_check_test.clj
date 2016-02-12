@@ -76,8 +76,12 @@
                 (spec 'Five 5)
                 (spec 'Map {})
                 (spec 'AnotherInt (ref-schema 'Integer))
+                (spec 'Cljsbuild {:server-port integer?
+                                  :server-ip string?})
                 (spec 'IntOrBool boolean?)
-                (spec 'IntOrBool (ref-schema 'AnotherInt)))
+                (spec 'IntOrBool (ref-schema 'AnotherInt))
+                (spec 'IntOrBoolOrCljs (ref-schema 'IntOrBool))
+                (spec 'IntOrBoolOrCljs (ref-schema 'Cljsbuild)))
     (is (empty? (type-checker 'String "asdf" {})))
     (is (empty? (type-checker 'Integer 6 {})))
     (is (empty? (type-checker 'Five 5 {})))
@@ -85,6 +89,13 @@
     (is (empty? (type-checker 'AnotherInt 15 {})))
     (is (empty? (type-checker 'IntOrBool true {})))
     (is (empty? (type-checker 'IntOrBool 15 {})))
+
+    (is (empty? (type-checker 'IntOrBoolOrCljs 15 {})))
+    (is (empty? (type-checker 'IntOrBoolOrCljs true {})))
+
+    (is (empty? (type-checker 'IntOrBoolOrCljs {} {})))
+    (is (empty? (type-checker 'IntOrBoolOrCljs {:server-port 12
+                                                :server-ip "asdf"} {})))
 
     (is (= (type-checker 'String :blah {})
            [{:Error-type :failed-predicate,
@@ -122,8 +133,31 @@
              :value :blah,
              :type-sig '(IntOrBool),
              :path nil}]))
-    
+    (is (= (type-checker 'IntOrBoolOrCljs :blah {})
+           [{:Error-type :failed-predicate,
+             :not boolean?,
+             :value :blah,
+             :type-sig '(IntOrBoolOrCljs),
+             :path nil}
+            {:Error-type :failed-predicate, :not :MAPP, :value :blah, :type-sig '(IntOrBoolOrCljs), :path nil}
+            {:Error-type :failed-predicate,
+             :not integer?,
+             :value :blah,
+             :type-sig '(IntOrBoolOrCljs),
+             :path nil}]))
+    (is (= (type-checker 'IntOrBoolOrCljs {:server-port "Asdf"} {})
+           [{:Error-type :failed-predicate,
+             :not integer?,
+             :value "Asdf",
+             :type-sig '(Cljsbuild:server-port IntOrBoolOrCljs),
+             :path '(:server-port)}]))
+
+    (is (=
+         ({:Error-type :unknown-key, :key :server-porter, :value "Asdf", :type-sig (IntOrBoolOrCljs), :path (:server-porter)})))
+    (type-checker 'IntOrBoolOrCljs {:server-porter "Asdf"} {})
+
     )
+
 
 
   )
