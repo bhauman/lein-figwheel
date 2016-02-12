@@ -1,14 +1,139 @@
 (ns figwheel-sidecar.type-check-test
   (:require
-   [figwheel-sidecar.type-check :as tc :refer [spec type-check!!! seqify un-seqify ref-schema pass-type-check?]]
+   [figwheel-sidecar.type-check :as tc :refer [with-schema index-spec spec type-checker type-check!!! seqify un-seqify ref-schema pass-type-check?]]
    [clojure.walk :as walk]
    [clojure.core.logic :as l]
    [clojure.test :as t :refer [deftest is run-tests]]))
 
-
 (defn test-grammer []
-    (concat
+  (index-spec
    (spec 'RootMap
+         {:cljsbuild (ref-schema 'CljsBuildOptions)
+          :figwheel  (ref-schema 'FigwheelOptions)
+          :static    :huh?})
+   (spec 'CljsBuildOptions
+         {:repl-listen-port integer?
+          :crossovers       integer?})
+   (spec 'FigwheelOptions
+         {:server-port integer?
+          :server-ip   string?
+          :source-paths [string?]})))
+
+(deftest basic-passing
+  (with-schema (test-grammer)
+    (is (empty? (type-checker 'RootMap {} {})))
+    (is (empty? (type-checker 'RootMap {:figwheel {}} {})))
+    (is (empty? (type-checker 'RootMap {:cljsbuild {}} {})))
+    (is (empty? (type-checker 'RootMap {:static :huh?} {})))    
+    (is (empty? (type-checker 'RootMap {:figwheel {:server-port 5}} {})))
+    (is (empty? (type-checker 'RootMap {:figwheel {:server-ip "asdf"}} {})))
+    (is (empty? (type-checker 'RootMap {:figwheel {:source-paths []}} {})))
+    (is (empty? (type-checker 'RootMap {:figwheel {:source-paths ["asdf" "asdf" "asdf"]}} {})))
+    (is (empty? (type-checker 'RootMap {:cljsbuild {:repl-listen-port 5}} {})))
+    (is (empty? (type-checker 'RootMap {:cljsbuild {:crossovers 5}} {})))
+    (is (empty? (type-checker 'RootMap {:figwheel {:server-port 5
+                                                   :server-ip "asdf"
+                                                   :source-paths ["asdf" "asdf" "asdf"]}
+                                        :cljsbuild {:repl-listen-port 5
+                                                    :crossovers 5}
+                                        :static :huh?} {})))))
+
+(deftest basic-errors
+  (with-schema (test-grammer)
+    (is (= (type-checker 'RootMap 5 {})
+           [{:Error-type :failed-predicate, :not :MAPP, :value 5, :type-sig '(RootMap), :path nil}]))
+    (is (= (type-checker 'RootMap [] {})
+           '[{:Error-type :failed-predicate, :not :MAPP, :value [], :type-sig (RootMap), :path nil}]))
+    (is (= (type-checker 'RootMap {:figwheeler {}} {})
+           '({:Error-type :unknown-key, :key :figwheeler, :value {}, :type-sig (RootMap), :path (:figwheeler)})))
+    (is (= (type-checker 'RootMap {:cljsbuilder {}} {})
+           '({:Error-type :unknown-key, :key :cljsbuilder, :value {}, :type-sig (RootMap), :path (:cljsbuilder)})))
+    (is (= (type-checker 'RootMap {:figwheel {:server-porter 5}} {})
+           '({:Error-type :unknown-key,
+              :key :server-porter,
+              :value 5,
+              :type-sig (FigwheelOptions RootMap),
+              :path (:server-porter :figwheel)})))
+    (is (= (type-checker 'RootMap {:figwheel {:server-port "asdf"}} {})
+           [{:Error-type :failed-predicate,
+             :not clojure.core/integer?,
+             :value "asdf",
+             :type-sig '(FigwheelOptions:server-port FigwheelOptions RootMap),
+             :path '(:server-port :figwheel)}]))
+    (is (= (type-checker 'RootMap {:figwheel {:source-paths ["asdf" 4 "asdf"]}} {})
+           [{:Error-type :failed-predicate,
+             :not clojure.core/string?,
+             :value 4,
+             :type-sig '(FigwheelOptions:source-paths0 FigwheelOptions:source-paths FigwheelOptions RootMap),
+             :path '(1 :source-paths :figwheel)}]))))
+
+(defn boolean? [x] (or (true? x) (false? x)))
+
+(deftest base-cases
+  (with-schema (index-spec
+                (spec 'String string?)
+                (spec 'Integer integer?)
+                (spec 'Five 5)
+                (spec 'Map {})
+                (spec 'AnotherInt (ref-schema 'Integer))
+                (spec 'IntOrBool boolean?)
+                (spec 'IntOrBool (ref-schema 'AnotherInt)))
+    (is (empty? (type-checker 'String "asdf" {})))
+    (is (empty? (type-checker 'Integer 6 {})))
+    (is (empty? (type-checker 'Five 5 {})))
+    (is (empty? (type-checker 'Map {} {})))
+    (is (empty? (type-checker 'AnotherInt 15 {})))
+    (is (empty? (type-checker 'IntOrBool true {})))
+    (is (empty? (type-checker 'IntOrBool 15 {})))
+
+    (is (= (type-checker 'String :blah {})
+           [{:Error-type :failed-predicate,
+             :not clojure.core/string?,
+             :value :blah,
+             :type-sig '(String),
+             :path nil}]))
+    (is (= (type-checker 'Integer :blah {})
+           [{:Error-type :failed-predicate,
+             :not clojure.core/integer?,
+             :value :blah,
+             :type-sig '(Integer),
+             :path nil}]))
+    (is (= (type-checker 'Five :blah {})
+           [{:Error-type :failed-predicate,
+             :not 5,
+             :value :blah,
+             :type-sig '(Five),
+             :path nil}]))
+    (is (= (type-checker 'AnotherInt :blah {})
+           [{:Error-type :failed-predicate,
+             :not clojure.core/integer?,
+             :value :blah,
+             :type-sig '(AnotherInt),
+             :path nil}]))
+    ;; consolidate this into a single error?
+    (is (= (type-checker 'IntOrBool :blah {})
+           [{:Error-type :failed-predicate,
+             :not boolean?
+             :value :blah,
+             :type-sig '(IntOrBool),
+             :path nil}
+            {:Error-type :failed-predicate,
+             :not integer?
+             :value :blah,
+             :type-sig '(IntOrBool),
+             :path nil}]))
+    
+    )
+
+
+  )
+
+
+(comment
+
+  (defn test-grammer []
+    (concat
+     (spec 'RootMap
          {:cljsbuild (ref-schema 'CljsBuildOptions)
           :figwheel  (ref-schema 'FigwheelOptions)})
    (spec 'CljsBuildOptions
@@ -16,7 +141,8 @@
           :crossovers       integer?})
    (spec 'FigwheelOptions
          {:server-port integer?
-          :server-ip   string?})))
+          :server-ip   string?})
+   ))
 
 (defn every-uni? [x lis]
   (l/matche
@@ -319,6 +445,8 @@
 
 
 
+
+
 (deftest spec-test
   (is (spec 'Hey [integer?])
       ['[Hey := :SEQQ] ['Hey0 := integer?] [0 :- '[Hey :> Hey0]]])
@@ -359,3 +487,4 @@
   (is (= '(a b) (un-seqify [:SEQQ [0 'a] [1 'b]])))
   (is (= '[a b] (un-seqify [:SEQQ [0 'a] [1 'b]])))
   )
+)

@@ -5,7 +5,7 @@
    [alandipert.intension :refer [make-db]]
    [datascript.core      :refer [q]]
    [clojure.core.logic :as l]
-   [clojure.core.logic.pldb :as pldb]
+   [clojure.core.match :refer [match]]
    [clojure.test :as t :refer [deftest is run-tests]]))
 
 (def ^:dynamic *schema-rules* [])
@@ -91,8 +91,10 @@
       (cons
        [node' :=> (first s')]
        (if (empty?? s') [] (decomp node' (rest s'))))
-      (fn? 's)
+      (fn? s')
       [[node' := s']]
+      (-> s' meta :ref)
+      [[node' :-- s']]
       :else
       [[node' :== s']])))
 
@@ -161,15 +163,212 @@
          (l/== errors-out errors-in)]
         [(l/conso [:Error value :not pred?] errors-in errors-out)])]
       [(db-query [parent-type :== pred?] (schema-rules [:== parent-type]))
-      (l/conda
-       [(l/== value pred?)
-        (l/== errors-out errors-in)]
-       [(l/conso [:Error value :not pred?] errors-in errors-out)])]
+       (l/conda
+        [(l/== value pred?)
+         (l/== errors-out errors-in)]
+        [(l/conso [:Error value :not pred?] errors-in errors-out)])]
       [(db-query [parent-type :=> pred?] (schema-rules [:=> parent-type]))
        (l/conda
         [(l/firsto value pred?)
          (l/== errors-out errors-in)]
         [(l/conso [:Error value :not pred?] errors-in errors-out)])]))))
+
+;; direct implementation
+;; this is still squirrely
+
+(defn index-spec [& spc]
+  (let [spc (distinct (apply concat spc))]
+    (merge
+     (group-by second spc)
+     (group-by (fn [x] [:parent (second x) (first (nth x 2))]) (filter #(#{:?- :-} (second %)) spc))
+     (group-by (juxt second first) spc))))
+
+
+
+(def ^:dynamic *schema-rules* {})
+
+(defn fetch-pred [pred-type parent-type]
+  (prn *schema-rules*)
+  (when-let [res (first (map last (*schema-rules* [pred-type parent-type])))]
+    [pred-type res]))
+
+(defn leaf-pred? [parent-type]
+  (or (fetch-pred :=  parent-type)
+      (fetch-pred :== parent-type)
+      (fetch-pred :=> parent-type)))
+
+(defn to-leaf-types [parent-type]
+  (prn parent-type)
+  (if-let [types (not-empty (map last (*schema-rules* [:-- parent-type])))]
+    (do
+      (prn types)
+      #_(prn (concat (filter leaf-pred? (cons parent-type types))
+                   
+                   (mapcat to-leaf-types types)
+              ))
+      (concat (filter leaf-pred? (cons parent-type types))
+              (mapcat to-leaf-types types)
+              )
+      )
+    [parent-type]))
+
+(defn all-types [parent-type]
+  (let [res (map last (*schema-rules* [:-- parent-type]))]
+    (distinct (cons parent-type (concat res (mapcat all-types res))))))
+
+(defn all-predicates [parent-type]
+  (keep leaf-pred? (all-types parent-type)))
+
+#_(with-schema (index-spec (spec 'Integer integer?)
+                         (spec 'AnotherInt string?)
+                         (spec 'AnotherInt (ref-schema 'Integer))
+                         (spec 'AndAnotherInt (ref-schema 'AnotherInt)))
+  (doall (all-predicates 'AndAnotherInt))
+  #_(leaf-pred? 'AnotherInt)
+  #_(all-types 'AndAnotherInt)
+  #_(all-types 'AndAnotherInt)
+  #_(to-leaf-types 'AAnotherInt)
+  #_(to-leaf-types 'AnotherInt)
+  )
+
+
+(defmulti apply-pred (fn [f v] (first f)))
+(defmethod apply-pred :== [[_ pred] value] (= value pred))
+(defmethod apply-pred := [[_ pred] value] (pred value))
+(defmethod apply-pred :=> [[_ pred] value] (= (cond
+                                                (map? value) :MAPP
+                                                (seq? value) :SEQQ
+                                                (vector? value) :SEQQ
+                                                :else :_____BAD)
+                                              pred))
+
+(defn type-check-value [parent-type value state]
+  (if-let [pred (leaf-pred? parent-type)]
+    (if-not (apply-pred pred value)
+      [{:Error-type :failed-predicate
+        :not (second pred)
+        :value value
+        :type-sig (:type-sig state)
+        :path     (:path state)}]
+      [])
+    (throw (Exception. (str "parent-type " parent-type "has no predicate.")))))
+
+(defn compound-type? [parent-type]
+  (#{:SEQQ :MAPP} (second (fetch-pred :=> parent-type))))
+
+(defn get-types-from-key-parent [parent-type ky]
+  (map (comp last last)
+       (filter #(= parent-type (-> % last first)) (*schema-rules* [:- ky]))))
+
+#_(get-types-from-key-parent 'RootMap :figwheel)
+
+(declare type-checker)
+
+(defn fix-key [k parent-value]
+  (if (or (vector? parent-value) (seq? parent-value)) 0 k))
+
+#_(spec 'Root {string? string?})
+
+(defn find-keyword-predicate [parent-type]
+  (when-let [[pred-id _ [pt _ kt]] (first (*schema-rules* [:parent :?- parent-type]))]
+    (when-let [pred-func (last (first (*schema-rules* [:k= pred-id])))]
+      [pred-func kt])))
+
+#_(with-schema (index-spec (spec 'Root {string? string?}))
+  (find-keyword-predicate 'Root)
+  )
+
+;; this is what implements or
+(defn type-check-key-value [parent-type ky value state]
+  (let [next-types (get-types-from-key-parent parent-type (fix-key ky (:parent-value state)))
+        state      (update-in state [:path] conj ky)]
+    (if (not-empty next-types)
+      (let [results (map #(type-checker % value state) next-types)]
+        (if (some empty? results) [] (apply concat results)))
+      (if-let [[pred-fn next-type] (find-keyword-predicate parent-type)]
+        (if (pred-fn ky)
+          (type-checker next-type value state)
+          [{:Error-type :failed-key-predicate
+            :not pred-fn
+            :key ky
+            :value value
+            :type-sig (:type-sig state)
+            :path     (:path     state)}])
+        [{:Error-type :unknown-key
+          :key ky
+          :value value
+          :type-sig (:type-sig state)
+          :path     (:path     state)}]))))
+
+(defn type-checker-help [parent-type value state]
+  (if-not (compound-type? parent-type)
+    []
+    (let [f (partial mapcat
+                     (fn [[k v]]
+                       (type-check-key-value parent-type k v (assoc state :parent-value value))))]
+      (cond
+        (map? value)                      (f value)
+        (or (vector? value) (seq? value)) (f (map vector (range) value))
+        :else (throw (Exception. (str "Expected compound type: " (class value) " is not a Map, Vector, or Sequence")))))))
+
+(defn type-checker [parent-type value state]
+  (let [state (update-in state [:type-sig] conj parent-type)]
+    (if-let [errors (not-empty (type-check-value parent-type value state))]
+      errors
+      (type-checker-help parent-type value state))))
+
+(def tttt (index-spec
+           (spec 'RootMap
+                 {:figwheel (ref-schema 'FigOpts)
+                  :cljsbuild (ref-schema 'CljsbuildOpts)})
+           (spec 'FigOpts
+                 {:server-port integer?
+                  :server-ip   string?})
+           (spec 'CljsbuildOpts
+                 {:source-paths [string?]
+                  :output-dir   string?})
+           ))
+
+(defmacro with-schema [rules & body] 
+  `(binding [*schema-rules* ~rules] ~@body))
+
+
+(with-schema tttt
+  (type-checker 'RootMap {:figwheel {:server-port "asdf"}
+                          :cljsbuild {:source-paths ["as" 20]}} {}))
+
+(with-schema (index-spec (spec 'RootMap {string? string?}))
+  (type-checker 'RootMap {:asdfasdf "ffffff"} {})
+  )
+
+
+(with-schema (index-spec (spec 'RootMap [integer?]))
+  (type-checker 'RootMap [1 "asdf"]
+                {}))
+
+
+
+(comment
+
+  (type-checker 'RootMap {:figwheel true} {})
+
+  (type-checker 'RootMap:figwheel true {})
+  
+  (def tspec (index-spec (distinct
+                          (concat
+                           (spec 'RootMap
+                                 {:figwheel (ref-schema 'FigOpt)})
+                           (spec 'RootMap
+                                 {:figwheel string?})
+                           (spec 'FigOpt
+                                 {:aaa 3
+                                  :bbb 2})))))
+
+  (type-check-value tspec 'RootMap {})
+  )
+
+
+
 
 (l/defne norm-coll-key [coll-type coll-key norm-key]
   ([:MAPP x x])
@@ -297,59 +496,67 @@
     (l/== result [:Error :unknown-key :val bad-key])]))
 
 (defn type-check [schema-rules config parent-type type-sig path err]
-  (l/matche
-   [type-sig path err config]
-   ([[] [] errv [:MAPP]]
-    (type-check-val schema-rules parent-type [:MAPP] [] err))
-   ([[] [] errv [:SEQQ]]
-    (type-check-val schema-rules parent-type [:SEQQ] [] err))
-   ([[] [] errv [c]]
-    (l/project [c]
-               (l/== true (and (not= c :MAPP) (not= c :SEQQ))))
-    (type-check-val schema-rules parent-type [c] [] err))
-   ([[] [] errv c]
-    (l/project [c]
-               (l/== true (not (or (list? c) (vector? c) (seq? c)))))
-    (type-check-val schema-rules parent-type c [] err))
-   ([[typ . rt] [k . rk] errors [coll-type . _]]
-    (l/fresh [pred? conf-val errv conf-val-type norm-key]
-      (l/membero [k conf-val] config)
-      (norm-coll-key coll-type k norm-key)
-      (l/project
-       [norm-key]
-       (l/conda
-        [(db-query [norm-key :- [parent-type :> typ]] (schema-rules [:- norm-key]))
+  (l/conda
+   [(type-check-val schema-rules parent-type config [] [])
+    (l/matcha
+     [type-sig path err config]
+     ([[] [] [] [:MAPP]]
+      #_(type-check-val schema-rules parent-type [:MAPP] [] err))
+     ([[] [] [] [:SEQQ]]
+      #_(type-check-val schema-rules parent-type [:SEQQ] [] err))
+     ([[] [] [] [c]]
+      (l/project [c]
+                 (l/== true (and (not= c :MAPP) (not= c :SEQQ))))
+      #_(type-check-val schema-rules parent-type [c] [] err))
+     ([[] [] [] c]
+      (l/project [c]
+                 (l/== true (not (or (list? c) (vector? c) (seq? c)))))
+      #_(type-check-val schema-rules parent-type c [] err))
+     ([[typ . rt] [k . rk] errors [coll-type . rest-config]]
+      (l/fresh [pred? conf-val errv conf-val-type norm-key]
+        (l/membero [k conf-val] rest-config)
+        (norm-coll-key coll-type k norm-key)
+        (l/project
+         [norm-key]
          (l/conda
-          [(type-check-val schema-rules parent-type config [] [])
+          [(db-query [norm-key :- [parent-type :> typ]] (schema-rules [:- norm-key]))
            (type-check schema-rules conf-val typ rt rk errors)]
-          [(type-check-val schema-rules parent-type config [] errors)])]       
-        [(l/fresh [key-pred-key key-pred?]
-           (db-query [key-pred-key :?- [parent-type :> typ]] (:?- schema-rules))
-           (db-query [key-pred-key :k= key-pred?] (:k= schema-rules))
-           (l/conda
-            [(l/project [key-pred?] (l/pred k key-pred?))
-             (type-check-val schema-rules parent-type config [] [])
-             (type-check schema-rules conf-val typ rt rk errors)]
-            [(l/project [key-pred?] (l/pred k key-pred?))
-             (type-check-val schema-rules parent-type config errv errors)
-             #_(type-check schema-rules conf-val typ rt rk errv)]           
-            [(l/project [key-pred?]
-                        (l/project [k]
-                                   (l/== true (not (key-pred? k)))))
+          [(l/fresh [key-pred-key key-pred?]
+             (db-query [key-pred-key :?- [parent-type :> typ]] (:?- schema-rules))
+             (db-query [key-pred-key :k= key-pred?] (:k= schema-rules))
+             (l/conda
+              [(l/project [key-pred?] (l/pred k key-pred?))
+               (type-check-val schema-rules parent-type config [] [])
+               (type-check schema-rules conf-val typ rt rk errors)]
+              [(l/project [key-pred?] (l/pred k key-pred?))
+               (type-check-val schema-rules parent-type config errv errors)
+               #_(type-check schema-rules conf-val typ rt rk errv)]           
+              [(l/project [key-pred?]
+                          (l/project [k]
+                                     (l/== true (not (key-pred? k)))))
+               (l/== rt [])
+               (l/== rk [])
+               (l/== errors [[:Error :key-doesnt-match-pred :k k :pred key-pred?]])]))]
+          [(l/fresh [unknown-key error-res]
+             ;; close out values
+             (unknown-key-error schema-rules parent-type typ k conf-val error-res)
              (l/== rt [])
              (l/== rk [])
-             (l/== errors [[:Error :key-doesnt-match-pred :k k :pred key-pred?]])]))]
-        [(l/fresh [unknown-key error-res]
-          ;; close out values
-           (unknown-key-error schema-rules parent-type typ k conf-val error-res)
-           (l/== rt [])
-           (l/== rk [])
-           (l/== errors [error-res])
-           #_(l/== errors [[:Error :unknown-key :val k]])
-           )])        )
-      ))))
+             (l/== errors [error-res])
+             #_(l/== errors [[:Error :unknown-key :val k]])
+             )])))))]
+   [(type-check-val schema-rules parent-type config [] err)
+    (l/== type-sig [])
+    (l/== path [])
+    ]))
 
-(type-check!!!
+
+#_(type-check!!!
+ (spec 'RootMap {:figwheel 3})
+ {:figwheel 3})
+
+
+#_(type-check!!!
  (distinct
   (concat
    (spec 'RootMap
@@ -362,6 +569,9 @@
    ))
  {:figwheel {:aaa 3}})
 
+
+
+
 #_(type-check!!! (spec 'RootMap
                        {:figwheel {string? integer?}
                         :cljsbuild {:forest {:aaa 5 :bbb 6}
@@ -371,12 +581,9 @@
                   :cljsbuild {:forst 4}
                   })
 
-(defn index-spec [spc]
-  (merge
-   (group-by second spc)
-   (group-by (juxt second first) spc)))
 
-(index-spec (spec 'ROOT
+
+#_(index-spec (spec 'ROOT
                   {:figwheel {:asdf 1
                               :bbb 3}
                    :cljsbuild {:asaa integer?}}))

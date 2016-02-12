@@ -104,6 +104,7 @@
                                     [org.clojure/tools.nrepl "0.2.12"]
                                     
                                     [prismatic/schema "1.0.4"]
+                                    [org.clojure/core.match "0.3.0-alpha4"]
                                     [org.clojure/core.logic "0.8.10"]
                                     [clj-fuzzy "0.3.1"]
                                     [fipp "0.6.4"]
