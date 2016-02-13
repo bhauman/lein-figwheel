@@ -8,7 +8,7 @@
    [clojure.core.match :refer [match]]
    [clojure.test :as t :refer [deftest is run-tests]]))
 
-(def ^:dynamic *schema-rules* [])
+(def ^:dynamic *schema-rules* nil)
 
 (defmacro with-schema [rules & body] 
   `(binding [*schema-rules* ~rules] ~@body))
@@ -97,8 +97,6 @@
      (group-by second spc)
      (group-by (fn [x] [:parent (second x) (first (nth x 2))]) (filter #(#{:?- :-} (second %)) spc))
      (group-by (juxt second first) spc))))
-
-(def ^:dynamic *schema-rules* {})
 
 (defn fetch-pred [pred-type parent-type]
   (when-let [res (first (map last (*schema-rules* [pred-type parent-type])))]
@@ -306,6 +304,8 @@
     [(misspelled-key parent-type bad-key value)
      (misplaced-key  root-type parent-type bad-key value)
      (misspelled-misplaced-key root-type parent-type bad-key value)])))
+
+
 
 #_(with-schema (index-spec (spec 'Root {:figwheel string?
                                       :forest integer?
