@@ -2,11 +2,7 @@
   (:require
    [clj-fuzzy.metrics :as metrics]
    [clojure.walk :as walk]
-   [alandipert.intension :refer [make-db]]
-   [datascript.core      :refer [q]]
-   [clojure.core.logic :as l]
-   [clojure.core.match :refer [match]]
-   [clojure.test :as t :refer [deftest is run-tests]]))
+   [clojure.core.logic :as l]))
 
 (def ^:dynamic *schema-rules* nil)
 
