@@ -24,6 +24,19 @@
     (cons :SEQQ (map vector (range) (map seqify coll)))
     :else coll))
 
+(defn map?? [x]
+  (and (or (seq? x) (vector? x))
+       (= (first x) :MAPP)))
+
+(defn list?? [x]
+    (and (or (seq? x) (vector? x))
+         (= (first x) :SEQQ)))
+
+(defn empty?? [x]
+  (and (or (map?? x)
+           (list?? x))
+       (empty? (rest x))))
+
 (defn prep-key [k]
   (if (fn? k)
     (keyword (str "pred-key_" (hash k)))
@@ -78,11 +91,23 @@
 (defn type-gen [node k]
   (symbol (str (name node) k)))
 
-(defn spec [type & body]
-  (->> body
-       (map #(#'decompose type-gen type (seqify %)) )
-       (apply concat)
-       distinct))
+(defn spec [type body]
+  (distinct (#'decompose type-gen type (seqify body))))
+
+(defn or-spec [root & body]
+  (let [syms (mapv (fn [a] (symbol (str (name root) "||" a)))
+                   (range (count body)))]
+    (distinct
+     (concat
+      (mapcat (fn [x b]
+             (if (-> b meta :ref)
+               (spec root b)
+               (spec root (ref-schema x)))) syms body)
+      (mapcat
+       (fn [x b]
+         (when-not (-> b meta :ref)
+           (spec x b)))
+       syms body)))))
 
 ;; Direct Implementation
 ;; this is still squirrely
@@ -95,8 +120,8 @@
      (group-by (juxt second first) spc))))
 
 (defn fetch-pred [pred-type parent-type]
-  (when-let [res (first (map last (*schema-rules* [pred-type parent-type])))]
-    [pred-type res parent-type]))
+  (if-let [res (not-empty (map last (*schema-rules* [pred-type parent-type])))]
+    [pred-type (first res) parent-type] ))
 
 (defn leaf-pred? [parent-type]
   (or (fetch-pred :=  parent-type)
@@ -122,7 +147,6 @@
   #_(to-leaf-types 'AnotherInt)
   )
 
-
 (defmulti apply-pred (fn [f v] (first f)))
 (defmethod apply-pred :== [[_ pred] value] (= value pred))
 (defmethod apply-pred := [[_ pred] value] (pred value))
@@ -142,14 +166,16 @@
                  :path     (:path state)}]
       [(if (not= (-> state :type-sig first)
                  (last pred))
-         (assoc error :sub-type (last pred))   error)])
+         (assoc error :sub-type (last pred)) error)])
     {:success-type (last pred)}))
 
 (defn type-check-value [parent-type value state]
   (if-let [preds (all-predicates parent-type)]
     (let [errors   (map #(type-check-pred % value state) preds)
-          success? (first (filter map? errors))]
-      (if success? success? (apply concat errors)))
+          success? (filter map? errors)]
+      (if (not-empty success?)
+        {:success-types (map :success-type success?)}
+        (apply concat errors)))
     (throw (Exception. (str "parent-type " parent-type "has no predicate.")))))
 
 (defn compound-type? [parent-type]
@@ -206,8 +232,15 @@
 (defn type-checker [parent-type value state]
   (let [state (update-in state [:type-sig] conj parent-type)]
     (let [res (type-check-value parent-type value state)]
-      (if (and (map? res) (:success-type res))
-        (type-checker-help (:success-type res) value state)        
+      (if (and (map? res) (:success-types res))
+        (let [errors-list (mapv #(type-checker-help % value state) (:success-types res))
+              success (first (filter empty? errors-list))]
+          (prn (:success-types res))
+          (prn errors-list)
+          (prn success)
+          (if success
+            success
+            (apply concat errors-list)))
         res))))
 
 (def tttt (index-spec
@@ -308,7 +341,7 @@
                                       :other {:thing 5}}))
   (doall (unknown-key-error-help 'Root 'Root :fighweel "asdf"))
   (doall (unknown-key-error-help 'Root 'Root:other :figwheel "asdf"))
-  (doall (misspelled-misplaced-key 'Root 'Root :thinge 5))
+  #_(doall (misspelled-misplaced-key 'Root 'Root :thinge 5))
   )
 
 

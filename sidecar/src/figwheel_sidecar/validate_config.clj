@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.validate-config
   (:require
-   [figwheel-sidecar.type-check :refer [spec ref-schema named? type-check!!!]]
+   [figwheel-sidecar.type-check :refer [spec ref-schema named? type-checker index-spec with-schema]]
    [clojure.string :as string]))
 
 (defn boolean? [x] (or (true? x) (false? x)))
@@ -23,8 +23,6 @@
 (def closure-warning? (enum :error :warning :off))
 (def javascript-lang? (enum :ecmascript3 :ecmascript5 :ecmascript5-strict))
 (def anon-fn-naming-policy? (enum :off :unmapped :mapped))
-
-
 
 (def CompilerWarningsSpec
   (->>
@@ -83,8 +81,7 @@
        (into {})))
 
 (def schema-rules
-  (distinct
-   (concat
+  (index-spec
     (spec 'RootMap
           {:figwheel  (ref-schema 'FigwheelOptions)
            :cljsbuild (ref-schema 'CljsbuildOptions)})
@@ -95,14 +92,18 @@
            :server-ip         string?
            :css-dirs          [string?]
            :ring-handler      named?
-           :reload-clj-files  boolean?
+           :reload-clj-files  (ref-schema 'ReloadCljFiles)
            :open-file-command string?
            :repl              boolean?
            :nrepl-port        integer?
            :nrepl-middleware  [named?]})
-    (spec 'FigwheelOptions
-          {:reload-clj-files {:clj  boolean?
-                              :cljc boolean?}})
+    (spec 'ReloadCljFiles
+          (ref-schema 'Boolean)
+          (ref-schema 'ReloadCljFilesMap))
+    (spec 'Boolean boolean?)
+    (spec 'ReloadCljFilesMap
+          {:clj  boolean?
+           :cljc boolean?})
     (spec 'CljsbuildOptions
           {:builds (ref-schema 'CljsBuilds)
            :repl-listen-port     integer?
@@ -112,11 +113,10 @@
            :crossover-path       [anything?]
            :crossover-jar        boolean?})
     (spec 'CljsBuilds
-          {named? (ref-schema 'BuildOptionsMap)})
-    (spec 'CljsBuilds
-          [(ref-schema 'BuildOptionsMap)])
-    (spec 'BuildOptionsMap
-          { :figwheel        boolean?})
+          (ref-schema 'CljsBuildMap)
+          (ref-schema 'CljsBuildVector))
+    (spec 'CljsBuildVector [(ref-schema 'BuildOptionsMap)])
+    (spec 'CljsBuildMap {named? (ref-schema 'BuildOptionsMap)})
     (spec 'BuildOptionsMap
           { :id named?
             :source-paths    [string?]
@@ -127,7 +127,10 @@
             :incremental     boolean?
             :assert          boolean? })
     (spec 'FigwheelClientOptions
-          {:websocket-host      string?
+          (ref-schema 'Boolean)
+          (ref-schema 'FigwheelClientOptionsMap))
+    (spec 'FigwheelClientOptionsMap
+          {:websocket-host      (ref-schema 'WebsocketHost)
            :websocket-url       string?
            :on-jsload           named?
            :before-jsload       named?
@@ -141,82 +144,93 @@
            :load-warninged-code boolean?
            :retry-count         integer?
            :devcards            boolean?
-           :eval-fn             boolean?})
-    (spec 'FigwheelClientOptions
-          {:websocket-host      :js-client-host
-           :eval-fn             named?})
+           :eval-fn             (ref-schema 'FigwheelEvalFn)})
+    (spec 'JsClientHost :js-client-host)
+    (spec 'String       string?)
+    (spec 'WebsocketHost
+          (ref-schema 'JsClientHost)
+          (ref-schema 'String))
+    (spec 'FigwheelEvalFn
+          string?
+          named?)
     (spec 'CompilerOptions
           {:main           symbol-or-string?
-          :asset-path     string?
-          :output-to      string?
-          :output-dir     string?
-          :optimizations  optimisation?
-          :source-map     bool-or-string?
-          :verbose        boolean?
-          :pretty-print   boolean?
-          :target         :nodejs
-          :foreign-libs   [{:file string?
-                            :provides [string?]
-                            :file-min string?
-                            :requires [string?]
-                            :module-type module-type?}]
-          :externs        [string?]
-          :modules        anything? ;; TODO
-          :source-map-path string?
-          :source-map-timestamp boolean?
-          :cache-analysis    boolean?
-          :recompile-dependents boolean?
-          :static-fns  boolean?
-          :warnings    boolean?
-          :elide-asserts boolean?
-          :pseudo-names boolean?
-          :print-input-delimiter boolean?
-          :output-wrapper boolean?
-          :libs [string?]
-          :preamble [string?]
-          :hashbang  boolean?
-          :compiler-stats  boolean?
-          :language-in javascript-lang?
-          :language-out javascript-lang?
-          :closure-warnings ClosureWarningsSpec
-          :closure-defines  {anything? anything?}
-          :closure-extra-annotations [string?]
-          :anon-fn-naming-policy anon-fn-naming-policy?
-          :optimize-constants boolean?
-          :parallel-build boolean?
-          :devcards boolean?}
-          )
-    (spec 'CompilerOptions
-          {:warnings (ref-schema 'CompilerWarnings)})
-    (spec 'CompilerWarnings CompilerWarningsSpec)
-    ))
+           :asset-path     string?
+           :output-to      string?
+           :output-dir     string?
+           :optimizations  optimisation?
+           :source-map     bool-or-string?
+           :verbose        boolean?
+           :pretty-print   boolean?
+           :target         :nodejs
+           :foreign-libs   [{:file string?
+                             :provides [string?]
+                             :file-min string?
+                             :requires [string?]
+                             :module-type module-type?}]
+           :externs        [string?]
+           :modules        anything? ;; TODO
+           :source-map-path string?
+           :source-map-timestamp boolean?
+           :cache-analysis    boolean?
+           :recompile-dependents boolean?
+           :static-fns  boolean?
+           :warnings    boolean?
+           :elide-asserts boolean?
+           :pseudo-names boolean?
+           :print-input-delimiter boolean?
+           :output-wrapper boolean?
+           :libs [string?]
+           :preamble [string?]
+           :hashbang  boolean?
+           :compiler-stats  boolean?
+           :language-in javascript-lang?
+           :language-out javascript-lang?
+           :closure-warnings ClosureWarningsSpec
+           :closure-defines  {anything? anything?}
+           :closure-extra-annotations [string?]
+           :anon-fn-naming-policy anon-fn-naming-policy?
+           :optimize-constants boolean?
+           :parallel-build boolean?
+           :devcards boolean?})
+    (spec 'CompilerWarnings
+          boolean?
+          (ref-schema CompilerWarningsSpec))
+    )
 
   )
 
+
+(with-schema schema-rules
 (time
- (type-check!!! schema-rules {  :cljsbuild {
-                                            :builds [{:id "example"
-                                                      :figwheel { :websocket-host "localhost"
-                                                                  :on-jsload      'example.core/fig-reload
-                                                                 
-                                                                   ; :on-message     'example.core/on-message
-                                                                   ; :debug "asdf"
-                                                                 }
-                                                      :compiler { :main 'example.core
-                                                                 :asset-path "js/out"
-                                                                 :output-to "resources/public/js/example.js"
-                                                                 :output-dir "resources/public/js/out"
-                                                                 :source-map-timestamp true
-                                                                 :libs ["libs_src" "libs_sscr/tweaky.js"]
-                                                                 ;; :externs ["foreign/wowza-externs.js"]
-                                                                 :foreign-libs [{:file "foreign/wowza.js"
-                                                                                 :provides ["wowzacore"]}]
-                                                                 ;; :recompile-dependents true
-                                                                 :optimizations :none}
-                                                      }]}
-                              
-                              :figwheel {
-                                        :http-server-root "public" ;; default and assumes "resources" 
-                                        :server-port 3449 ;; default
-                                        :css-dirs ["resources/public/css"]
-                                        :open-file-command "emacsclient"}}))
+ 
+ (type-checker 'RootMap { :cljsbuild {
+                                      :builds [{:id "example"
+                                                :figwheel {
+                                                           :websocket-host "localhost"
+                                                           :on-jsload      'example.core/fig-reload
+                                                           
+                                        ; :on-message     'example.core/on-message
+                                                           :debug "asdf"
+                                                           }
+                                                :compiler { :main 'example.core
+                                                           :asset-path "js/out"
+                                                           :output-to "resources/public/js/example.js"
+                                                           :output-dir "resources/public/js/out"
+                                                           :source-map-timestamp true
+                                                           :libs ["libs_src" "libs_sscr/tweaky.js"]
+                                                           ;; :externs ["foreign/wowza-externs.js"]
+                                                           :foreign-libs [{:file "foreign/wowza.js"
+                                                                           :provides ["wowzacore"]}]
+                                                           ;; :recompile-dependents true
+                                                           :optimizations :none}
+                                                }]}
+                         
+                         :figwheel {
+                                    :http-server-root "public" ;; default and assumes "resources" 
+                                    :server-port 3449 ;; default
+                                    :css-dirs ["resources/public/css"]
+                                    :open-file-command "emacsclient"}}
+               {}))
+  )
+

@@ -1,9 +1,8 @@
 (ns figwheel-sidecar.type-check-test
   (:require
    [figwheel-sidecar.type-check :as tc :refer [parents-for-type get-paths-for-type
-                                               with-schema index-spec spec type-checker type-check!!! seqify un-seqify ref-schema pass-type-check?]]
+                                               with-schema index-spec or-spec spec type-checker seqify ref-schema]]
    [clojure.walk :as walk]
-   [clojure.core.logic :as l]
    [clojure.test :as t :refer [deftest is testing run-tests]]))
 
 (deftest seqify-test
@@ -96,10 +95,10 @@
                 (spec 'AnotherInt (ref-schema 'Integer))
                 (spec 'Cljsbuild {:server-port integer?
                                   :server-ip string?})
-                (spec 'IntOrBool
+                (or-spec 'IntOrBool
                       boolean?
                       (ref-schema 'AnotherInt))
-                (spec 'IntOrBoolOrCljs
+                (or-spec 'IntOrBoolOrCljs
                       (ref-schema 'IntOrBool)
                       (ref-schema 'Cljsbuild))
                 )
@@ -151,7 +150,8 @@
              :not boolean?
              :value :blah,
              :type-sig '(IntOrBool),
-             :path nil}
+             :path nil
+             :sub-type 'IntOrBool||0}
             {:Error-type :failed-predicate,
              :not integer?
              :value :blah,
@@ -160,22 +160,22 @@
              :sub-type 'Integer}]))
     (is (= (type-checker 'IntOrBoolOrCljs :blah {})
            [{:Error-type :failed-predicate,
-             :not boolean?,
-             :value :blah,
-             :type-sig '(IntOrBoolOrCljs),
-             :path nil
-             :sub-type 'IntOrBool}
-            {:Error-type :failed-predicate,
              :not :MAPP,
              :value :blah,
              :type-sig '(IntOrBoolOrCljs),
-             :path nil
+             :path nil,
              :sub-type 'Cljsbuild}
+            {:Error-type :failed-predicate,
+             :not boolean?,
+             :value :blah,
+             :type-sig '(IntOrBoolOrCljs),
+             :path nil,
+             :sub-type 'IntOrBool||0}
             {:Error-type :failed-predicate,
              :not integer?,
              :value :blah,
              :type-sig '(IntOrBoolOrCljs),
-             :path nil
+             :path nil,
              :sub-type 'Integer}]))
     (is (= (type-checker 'IntOrBoolOrCljs {:server-port "Asdf"} {})
            [{:Error-type :failed-predicate,
@@ -205,14 +205,52 @@
                               :count integer?})
                 (spec 'Int (ref-schema 'Intly))
                 (spec 'Integer (ref-schema 'Int))
-                (spec 'Wha
-                      (ref-schema 'Integer)
-                      (ref-schema 'String)))
+                (or-spec 'Wha
+                         (ref-schema 'Integer)
+                         (ref-schema 'String)))
     (is (= (parents-for-type 'Yep) [[:base 'Intly]]))
     (is (= (parents-for-type 'Intly) [[:intly 'Cljs] [:wow 'Cljs]]))
     (is (empty? (parents-for-type 'Intlyy)))
     (is (= (get-paths-for-type 'Root 'Cljs) [[:cljs]]))
     (is (= (get-paths-for-type 'Root 'Yep) [[:cljs :intly :base] [:cljs :wow :base]]))))
+
+(deftest immeditate-or
+  (with-schema (index-spec
+                (or-spec 'Root
+                         {:wow 5}
+                         {:wham 7}))
+    (is (empty? (type-checker 'Root {:wow 5} {})))
+    (is (empty? (type-checker 'Root {:wham 7} {})))
+    (is (not-empty (type-checker 'Root {:wow 6} {})))
+    (is (not-empty (type-checker 'Root {:wham 6} {}))))
+
+  (with-schema (index-spec
+                (or-spec 'Root 4 5))
+    (empty? (type-checker 'Root  5 {}))
+    (empty? (type-checker 'Root  4 {}))
+    (not-empty (type-checker 'Root 6 {})))
+
+  (with-schema
+    (index-spec
+     (or-spec 'Root string? symbol?))
+    (empty? (type-checker 'Root 'asdf {}))
+    (empty? (type-checker 'Root "asdf" {}))
+    (type-checker 'Root 5 {})
+    (is (= (type-checker 'Root 5 {})
+           [{:Error-type :failed-predicate, :not string?, :value 5, :type-sig '(Root), :path nil, :sub-type 'Root||0}
+            {:Error-type :failed-predicate, :not symbol?, :value 5, :type-sig '(Root), :path nil, :sub-type 'Root||1}])))
+  
+  (with-schema
+    (index-spec (or-spec 'Root
+                         [{:wow 5}]
+                         {:yep {:wow 5}}))
+    (is (empty? (type-checker 'Root [{:wow 5}] {})))
+    (is (empty? (type-checker 'Root {:yep {:wow 5}} {})))
+    (type-checker 'Root :blah {})
+    )
+  
+  )
+
 
 (deftest unknown-key-errors
   (with-schema (test-grammer)
@@ -246,10 +284,7 @@
              :correction :crossovers,
              :correct-type '[CljsBuildOptions :> CljsBuildOptions:crossovers],
              :correct-paths [[:cljsbuild :crossovers]],
-             :confidence :high}]))
-      )
-    
-    
+             :confidence :high}])))
     
     )
   )
