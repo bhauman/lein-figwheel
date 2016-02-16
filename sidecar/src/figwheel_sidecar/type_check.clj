@@ -5,14 +5,15 @@
    [clj-fuzzy.metrics :as metrics]
    [clojure.walk :as walk]
    [clojure.string :as string]
-   [clojure.core.logic :as l]))
+   [clojure.set :refer [difference]]
+   #_[clojure.core.logic :as l]))
 
 (def ^:dynamic *schema-rules* nil)
 
 (defmacro with-schema [rules & body] 
   `(binding [*schema-rules* ~rules] ~@body))
 
-(defn db-query [q db]
+#_(defn db-query [q db]
   (fn [a]
     (l/to-stream
      (map #(l/unify a % q) db))))
@@ -112,8 +113,8 @@
            (spec x b)))
        syms body)))))
 
-(defn required-keys [root & key-list]
-  (mapv (fn [k] [k :required-by root]) key-list))
+(defn requires-keys [root & key-list]
+  (mapv (fn [k] [root :requires-key k]) key-list))
 
 #_(required-keys 'FigOpts :hello :goodbye)
 
@@ -124,10 +125,11 @@
   ([root type-doc]
    (doc root type-doc [])))
 
-#_(doc 'FigOpts "This is a cool option"
-     {
-      :hello ":hello is needed to say hello"
-      :good ":good is needed to say goodbye"})
+#_(index-spec
+ (doc 'FigOpts "This is a cool option"
+      {
+       :hello ":hello is needed to say hello"
+       :good ":good is needed to say goodbye"})) 
 
 ;; Direct Implementation
 ;; this is still squirrely
@@ -237,6 +239,28 @@
           :type-sig (:type-sig state)
           :path     (:path     state)}]))))
 
+(defn required-keys-for-type [parent-type]
+  (set (for [[t _ k]  (*schema-rules* [:requires-key parent-type])
+                  :when (= t parent-type)]
+              k)))
+
+#_(index-spec (requires-keys 'Root :figwheel :hi))
+
+#_(difference #{:a :b :c} #{:c})
+
+(defn check-required-keys [parent-type value state]
+  (if (map? value)
+    (let [res (difference (required-keys-for-type parent-type) (set (keys value)))]
+      (mapv (fn [x]
+              {:Error-type :missing-required-key
+               :path (cons x (:path state))
+               :key x
+               :value nil
+               :parent-value value
+               :type-sig (:type-sig state)
+               }) res))
+    []))
+
 (defn type-checker-help [parent-type value state]
   (if-not (compound-type? parent-type)
     []
@@ -244,7 +268,7 @@
                      (fn [[k v]]
                        (type-check-key-value parent-type k v (assoc state :parent-value value))))]
       (cond
-        (map? value)                      (f value)
+        (map? value)                      (concat (check-required-keys parent-type value state) (f value))
         (or (vector? value) (seq? value)) (f (map vector (range) value))
         :else (throw (Exception. (str "Expected compound type: " (class value)
                                       " is not a Map, Vector, or Sequence")))))))
@@ -259,7 +283,6 @@
             success
             (apply concat errors-list)))
         res))))
-
 
 ;; more sophisticated errors
 
@@ -343,7 +366,7 @@
 (defmulti handle-type-error-groupp (fn [root-type [typ errors]] typ))
 
 (defmethod  handle-type-error-groupp :default [root-type [typ errors]]
-  (map #(assoc % :Error (:Error-type %)) errors))
+  (map #(assoc % :Error typ) errors))
 
 (defmethod  handle-type-error-groupp :failed-predicate [root-type [typ errors]]
   (let [same-path-errors (group-by :path errors)]
@@ -352,6 +375,7 @@
                 [(assoc {:Error :combined-failed-predicate
                          :path (:path (first err'))
                          :value (:value (first err'))
+                         :type-sig (:type-sig (first err'))
                          :not (mapv :not err')} :originals err')]
                 [(assoc (first err') :Error :failed-predicate)]))
             same-path-errors))  )
@@ -363,6 +387,7 @@
               (map #(assoc %
                            :path (:path error)
                            :value (:value error)
+                           :type-sig (:type-sig error)
                            :orig-error error) err')))
         errors))
 
@@ -398,6 +423,15 @@
 
 (defmulti error-help-message :Error)
 
+(defmethod error-help-message :missing-required-key [{:keys [path key]}]
+  [:group "Missing required key "
+   (color (pr-str key) :bold)
+   " at path "
+   (color (pr-str (vec (reverse (rest path)))) :bold)]
+  )
+
+#_(pp)
+
 (defmethod error-help-message :failed-predicate [{:keys [path not value]}]
   [:group "The key "
    (color (pr-str (first path)) :bold)
@@ -414,9 +448,9 @@
                            (map #(explain-predicate-failure % value) (butlast not)))))
    " or " (color (pr-str (last not)) :green)])
 
-(error-help-message {:Error :combined-failed-predicate :path [:boolean] :value 5 :not [true false]})
+#_(error-help-message {:Error :combined-failed-predicate :path [:boolean] :value 5 :not [true false]})
 
-(pp)
+#_(pp)
 
 (defmethod error-help-message :misspelled-key [{:keys [key correction]}]
   [:group
@@ -441,35 +475,118 @@
        "}")]
     leaf-node))
 
-(defn print-path-error [{:keys [path orig-config] :as error} leaf-node ]
-  [:group
-   "------- Figwheel Configuration Error -------"
-   :break
-   (error-help-message error)
-   :break
-   :break
-   [:nest 2
-    (print-path (reverse (rest path))
-              leaf-node
-              orig-config)]
-   :break
-   :line
-])
+(defn print-path-error
+  ([{:keys [path orig-config] :as error} leaf-node document]
+   [:group
+    "------- Figwheel Configuration Error -------"
+    :break
+    (error-help-message error)
+    :break
+    :break
+    [:nest 2
+     (print-path (reverse (rest path))
+                 leaf-node
+                 orig-config)]
+    :break
+    :break
+    document
+    :line
+    ])
+  ([error leaf]
+   (print-path-error error leaf "")))
 
 ;; Todos
 
-;; add required keys
 ;; add documentation
 
 ;; cover all current errors with messages
+;; handle printing vector errors
+
 ;; move current enum functions into type system in config_validation
 ;; look at adding smart documentation fns
 ;; conditional predicate i.e. conditional on neighbor or sister config parameters
 ;; tighten up unknown-key errors to include information about current parent config
 
+(defn type-doc [parent-type]
+  (when-let [[_ _ d] (first (*schema-rules* [:doc-type parent-type]))]
+    d))
+
+(declare key-doc)
+
+(defn find-key-doc [parent-type ky]
+  (doall
+   (concat
+    (for [[_ _ [pt _ next-type]] (*schema-rules* [:- ky])
+          :when (and pt (= pt parent-type))]
+      (or (type-doc next-type)
+          (first (find-key-doc next-type ky))))
+    (for [[_ _ next-type]  (*schema-rules* [:-- parent-type])
+          :when next-type]
+      (or (type-doc next-type)
+          (first (find-key-doc next-type ky)))))))
+
+(defn key-doc [parent-type ky]
+  (first (concat
+          (for [[_ _ k d] (*schema-rules* [:doc-key parent-type])
+                :when (and k (= ky k))]
+            d)
+          (find-key-doc parent-type ky))))
+
+(defn docs-for [parent-type ky]
+  (into {}
+        (filter
+         (fn [[k d]] d)
+         [[:typ (type-doc parent-type)]
+          [:ky  (key-doc parent-type ky)]])))
+
+#_(with-schema (index-spec
+              (concat
+               (doc 'Root "The root doc"
+                    {:fan "How many fans do you have."})
+               (spec 'Boot
+                     {:root (ref-schema 'Rap)}
+                     )
+               (spec 'Rap (ref-schema 'Batt))
+               (spec 'Batt (ref-schema 'Root)))
+              )
+  (type-doc 'Root)
+  (key-doc 'Root :fan)
+  (docs-for 'Boot :root)
+  #_(key-doc 'Boot :root)
+
+  #_(doall (*schema-rules* [:doc-key 'Rap]))
+  )
+
+(defn document-key [parent-type k]
+  (let [{:keys [ky] :as p} (docs-for parent-type k)]
+    (if ky
+      [:group
+       "Doc for key " (color (pr-str k) :bold) 
+       :break
+       [:nest 2 (color ky
+                       :underline)]
+       :break]
+      "")))
+
+#_ (pp)
+
 (defmulti print-error :Error)
 
-(defmethod print-error :failed-predicate [{:keys [path value] :as error}]
+(defmethod print-error :missing-required-key [{:keys [path value type-sig] :as error}]
+  (pprint-document (print-path-error error
+                                     [:group
+                                      (color (pr-str (first path)) :red)
+                                      [:line " <- "]
+                                      (color (str "^ required key " (pr-str (first path)) " is missing")
+                                             :underline :magenta)
+                                      :line]
+                                     (document-key (first type-sig) (first path))
+                                     )
+                   {:width 40}))
+
+#_(pp)
+
+(defmethod print-error :failed-predicate [{:keys [path value type-sig] :as error}]
   (pprint-document (print-path-error error
                                      [:group
                                       (color (pr-str (first path)) :bold)
@@ -480,10 +597,11 @@
                                       [:line " <- "]
                                       (color (str "^ key " (pr-str (first path)) " has wrong value")
                                              :underline :magenta)
-                                      :line])
+                                      :line]
+                                     (document-key (first (rest type-sig)) (first path)))
                    {:width 40}))
 
-(defmethod print-error :combined-failed-predicate [{:keys [path value] :as error}]
+(defmethod print-error :combined-failed-predicate [{:keys [path value type-sig] :as error}]
   (pprint-document (print-path-error error
                                      [:group
                                       (color (pr-str (first path)) :bold)
@@ -494,10 +612,11 @@
                                       [:line " <- "]
                                       (color (str "^ key " (pr-str (first path)) " has wrong value")
                                              :underline :magenta)
-                                      :line])
+                                      :line]
+                                     (document-key (first (rest type-sig)) (first path)))
                    {:width 40}))
 
-(defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config] :as error}]
+(defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config type-sig] :as error}]
   (pprint-document (print-path-error error
                                      [:group
                                       (color (pr-str key) :red)
@@ -507,7 +626,8 @@
                                       [:line " <- "]
                                       (color (str "^ key " (pr-str key) " is spelled wrong")
                                              :underline :magenta)
-                                      :line])
+                                      :line]
+                                     (document-key (first type-sig) correction))
                    {:width 40}))
 
 (defn print-errors-test [config]
@@ -517,20 +637,45 @@
 
 (defn pp []
   (with-schema (index-spec
-              (spec 'RootMap {:figwheel (ref-schema 'FigOpts)})
-              (or-spec 'Boolean
-                    true
-                    false)
-              (spec 'FigOpts
-                    {:five 5
-                     :boolean (ref-schema 'Boolean)
-                     :string   string?
-                     :magical "asdf"}))
+                (spec 'RootMap {:figwheel (ref-schema 'FigOpts)})
+
+                (or-spec 'Boolean
+                         true
+                         false)
+                (spec 'OtherType
+                      {:master 4
+                       :faster 2})
+                (doc 'FigOpts "System level options for the figwheel clojure process"
+                     {:five "What happens with the number 5"
+                      :string "A String that describes a string"
+                      :magical "How magical do you want to make this?"
+                      :boolean "A boolean that tells us whether bolleans are allowed"})
+                (spec 'FigOpts
+                      {:five 5
+                       :boolean (ref-schema 'Boolean)
+                       :other   (ref-schema 'OtherType)
+                       :string   string?
+                       :magical "asdf"})
+                (doc 'OtherType "Options that describe the behavior of Other types"
+                     {:master "How amant things should we master"
+                      :faster "The number of faster things"})
+                (requires-keys 'OtherType :faster)
+                )
+
+    
   (print-errors-test {:figwheel {:five 6
                                  :string 'asdf
                                  :boolean 4
-                                 :magicl "asdf"}})))
+                                 :other {:master 4}
+                                 :magicl "asdf"}})
 
+  #_(doall (document-key 'FigOpts :other))
+    
+    )
+
+  )
+
+#_(pp)
 
 
 
