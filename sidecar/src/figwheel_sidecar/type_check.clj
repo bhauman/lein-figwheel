@@ -1,7 +1,10 @@
 (ns figwheel-sidecar.type-check
   (:require
+   [fipp.engine :refer [pprint-document]]
+   [figwheel-sidecar.ansi :refer [color]]
    [clj-fuzzy.metrics :as metrics]
    [clojure.walk :as walk]
+   [clojure.string :as string]
    [clojure.core.logic :as l]))
 
 (def ^:dynamic *schema-rules* nil)
@@ -108,6 +111,23 @@
          (when-not (-> b meta :ref)
            (spec x b)))
        syms body)))))
+
+(defn required-keys [root & key-list]
+  (mapv (fn [k] [k :required-by root]) key-list))
+
+#_(required-keys 'FigOpts :hello :goodbye)
+
+(defn doc
+  ([root type-doc kd]
+   (cons [root :doc-type type-doc]
+         (mapv (fn [[k d]] [root :doc-key k d]) kd)))
+  ([root type-doc]
+   (doc root type-doc [])))
+
+#_(doc 'FigOpts "This is a cool option"
+     {
+      :hello ":hello is needed to say hello"
+      :good ":good is needed to say goodbye"})
 
 ;; Direct Implementation
 ;; this is still squirrely
@@ -235,27 +255,13 @@
       (if (and (map? res) (:success-types res))
         (let [errors-list (mapv #(type-checker-help % value state) (:success-types res))
               success (first (filter empty? errors-list))]
-          (prn (:success-types res))
-          (prn errors-list)
-          (prn success)
           (if success
             success
             (apply concat errors-list)))
         res))))
 
-(def tttt (index-spec
-           (spec 'RootMap
-                 {:figwheel (ref-schema 'FigOpts)
-                  :cljsbuild (ref-schema 'CljsbuildOpts)})
-           (spec 'FigOpts
-                 {:server-port integer?
-                  :server-ip   string?})
-           (spec 'CljsbuildOpts
-                 {:source-paths [string?]
-                  :output-dir   string?})
-           ))
 
-
+;; more sophisticated errors
 
 (defn named? [x]
   (or (string? x) (instance? clojure.lang.Named x)))
@@ -295,7 +301,7 @@
                (not= bad-key ky)
                (similar-key 0.4 ky bad-key)
                (value-checks-out? typ value))]
-    {:Error :mispelled-key
+    {:Error :misspelled-key
      :key bad-key
      :correction ky
      :confidence :high}))
@@ -333,6 +339,198 @@
     [(misspelled-key parent-type bad-key value)
      (misplaced-key  root-type parent-type bad-key value)
      (misspelled-misplaced-key root-type parent-type bad-key value)])))
+
+(defmulti handle-type-error-groupp (fn [root-type [typ errors]] typ))
+
+(defmethod  handle-type-error-groupp :default [root-type [typ errors]]
+  (map #(assoc % :Error (:Error-type %)) errors))
+
+(defmethod  handle-type-error-groupp :failed-predicate [root-type [typ errors]]
+  (let [same-path-errors (group-by :path errors)]
+    (mapcat (fn [[p err']]
+              (if (> (count err') 1)
+                [(assoc {:Error :combined-failed-predicate
+                         :path (:path (first err'))
+                         :value (:value (first err'))
+                         :not (mapv :not err')} :originals err')]
+                [(assoc (first err') :Error :failed-predicate)]))
+            same-path-errors))  )
+
+(defmethod handle-type-error-groupp :unknown-key [root-type [typ errors]]
+  (mapcat (fn [{:keys [key type-sig value] :as error}]
+            (let [typ (first type-sig)
+                  err' (unknown-key-error-help root-type typ key value)]
+              (map #(assoc %
+                           :path (:path error)
+                           :value (:value error)
+                           :orig-error error) err')))
+        errors))
+
+(defn type-check [root-type value]
+  (if-let [results (not-empty (type-checker root-type value {}))]
+    (let [res-groups (group-by :Error-type results)]
+      (doall
+       (mapcat (fn [[typ errors]] (handle-type-error-groupp root-type [typ errors]))
+           res-groups)))
+    []))
+
+#_(with-schema (index-spec
+                (spec 'Figwheel {:figwheel (ref-schema 'Boolean)
+                                 :cljsbuild (ref-schema 'Boolean)})
+                (or-spec 'Boolean true false))
+    (doall (type-check 'Figwheel {:figheel true
+                                  :cljsbuild 5})))
+
+;; error messages
+
+(defmulti predicate-explain (fn [pred _] pred))
+
+(defmethod predicate-explain string? [_ value] "String")
+(defmethod predicate-explain named? [_ value] "String, Keyword, or Symbol")
+
+(defmulti explain-predicate-failure
+  (fn [pred _] (if (fn? pred) ::pred-function pred)))
+
+(defmethod explain-predicate-failure :default [pred value] (pr-str pred))
+(defmethod explain-predicate-failure ::pred-function [pred value] (predicate-explain pred value))
+(defmethod explain-predicate-failure :MAPP [pred value] "Map")
+(defmethod explain-predicate-failure :SEQQ [pred value] "Sequence")
+
+(defmulti error-help-message :Error)
+
+(defmethod error-help-message :failed-predicate [{:keys [path not value]}]
+  [:group "The key "
+   (color (pr-str (first path)) :bold)
+   " has the wrong value. It should be a "
+   (color (explain-predicate-failure not value) :green)])
+
+(defmethod error-help-message :combined-failed-predicate [{:keys [path not value]}]
+  [:group "The key "
+   (color (pr-str (first path))
+          :bold)
+   " has the wrong value. It can one of the following: "
+   (cons :span (interpose ", "
+                      (map #(color % :green)
+                           (map #(explain-predicate-failure % value) (butlast not)))))
+   " or " (color (pr-str (last not)) :green)])
+
+(error-help-message {:Error :combined-failed-predicate :path [:boolean] :value 5 :not [true false]})
+
+(pp)
+
+(defmethod error-help-message :misspelled-key [{:keys [key correction]}]
+  [:group
+   "The key "
+   (color (pr-str key) :bold)
+   " is spelled wrong. It should be "
+   (color (pr-str correction) :green)])
+
+;; printing
+
+(defn print-path [[x & xs] leaf-node edn]
+  (if (and x (get edn x))
+    [:group (if (and (not (map? edn)) (integer? x))
+              "[{"
+              (str (pr-str x ) " {"))
+     [:nest 2
+      :line
+      (print-path xs leaf-node (get edn x))
+      ]
+     (if (and (not (map? edn)) (integer? x))
+       "}]"
+       "}")]
+    leaf-node))
+
+(defn print-path-error [{:keys [path orig-config] :as error} leaf-node ]
+  [:group
+   "------- Figwheel Configuration Error -------"
+   :break
+   (error-help-message error)
+   :break
+   :break
+   [:nest 2
+    (print-path (reverse (rest path))
+              leaf-node
+              orig-config)]
+   :break
+   :line
+])
+
+;; Todos
+
+;; add required keys
+;; add documentation
+
+;; cover all current errors with messages
+;; move current enum functions into type system in config_validation
+;; look at adding smart documentation fns
+;; conditional predicate i.e. conditional on neighbor or sister config parameters
+;; tighten up unknown-key errors to include information about current parent config
+
+(defmulti print-error :Error)
+
+(defmethod print-error :failed-predicate [{:keys [path value] :as error}]
+  (pprint-document (print-path-error error
+                                     [:group
+                                      (color (pr-str (first path)) :bold)
+                                      " "
+                                      (color (with-out-str
+                                               (print value))
+                                             :red)
+                                      [:line " <- "]
+                                      (color (str "^ key " (pr-str (first path)) " has wrong value")
+                                             :underline :magenta)
+                                      :line])
+                   {:width 40}))
+
+(defmethod print-error :combined-failed-predicate [{:keys [path value] :as error}]
+  (pprint-document (print-path-error error
+                                     [:group
+                                      (color (pr-str (first path)) :bold)
+                                      " "
+                                      (color (with-out-str
+                                               (print value))
+                                             :red)
+                                      [:line " <- "]
+                                      (color (str "^ key " (pr-str (first path)) " has wrong value")
+                                             :underline :magenta)
+                                      :line])
+                   {:width 40}))
+
+(defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config] :as error}]
+  (pprint-document (print-path-error error
+                                     [:group
+                                      (color (pr-str key) :red)
+                                      " "
+                                      (with-out-str
+                                               (print (:value orig-error)))
+                                      [:line " <- "]
+                                      (color (str "^ key " (pr-str key) " is spelled wrong")
+                                             :underline :magenta)
+                                      :line])
+                   {:width 40}))
+
+(defn print-errors-test [config]
+  #_(type-check 'RootMap config)
+  (mapv #(print-error (assoc % :orig-config config))
+        (type-check 'RootMap config)))
+
+(defn pp []
+  (with-schema (index-spec
+              (spec 'RootMap {:figwheel (ref-schema 'FigOpts)})
+              (or-spec 'Boolean
+                    true
+                    false)
+              (spec 'FigOpts
+                    {:five 5
+                     :boolean (ref-schema 'Boolean)
+                     :string   string?
+                     :magical "asdf"}))
+  (print-errors-test {:figwheel {:five 6
+                                 :string 'asdf
+                                 :boolean 4
+                                 :magicl "asdf"}})))
+
 
 
 

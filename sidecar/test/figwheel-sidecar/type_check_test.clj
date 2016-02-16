@@ -1,6 +1,7 @@
 (ns figwheel-sidecar.type-check-test
   (:require
    [figwheel-sidecar.type-check :as tc :refer [parents-for-type get-paths-for-type
+                                               required-keys
                                                with-schema index-spec or-spec spec type-checker seqify ref-schema]]
    [clojure.walk :as walk]
    [clojure.test :as t :refer [deftest is testing run-tests]]))
@@ -217,8 +218,8 @@
 (deftest immeditate-or
   (with-schema (index-spec
                 (or-spec 'Root
-                         {:wow 5}
-                         {:wham 7}))
+                         {:wham 7}
+                         {:wow 5}))
     (is (empty? (type-checker 'Root {:wow 5} {})))
     (is (empty? (type-checker 'Root {:wham 7} {})))
     (is (not-empty (type-checker 'Root {:wow 6} {})))
@@ -242,23 +243,46 @@
   
   (with-schema
     (index-spec (or-spec 'Root
+                         5
+                         string?
                          [{:wow 5}]
                          {:yep {:wow 5}}))
     (is (empty? (type-checker 'Root [{:wow 5}] {})))
     (is (empty? (type-checker 'Root {:yep {:wow 5}} {})))
-    (type-checker 'Root :blah {})
+    (is (empty? (type-checker 'Root "asdf" {})))
+    (is (empty? (type-checker 'Root 5 {})))
+    (is (= 4 (count (type-checker 'Root :blah {}))))
     )
-  
+  (with-schema (index-spec (or-spec 'Boolean :true :false))
+    (is (= 2 (count (type-checker 'Boolean 5 {})))))
+
+  (with-schema (index-spec (or-spec 'Boolean true false))
+    (is (= 2 (count (type-checker 'Boolean 5 {})))))
   )
 
+(deftest not-optional
+  (with-schema (index-spec
+                (tc/required-keys 'Root :figwheel)
+                (spec 'Root {:figwheel 1})
+                #_(spec 'Root {:figwheel string?
+                               :cljsbuild string?}))
+    (is (= (type-checker 'Root {} {})
+           [{:Error-type :missing-required-key,
+             :path '(:figwheel),
+             :key :figwheel,
+             :value nil,
+             :parent-value {},
+             :type-sig '(Root)}]))
+    )
+  )
 
 (deftest unknown-key-errors
   (with-schema (test-grammer)
     (testing "misspelled-key"
       (is (= (tc/misspelled-key 'RootMap :fighweel {})
-             [{:Error :mispelled-key, :key :fighweel, :correction :figwheel, :confidence :high}]))
+             [{:Error :misspelled-key, :key :fighweel, :correction :figwheel, :confidence :high}]))
       (is (= (tc/misspelled-key 'RootMap :figweel {:server-port 5})
-             [{:Error :mispelled-key, :key :figweel, :correction :figwheel, :confidence :high}]))
+             [{:Error :misspelled-key, :key :figweel, :correction :figwheel, :confidence :high}]))
       (is (empty? (tc/misspelled-key 'RootMap :fighweel 5)))
       (is (empty? (tc/misspelled-key 'RootMap :figweel {:server-port "asdf"})))
       (is (empty? (tc/misspelled-key 'RootMap :figwheel {:server-port 5})))
