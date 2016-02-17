@@ -446,6 +446,14 @@
 
 #_(pp)
 
+(defmethod error-help-message :failed-key-predicate [{:keys [key path not value type-sig] :as error}]
+  [:group "The key "
+   (format-key key :red)
+   " did not satisfy the key predicate. "
+   :line
+   "It should be a "
+    (color (explain-predicate-failure not value) :green)])
+
 (defmethod error-help-message :failed-predicate [{:keys [path not value type-sig] :as error}]
   (concat
    (if (parent-is-sequence? error)
@@ -701,7 +709,7 @@
                                       (str "^ key " (pr-str key) " not recognized")))
                    {:width 40}))
 
-(pp)
+#_(pp)
 (defmethod print-error :missing-required-key [{:keys [path value type-sig] :as error}]
   (pprint-document (print-path-error error
                                      [:group
@@ -773,6 +781,14 @@
                     (document-key (first correct-type) correction))
                    {:width 40}))
 
+(defmethod print-error :failed-key-predicate [{:keys [key value orig-error orig-config type-sig path] :as error}]
+  (pprint-document (print-path-error error
+                                     (format-key-value
+                                      (format-key key :red)
+                                      (format-value value)
+                                      (str "^ key " (pr-str key) " failed key predicate"))
+                                     (document-key (first (rest type-sig)) (first (rest path))))
+                   {:width 40}))
 
 (defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config type-sig] :as error}]
   (pprint-document (print-path-error error
@@ -791,7 +807,8 @@
 (defn pp []
   (with-schema (index-spec
                 (spec 'RootMap {:figwheel (ref-schema 'FigOpts)
-                                :crappers [(ref-schema 'HeyOpts)]})
+                                :crappers [(ref-schema 'HeyOpts)]
+                                })
 
                 (or-spec 'Boolean
                          true
@@ -804,9 +821,11 @@
                       :string "A String that describes a string"
                       :magical "How magical do you want to make this?"
                       :what    "Something what like is something goodness"
-                      :boolean "A boolean that tells us whether bolleans are allowed"})
+                      :boolean "A boolean that tells us whether bolleans are allowed"
+                      :builds  "A map of builds"})
                 (spec 'FigOpts
                       {:five 5
+                       :builds  {string? 5}
                        :boolean (ref-schema 'Boolean)
                        :other   (ref-schema 'OtherType)
                        :string   string?
@@ -832,6 +851,7 @@
   (print-errors-test {:figwheel {:five 6
                                  :string 'asdf
                                  :boolean 4
+                                 :builds {5 5}
                                  :what ["resources/public/js/out"
                                         "resources/public/js/out"
                                         "resources/public/js/out"]
