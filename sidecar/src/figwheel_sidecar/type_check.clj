@@ -362,6 +362,8 @@
      (misplaced-key  root-type parent-type bad-key value)
      (misspelled-misplaced-key root-type parent-type bad-key value)])))
 
+;; Printing out errors
+
 (defmulti handle-type-error-groupp (fn [root-type [typ errors]] typ))
 
 (defmethod  handle-type-error-groupp :default [root-type [typ errors]]
@@ -585,6 +587,8 @@
 ;; handle printing :correct-path with knowledge of available config
 ;;     esp. for bad path errors
 
+;; make coloring conditional
+
 ;; move current enum functions into type system in config_validation
 ;; look at adding smart documentation fns
 ;; conditional predicate i.e. conditional on neighbor or sister config parameters
@@ -798,6 +802,12 @@
                                       (str "^ key " (pr-str key) " is spelled wrong"))
                                      (document-key (first type-sig) correction))
                    {:width 40}))
+
+
+(defn print-errors [rules root config]
+  (with-schema rules
+    (mapv #(print-error (assoc % :orig-config config))
+          (type-check root config))))
 
 (defn print-errors-test [config]
   #_(type-check 'RootMap config)

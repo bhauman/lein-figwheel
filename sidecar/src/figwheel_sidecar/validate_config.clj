@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.validate-config
   (:require
    [figwheel-sidecar.ansi :refer [color]]
-   [figwheel-sidecar.type-check :refer [spec or-spec ref-schema named? type-checker index-spec with-schema]]
+   [figwheel-sidecar.type-check :refer [spec or-spec ref-schema named? type-checker type-check print-errors index-spec with-schema]]
    [fipp.engine :refer [pprint-document]]
    [clojure.string :as string]))
 
@@ -22,7 +22,7 @@
 
 (def optimisation?    (enum :none :whitespace :simple :advanced))
 (def module-type?     (enum :commonjs :amd :es6))
-(def closure-warning? (enum :error :warning :off))
+
 (def javascript-lang? (enum :ecmascript3 :ecmascript5 :ecmascript5-strict))
 (def anon-fn-naming-policy? (enum :off :unmapped :mapped))
 
@@ -50,7 +50,7 @@
     :protocol-duped-method
     :protocol-multiple-impls
     :invoke-ctor]
-   (map #(vector % boolean?))
+   (map #(vector % (ref-schema 'Boolean)))
    (into {})))
 
 (def ClosureWarningsSpec
@@ -79,113 +79,118 @@
         :undefined-variables
         :unknown-defines
         :visiblity]
-       (map #(vector % closure-warning?))
+       (map #(vector % (ref-schema 'ClosureWarningValue)))
        (into {})))
 
 (def schema-rules
   (index-spec
-    (spec 'RootMap
-          {:figwheel  (ref-schema 'FigwheelOptions)
-           :cljsbuild (ref-schema 'CljsbuildOptions)})
-    (spec 'FigwheelOptions
-          {:http-server-root  string?
-          ; :builds            (ref-schema 'FigwheelOnlyBuilds)
-           :server-port       integer?
-           :server-ip         string?
-           :css-dirs          [string?]
-           :ring-handler      named?
-           :reload-clj-files  (ref-schema 'ReloadCljFiles)
-           :open-file-command string?
-           :repl              boolean?
-           :nrepl-port        integer?
-           :nrepl-middleware  [named?]})
-    (or-spec 'ReloadCljFiles
-             boolean?
-             {:clj  boolean?
-              :cljc boolean?})
-    (spec 'CljsbuildOptions
-          {:builds (ref-schema 'CljsBuilds)
-           :repl-listen-port     integer?
-           :repl-launch-commands {named? [named?]}
-           :test-commands        {named? [named?]}
-           :crossovers           [anything?]
-           :crossover-path       [anything?]
-           :crossover-jar        boolean?})
-    (or-spec 'CljsBuilds
-             [(ref-schema 'BuildOptionsMap)]
-             {named? (ref-schema 'BuildOptionsMap)})
-    (spec 'BuildOptionsMap
-          { :id named?
-            :source-paths    [string?]
-            :figwheel        (ref-schema 'FigwheelClientOptions)
-            :compiler        (ref-schema 'CompilerOptions)
-            :notify-command  [string?]
-            :jar             boolean?
-            :incremental     boolean?
-            :assert          boolean? })
-    (or-spec 'FigwheelClientOptions
-             boolean?
-             {:websocket-host      (ref-schema 'WebsocketHost)
-              :websocket-url       string?
-              :on-jsload           named?
-              :before-jsload       named?
-              :on-cssload          named?
-              :on-compile-fail     named?
-              :on-compile-warning  named?
-              :reload-dependents   boolean?
-              :debug               boolean?
-              :autoload            boolean?
-              :heads-up-display    boolean?
-              :load-warninged-code boolean?
-              :retry-count         integer?
-              :devcards            boolean?
-              :eval-fn             (ref-schema 'FigwheelEvalFn)})
-    (or-spec 'WebsocketHost :js-client-host string?)
-    (or-spec 'FigwheelEvalFn string? named?)
-    (spec 'CompilerOptions
-          {:main           symbol-or-string?
-           :asset-path     string?
-           :output-to      string?
-           :output-dir     string?
-           :optimizations  optimisation?
-           :source-map     bool-or-string?
-           :verbose        boolean?
-           :pretty-print   boolean?
-           :target         :nodejs
-           :foreign-libs   [{:file string?
-                             :provides [string?]
-                             :file-min string?
-                             :requires [string?]
-                             :module-type module-type?}]
-           :externs        [string?]
-           :modules        anything? ;; TODO
-           :source-map-path string?
-           :source-map-timestamp boolean?
-           :cache-analysis    boolean?
-           :recompile-dependents boolean?
-           :static-fns  boolean?
-           :warnings    boolean?
-           :elide-asserts boolean?
-           :pseudo-names boolean?
-           :print-input-delimiter boolean?
-           :output-wrapper boolean?
-           :libs [string?]
-           :preamble [string?]
-           :hashbang  boolean?
-           :compiler-stats  boolean?
-           :language-in javascript-lang?
-           :language-out javascript-lang?
-           :closure-warnings ClosureWarningsSpec
-           :closure-defines  {anything? anything?}
-           :closure-extra-annotations [string?]
-           :anon-fn-naming-policy anon-fn-naming-policy?
-           :optimize-constants boolean?
-           :parallel-build boolean?
-           :devcards boolean?})
-    (or-spec 'CompilerWarnings
-          boolean?
-          (ref-schema CompilerWarningsSpec))
-
+   
+   (spec 'RootMap
+         {:figwheel  (ref-schema 'FigwheelOptions)
+          :cljsbuild (ref-schema 'CljsbuildOptions)})
+   (spec 'FigwheelOptions
+         {:http-server-root  string?
+                                        ; :builds            (ref-schema 'FigwheelOnlyBuilds)
+          :server-port       integer?
+          :server-ip         string?
+          :css-dirs          [string?]
+          :ring-handler      named?
+          :reload-clj-files  (ref-schema 'ReloadCljFiles)
+          :open-file-command string?
+          :repl              boolean?
+          :nrepl-port        integer?
+          :nrepl-middleware  [named?]})
+   (or-spec 'ReloadCljFiles
+            boolean?
+            {:clj  boolean?
+             :cljc boolean?})
+   (spec 'CljsbuildOptions
+         {:builds (ref-schema 'CljsBuilds)
+          :repl-listen-port     integer?
+          :repl-launch-commands {named? [named?]}
+          :test-commands        {named? [named?]}
+          :crossovers           [anything?]
+          :crossover-path       [anything?]
+          :crossover-jar        boolean?})
+   (or-spec 'CljsBuilds
+            [(ref-schema 'BuildOptionsMap)]
+            {named? (ref-schema 'BuildOptionsMap)})
+   (spec 'BuildOptionsMap
+         { :id named?
+          :source-paths    [string?]
+          :figwheel        (ref-schema 'FigwheelClientOptions)
+          :compiler        (ref-schema 'CompilerOptions)
+          :notify-command  [string?]
+          :jar             boolean?
+          :incremental     boolean?
+          :assert          boolean? })
+   (or-spec 'FigwheelClientOptions
+            boolean?
+            {:websocket-host      (ref-schema 'WebsocketHost)
+             :websocket-url       string?
+             :on-jsload           named?
+             :before-jsload       named?
+             :on-cssload          named?
+             :on-compile-fail     named?
+             :on-compile-warning  named?
+             :reload-dependents   boolean?
+             :debug               boolean?
+             :autoload            boolean?
+             :heads-up-display    boolean?
+             :load-warninged-code boolean?
+             :retry-count         integer?
+             :devcards            boolean?
+             :eval-fn             (ref-schema 'FigwheelEvalFn)})
+   (or-spec 'WebsocketHost :js-client-host string?)
+   (or-spec 'FigwheelEvalFn string? named?)
+   (spec 'CompilerOptions
+         {:main           symbol-or-string?
+          :asset-path     string?
+          :output-to      string?
+          :output-dir     string?
+          :optimizations  optimisation?
+          :source-map     bool-or-string?
+          :verbose        boolean?
+          :pretty-print   boolean?
+          :target         :nodejs
+          :foreign-libs   [{:file string?
+                            :provides [string?]
+                            :file-min string?
+                            :requires [string?]
+                            :module-type module-type?}]
+          :externs        [string?]
+          :modules        anything? ;; TODO
+          :source-map-path string?
+          :source-map-timestamp boolean?
+          :cache-analysis    boolean?
+          :recompile-dependents boolean?
+          :static-fns  boolean?
+          :warnings   (ref-schema 'CompilerWarnings)
+          :elide-asserts boolean?
+          :pseudo-names boolean?
+          :print-input-delimiter boolean?
+          :output-wrapper boolean?
+          :libs [string?]
+          :preamble [string?]
+          :hashbang  boolean?
+          :compiler-stats  boolean?
+          :language-in javascript-lang?
+          :language-out javascript-lang?
+          :closure-warnings (ref-schema 'ClosureWarnings)
+          :closure-defines  {anything? anything?}
+          :closure-extra-annotations [string?]
+          :anon-fn-naming-policy anon-fn-naming-policy?
+          :optimize-constants boolean?
+          :parallel-build boolean?
+          :devcards boolean?})
+   (or-spec 'CompilerWarnings
+            (ref-schema 'Boolean)
+            CompilerWarningsSpec)
+   (or-spec 'ClosureWarnings
+            (ref-schema 'Boolean)
+            ClosureWarningsSpec)
+   (or-spec 'Boolean true false)
+   (or-spec 'ClosureWarningValue :error :warning :off)
 
     
     )
@@ -193,7 +198,10 @@
 
   )
 
-(with-schema schema-rules
+
+(print-errors schema-rules 'CompilerOptions {:closure-warnings {:consta :off}})
+
+#_(with-schema schema-rules
   (time
    (type-checker 'RootMap { :cljsbuild {
                                         :builds [{:id "example"
