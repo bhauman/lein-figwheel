@@ -789,7 +789,7 @@
                                       (str "^ key " (pr-str key) " failed key predicate"))
                                      (document-key (first (rest type-sig)) (first (rest path))))
                    {:width 40}))
-
+#_(pp)
 (defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config type-sig] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
