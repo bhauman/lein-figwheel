@@ -105,7 +105,7 @@
                                     
                                     #_[prismatic/schema "1.0.4"]
                                     #_[org.clojure/core.match "0.3.0-alpha4"]
-                                    #_[org.clojure/core.logic "0.8.10"]
+                                    [org.clojure/core.logic "0.8.10"]
                                     [clj-fuzzy "0.3.1"]
                                     [fipp "0.6.4"]
                                     #_[alandipert/intension "1.0.0"]

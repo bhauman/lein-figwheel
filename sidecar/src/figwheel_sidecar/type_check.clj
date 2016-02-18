@@ -6,14 +6,14 @@
    [clojure.walk :as walk]
    [clojure.string :as string]
    [clojure.set :refer [difference]]
-   #_[clojure.core.logic :as l]))
+   [clojure.core.logic :as l]))
 
 (def ^:dynamic *schema-rules* nil)
 
 (defmacro with-schema [rules & body] 
   `(binding [*schema-rules* ~rules] ~@body))
 
-#_(defn db-query [q db]
+(defn db-query [q db]
   (fn [a]
     (l/to-stream
      (map #(l/unify a % q) db))))
@@ -24,7 +24,8 @@
     (cons :MAPP
           (map (fn [[a b]] [(seqify a) (seqify b)]) coll))
     (or (vector? coll)
-        (list? coll))
+        (list? coll)
+        (set? coll))
     (cons :SEQQ (map vector (range) (map seqify coll)))
     :else coll))
 
@@ -269,7 +270,7 @@
                        (type-check-key-value parent-type k v (assoc state :parent-value value))))]
       (cond
         (map? value)                      (concat (check-required-keys parent-type value state) (f value))
-        (or (vector? value) (seq? value)) (f (map vector (range) value))
+        (or (vector? value) (seq? value) (set? value)) (f (map vector (range) value))
         :else (throw (Exception. (str "Expected compound type: " (class value)
                                       " is not a Map, Vector, or Sequence")))))))
 
@@ -289,11 +290,13 @@
 (defn named? [x]
   (or (string? x) (instance? clojure.lang.Named x)))
 
+(defn key-distance [k other-key]
+  (metrics/dice (name k) (name other-key)) )
+
 (defn similar-key [thresh k other-key]
   (and (and (named? k)
             (named? other-key))
-       (> (metrics/dice (name k)
-                        (name other-key))
+       (> (key-distance k other-key)
           thresh)))
 
 (defn value-checks-out? [parent-type value]
@@ -318,47 +321,96 @@
               (mapv #(conj % ky) (get-paths-for-type root pt))))
              (parents-for-type typ))))
 
-(defn misspelled-key [parent-type bad-key value]
-  (for [[ky _ [_ _ typ]] (*schema-rules* [:parent :- parent-type])
-        :when (and
-               (not= bad-key ky)
-               (similar-key 0.4 ky bad-key)
-               (value-checks-out? typ value))]
-    {:Error :misspelled-key
-     :key bad-key
-     :correction ky
-     :confidence :high}))
+(defn get-paths-for-key [root type ky]
+  (filter
+   #(= (last %) ky)
+   (get-paths-for-type root type)))
+
+; possible keys
+
+(defn decendent-type [rules typ t]
+  (l/fresh [child-type]
+    (db-query [typ :-- child-type] (rules :--))
+    (l/conde
+     [(l/== t child-type)]
+     [(decendent-type rules child-type t)])))
+
+(defn keys-for-parent-type [rules typ ky kt]
+  (l/fresh [ct ot]
+    (l/conda
+     [(db-query [ky :- [typ :> kt]] (rules :-))]
+     [(decendent-type rules typ ct)
+      (db-query [ky :- [ct :> kt]] (rules :-))])))
+
+(defn find-keys-for-type [rules typ]
+  (l/run* [q]
+    (l/fresh [ky kt]
+      (keys-for-parent-type rules typ ky kt)
+      (l/== q [ky kt]))))
+
+(defn decendent-types [rules typ]
+  (l/run* [q]
+    (decendent-type rules typ q)))
+
+(defn error-parent-value [{:keys [path orig-config]}]
+  (get-in orig-config (reverse (rest path))))
+
+;; this could be improved by considering the type of the
+;; current parent value by considering the parents other keys
+(defn misspelled-key [parent-type bad-key value error]
+  (take 1
+   (sort-by
+    #(-> % :distance-score -)
+    (for [[ky key-type] (find-keys-for-type *schema-rules* parent-type)
+          :when (and
+                 (not= bad-key ky)
+                 (similar-key 0.4 ky bad-key)
+                 ;; make sure key is not member of parent value
+                 (not ((set (keys (error-parent-value error))) ky))
+                 (value-checks-out? key-type value))]
+      {:Error :misspelled-key
+       :key bad-key
+       :correction ky
+       :distance-score (key-distance bad-key ky)
+       :confidence :high}))))
 
 (defn misplaced-key [root-type parent-type bad-key value]
-  (for [[ky _ [other-parent-type _ typ]] (*schema-rules* [:- bad-key])
-        :when (and
-               (not= other-parent-type parent-type)
-               (value-checks-out? typ value))]
-    {:Error :misplaced-key
-     :key bad-key
-     :correct-type [other-parent-type :> typ]
-     :correct-paths (get-paths-for-type root-type typ)
-     :confidence :high}))
+  (let [parent-type-set
+        (set (cons parent-type (decendent-types *schema-rules* parent-type)))]
+    (for [[ky _ [other-parent-type _ typ]] (*schema-rules* [:- bad-key])
+          :when (and
+                 (not (parent-type-set other-parent-type))
+                 (value-checks-out? typ value))]
+      {:Error :misplaced-key
+       :key bad-key
+       :correct-type [other-parent-type :> typ]
+       :correct-paths (get-paths-for-key root-type typ ky)
+       :confidence :high})))
 
 (defn misspelled-misplaced-key [root-type parent-type bad-key value]
-  (for [[ky _ [other-parent-type _ typ]] (*schema-rules* :-)
-        :when (and
-               (not= bad-key ky)
-               (not= other-parent-type parent-type)
-               (similar-key 0.4 ky bad-key)
-               (value-checks-out? typ value))]
-    {:Error :misspelled-misplaced-key
-     :key bad-key
-     :correction ky
-     :correct-type [other-parent-type :> typ]
-     :correct-paths (get-paths-for-type root-type typ)
-     :confidence :high}))
+  (let [parent-type-set
+        (set (cons parent-type (decendent-types *schema-rules* parent-type)))]
+    (sort-by
+     #(-> % :distance-score -)
+     (for [[ky _ [other-parent-type _ typ]] (*schema-rules* :-)
+           :when (and
+                  (not= bad-key ky)
+                  (not (parent-type-set other-parent-type))
+                  (similar-key 0.4 ky bad-key)
+                  (value-checks-out? typ value))]
+       {:Error :misspelled-misplaced-key
+        :key bad-key
+        :correction ky
+        :distance-score (key-distance bad-key ky)
+        :correct-type [other-parent-type :> typ]
+        :correct-paths (get-paths-for-key root-type typ ky)
+        :confidence :high}))))
 
-(defn unknown-key-error-help [root-type parent-type bad-key value]
+(defn unknown-key-error-help [root-type parent-type bad-key value error]
   (first
    (filter
     not-empty
-    [(misspelled-key parent-type bad-key value)
+    [(misspelled-key parent-type bad-key value error)
      (misplaced-key  root-type parent-type bad-key value)
      (misspelled-misplaced-key root-type parent-type bad-key value)])))
 
@@ -384,7 +436,7 @@
 (defmethod handle-type-error-groupp :unknown-key [root-type [typ errors]]
   (mapcat (fn [{:keys [key type-sig value] :as error}]
             (let [typ (first type-sig)
-                  err' (unknown-key-error-help root-type typ key value)]
+                  err' (unknown-key-error-help root-type (first type-sig) key value error)]
               (if (empty? err')
                 [(assoc error :Error (:Error-type error))]
                 (map #(assoc %
@@ -397,7 +449,8 @@
 
 (defn type-check [root-type value]
   (if-let [results (not-empty (type-checker root-type value {}))]
-    (let [res-groups (group-by :Error-type results)]
+    (let [res-groups (group-by :Error-type (map #(assoc % :orig-config value)
+                                                results))]
       (doall
        (mapcat (fn [[typ errors]] (handle-type-error-groupp root-type [typ errors]))
            res-groups)))
@@ -447,6 +500,8 @@
   )
 
 #_(pp)
+
+(declare format-key summerize-value)
 
 (defmethod error-help-message :failed-key-predicate [{:keys [key path not value type-sig] :as error}]
   [:group "The key "
@@ -534,7 +589,10 @@
     :break
     :break
     [:nest 2
-     (print-path (reverse (if (parent-is-sequence? error) (rest (rest path)) (rest path)))
+     (print-path (reverse
+                  (if (parent-is-sequence? error)
+                    (rest (rest path))
+                    (rest path)))
                  leaf-node
                  orig-config)]
     :break
@@ -545,6 +603,16 @@
   ([error leaf]
    (print-path-error error leaf "")))
 
+(defn gen-path [path value]
+  (if (empty? path)
+    value
+    (let [[x & xs] path]
+      (cond
+        (and (integer? x) (zero? x))
+        [(gen-path xs value)]
+        :else {x (gen-path xs value)}))))
+
+(gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] 5)
 
 (defn print-wrong-path-error
   ([{:keys [path orig-config correction path correct-paths value] :as error} leaf-node document]
@@ -559,19 +627,20 @@
                  leaf-node
                  orig-config)]
     :break
+    :break
     [:group "It should probably be placed here:"]
     :break
     :break
     [:nest 2
      (let [k (or correction (first path))]
-       (print-path (first correct-paths)
+       (print-path (butlast (first correct-paths))
                    [:group
                     (color (pr-str k) :green)
                     " "
                     [:nest (+ (count (pr-str k)) 2)
                      (summerize-value value)]
                     :line]
-                   orig-config))]
+                   (gen-path (first correct-paths) value)))]
     :break
     :break
     document
@@ -670,8 +739,7 @@
 (def summerize-seq (partial summerize-coll "(" ")" summer-seq))
 (def summerize-set (partial summerize-coll "#{" "}" summer-seq))
 
-
-(summerize-map {:asdf 4 :asd 6})
+#_(summerize-map {:asdf 4 :asd 6})
 
 (defn summerize-value [v]
   (cond
@@ -802,7 +870,6 @@
                                       (str "^ key " (pr-str key) " is spelled wrong"))
                                      (document-key (first type-sig) correction))
                    {:width 40}))
-
 
 (defn print-errors [rules root config]
   (with-schema rules

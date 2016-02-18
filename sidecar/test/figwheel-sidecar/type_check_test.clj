@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.type-check-test
   (:require
    [figwheel-sidecar.type-check :as tc :refer [parents-for-type get-paths-for-type
-                                               required-keys
+                                               requires-keys
                                                with-schema index-spec or-spec spec type-checker seqify ref-schema]]
    [clojure.walk :as walk]
    [clojure.test :as t :refer [deftest is testing run-tests]]))
@@ -262,7 +262,7 @@
 
 (deftest not-optional
   (with-schema (index-spec
-                (tc/required-keys 'Root :figwheel)
+                (tc/requires-keys 'Root :figwheel)
                 (spec 'Root {:figwheel 1})
                 #_(spec 'Root {:figwheel string?
                                :cljsbuild string?}))
@@ -279,14 +279,40 @@
 (deftest unknown-key-errors
   (with-schema (test-grammer)
     (testing "misspelled-key"
-      (is (= (tc/misspelled-key 'RootMap :fighweel {})
-             [{:Error :misspelled-key, :key :fighweel, :correction :figwheel, :confidence :high}]))
-      (is (= (tc/misspelled-key 'RootMap :figweel {:server-port 5})
-             [{:Error :misspelled-key, :key :figweel, :correction :figwheel, :confidence :high}]))
-      (is (empty? (tc/misspelled-key 'RootMap :fighweel 5)))
-      (is (empty? (tc/misspelled-key 'RootMap :figweel {:server-port "asdf"})))
-      (is (empty? (tc/misspelled-key 'RootMap :figwheel {:server-port 5})))
-      (is (empty? (tc/misspelled-key 'RootMap :server-port 5))))
+      (is (= (map
+              #(dissoc % :distance-score)
+              (tc/misspelled-key 'RootMap :fighweel {}
+                                {:path [:fighweel]
+                                 :orig-config {:fighweel {}}}))
+             [{:Error :misspelled-key,
+               :key :fighweel,
+               :correction :figwheel,
+               :confidence :high}]))
+      (is (= (map
+              #(dissoc % :distance-score)
+              (tc/misspelled-key 'RootMap :figweel {:server-port 5}
+                                 {:path [:server-port :figweel]
+                                  :orig-config {:figweel {:server-port 5}}})) 
+             [{:Error :misspelled-key,
+               :key :figweel,
+               :correction :figwheel,
+               :confidence :high}]))
+      (testing "child is wrong value type"
+        (is (empty? (tc/misspelled-key 'RootMap :fighweel 5
+                                       {:path [:fighweel]
+                                        :orig-config {:fighweel 5}})))
+        (is (empty? (tc/misspelled-key 'RootMap :figweel {:server-port "asdf"}
+                                       {:path [:figweel]
+                                        :orig-config
+                                        {:figweel {:server-port "asdf"}}})))
+        (is (empty? (tc/misspelled-key 'RootMap :figheel {:server-ip 5}
+                                       {:path [:figheel]
+                                        :orig-config
+                                        {:figheel {:server-ip 5}}})))
+        (is (empty? (tc/misspelled-key 'RootMap :server-port 5
+                                       {:path [:server-port]
+                                        :orig-config
+                                        {:server-port 5}})))))
     (testing "misplaced-key"
       (is (= (tc/misplaced-key 'RootMap 'FigwheelOptions :figwheel {})
              [{:Error :misplaced-key,
@@ -302,7 +328,8 @@
                :correct-paths [[:cljsbuild :crossovers]],
                :confidence :high}])))
     (testing "mispelled-misplaced-key"
-      (is (= (tc/misspelled-misplaced-key 'RootMap 'RootMap :crosovers 5)
+      (is (= (map #(dissoc % :distance-score)
+                  (tc/misspelled-misplaced-key 'RootMap 'RootMap :crosovers 5))
            [{:Error :misspelled-misplaced-key,
              :key :crosovers,
              :correction :crossovers,
