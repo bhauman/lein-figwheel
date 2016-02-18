@@ -29,6 +29,9 @@
     (cons :SEQQ (map vector (range) (map seqify coll)))
     :else coll))
 
+(defn sequence-like? [x]
+  (and (not (map? x)) (coll? x)))
+
 (defn map?? [x]
   (and (or (seq? x) (vector? x))
        (= (first x) :MAPP)))
@@ -175,8 +178,7 @@
 (defmethod apply-pred := [[_ pred] value] (pred value))
 (defmethod apply-pred :=> [[_ pred] value] (= (cond
                                                 (map? value) :MAPP
-                                                (seq? value) :SEQQ
-                                                (vector? value) :SEQQ
+                                                (sequence-like? value) :SEQQ
                                                 :else :_____BAD)
                                               pred))
 
@@ -211,7 +213,7 @@
 (declare type-checker)
 
 (defn fix-key [k parent-value]
-  (if (or (vector? parent-value) (seq? parent-value)) 0 k))
+  (if (sequence-like? parent-value) 0 k))
 
 (defn find-keyword-predicate [parent-type]
   (when-let [[pred-id _ [pt _ kt]] (first (*schema-rules* [:parent :?- parent-type]))]
@@ -269,8 +271,10 @@
                      (fn [[k v]]
                        (type-check-key-value parent-type k v (assoc state :parent-value value))))]
       (cond
-        (map? value)                      (concat (check-required-keys parent-type value state) (f value))
-        (or (vector? value) (seq? value) (set? value)) (f (map vector (range) value))
+        (map? value)
+        (concat (check-required-keys parent-type value state) (f value))
+        (sequence-like? value)
+        (f (map vector (range) value))
         :else (throw (Exception. (str "Expected compound type: " (class value)
                                       " is not a Map, Vector, or Sequence")))))))
 
