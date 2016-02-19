@@ -43,19 +43,24 @@
            (list?? x))
        (empty? (rest x))))
 
+
+(defn complex-value? [v]
+  (or (list?? v) (map?? v) (fn? v) (-> v meta :ref)))
+
+(def simple-value? (complement complex-value?))
+
 (defn prep-key [k]
   (if (fn? k)
     (keyword (str "pred-key_" (hash k)))
     k))
 
-(defn handle-key-type [orig-key predicate-key-name node t]
-  (if (fn? orig-key)
-    [[predicate-key-name :?- [node :> t]]
-     [predicate-key-name :k= orig-key]]
-    [[orig-key :- [node :> t]]]))
-
 (defn decompose [type-gen-fn node' s']
-  (letfn [(decomp [node s]
+  (letfn [(handle-key-type [orig-key predicate-key-name node t]
+            (if (fn? orig-key)
+              [[predicate-key-name :?- [node :> t]]
+               [predicate-key-name := orig-key]]
+              [[orig-key :- [node :> t]]]))
+          (decomp [node s]
             (if (nil? s)
               nil
               (let [[[k' v] & r] s
@@ -215,7 +220,7 @@
 
 (defn find-keyword-predicate [parent-type]
   (when-let [[pred-id _ [pt _ kt]] (first (*schema-rules* [:parent :?- parent-type]))]
-    (when-let [pred-func (last (first (*schema-rules* [:k= pred-id])))]
+    (when-let [pred-func (last (first (*schema-rules* [:= pred-id])))]
       [pred-func kt])))
 
 ;; this is what implements or
@@ -292,12 +297,18 @@
 (defn named? [x]
   (or (string? x) (instance? clojure.lang.Named x)))
 
+(defn string-or-symbol? [x]
+  (or (string? x) (symbol? x)))
+
 (defn boolean? [x] (or (true? x) (false? x)))
 
 (defn anything? [x] true)
 
 (defn key-distance [k other-key]
   (metrics/dice (name k) (name other-key)) )
+
+#_(metrics/levenshtein "fihgweel" "figwheel")
+#_(metrics/mra-comparison )
 
 (defn similar-key [thresh k other-key]
   (and (and (named? k)
@@ -489,6 +500,10 @@
 (defmethod predicate-explain integer? [_ value] "Integer")
 (defmethod predicate-explain string? [_ value] "String")
 (defmethod predicate-explain symbol? [_ value] "Symbol")
+(defmethod predicate-explain number? [_ value] "Number")
+
+(defmethod predicate-explain string-or-symbol? [_ value] "String or Symbol")
+
 (defmethod predicate-explain keyword? [_ value] "Keyword")
 
 (defmethod predicate-explain named? [_ value] "String, Keyword, or Symbol")
@@ -734,10 +749,10 @@
   (let [{:keys [ky] :as p} (docs-for parent-type k)]
     (if ky
       [:group
-       "Doc for key " (color (pr-str k) :bold) 
+       "-- Docs for key " (color (pr-str k) :bold) " --" 
        :break
-       [:nest 2 (color ky
-                       :underline)]
+       (color ky
+                       :underline)
        :break]
       "")))
 
@@ -752,6 +767,9 @@
       ))))
 
 (pprint-document (summerize-map {:asdf 4 :Asdf 5 :fdas 7}) {:width 10})
+
+(pprint-document [:align 10
+                  "asdfasdf\nasdfasdfasd\n"] {})
 
 (pprint-document (summerize-value #{1 2 }) {:width 40})
 
