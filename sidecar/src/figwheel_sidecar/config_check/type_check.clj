@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.type-check
+(ns figwheel-sidecar.config-check.type-check
   (:require
    [fipp.engine :refer [pprint-document]]
    [figwheel-sidecar.ansi :refer [color]]

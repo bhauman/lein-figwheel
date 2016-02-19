@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.ansi
+(ns figwheel-sidecar.config-check.ansi
   (:require [clojure.string :as str]))
 
 ;; this is stolen from puget as up to date ansi lib is not really available
@@ -58,5 +58,13 @@
   [string]
   (str/replace string #"\u001b\[[0-9;]*[mK]" ""))
 
+(def ^:dynamic *enable-color* true)
+
+(defmacro without-color [& body]
+  `(binding [*enable-color* false]
+     ~@body))
+
 (defn color [text & codes]
-  [:span [:pass (esc codes)] text [:pass (escape :none)]])
+  (if *enable-color*
+    [:span [:pass (esc codes)] text [:pass (escape :none)]]
+    text))

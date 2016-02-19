@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.validate-config
+(ns figwheel-sidecar.config-check.validate-config
   (:require
    [figwheel-sidecar.ansi :refer [color]]
    [figwheel-sidecar.type-check :refer [spec or-spec ref-schema named? anything?

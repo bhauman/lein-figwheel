@@ -1,4 +1,4 @@
-(ns figwheel-sidecar.type-check-test
+(ns figwheel-sidecar.config-check.type-check-test
   (:require
    [figwheel-sidecar.type-check :as tc :refer [parents-for-type get-paths-for-type
                                                requires-keys
