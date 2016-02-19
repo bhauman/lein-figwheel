@@ -1,14 +1,10 @@
 (ns figwheel-sidecar.validate-config
   (:require
    [figwheel-sidecar.ansi :refer [color]]
-   [figwheel-sidecar.type-check :refer [spec or-spec ref-schema named? type-checker type-check print-errors index-spec with-schema] :as tc]
+   [figwheel-sidecar.type-check :refer [spec or-spec ref-schema named? anything?
+                                        type-checker type-check print-errors index-spec with-schema] :as tc]
    [fipp.engine :refer [pprint-document]]
    [clojure.string :as string]))
-
-
-(defn boolean? [x] (or (true? x) (false? x)))
-
-(defn anything? [x] true)
 
 (defn enum [& args]
   (let [enums (set args)]
@@ -19,13 +15,6 @@
 
 (def symbol-or-string? (or-pred symbol? string?))
 
-(def bool-or-string? (or-pred boolean? string?))
-
-(def optimisation?    (enum :none :whitespace :simple :advanced))
-(def module-type?     (enum :commonjs :amd :es6))
-
-(def javascript-lang? (enum :ecmascript3 :ecmascript5 :ecmascript5-strict))
-#_(def anon-fn-naming-policy? (enum :off :unmapped :mapped))
 
 (def CompilerWarningsSpec
   (->>
@@ -129,11 +118,11 @@
             (ref-schema 'Boolean)
             {:websocket-host      (ref-schema 'WebsocketHost)
              :websocket-url       string?
-             :on-jsload           named?
-             :before-jsload       named?
-             :on-cssload          named?
-             :on-compile-fail     named?
-             :on-compile-warning  named?
+             :on-jsload           (ref-schema 'Named)
+             :before-jsload       (ref-schema 'Named)
+             :on-cssload          (ref-schema 'Named)
+             :on-compile-fail     (ref-schema 'Named)
+             :on-compile-warning  (ref-schema 'Named)
              :reload-dependents   (ref-schema 'Boolean)
              :debug               (ref-schema 'Boolean)
              :autoload            (ref-schema 'Boolean)
@@ -141,44 +130,45 @@
              :load-warninged-code (ref-schema 'Boolean)
              :retry-count         integer?
              :devcards            (ref-schema 'Boolean)
-             :eval-fn             (ref-schema 'FigwheelEvalFn)})
+             :eval-fn             (ref-schema 'Named)})
    (or-spec 'WebsocketHost :js-client-host string?)
-   (or-spec 'FigwheelEvalFn string? named?)
    (spec 'CompilerOptions
-         {:main           symbol-or-string?
-          :asset-path     string?
-          :output-to      string?
-          :output-dir     string?
-          :optimizations  optimisation?
-          :source-map     bool-or-string?
-          :verbose        (ref-schema 'Boolean)
-          :pretty-print   (ref-schema 'Boolean)
-          :target         :nodejs
-          :foreign-libs   [{:file string?
-                            :provides [string?]
-                            :file-min string?
-                            :requires [string?]
-                            :module-type module-type?}]
-          :externs        [string?]
-          :modules        anything? ;; TODO
-          :source-map-path string?
-          :source-map-timestamp (ref-schema 'Boolean)
-          :cache-analysis    (ref-schema 'Boolean)
-          :recompile-dependents (ref-schema 'Boolean)
-          :static-fns  (ref-schema 'Boolean)
-          :warnings   (ref-schema 'CompilerWarnings)
-          :elide-asserts (ref-schema 'Boolean)
-          :pseudo-names (ref-schema 'Boolean)
-          :print-input-delimiter (ref-schema 'Boolean)
-          :output-wrapper (ref-schema 'Boolean)
+         {:main                      (ref-schema 'SymbolOrString)
+          :asset-path                string?
+          :output-to                 string?
+          :output-dir                string?
+          :optimizations             (ref-schema 'CompilerOptimization)
+          :source-map                (ref-schema 'BoolOrString)
+          :verbose                   (ref-schema 'Boolean)
+          :pretty-print              (ref-schema 'Boolean)
+          :target                    :nodejs
+          :foreign-libs              [{:file string?
+                                       :provides [string?]
+                                       :file-min string?
+                                       :requires [string?]
+                                       :module-type (ref-schema 'ModuleType)}]
+          :externs                   [string?]
+                                     ;; TODO keys only work with direct predicates
+          :modules                   {named?
+                                      (ref-schema 'ModuleConfigEntry)} 
+          :source-map-path           string?
+          :source-map-timestamp      (ref-schema 'Boolean)
+          :cache-analysis            (ref-schema 'Boolean)
+          :recompile-dependents      (ref-schema 'Boolean)
+          :static-fns                (ref-schema 'Boolean)
+          :warnings                  (ref-schema 'CompilerWarnings)
+          :elide-asserts             (ref-schema 'Boolean)
+          :pseudo-names              (ref-schema 'Boolean)
+          :print-input-delimiter     (ref-schema 'Boolean)
+          :output-wrapper            (ref-schema 'Boolean)
           :libs                      [string?]
           :preamble                  [string?]
           :hashbang                  (ref-schema 'Boolean)
           :compiler-stats            (ref-schema 'Boolean)
-          :language-in               javascript-lang?
-          :language-out              javascript-lang?
+          :language-in               (ref-schema 'JavaScriptLanguage)
+          :language-out              (ref-schema 'JavaScriptLanguage)
           :closure-warnings          (ref-schema 'ClosureWarnings)
-          :closure-defines           {anything? anything?}
+          :closure-defines           {named? anything?}
           :closure-extra-annotations [string?]
           :anon-fn-naming-policy     (ref-schema 'AnonFnNamingPolicy)
           :optimize-constants        (ref-schema 'Boolean)
@@ -190,9 +180,21 @@
    (or-spec 'ClosureWarnings
             (ref-schema 'Boolean)
             ClosureWarningsSpec)
+   (spec 'ModuleConfigEntry
+         {:output-to string?
+          :entries [string?]
+          :depends-on [named?]})
    (or-spec 'Boolean true false)
+   ;; need a unique function
+   (spec 'Integer (fn [x] (integer? x)))
+   (or-spec 'BoolOrString string? (ref-schema 'Boolean))
+   (or-spec 'SymbolOrString string? symbol?)
    (or-spec 'ClosureWarningValue :error :warning :off)
    (or-spec 'AnonFnNamingPolicy :off :unmapped :mapped)
+   (or-spec 'JavaScriptLanguage :ecmascript3 :ecmascript5 :ecmascript5-strict)
+   (or-spec 'ModuleType :commonjs :amd :es6)
+   (or-spec 'Named string? symbol? keyword?)
+   (or-spec 'CompilerOptimization :none :whitespace :simple :advanced)
    
    )
   
@@ -200,50 +202,39 @@
   )
 
 (with-schema schema-rules
-  (type-check 'CompilerOptions {:closure-warnings {:figwheel {:server-port 5}}})
+  (type-check 'CompilerOptions {:closure-extra-annotations #{2 "asdf"}})
 
   #_(tc/find-keys-for-type tc/*schema-rules* 'ClosureWarnings)
   #_(tc/find-keys-for-type 'CljsbuildOptions)
   
   )
 
-(print-errors schema-rules 'CompilerOptions {:anon-fn-naming-policy :off
+
+
+{:figwheel {:server-port 5}}
+
+#_(print-errors schema-rules 'CompilerOptions {:main "asdf"
+                                             :anon-fn-naming-policy :off
                                              :closure-warnings {:const :off}
                                              :devcards true
-                                             :closure-extra-annotations #{"a" "asdf"}})
+                                             :source-map true
+                                             :optimizations :none
+                                        ; :language-in :asdf
+                                             :foreign-libs [{:file "asdf"
+                                                             :provides ["asdf"]
+                                                             :module-type :commonjs
+                                                             }]
+                                             
+                                             :modules {1 {:output-to "asdf"
+                                                          :entries ["asdf"]}}
+                                             :closure-extra-annotations #{"asdf" "asd" "asssss" }})
 
-(print-errors schema-rules 'RootMap {:cljsbuild
+
+
+#_:Crappersprint-errors
+
+#_(print-errors schema-rules 'RootMap {:cljsbuild
                                      {:builds [{:compiler {:warnings {:const :off}}}]}})
 
-#_(with-schema schema-rules
-  (time
-   (type-checker 'RootMap { :cljsbuild {
-                                        :builds [{:id "example"
-                                                  :figwheel {
-                                                             :websocket-host "localhost"
-                                                             :on-jsload      'example.core/fig-reload
-                                                             
-                                        ; :on-message     'example.core/on-message
-                                                             :debug "asdf"
-                                                             }
-                                                  :compiler { :main 'example.core
-                                                             :asset-path "js/out"
-                                                             :output-to "resources/public/js/example.js"
-                                                             :output-dir "resources/public/js/out"
-                                                             :source-map-timestamp true
-                                                             :libs ["libs_src" "libs_sscr/tweaky.js"]
-                                                             ;; :externs ["foreign/wowza-externs.js"]
-                                                             :foreign-libs [{:file "foreign/wowza.js"
-                                                                             :provides ["wowzacore"]}]
-                                                             ;; :recompile-dependents true
-                                                             :optimizations :none}
-                                                  }]}
-                           
-                           :figwheel {
-                                      :http-server-root "public" ;; default and assumes "resources" 
-                                      :server-port 3449 ;; default
-                                      :css-dirs ["resources/public/css"]
-                                      :open-file-command "emacsclient"}}
-                 {}))
-  )
+
 

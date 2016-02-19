@@ -18,19 +18,17 @@
     (l/to-stream
      (map #(l/unify a % q) db))))
 
+(defn sequence-like? [x]
+  (and (not (map? x)) (coll? x)))
+
 (defn seqify [coll]
   (cond
     (map? coll)
     (cons :MAPP
           (map (fn [[a b]] [(seqify a) (seqify b)]) coll))
-    (or (vector? coll)
-        (list? coll)
-        (set? coll))
+    (sequence-like? coll)
     (cons :SEQQ (map vector (range) (map seqify coll)))
     :else coll))
-
-(defn sequence-like? [x]
-  (and (not (map? x)) (coll? x)))
 
 (defn map?? [x]
   (and (or (seq? x) (vector? x))
@@ -294,6 +292,10 @@
 (defn named? [x]
   (or (string? x) (instance? clojure.lang.Named x)))
 
+(defn boolean? [x] (or (true? x) (false? x)))
+
+(defn anything? [x] true)
+
 (defn key-distance [k other-key]
   (metrics/dice (name k) (name other-key)) )
 
@@ -477,7 +479,18 @@
 
 (defmulti predicate-explain (fn [pred _] pred))
 
+(defmethod predicate-explain :default [pred value]
+  (if-let [typ (first (for [[t _ p] (*schema-rules* :=)
+                            :when (= p pred)] t))]
+    (name typ)
+    pred))
+
+(defmethod predicate-explain anything? [_ value] "Anything")
+(defmethod predicate-explain integer? [_ value] "Integer")
 (defmethod predicate-explain string? [_ value] "String")
+(defmethod predicate-explain symbol? [_ value] "Symbol")
+(defmethod predicate-explain keyword? [_ value] "Keyword")
+
 (defmethod predicate-explain named? [_ value] "String, Keyword, or Symbol")
 
 (defmulti explain-predicate-failure
@@ -540,7 +553,7 @@
     (cons :span (interpose ", "
                            (map #(color % :green)
                                 (map #(explain-predicate-failure % value) (butlast not)))))
-    " or " (color (pr-str (last not)) :green)]))
+    " or " (color (explain-predicate-failure (last not) value) :green)]))
 
 #_(error-help-message {:Error :combined-failed-predicate :path [:boolean] :value 5 :not [true false]})
 
@@ -729,21 +742,39 @@
       "")))
 
 (defn summerize-coll [open close fn v]
-  (concat [:group open " "]
-          (take 2 (map fn v))
-          [[:nest 2 "... " close]]))
+  (let [res (vec (concat [:nest (inc (count open))] (interpose :line (take 2 (map fn v)))))]
+    (vec
+     (concat
+      [:group open " "]
+      [(vec
+        (concat res
+                (if (> (count v) 2) [:line "... " close] [" " close]))) ]
+      ))))
 
-(declare summerize-value)
+(pprint-document (summerize-map {:asdf 4 :Asdf 5 :fdas 7}) {:width 10})
+
+(pprint-document (summerize-value #{1 2 }) {:width 40})
+
+(declare summerize-value summerize-term)
 
 (def summerize-map (partial summerize-coll "{" "}"
-                            (fn [[k v']] [:nest 2 (summerize-value k) " ..."  #_(summerize-value v') :line])))
+                            (fn [[k v']] [:group (summerize-value k)
+                                         " " (summerize-term v')])))
 
-(defn summer-seq [v] [:group (summerize-value v) :line])
+(defn summer-seq [v] [:group (summerize-value v)])
 (def summerize-vec (partial summerize-coll "[" "]" summer-seq))
 (def summerize-seq (partial summerize-coll "(" ")" summer-seq))
 (def summerize-set (partial summerize-coll "#{" "}" summer-seq))
 
 #_(summerize-map {:asdf 4 :asd 6})
+
+(defn summerize-term [v]
+  (cond
+    (map? v)    "{ ... }"
+    (vector? v) "[ ... ]"
+    (set? v)    "#{ ... }"
+    (seq? v)    "( ... )"
+    :else (pr-str v)))
 
 (defn summerize-value [v]
   (cond
@@ -763,23 +794,21 @@
   ([value] (summerize-value value))
   ([value colr] (color (format-value value) colr)))
 
-(defn format-key-value [k v message]
+(defn format-key-value [ky fk fv message]
   [:group
-   k
+   fk 
    " "
-   [:nest (+ (count (pr-str key)) 2)
-    v]
+   [:nest (inc (count (pr-str ky))) fv]
    [:line " <- "]
-   (color message :underline :magenta)
-   :line])
-
-
+    (color message :underline :magenta)
+    :line])
 
 (defmulti print-error :Error)
 
 (defmethod print-error :unknown-key [{:keys [key value path type-sig] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
+                                      key
                                       (format-key key :red)
                                       (format-value value)
                                       (str "^ key " (pr-str key) " not recognized")))
@@ -825,12 +854,12 @@
                        {:width 40}))
     (pprint-document (print-path-error error
                                        (format-key-value
+                                        (first path)
                                         (format-key (first path) :bold)
                                         (format-value value :red)
                                         (str "^ key " (pr-str (first path)) " has wrong value"))
                                        (document-key (first (rest type-sig)) (first path)))
-                     {:width 40})
-    )
+                     {:width 40}))
   )
 
 (defmethod print-error :failed-predicate [error] (failed-predicate error))
@@ -841,6 +870,7 @@
   (pprint-document (print-wrong-path-error
                     error
                     (format-key-value
+                     key
                      (format-key key :red)
                      (format-value (:value orig-error))
                      (str "^ key " (format-key key) " is on the wrong path"))
@@ -851,6 +881,7 @@
   (pprint-document (print-wrong-path-error
                     error
                     (format-key-value
+                     key
                      (format-key key :red)
                      (format-value (:value orig-error))
                      (str "^ key " (format-key key) " is mispelled and on the wrong path"))
@@ -860,6 +891,7 @@
 (defmethod print-error :failed-key-predicate [{:keys [key value orig-error orig-config type-sig path] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
+                                      key
                                       (format-key key :red)
                                       (format-value value)
                                       (str "^ key " (pr-str key) " failed key predicate"))
@@ -869,6 +901,7 @@
 (defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config type-sig] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
+                                      key
                                       (format-key key :red)
                                       (format-value (:value orig-error))
                                       (str "^ key " (pr-str key) " is spelled wrong"))
