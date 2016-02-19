@@ -304,8 +304,16 @@
 
 (defn anything? [x] true)
 
-(defn key-distance [k other-key]
+#_(defn key-distance [k other-key]
   (metrics/dice (name k) (name other-key)) )
+
+(defn key-distance [ky ky1]
+  (let [d (metrics/dice (name ky) (name ky1))
+        l (metrics/levenshtein (name ky) (name ky1))]
+    (if (and (> d 0.4) (< l 5))
+      (+ (- d 0.4)
+         (/ (- 5 l) 10.0))
+      0)))
 
 #_(metrics/levenshtein "fihgweel" "figwheel")
 #_(metrics/mra-comparison )
@@ -316,8 +324,28 @@
        (> (key-distance k other-key)
           thresh)))
 
+(defn complexity [c]
+  (if (coll? c)
+    (+ (if (map? c) (count c) 1)
+       (reduce + (map complexity c)))
+    1))
+
 (defn value-checks-out? [parent-type value]
-  (empty? (type-checker parent-type value {})))
+  (let [errors (type-checker parent-type value {})
+        filtered-errors (filter #(contains? #{:misspelled-key :missing-required-key}
+                                  (get % :Error-type))
+                                errors)
+        complex (complexity value)]
+    (prn "errors" errors)
+    (prn "filt-errors" filtered-errors)
+    (cond
+      (empty? errors) complex
+      (empty? filtered-errors) (/ complex 2.0)
+      :else false))
+#_  (cond
+    (empty? ) 2
+    (map? (type-check-value parent-type value {})) 1
+    :else false))
 
 (defn parents-for-type [typ']
   (concat (not-empty
@@ -372,24 +400,26 @@
 (defn error-parent-value [{:keys [path orig-config]}]
   (get-in orig-config (reverse (rest path))))
 
+
 ;; this could be improved by considering the type of the
 ;; current parent value by considering the parents other keys
 (defn misspelled-key [parent-type bad-key value error]
   (take 1
    (sort-by
     #(-> % :distance-score -)
-    (for [[ky key-type] (find-keys-for-type *schema-rules* parent-type)
+    (filter identity
+     (for [[ky key-type] (find-keys-for-type *schema-rules* parent-type)
           :when (and
                  (not= bad-key ky)
-                 (similar-key 0.4 ky bad-key)
+                 (similar-key 0 ky bad-key)
                  ;; make sure key is not member of parent value
-                 (not ((set (keys (error-parent-value error))) ky))
-                 (value-checks-out? key-type value))]
-      {:Error :misspelled-key
-       :key bad-key
-       :correction ky
-       :distance-score (key-distance bad-key ky)
-       :confidence :high}))))
+                 (not ((set (keys (error-parent-value error))) ky)))]
+       (when-let [score (value-checks-out? key-type value)]
+         {:Error :misspelled-key
+          :key bad-key
+          :correction ky
+          :distance-score (+ score (key-distance bad-key ky))
+          :confidence :high}))))))
 
 (defn misplaced-key [root-type parent-type bad-key value]
   (let [parent-type-set
@@ -413,7 +443,7 @@
            :when (and
                   (not= bad-key ky)
                   (not (parent-type-set other-parent-type))
-                  (similar-key 0.4 ky bad-key)
+                  (similar-key 0 ky bad-key)
                   (value-checks-out? typ value))]
        {:Error :misspelled-misplaced-key
         :key bad-key
@@ -766,13 +796,6 @@
                 (if (> (count v) 2) [:line "... " close] [" " close]))) ]
       ))))
 
-(pprint-document (summerize-map {:asdf 4 :Asdf 5 :fdas 7}) {:width 10})
-
-(pprint-document [:align 10
-                  "asdfasdf\nasdfasdfasd\n"] {})
-
-(pprint-document (summerize-value #{1 2 }) {:width 40})
-
 (declare summerize-value summerize-term)
 
 (def summerize-map (partial summerize-coll "{" "}"
@@ -928,7 +951,7 @@
 
 (defn print-errors [rules root config]
   (with-schema rules
-    (mapv #(print-error (assoc % :orig-config config))
+    (mapv #(do (print-error (assoc % :orig-config config)) %)
           (type-check root config))))
 
 (defn print-errors-test [config]
