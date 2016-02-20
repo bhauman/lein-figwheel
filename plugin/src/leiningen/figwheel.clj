@@ -4,7 +4,8 @@
    [clojure.pprint :as pp]
    [leiningen.core.eval :as leval]
    [clojure.java.io :as io]
-   [figwheel-sidecar.config :as fc]))
+   [figwheel-sidecar.config :as fc]
+   [figwheel-sidecar.config-check.validate-config :as fvalidate]))
 
 (defn make-subproject [project builds]
   (with-meta
@@ -68,17 +69,19 @@
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
   (fc/system-asserts)
-  (let [{:keys [all-builds figwheel-options]}
-        (-> project
-            (fc/config build-ids)
-            fc/prep-config)
-        errors (fc/check-config figwheel-options
-                                (fc/narrow-builds*
-                                 all-builds
-                                 build-ids))]
+  (let [errors (fvalidate/validate-project-config project)]
     (if (empty? errors)
-      (run-compiler project 
-                    { :figwheel-options figwheel-options
-                      :all-builds all-builds
-                      :build-ids  (vec build-ids)})
-      (mapv println errors))))
+      (let [{:keys [all-builds figwheel-options]}
+            (-> project
+                (fc/config build-ids)
+                fc/prep-config)
+            errors (fc/check-config figwheel-options
+                                    (fc/narrow-builds*
+                                     all-builds
+                                     build-ids))]
+        (if (empty? errors)
+          (run-compiler project 
+                        { :figwheel-options figwheel-options
+                         :all-builds all-builds
+                         :build-ids  (vec build-ids)})
+          (mapv println errors))))))

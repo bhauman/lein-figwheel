@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.config-check.validate-config
   (:require
-   [figwheel-sidecar.ansi :refer [color]]
-   [figwheel-sidecar.type-check :refer [spec or-spec ref-schema named? anything?
+   [figwheel-sidecar.config-check.ansi :refer [color]]
+   [figwheel-sidecar.config-check.type-check :refer [spec or-spec ref-schema named? anything?
                                         doc
                                         requires-keys
                                         string-or-symbol?
@@ -220,6 +220,7 @@
               :on-jsload           (ref-schema 'Named)
               :before-jsload       (ref-schema 'Named)
               :on-cssload          (ref-schema 'Named)
+              :on-message          (ref-schema 'Named)
               :on-compile-fail     (ref-schema 'Named)
               :on-compile-warning  (ref-schema 'Named)
               :reload-dependents   (ref-schema 'Boolean)
@@ -259,31 +260,34 @@
   (into {} (map #(get-keylike % mp) kys)))
 
 (defn validate-only-figwheel-rules [config]
-  ; also check if config has vector for builds
-  (let [rules-db
-        (index-spec
-         (spec 'RootMap         {:figwheel (ref-schema 'FigwheelOptions)})
-         (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
-         (requires-keys 'FigwheelOptions :builds)
-         (requires-keys 'RootMap :figwheel)
-         (let [builds (get-in config [:figwheel :builds])]
-           (when (tc/sequence-like? builds)
-             (requires-keys 'BuildOptionsMap :id)))
-         figwheel-cljsbuild-rules)]
-    (not-empty (print-errors rules-db 'RootMap config))))
+  (index-spec
+   (spec 'RootMap         {:figwheel (ref-schema 'FigwheelOptions)})
+   (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
+   (requires-keys 'FigwheelOptions :builds)
+   (requires-keys 'RootMap :figwheel)
+   (let [builds (get-in config [:figwheel :builds])]
+     (when (tc/sequence-like? builds)
+       (requires-keys 'BuildOptionsMap :id)))
+   figwheel-cljsbuild-rules))
 
 #_(validate-only-figwheel-rules {:figwheel {:builds []}})
 
-(defn validate-regular [config]
-  (let [rules-db
-        (index-spec
-         schema-rules-base
-         (requires-keys 'CljsbuildOptions :builds)
-         (requires-keys 'RootMap :cljsbuild)
-         (let [builds (get-in config [:figwheel :builds])]
-           (when (tc/sequence-like? builds)
-             (requires-keys 'BuildOptionsMap :id))))]
-    (not-empty (print-errors rules-db 'RootMap config))))
+(defn validate-regular-rules [config]
+  (index-spec
+   schema-rules-base
+   (requires-keys 'CljsbuildOptions :builds)
+   (requires-keys 'RootMap :cljsbuild)
+   (let [builds (get-in config [:cljsbuild :builds])]
+     (when (tc/sequence-like? builds)
+       (requires-keys 'BuildOptionsMap :id)))))
+
+(defn validate-figwheel-edn-rules [config]
+  (index-spec
+   figwheel-cljsbuild-rules
+   (requires-keys 'FigwheelOptions :builds)
+   (let [builds (get config :builds)]
+     (when (tc/sequence-like? builds)
+       (requires-keys 'BuildOptionsMap :id)))))
 
 #_(validate-regular {:figwheel {}
                      :cljsbuild {:builds []}})
@@ -291,14 +295,28 @@
 (defn validate-project-config [config]
   (let [[cljb-k cljb-v] (get-keylike :cljsbuild config)
         [fig-k  fig-v]  (get-keylike :figwheel config)]
-    (if
-      (and fig-k
-           (get fig-v :builds))
-      ;; only validate figwheel
-      (validate-only-figwheel {fig-k fig-v})
-      ;; validate regular
-      (validate-regular       {fig-k  fig-v
-                               cljb-k cljb-v}))))
+    (if (and fig-k (get fig-v :builds))
+      (let [conf {fig-k fig-v}]
+        (print-errors (validate-only-figwheel-rules conf) 'RootMap conf))
+      (let [conf {fig-k  fig-v
+                  cljb-k cljb-v}]
+        (print-errors (validate-regular-rules conf) 'RootMap conf)))))
+
+(defn validate-figwheel-edn-file [config]
+  (print-errors (validate-figwheel-edn-rules config)
+                'FigwheelOptions
+                config))
+
+#_(validate-figwheel-edn-file {:http-server-root 3})
+
+(defn validate-loop [get-data-fn figwheel-edn?]
+  (loop [config (get-data-fn)]
+    
+
+
+    )
+
+  )
 
 (comment
   (def cljs-option-doc

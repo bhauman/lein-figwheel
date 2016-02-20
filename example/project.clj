@@ -42,7 +42,7 @@
   :resource-paths ["resources" "other_resources"]
 
   :cljsbuild {
-              :builds [{ :id "example"
+              :builds [{ ;:id "example"
                          :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"

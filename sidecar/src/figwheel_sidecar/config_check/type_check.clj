@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.config-check.type-check
   (:require
    [fipp.engine :refer [pprint-document]]
-   [figwheel-sidecar.ansi :refer [color]]
+   [figwheel-sidecar.config-check.ansi :refer [color]]
    [clj-fuzzy.metrics :as metrics]
    [clojure.walk :as walk]
    [clojure.string :as string]
