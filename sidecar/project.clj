@@ -21,4 +21,10 @@
    [digest "1.4.4" :exclusions [org.clojure/clojure]]
    [figwheel "0.5.1-SNAPSHOT"
     :exclusions [org.clojure/tools.reader]]
-   [hawk "0.2.9" :exclusions [org.clojure/clojure]]])
+   [hawk "0.2.9" :exclusions [org.clojure/clojure]]
+
+   ;; for config validation
+   [org.clojure/core.logic "0.8.10"]
+   [clj-fuzzy "0.3.1"]
+   [fipp "0.6.4"]
+   ])

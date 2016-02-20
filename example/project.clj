@@ -46,9 +46,9 @@
                          :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
-                                    :on-jsload      example.core/fig-reload
+                                     :on-jsload      example.core/fig-reload
                                     
-                                    :on-message     example.core/on-message
+                                     :on-message     example.core/on-message
                                     ; :debug true
                                     }
                          :compiler { :main example.core
@@ -58,8 +58,8 @@
                                      :source-map-timestamp true
                                      :libs ["libs_src" "libs_sscr/tweaky.js"]
                                      ;; :externs ["foreign/wowza-externs.js"]
-                                    :foreign-libs [{:file "foreign/wowza.js"
-                                                    :provides ["wowzacore"]}]
+                                     :foreign-libs [{:file "foreign/wowza.js"
+                                                     :provides ["wowzacore"]}]
                                      ;; :recompile-dependents true
                                      :optimizations :none}}
                        { :id "example-prod"
@@ -102,9 +102,11 @@
                                     [figwheel-sidecar "0.5.1-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]]
+                    
                     :source-paths ["src" "dev"]
+                    :repl-options {:init (set! *print-length* 500)}
                     :plugins [[cider/cider-nrepl "0.10.1"]]}}
-
+  
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
   :figwheel {
@@ -112,10 +114,6 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
-
-
-
-             
              
              ;; :reload-clj-files {:clj true :cljc true}
              
