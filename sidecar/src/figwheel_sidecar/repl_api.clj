@@ -40,7 +40,7 @@
 (defn figwheel-running? []
   (or (get-in *repl-api-system* [:figwheel-system :system-running] false)
       (do
-        (println "Figwheel System not itnitialized.\nPlease start it with figwheel-sidecar.repl-api/start-figwheel!")
+        (println "Figwheel System not initialized.\nPlease start it with figwheel-sidecar.repl-api/start-figwheel!")
         nil)))
 
 (defn app-trans
