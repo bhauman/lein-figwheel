@@ -242,6 +242,9 @@
 
 (def schema-rules (index-spec schema-rules-base))
 
+;; alright everyting below is the result of being so wishywashy about
+;; configuration and now I'm having to support multiple ways of doing things
+
 (defn get-keylike [ky mp]
   (if-let [val (get mp ky)]
     [ky val]
@@ -284,6 +287,7 @@
 (defn validate-figwheel-edn-rules [config]
   (index-spec
    figwheel-cljsbuild-rules
+   (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
    (requires-keys 'FigwheelOptions :builds)
    (let [builds (get config :builds)]
      (when (tc/sequence-like? builds)
@@ -309,14 +313,33 @@
 
 #_(validate-figwheel-edn-file {:http-server-root 3})
 
-(defn validate-loop [get-data-fn figwheel-edn?]
-  (loop [config (get-data-fn)]
-    
-
-
+(defn validate-loop [get-data-fn figwheel-options-only?]
+  (let [config-hash (atom nil)]
+    (loop [config (get-data-fn)]
+      (if (not= @config-hash (hash config))
+        (do
+          (reset! config-hash (hash config))
+          (if-let [errors (not-empty (if figwheel-options-only?
+                                         (validate-figwheel-edn-file config)
+                                         (validate-project-config config)))]
+            (do
+              (println "Please fix your config file. I'll wait ...\n")
+              (Thread/sleep 1000)
+              (recur (get-data-fn)))
+            (println "\nFigwheel Configuration Validated!")))
+        (recur (get-data-fn)))
+      )
     )
-
   )
+
+(comment
+  (def config {:builds {:hey {:source-paths ["asdf"]}}})
+  
+  (def thing (future (validate-loop (fn [] @#'config) true))))
+
+#_ (future-cancel thing)
+
+
 
 (comment
   (def cljs-option-doc
