@@ -336,16 +336,10 @@
                                   (get % :Error-type))
                                 errors)
         complex (complexity value)]
-    (prn "errors" errors)
-    (prn "filt-errors" filtered-errors)
     (cond
       (empty? errors) complex
       (empty? filtered-errors) (/ complex 2.0)
-      :else false))
-#_  (cond
-    (empty? ) 2
-    (map? (type-check-value parent-type value {})) 1
-    :else false))
+      :else false)))
 
 (defn parents-for-type [typ']
   (concat (not-empty
@@ -511,7 +505,9 @@
                                   :cljsbuild 5})))
 
 
-(contains? (set [1 2 3]) 3)
+
+
+
 ;; error messages
 #_(pp)
 (defn parent-is-sequence? [{:keys [type-sig path]}]
