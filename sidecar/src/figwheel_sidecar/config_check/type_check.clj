@@ -13,6 +13,11 @@
 (defmacro with-schema [rules & body] 
   `(binding [*schema-rules* ~rules] ~@body))
 
+(defn schema-rules [arg]
+  (if *schema-rules*
+    (*schema-rules* arg)
+    (throw (Exception. "Type Check Schema is not bound! Please bind type-check/*schema-rules* and watch lazyiness, binding scope."))))
+
 (defn db-query [q db]
   (fn [a]
     (l/to-stream
@@ -504,8 +509,424 @@
     (doall (type-check 'Figwheel {:figheel true
                                   :cljsbuild 5})))
 
+;; 
+
+#_(defn apply-predicate [pred val]
+  (l/project
+   [pred]
+   (l/pred val (fn [v] (boolean (apply-pred pred v))))))
 
 
+;; spiking on yet another way of analyzing a configuration for errors
+
+(defn predicate-rules-for-type [parent-type]
+  (let [f (if parent-type #(vector % parent-type) identity)]
+    (apply concat (mapv schema-rules (map f [:= :== :=>])))))
+
+(defn pred-type-help**
+  ([simple-exp parent-typ]
+   (doall
+    (for [[typ pred-type pred] (predicate-rules-for-type parent-typ)
+          :when (apply-pred [pred-type pred] simple-exp)]
+      [typ simple-exp])))
+  ([simple-exp]
+   (pred-type-help** simple-exp nil)))
+
+(defn concrete-parent** [typ]
+  (doall
+   (distinct
+    (or (not-empty
+         (concat
+          (for [[ky _ [_ _ ty]] (schema-rules :-)
+                :when (= ty typ)]
+            typ)
+          (apply concat
+                 (for [[pt _ ty] (schema-rules :--)
+                       :when (= ty typ)]
+                   (concrete-parent** pt)))))
+        [typ]))))
+
+
+#_(defn concrete-child** [typ]
+  (doall
+   (distinct
+    (or (not-empty
+         (concat
+          (for [[ky _ [_ _ ty]] (schema-rules [:parent :- typ])]
+            typ)
+          (apply concat
+                 (for [[pt _ ct] (schema-rules [:-- typ])]
+                   (concrete-child** ct)))))
+        [typ]))))
+
+#_(with-schema
+  (index-spec
+   (spec 'H (ref-schema 'Hey))
+   (spec 'Hey (ref-schema 'Now))
+   (spec 'Now (ref-schema 'Nower))
+   (spec 'Nower :asdf))
+  (concrete-child** 'H)
+  )
+
+(defn concrete-parent [rules parent-type typ]
+  (l/fresh [ky pt ignore]
+    (l/conda
+     [(l/conde
+       [(l/== parent-type typ)
+        (db-query [ky :- [ignore :> typ]] (rules :-))]
+       [(db-query [pt :-- typ] (rules :--))
+        (concrete-parent rules parent-type pt)])]
+     [(l/== parent-type typ)])))
+
+#_(l/run* [q]
+  (concrete-parent
+   (index-spec
+    (spec 'H (ref-schema 'Hey))
+    (spec 'Hey (ref-schema 'Now))
+    (spec 'Now (ref-schema 'Nower))
+    (spec 'Nower :asdf))
+   'H q
+   )
+  )
+
+
+(defn pred-type** [exp]
+  (doall
+   (for [[typ exp]  (pred-type-help** exp)
+         parent-typ (concrete-parent** typ)]
+     [parent-typ exp])))
+
+#_(with-schema
+    (index-spec
+     (spec 'Thought number?)
+     (spec 'Thoughter (ref-schema 'Thought))
+     (spec 'Thing
+           {:Asdf 3
+            :GFSD 4
+            :qwerta (ref-schema 'Thoughter)                
+            :qwerty (ref-schema 'Thoughter)})
+     (spec 'Bing
+           {:Asdf 3
+            :GFSD 4
+            :qwert (ref-schema 'Thoughter)})
+     (spec 'Topper
+           {:bing (ref-schema 'Bing)}))
+  (doall (pred-type** 3))
+  )
+
+(defn pred-type [rules val parent-type typ-path]
+  (l/fresh [typ]
+    (pred-type* rules val typ)
+    (l/== typ-path [val])
+    (concrete-parent rules parent-type typ)))
+
+(defn tc-simple [rules simple-exp typ typ-path]
+  (pred-type rules simple-exp typ typ-path))
+
+(def tc-simple** pred-type**)
+
+(declare tc tc-proxy tc-with-parent**)
+
+(defn similar-key** [k ky]
+  (l/project
+   [k]
+   (l/project
+    [ky]
+    (l/== true (boolean
+                (and (not= k ky)
+                     (similar-key 0 k ky)))))))
+
+(defn tc-kv [rules ky val pt typ-path]
+  (l/fresh [try-key try-parent]
+    (l/matche
+     [typ-path]
+     ([[k val-typ . xs]]
+      (l/conde
+       [(db-query [ky :- [try-parent :> val-typ]] (rules :-))
+        (l/== ky k)
+        (tc-proxy rules val val-typ xs)]
+       [(db-query [try-key :- [try-parent :> val-typ]] (rules :-))
+        (similar-key** try-key ky)
+        (l/== [:subst try-key ky] k)
+        (tc-proxy rules val val-typ xs)])
+      (concrete-parent rules pt try-parent)))))
+
+#_(defn find-keyword-predicate [parent-type]
+    (when-let [[pred-id _ [pt _ kt]] (first (*schema-rules* [:parent :?- parent-type]))]
+      (when-let [pred-func (last (first (*schema-rules* [:= pred-id])))]
+        [pred-func kt])))
+
+(defn tc-kv** [ky val]
+  (if-let [res (not-empty
+                (doall
+                 (concat
+                  (for [[_ _ [pt _ val-typ]] (schema-rules [:- ky])
+                        parent-type (concrete-parent** pt)
+                        child-types (tc-with-parent** val-typ val)]
+                    (concat [parent-type ky] child-types))
+                  (for [[k _ [pt _ val-typ]] (schema-rules :-)
+                        :when (and (not= k ky)
+                                   (similar-key 0 k ky))
+                        parent-type (concrete-parent** pt)
+                        child-types (tc-with-parent** val-typ val)]
+                    (concat [parent-type [:subst ky k]] child-types)))))]
+    res
+    ;; try keyword predicates expensive
+    (doall
+     (for [[pred-id _ [pt _ val-typ]] (schema-rules :?-)
+           parent-type (concrete-parent** pt)
+           :when (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
+                   (pred-func ky)) 
+           child-types (tc-with-parent** val-typ val)]
+       (concat [parent-type ky] child-types)))))
+
+#_(with-schema
+  (index-spec
+   (spec 'Thing {:asdf 3
+                 :asdg 4
+                 :asd 3})
+   (spec 'Thinger {keyword? number?}))
+  #_(doall (concrete-parent** 'Thinger:pred-key_1518831777))
+  (doall (tc-kv** :asdasd 3)))
+
+(defn tc-seq [rules ky val pt typ-path]
+  (l/fresh [try-key try-parent]
+    (l/matche
+     [typ-path]
+     ([[k val-typ . xs]]
+      (db-query [0 :- [try-parent :> val-typ]] (rules :-))
+      (l/== ky k)
+      (tc rules val val-typ xs)
+      (concrete-parent rules pt try-parent)))))
+
+(defn tc-seq** [ky val]
+  (for [[_ _ [pt _ val-typ]] (schema-rules [:- 0])
+        parent-type (concrete-parent** pt)
+        child-types (tc-with-parent** val-typ val)]
+    (concat [parent-type ky] child-types)))
+
+(defn p [v]
+  (l/project [v]
+           (do
+             (prn v)
+             l/succeed)))
+
+(defn tc-complex [rules complex-exp pt typ-path]
+  (l/project
+   [complex-exp]
+   (l/conde
+    [(l/pred complex-exp (fn [e] (map? e)))
+     (l/fresh [k v ignore]
+       #_(pred-type rules complex-exp pt ignore)
+       (l/membero [k v] (seq complex-exp))
+       (l/project
+        [k]
+        (l/project
+         [v]
+         (tc-kv rules k v pt typ-path))))]
+    [(l/pred complex-exp (fn [e] (sequence-like? e)))
+     (l/fresh [k v ignore]
+       (l/membero [k v] (mapv vector (range) (seq complex-exp)))
+       #_(pred-type rules complex-exp pt ignore)
+       (l/project
+        [k]
+        (l/project
+         [v]
+         (tc-seq rules k v pt typ-path)))
+       )])))
+
+(defn tc-complex** [exp]
+  (cond
+    (map? exp) ;; TODO pred-current type
+    (mapcat (fn [[k v]] (tc-kv** k v)) (seq exp))
+    (sequence-like? exp)
+    (mapcat (fn [[k v]] (tc-kv** k v)) (map vector (range) (seq exp)))))
+
+(defn tc [rules exp pt typ-path]
+  (l/conde
+   [(l/pred exp (fn [e] (or (map? e) (sequence-like? e))))
+    (tc-complex rules exp pt typ-path)]
+   [(l/pred exp (fn [e] (not (coll? e))))
+    (tc-simple rules exp pt typ-path)]))
+
+(defn tc** [exp]
+  (cond
+    (or (map? exp) (sequence-like? exp))
+    (tc-complex** exp)
+    (not (coll? exp))
+    (tc-simple** exp)))
+
+(defn tc-with-parent** [parent-typ exp]
+  (let [res (tc** exp)]
+    (if-let [good-types (not-empty (doall (filter #(= parent-typ (first %)) res)))]
+      good-types
+      (if (and (not-empty res) (not (coll? exp)))
+        [[[:bad-terminal-value parent-typ exp res]]]
+        [[[:wrong-type parent-typ exp res]]]))))
+
+(with-schema
+  (index-spec
+  (spec 'Thought number?)
+  (spec 'Thoughter (ref-schema 'Thought))
+  (spec 'Thing
+        {:Asdf 3
+         :GFSD 4
+         :qwerta (ref-schema 'Thoughter)                
+         :qwerty (ref-schema 'Thoughter)})
+  (spec 'Bing
+        {:Asdf 3
+         :GFSD 5
+         :qwert (ref-schema 'Thoughter)})
+  (or-spec 'Boolean
+           true
+           false)
+  (or-spec 'Number
+           1 2)
+  (or-spec 'Happy
+           {:hey 1}
+           #_(ref-schema 'Boolean))
+  (spec 'Topper
+        {;:bing (ref-schema 'Bing)
+         :bool (ref-schema 'Happy)})
+  (spec 'TArr
+        [{:bing (ref-schema 'Bing)}]))
+  (tc** {:bool {:he 1}}
+  #_{:hey 1}
+
+ ))
+
+
+
+(defn tc-concrete [rules exp]
+  (distinct
+   (l/run* [q]
+    (l/fresh [a b]
+      (tc rules exp a b)
+      (l/== q [a b])))))
+
+(def ^:dynamic *tc* nil)
+
+(defn tc-proxy [rules exp pt typ-path]
+  (l/project
+   [rules]
+   (l/project
+    [exp]
+    (db-query [pt typ-path] (tc-concrete rules exp)))))
+
+
+
+
+
+#_(defn tc-is [rules parent-type exp]
+  (if-let [possbile-types (not-empty (tc-concrete rules exp))]
+    (let [type-freqs (frequencies (map first possbile-types))]
+      ;; if it doesn't contain parent type
+      (prn type-freqs)
+      (cond
+        (not (type-freqs parent-type))
+        [[[:wrong-type parent-type possbile-types] []]]
+        #_(not= (type-freqs parent-type)
+              (reduce max (vals type-freqs)))
+        #_[[[:wrong-type parent-type possbile-types] []]]
+        :else possbile-types))
+    []))
+
+#_(defn tc-proxy [rules exp suggest-parent-type act-parent-type typ-path]
+  (l/project
+   [suggest-parent-type]
+   (l/project
+    [exp]
+    (l/conda
+     [(l/== suggest-parent-type act-parent-type)
+      (db-query [suggest-parent-type typ-path] (tc-is rules suggest-parent-type exp))]
+     [(db-query [act-parent-type typ-path] (tc-is rules suggest-parent-type exp))]))))
+
+(tc-concrete
+ (index-spec
+  (spec 'Blah [string?]))
+ ["asfasd"])
+
+(tc-concrete
+ (index-spec
+  ;(spec 'Thought number?)
+  ;(spec 'Thoughter (ref-schema 'Thought))
+  #_(spec 'Thing
+        {:Asdf 3
+         :GFSD 4
+         :qwerta (ref-schema 'Thoughter)                
+         :qwerty (ref-schema 'Thoughter)})
+  #_(spec 'Bing
+        {:Asdf 3
+         :GFSD 5
+         :qwert (ref-schema 'Thoughter)})
+  (or-spec 'Boolean
+           true
+           false)
+  (or-spec 'Number
+           1 2)
+  (or-spec 'Happy
+           {:hey 1}
+           #_(ref-schema 'Boolean))
+  (spec 'Topper
+        {;:bing (ref-schema 'Bing)
+         :bool (ref-schema 'Happy)})
+  #_(spec 'TArr
+          [{:bing (ref-schema 'Bing)}]))
+
+  {:bool {:hey 1}}
+  #_{:hey 1}
+
+
+ )
+
+(l/run* [q]
+  (concrete-parent
+   (index-spec
+    (or-spec 'Boolean
+             true
+             false)
+    (or-spec 'Number
+             1 2)
+    (or-spec 'Happy
+             {:hey 1}
+             #_(ref-schema 'Boolean))
+    (spec 'Topper
+          {;:bing (ref-schema 'Bing)
+           :bool (ref-schema 'Happy)}))
+   q
+   'Happy||0
+   #_{:bool {:hey 1}}
+   #_{:hey 1}
+   
+   
+   )
+  )
+
+
+
+#_(time
+ (tc-is
+  (index-spec
+   (spec 'Thought number?)
+   (spec 'Thoughter (ref-schema 'Thought))
+   (spec 'Thing
+         {:Asdf 3
+          :GFSD 4
+          :qwerta (ref-schema 'Thoughter)                
+          :qwerty (ref-schema 'Thoughter)})
+   (spec 'Bing
+         {:Asdf 3
+          :GFSD 4
+          :qwert (ref-schema 'Thoughter)})
+   (spec 'Topper
+         {:bing (ref-schema 'Bing)}))
+  
+  'Topper
+  {:bing {:Asdf 3
+          :GFSD 4
+          :qwerty 7}}
+  
+  ))
 
 
 ;; error messages

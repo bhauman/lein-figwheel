@@ -358,8 +358,6 @@
 #_(print-errors schema-rules 'BuildOptionsMap
               {:figwheel {:websocket-host :js-client-host}})
 
-
-
 #_(print-errors schema-rules 'CompilerOptions {:main "asdf"
                                                :output-to 5
                                                :anon-fn-naming-policy :off
@@ -377,3 +375,60 @@
                                                :modules {1 {:output-to "asdf"
                                                             :entries ["asdf"]}}
                                                :closure-extra-annotations #{"asdf" "asd" "asssss" }})
+
+(time
+ (with-schema schema-rules
+  (doall
+   (tc/tc**
+    {;:main "asdf"
+     ;:output-to 5
+     ;:anon-fn-naming-polic :off
+     ;:closure-warnings {:consta :off}
+     ;:devcards true
+     ;:closure-defines {"asdfas.asdf" "asdf"}
+     ;:source-map true
+     ;:optimizations :none
+     ;:language-in :asdf
+     :foreign-libs [{:file "asdf"
+                         :provides ["asdf"]
+                         :module-type :commonj
+                         }]
+     #_:modules #_{1 {:output-to "asdf"
+                      :entries ["asdf"]}}
+    }
+   ))))
+
+(time
+ (binding [tc/*tc* (memoize tc/tc-concrete)]
+   (doall (tc/tc-concrete schema-rules {:main "asdf"
+                                        :output-to 5
+                                        :anon-fn-naming-policy :off
+                                        :closure-warnings {:const :off}
+                                        :devcards true
+                                        :closure-defines {"asdfas.asdf" "asdf"}
+                                        :source-map true
+                                        :optimizations :none
+                                        :foreign-libs [{:file "asdf"
+                                                        :provides ["asdf"]
+                                                        :module-type :commonj
+                                                        }]
+                              }))
+   )
+)
+
+
+(tc/tc-concrete schema-rules
+                {
+                 :devcards true
+                 :closure-defines {"asdfas.asdf" "asdf"}
+                 :source-map true
+                 :optimizations :none
+                                        ; :language-in :asdf
+                 :foreign-libs [{:file "asdf"
+                                 :provides ["asdf"]
+                                 :module-type :commonj
+                                 }]
+                 
+                 :modules {1 {:output-to "asdf"
+                              :entries ["asdf"]}}
+                 :closure-extra-annotations #{ "asdf" "asd" "asssss" }})
