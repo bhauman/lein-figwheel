@@ -553,6 +553,117 @@
                    :figg [['Fig [:subst :figg :figwheel] 'Yep]
                           ['Fig [:subst :figg :firstwheel] [:bad-value] [:bad-value]]
                           ['Fig [:subst :figg :fogwheel] [:bad-value]]])
+
+(defn path-count [orig-config [x & xs]]
+  (if-let [next-config (and (coll? orig-config) (get orig-config x))]
+    (inc (path-count next-config xs))
+    0))
+
+(defn path-score [orig-config path]
+  (if (empty? path) 0
+    (/ (path-count orig-config path)
+       (count path))))
+
+(defn best-path [orig-config paths]
+  (when (not-empty paths)
+    (first (max-val (mapv (juxt identity (partial path-score orig-config)) paths)))))
+
+#_(best-path {:some {:a 1 :c 3}} [[:thing :c]])
+
+#_(path-score {:some {:a 1 :c 3}} [[:thing :c]])
+
+#_(best-path {:a {:b {:c {:d 5}}}} [[:a :b :c :d :e] [:a :b :r]])
+
+(defn misplaced-key? [root-type orig-config parent-typ parent-config-value bad-key]
+  (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules [:- bad-key])
+                              :when (not= pt parent-typ)]
+                          {:parent-type pt :child-type  val-typ})
+        correct-path-types
+        (filter
+         (comp not-empty :correct-paths)
+         (mapv
+          #(assoc %
+                  :correct-paths
+                  (get-paths-for-key root-type (get % :child-type) bad-key))
+          potential-types))
+        child-analysis (detailed-config-analysis {bad-key (get parent-config-value bad-key)})
+        correct-path-types
+        (filter (fn [{:keys [parent-type]}]
+                  (true? (analysis-type-matches parent-type child-analysis)))
+                correct-path-types)
+        best-fit-path  (best-path orig-config (mapcat :correct-paths correct-path-types))]
+    ;; TODO best path can't exist already!!
+    ;; make sure that value matches type
+    #_[bad-key child-analysis potential-types correct-path-types best-fit-path ]
+    #_(prn )
+    (when best-fit-path
+      (let [{:keys [parent-type child-type]}
+            (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
+        {:Error :misplaced-key
+         :key bad-key
+         :correct-type [parent-type :> child-type]
+         :correct-paths [best-fit-path]
+         :confidence :high}))
+    ))
+
+;; TODO this is a duplicate of the above functionality
+;; please take a look at this
+;; more than likely can use a simple child analysis to determine this
+;; info in one function
+(defn misspelled-misplaced-key? [root-type orig-config parent-typ parent-config-value bad-key]
+  (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules :-)
+                              :when (and
+                                     (not= pt parent-typ)
+                                     (similar-key 0 bad-key ky))]
+                          {:parent-type pt :child-type  val-typ :new-key ky})
+        correct-path-types
+        (filter
+         identity #_(comp not-empty :correct-paths)
+         (mapv
+          #(assoc %
+                  :correct-paths
+                  (get-paths-for-key root-type (get % :child-type) (get % :new-key)))
+          potential-types))
+        child-analysis-fn (fn [new-key]
+                            (detailed-config-analysis {new-key (get parent-config-value bad-key)}))
+        correct-path-types
+        (filter (fn [{:keys [parent-type new-key]}]
+                  (true? (analysis-type-matches parent-type (child-analysis-fn new-key))))
+                correct-path-types)
+        best-fit-path  (best-path orig-config (mapcat :correct-paths correct-path-types))]
+    ;; TODO best path can't exist already!!
+    ;; make sure that value matches type
+    #_[bad-key potential-types correct-path-types best-fit-path ]
+    #_(prn potential-types correct-path-types)
+    (when best-fit-path
+      (let [{:keys [parent-type new-key child-type]}
+            (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
+        {:Error :misspelled-misplaced-key
+         :key bad-key
+         :correction new-key
+         :correct-type [parent-type :> child-type]
+         :correct-paths [best-fit-path]
+         :confidence :high}))))
+
+(with-schema
+  (index-spec
+   (spec 'Topper
+         {:some (ref-schema 'Some)
+          :thing (ref-schema 'Thing)})
+   (spec 'Some
+         {:a 1
+          :b 2})
+   (spec 'Thing
+         {:c 3
+          :d 4})
+   (spec 'Bing
+         {:c 4
+          :g 4}))
+  (misplaced-key? 'Topper
+                  {:some {:a 1 :c 3}}
+                  'Some {:a 1 :c 3}
+                  :c ))
+
 #_(pp)
 
 (defn unknown-key-error-helper [root-type parent-type bad-key value error]
