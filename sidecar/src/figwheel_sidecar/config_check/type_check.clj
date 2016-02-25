@@ -156,7 +156,7 @@
      (group-by (juxt second first) spc))))
 
 (defn fetch-pred [pred-type parent-type]
-  (if-let [res (not-empty (map last (*schema-rules* [pred-type parent-type])))]
+  (if-let [res (not-empty (map last (schema-rules [pred-type parent-type])))]
     [pred-type (first res) parent-type] ))
 
 (defn leaf-pred? [parent-type]
@@ -165,7 +165,7 @@
       (fetch-pred :=> parent-type)))
 
 (defn all-types [parent-type]
-  (let [res (map last (*schema-rules* [:-- parent-type]))]
+  (let [res (map last (schema-rules [:-- parent-type]))]
     (distinct (cons parent-type (concat res (mapcat all-types res))))))
 
 (defn all-predicates [parent-type]
@@ -218,7 +218,7 @@
 
 (defn get-types-from-key-parent [parent-type ky]
   (map (comp last last)
-       (filter #(= parent-type (-> % last first)) (*schema-rules* [:- ky]))))
+       (filter #(= parent-type (-> % last first)) (schema-rules [:- ky]))))
 
 (declare type-checker)
 
@@ -226,8 +226,8 @@
   (if (sequence-like? parent-value) 0 k))
 
 (defn find-keyword-predicate [parent-type]
-  (when-let [[pred-id _ [pt _ kt]] (first (*schema-rules* [:parent :?- parent-type]))]
-    (when-let [pred-func (last (first (*schema-rules* [:= pred-id])))]
+  (when-let [[pred-id _ [pt _ kt]] (first (schema-rules [:parent :?- parent-type]))]
+    (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
       [pred-func kt])))
 
 ;; this is what implements or
@@ -253,7 +253,7 @@
           :path     (:path     state)}]))))
 
 (defn required-keys-for-type [parent-type]
-  (set (for [[t _ k]  (*schema-rules* [:requires-key parent-type])
+  (set (for [[t _ k]  (schema-rules [:requires-key parent-type])
                   :when (= t parent-type)]
               k)))
 
@@ -350,12 +350,12 @@
 
 (defn parents-for-type [typ']
   (concat (not-empty
-           (for [[ky _ [parent-type _ typ]] (*schema-rules* :-)
+           (for [[ky _ [parent-type _ typ]] (schema-rules :-)
                  :when (= typ typ')]
              [ky parent-type]))
           (not-empty
            (apply concat
-                  (for [[up-type _ typ] (*schema-rules* :--)
+                  (for [[up-type _ typ] (schema-rules :--)
                         :when (= typ typ')]
                     (parents-for-type up-type))))))
 
