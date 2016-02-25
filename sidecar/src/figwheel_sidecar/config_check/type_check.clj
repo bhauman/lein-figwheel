@@ -404,7 +404,7 @@
 
 ;; this could be improved by considering the type of the
 ;; current parent value by considering the parents other keys
-(defn misspelled-key [parent-type bad-key value error]
+#_(defn misspelled-key [parent-type bad-key value error]
   (take 1
    (sort-by
     #(-> % :distance-score -)
@@ -422,7 +422,7 @@
           :distance-score (+ score (key-distance bad-key ky))
           :confidence :high}))))))
 
-(defn misplaced-key [root-type parent-type bad-key value]
+#_(defn misplaced-key [root-type parent-type bad-key value]
   (let [parent-type-set
         (set (cons parent-type (decendent-types *schema-rules* parent-type)))]
     (for [[ky _ [other-parent-type _ typ]] (*schema-rules* [:- bad-key])
@@ -435,7 +435,7 @@
        :correct-paths (get-paths-for-key root-type typ ky)
        :confidence :high})))
 
-(defn misspelled-misplaced-key [root-type parent-type bad-key value]
+#_(defn misspelled-misplaced-key [root-type parent-type bad-key value]
   (let [parent-type-set
         (set (cons parent-type (decendent-types *schema-rules* parent-type)))]
     (sort-by
@@ -454,7 +454,7 @@
         :correct-paths (get-paths-for-key root-type typ ky)
         :confidence :high}))))
 
-(defn unknown-key-error-help [root-type parent-type bad-key value error]
+#_(defn unknown-key-error-help [root-type parent-type bad-key value error]
   (first
    (filter
     not-empty
