@@ -492,7 +492,10 @@
 (defn which-type-wins? [parent-type types]
   (let [type-map (into {} (filter (comp pos? second)
                                   (frequencies-to-pct (cons parent-type types))))]
-    (if ((set (keys type-map)) parent-type)
+    ;; TODO this states all we need is one representation of the type
+    ;; this is probably better done outside the function
+    ;; or we have a helper function
+    (if ((set types) parent-type)
       parent-type
       (first (max-val type-map)))))
 
