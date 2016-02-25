@@ -477,6 +477,7 @@
           (doall (tc-analyze config)))]
     path-analysis))
 
+;; TODO look at standard deviation as a better way to do this
 (defn frequencies-to-pct [l]
   (let [freqs (frequencies l)
         count-uniq (float (count freqs))
