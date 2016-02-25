@@ -549,13 +549,6 @@
        :corrections potential-keys
        :confidence :high})))
 
-#_(defn misplaced-key? [parent-type parent-config-value bad-key analysis]
-  (let [child-analysis            (detailed-config-analysis (get parent-config-value bad-key))
-        
-        actual-parent-type?       (analysis-type-matches parent-type analysis)]
-
-    ))
-
 #_(misspelled-key? 'Fig { }
                    :figg [['Fig [:subst :figg :figwheel] 'Yep]
                           ['Fig [:subst :figg :firstwheel] [:bad-value] [:bad-value]]
