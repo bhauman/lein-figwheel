@@ -487,7 +487,7 @@
                                    average)]) freqs))))
 
 (defn max-val [mp]
-  (reduce (fn [[k v] [k1 v1]] (if (< v v1) [k1 v1] [k v])) ['_ 0] mp))
+  (reduce (fn [[k v] [k1 v1]] (if (< v v1) [k1 v1] [k v])) [nil -1] mp))
 
 (defn which-type-wins? [parent-type types]
   (let [type-map (into {} (filter (comp pos? second)
