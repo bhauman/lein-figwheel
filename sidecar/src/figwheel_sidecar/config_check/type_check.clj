@@ -515,9 +515,14 @@
           true
           {:Error :wrong-type :alternate-type preferred-type})))))
 
+#_(which-type-wins? 'RootMap (map first [['FigOpts] ['FigOpts] ['FigOpts] ['FigOpts]]))
+
+#_(analysis-type-matches 'RootMap [['FigOpts] ['FigOpts] ['FigOpts] ['FigOpts]])
+
 (defn limit-analysis-to-type [parent-type analysis]
   (filter #(= (first %) parent-type) analysis))
 
+#_(frequencies-to-pct (cons 'RootMap (map first [['FigOpts] ['FigOpts] ['FigOpts] ['FigOpts]])))
 ;; XXX
 #_(pp)
 ;; TODO still have to have a diferrent message for whole hog replacement
@@ -670,22 +675,36 @@
   (let [parent-config-value (error-parent-value error)
         analysis            (detailed-config-analysis parent-config-value)
         actual-parent-type? (analysis-type-matches parent-type analysis)]
+    #_(prn root-type actual-parent-type?)
+    #_(pprint/pprint analysis)
+    #_(if (= bad-key :magicl))
     (if (not (true? actual-parent-type?))
-      ;; not parent type we are looking at a misplaced configuration value
+      ;; not parent type we are looking at a misplaced configuration
+      ;; value
+      ;; TODO this is still weak
       [{:Error :wrong-position-for-value
         :current-path (-> error :path rest)
         :expected-type parent-type
         :actual-type (:alternate-type actual-parent-type?)
-        :suggested-path-for-value 'TODO
-        :source-error error}]
+        :correct-paths (get-paths-for-type root-type (:alternate-type actual-parent-type?))}]
       ;; now we can determing if this is most likely a mispelled key
       (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
         [mispelled-key-error]
-        ;; then we can check to see if it is a misplaced key
-
-        [])
-
-      )))
+        (if-let [misplaced-key-error
+                 (misplaced-key? root-type
+                                 (get error :orig-config)
+                                 parent-type
+                                 parent-config-value
+                                 bad-key)]
+          [misplaced-key-error]
+          (if-let [misspelled-misplaced-key-error
+                   (misspelled-misplaced-key? root-type
+                                              (get error :orig-config)
+                                              parent-type
+                                              parent-config-value
+                                              bad-key)]
+            [misspelled-misplaced-key-error]
+            []))))))
 
 #_(pp)
 
@@ -726,11 +745,10 @@
                   err' (unknown-key-error-helper root-type (first type-sig) key value error)]
               (if (empty? err')
                 [(assoc error :Error (:Error-type error))]
-                (map #(assoc %
-                           :path (:path error)
-                           :value (:value error)
-                           :type-sig (:type-sig error)
-                           :orig-error error) err'))
+                (map #(merge {:path (:path error)
+                              :value (:value error)
+                              :type-sig (:type-sig error)
+                              :orig-error error}  %) err'))
               ))
         errors))
 
@@ -868,6 +886,9 @@
                   ;; this value
                   ;; this needs to be refactored as we are covering the
                   ;; same ground as above
+                  ;; TODO make this conditional like keyword
+                  ;; predicates
+                  ;; BEFORE keyword predicates
                   (when (and (map? val) (> (count val) 0))
                     (for [[k _ [pt _ val-typ]] (schema-rules :-)
                           :when (and
@@ -916,11 +937,14 @@
     (mapcat (fn [[k v]] (tc-kv k v)) (map vector (range) (seq exp)))))
 
 (defn tc-analyze [exp]
-  (cond
-    (or (map? exp) (sequence-like? exp))
-    (tc-complex exp)
-    (not (coll? exp))
-    (tc-simple exp)))
+  (distinct
+   (filter
+    not-empty
+    (cond
+      (or (map? exp) (sequence-like? exp))
+      (tc-complex exp)
+      (not (coll? exp))
+      (tc-simple exp)))))
 
 (defn tc-with-parent [parent-typ exp]
   (let [res (tc-analyze exp)]
@@ -1079,6 +1103,14 @@
    :line " It should be probably be spelled "
    (color (pr-str correction) :green)]
   )
+
+(defmethod error-help-message :wrong-position-for-value
+  [{:keys [key correction correct-paths]}]
+  [:group
+   "The value below "
+   " is most likely in the wrong place in your config."])
+
+#_(pp)
 ;; printing
 
 (defn print-path [[x & xs] leaf-node edn]
@@ -1137,7 +1169,7 @@
     (error-help-message error)
     :break
     :break
-    [:nest 2
+    [:nest 2 
      (print-path (reverse (rest path))
                  leaf-node
                  orig-config)]
@@ -1382,6 +1414,26 @@
                     (document-key (first correct-type) correction))
                    {:width 40}))
 
+#_{:path (:five),
+   :value 5,
+   :current-path (),
+   :type-sig (RootMap),
+   :suggested-path-for-value [:figwheel],
+   :expected-type RootMap,
+   :actual-type FigOpts,
+   :Error :wrong-position-for-value,
+}
+
+(defmethod print-error :wrong-position-for-value [{:keys [key value correct-paths correct-type orig-error orig-config type-sig] :as error}]
+  (pprint-document (print-wrong-path-error
+                    (assoc error :correction (first (first correct-paths)))
+                    [:group
+                     (format-value value :bold)
+                     [:line " <- "]
+                     (str "^ value is in the wrong place")]
+                    (document-key (first correct-type) (first (first correct-paths))))
+                   {:width 40}))
+
 (defmethod print-error :failed-key-predicate [{:keys [key value orig-error orig-config type-sig path] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
@@ -1416,10 +1468,16 @@
     (mapv #(do (print-error (assoc % :orig-config config)) %)
           (type-check root config))))
 
+
 (defn print-errors-test [config]
   #_(type-check 'RootMap config)
   (mapv #(print-error (assoc % :orig-config config))
         (type-check 'RootMap config)))
+
+(defn print-errors-test-first [config]
+  #_(type-check 'RootMap config)
+  (mapv #(print-error (assoc % :orig-config config))
+        (take 1 (type-check 'RootMap config))))
 
 (defn pp []
   (with-schema (index-spec
@@ -1462,6 +1520,7 @@
                 (requires-keys 'OtherType :faster)
                 )
 
+    
 
   #_ (doall  (type-check 'RootMap {:figwheel {:five 6
                                             :string 'asdf
@@ -1470,7 +1529,7 @@
                                             :magicl "asdf"}
                                  :willywonka 4}))
     
-  (print-errors-test {:figwheel {:five 6
+  #_(print-errors-test {:figwheel {:five 6
                                  :string 'asdf
                                  :boolean 4
                                  :builds {5 5}
@@ -1488,7 +1547,23 @@
                       :magicl "asdf"
                       
                       :willywonka 4})
-
+    (first (type-check 'RootMap {:five 5
+                                 :string "asdf"
+                                 :boolean true
+                                 :builds {"asdf" 5}
+                                 :what [ true ]
+                                 :other { :master 4
+                                          :faster "asdf"}
+                                 :magical "asdf"}))
+    (print-errors-test-first {:five "asdf"
+                              :string "asdf"
+                              :boolean true
+                              :builds {"asdf" 5}
+                              :what [ true]
+                              :other { :master 4
+                                      :faster "asdf"}
+                              :magical "asdf"})
+    
   #_(doall (document-key 'FigOpts :other))
     
     )
