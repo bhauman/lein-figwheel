@@ -514,6 +514,9 @@
 (defn limit-analysis-to-type [parent-type analysis]
   (filter #(= (first %) parent-type) analysis))
 
+;; XXX
+#_(pp)
+;; TODO still have to have a diferrent message for whole hog replacement
 (defn misspelled-key? [parent-type parent-config-value bad-key analysis]
   (let [path-that-start-with-key (->> (limit-analysis-to-type parent-type analysis)
                                       (map rest)
@@ -521,7 +524,8 @@
                                                 #_(prn ky)
                                                 (and (vector? ky)
                                                      (seq ky)
-                                                     (= :subst (first ky))))))
+                                                     (= bad-key (second ky))
+                                                     (#{:subst :replace-key} (first ky))))))
         potential-keys (sort-by
                         first
                         (for [[ky & xs] path-that-start-with-key
@@ -529,24 +533,30 @@
                                     error-count (count (filter vector? xs))]]
                           [error-count suggested-key]))
         ;; filter out keys that arleady exist in current config map
-        potential-keys (filter (comp (complement (set (keys parent-config-value))) second)
+        potential-keys (filter (comp (complement (set (keys parent-config-value)))
+                                     second)
                                potential-keys)
-        _ (prn potential-keys)
-        ;; keys with no errors have precedence
-        high-potential-keys (filter zero? (map first potential-keys))
-        potential-keys (map second (or (not-empty high-potential-keys)
-                                       potential-keys))]
-
+        ;; only return keys with no errors on path if they are around
+        high-potential-keys (filter (comp zero? first) potential-keys)
+        potential-keys (map second (or (not-empty high-potential-keys) potential-keys))]
     (when (not-empty potential-keys)
       {:Error :misspelled-key
        :key bad-key
        :corrections potential-keys
        :confidence :high})))
 
+#_(defn misplaced-key? [parent-type parent-config-value bad-key analysis]
+  (let [child-analysis            (detailed-config-analysis (get parent-config-value bad-key))
+        
+        actual-parent-type?       (analysis-type-matches parent-type analysis)]
 
-#_(misspelled-key? 'Fig { } :figg [['Fig [:subst :figg :figwheel] 'Yep]
-                             ['Fig [:subst :figg :firstwheel] [:bad-value] [:bad-value]]
-                             ['Fig [:subst :figg :fogwheel] [:bad-value]]])
+    ))
+
+#_(misspelled-key? 'Fig { }
+                   :figg [['Fig [:subst :figg :figwheel] 'Yep]
+                          ['Fig [:subst :figg :firstwheel] [:bad-value] [:bad-value]]
+                          ['Fig [:subst :figg :fogwheel] [:bad-value]]])
+#_(pp)
 
 (defn unknown-key-error-helper [root-type parent-type bad-key value error]
   (let [parent-config-value (error-parent-value error)
@@ -564,7 +574,7 @@
       (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
         [mispelled-key-error]
         ;; then we can check to see if it is a misplaced key
-        ;; then we can just check if it is a bad key
+
         [])
 
       )))
@@ -710,6 +720,23 @@
   (doall (pred-type** 3))
   )
 
+(defn good-bad-ratio
+  "analyze the ratio of good parts to bad parts of analyzed paths"
+  [paths]
+  (if (not-empty paths)
+    (let [total (reduce + (map count paths))
+          total-errors (reduce +
+                               (map
+                                (fn [p]
+                                  (count
+                                   (filter #(and (coll? %)
+                                                 (or (vector? %) (seq? %)))
+                                           p)))
+                                paths))]
+      (/ (float total-errors)
+         (float total)))
+    0))
+
 (def tc-simple pred-type)
 
 (declare tc-with-parent)
@@ -722,12 +749,30 @@
                         parent-type (concrete-parent pt)
                         child-types (tc-with-parent val-typ val)]
                     (concat [parent-type ky] child-types))
+                  ;; keys that are mispelled locals
                   (for [[k _ [pt _ val-typ]] (schema-rules :-)
                         :when (and (not= k ky)
                                    (similar-key 0 k ky))
                         parent-type (concrete-parent pt)
                         child-types (tc-with-parent val-typ val)]
-                    (concat [parent-type [:subst ky k]] child-types)))))]
+                    (concat [parent-type [:subst ky k]] child-types))
+                  ;; keys that have complex children that match
+                  ;; this value
+                  ;; this needs to be refactored as we are covering the
+                  ;; same ground as above
+                  (when (and (map? val) (> (count val) 0))
+                    (for [[k _ [pt _ val-typ]] (schema-rules :-)
+                          :when (and
+                                 (not= k ky)
+                                 (not (similar-key 0 k ky)))
+                          parent-type (concrete-parent pt)]
+                      (let [child-type-paths (filter #(= (first %) val-typ)
+                                                     (tc-with-parent val-typ val))]
+                        (when (< (good-bad-ratio child-type-paths)
+                                 (if (> (count val) 1)
+                                   0.5 0.3))
+                          (mapcat #(concat [parent-type [:replace-key ky k]] %)
+                                  child-type-paths))))))))]
     res
     ;; try keyword predicates expensive
     (doall
@@ -737,6 +782,8 @@
                    (pred-func ky)) 
            child-types (tc-with-parent val-typ val)]
        (concat [parent-type ky] child-types)))))
+
+#_(pp)
 
 #_(with-schema
   (index-spec
@@ -906,9 +953,8 @@
    (color (pr-str key) :bold)
    " is spelled wrong. "
    (if (= 1 (count corrections))
-     [:span "It should be " (color (pr-str (first corrections)) :green)]
-     [:span "It could be one of: " (cons :span (interpose ", " (mapv #(color (pr-str %) :green) corrections)) )])
-])
+     [:span "It should probably be " (color (pr-str (first corrections)) :green)]
+     [:span "It could be one of: " (cons :span (interpose ", " (mapv #(color (pr-str %) :green) corrections)))])])
 
 (defmethod error-help-message :misplaced-key [{:keys [key correct-paths]}]
   [:group
@@ -1294,7 +1340,7 @@
                        :string   string?
                        :what    [(ref-schema 'Boolean)] #_[string?]
                        :magical "asdf"
-                       :magicall "asdf"})
+                       :magicall 5})
                 (doc 'FigOpts "This is some doe"
                      {:magicall "This is sooo magical"
                       :magical  "This is magical as well"}
@@ -1323,7 +1369,9 @@
                                  :what ["resources/public/js/out"
                                         "resources/public/js/out"
                                         "resources/public/js/out"]
-                                 :other {:master 4}
+                                 :wowzer {:master 4
+                                          :faster "asdf"
+                                          }
                                  :magicl "asdf"}
                       #_:crappers #_[{:whaaa 5
                                   :yeah 6}
