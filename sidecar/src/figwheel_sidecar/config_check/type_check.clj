@@ -483,7 +483,8 @@
         count-uniq (float (count freqs))
         sum   (float (count l))
         average (/ count-uniq sum)]
-    (into {} (map (fn [[k v]] [k (- (/ v count-uniq) average)]) freqs))))
+    (into {} (map (fn [[k v]] [k (- (/ v count-uniq)
+                                   average)]) freqs))))
 
 (defn max-val [mp]
   (reduce (fn [[k v] [k1 v1]] (if (< v v1) [k1 v1] [k v])) ['_ 0] mp))
