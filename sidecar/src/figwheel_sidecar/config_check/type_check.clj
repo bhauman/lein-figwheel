@@ -506,10 +506,9 @@
         total-analysis-paths (count analysis)]
     (cond
       (empty? type-set) {:Error :no-type-match}
-      (<= total-analysis-paths 2)
-      (if ((set types) parent-type)
-        true
-        {:Error :wrong-type :alternate-type (first type-set)})
+      (<= total-analysis-paths 2) (if ((set types) parent-type)
+                                    true
+                                    {:Error :wrong-type :alternate-type (first type-set)})
       (> total-analysis-paths 2)
       (let [preferred-type (which-type-wins? parent-type types)]
         (if (= preferred-type parent-type)
