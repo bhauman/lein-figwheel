@@ -178,6 +178,7 @@
     cljs-compiler-rules
     (spec 'FigwheelOptions
           {:http-server-root  string?
+           :http-server-path  string?
                                         ; :builds            (ref-schema 'FigwheelOnlyBuilds)
            :server-port       integer?
            :server-ip         string?
