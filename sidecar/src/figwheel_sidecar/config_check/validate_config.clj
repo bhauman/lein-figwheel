@@ -332,6 +332,16 @@
     )
   )
 
+
+(comment
+  ;; figure out
+  (defn get-all-keys [rules]
+    (for [[k & ks] (rules :-)] k))
+
+  (get-all-keys schema-rules)
+
+  )
+
 (comment
   (def config {:builds {:hey {:source-paths ["asdf"]}}})
   
@@ -380,7 +390,7 @@
  (with-redefs [tc/tc-analyze (memoize tc/tc-analyze)]
  (with-schema schema-rules
   (doall
-   (tc/tc**
+   (tc/tc-analyze
     {:main "asdf"
      :output-to 5
      :anon-fn-naming-polic :off

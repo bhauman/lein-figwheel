@@ -314,9 +314,10 @@
 #_(defn key-distance [k other-key]
   (metrics/dice (name k) (name other-key)) )
 
-(defn key-distance [ky ky1]
+#_(defn key-distance [ky ky1]
   (let [d (metrics/dice (name ky) (name ky1))
         l (metrics/levenshtein (name ky) (name ky1))]
+    (prn d l)
     (if (and (> d 0.4) (< l 5))
       (+ (- d 0.4)
          (/ (- 5 l) 10.0))
@@ -325,11 +326,34 @@
 #_(metrics/levenshtein "fihgweel" "figwheel")
 #_(metrics/mra-comparison )
 
+(defn step-log [thresh val]
+  (if (< thresh val)
+    (+ thresh (/ (- val thresh ) 2.0))
+    val))
+
+(defn ky-distance [ky ky1]
+  (let [l (metrics/levenshtein (name ky) (name ky1))
+        r  (/ (float l)
+              (step-log 5
+                        (/ (float (+ (count (name ky))
+                                     (count (name ky1))))
+                           2))
+              )]
+    r))
+
 (defn similar-key [thresh k other-key]
   (and (and (named? k)
             (named? other-key))
-       (> (key-distance k other-key)
-          thresh)))
+       (< (ky-distance k other-key)
+          0.51)))
+
+#_(metrics/dice "GSF" "GFS")
+
+#_(metrics/levenshtein "GSFD" "GFSD")
+
+#_(ky-distance :GFSD :GSFD)
+
+#_(ky-distance :figwheel :figwheeler)
 
 (defn complexity [c]
   (if (coll? c)
@@ -685,6 +709,8 @@
       [{:Error :wrong-position-for-value
         :current-path (-> error :path rest)
         :expected-type parent-type
+        :value parent-config-value
+        :path (rest (:path error))
         :actual-type (:alternate-type actual-parent-type?)
         :correct-paths (get-paths-for-type root-type (:alternate-type actual-parent-type?))}]
       ;; now we can determing if this is most likely a mispelled key
@@ -761,6 +787,58 @@
            res-groups)))
     []))
 
+
+
+(defn group-and-sort-second-pass-errors [errors]
+  (let [res-groups (group-by :Error-type errors)
+        order  [:unknown-key :missing-required-key :failed-predicate]]
+    (sort-by (fn [[k v]] (let [pos (.indexOf order k)]
+                          (if (neg? pos) 100 pos))) res-groups)))
+
+(defn group-and-sort-first-pass-errors [errors]
+  (let [res-groups (group-by :Error-type errors)
+        order  [:wrong-position-for-value
+                :misspelled-key
+                :misplaced-key 
+                :misspelled-misplaced-key
+                :unknown-key
+                :missing-required-key
+                :combined-failed-predicate                
+                :failed-key-predicate
+                :failed-predicate]]
+    (sort-by (fn [[k v]] (let [pos (.indexOf order k)]
+                          (if (neg? pos) 100 pos))) res-groups)))
+
+(defn type-check-one-error [root-type value]
+    (when-let [results (not-empty (type-checker root-type value {}))]
+      (when-let [[[typ errors] & xs] (not-empty (->> results
+                                                   (map #(assoc % :orig-config value))
+                                                   group-and-sort-first-pass-errors))]
+        (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
+          (when-let [[[typ errors] & xs] (not-empty (->> errors
+                                                         (map #(assoc % :orig-config value))
+                                                         group-and-sort-first-pass-errors))]
+            (first errors))))))
+
+(with-schema
+  (index-spec
+   (spec 'Thought number?)
+   (spec 'Thoughter (ref-schema 'Thought))
+   (spec 'Thing
+         {:Asdf 3
+          :GFSD 4
+          :qwerta (ref-schema 'Thoughter)                
+          :qwerty (ref-schema 'Thoughter)})
+   (spec 'Bing
+         {:Asdf 3
+          :GFSD 5
+          :qwert (ref-schema 'Thoughter)})
+   (spec 'Topper
+         {:bing (ref-schema 'Bing)}))
+  (doall (type-check-one-error 'Topper {:bing {:Asdf 3
+                                               :GSFD 5
+}}))
+  )
 
 
 ;; 
@@ -1022,6 +1100,9 @@
 (defmethod explain-predicate-failure :SEQQ [pred value] "Sequence")
 
 (defmulti error-help-message :Error)
+
+
+
 
 (defmethod error-help-message :unknown-key [{:keys [path key]}]
   [:group "Found unrecognized key "
