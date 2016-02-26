@@ -79,6 +79,7 @@
     (swap! env-atom #(vary-meta % assoc :type ::compiler-env))
     env-atom))
 
-
-
-
+(defn normalize-path
+  "Adds a / if missing at the end of the path."
+  [path]
+  (str path (when-not (= "/" (last path)) "/")))

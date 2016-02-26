@@ -11,7 +11,7 @@
 
    [compojure.route :as route]
    [compojure.core :refer [routes GET]]
-   [ring.util.response :refer [resource-response]]
+   [ring.util.response :refer [file-response]]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    
@@ -103,24 +103,25 @@
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
-  [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
+  [{:keys [server-port server-ip http-server-path http-server-root resolved-ring-handler] :as server-state}]
   (try
-    (-> (routes
-         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
-         (route/resources "/" {:root http-server-root})
-         (or resolved-ring-handler (fn [r] false))
-         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
-        ;; adding cors to support @font-face which has a strange cors error
-        ;; super promiscuous please don't uses figwheel as a production server :)
-        (cors/wrap-cors
-         :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
-        (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
-                      (if server-ip
-                        (assoc config :ip server-ip)
-                        config))))
+    (let [server-root (str (utils/normalize-path http-server-path) (utils/normalize-path http-server-root))]
+      (-> (routes
+           (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
+           (GET "/figwheel-ws" {params :params} (reload-handler server-state))
+           (route/files "/" {:root server-root})
+           (or resolved-ring-handler (fn [r] false))
+           (GET "/" [] (file-response "index.html" {:root server-root}))
+           (route/not-found "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
+          ;; adding cors to support @font-face which has a strange cors error
+          ;; super promiscuous please don't uses figwheel as a production server :)
+          (cors/wrap-cors
+           :access-control-allow-origin #".*"
+           :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+          (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+                        (if server-ip
+                          (assoc config :ip server-ip)
+                          config)))))
     (catch java.net.BindException e
       (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj"))))
 
@@ -141,6 +142,7 @@
 ;; remove resource paths here 
 (defn create-initial-state [{:keys [unique-id
                                     http-server-root
+                                    http-server-path
                                     server-port
                                     server-ip
                                     ring-handler
@@ -156,6 +158,7 @@
         ;; server restart thus forcing the client to reload
         :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
         :http-server-root (or http-server-root "public")
+        :http-server-path (or http-server-path "resources")
         :server-port (or server-port 3449)
         :server-ip server-ip
         :ring-handler ring-handler
