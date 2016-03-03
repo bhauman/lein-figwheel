@@ -1,5 +1,6 @@
 (ns figwheel-sidecar.config-check.type-check
   (:require
+   [clojure.pprint :as pprint]
    [fipp.engine :refer [pprint-document]]
    [figwheel-sidecar.config-check.ansi :refer [color]]
    [clj-fuzzy.metrics :as metrics]
@@ -8,10 +9,19 @@
    [clojure.set :refer [difference]]
    [clojure.core.logic :as l]))
 
+(defn log [x] (prn x) x)
+
 (def ^:dynamic *schema-rules* nil)
 
 (defmacro with-schema [rules & body] 
-  `(binding [*schema-rules* ~rules] ~@body))
+  `(with-redefs [tc-analyze (memoize tc-analyze)
+                 type-checker (memoize type-checker)]
+     (binding [*schema-rules* ~rules] ~@body)))
+
+(defn schema-rules [arg]
+  (if *schema-rules*
+    (*schema-rules* arg)
+    (throw (Exception. "Type Check Schema is not bound! Please bind type-check/*schema-rules* and watch lazyiness, binding scope."))))
 
 (defn db-query [q db]
   (fn [a]
@@ -42,7 +52,6 @@
   (and (or (map?? x)
            (list?? x))
        (empty? (rest x))))
-
 
 (defn complex-value? [v]
   (or (list?? v) (map?? v) (fn? v) (-> v meta :ref)))
@@ -149,7 +158,7 @@
      (group-by (juxt second first) spc))))
 
 (defn fetch-pred [pred-type parent-type]
-  (if-let [res (not-empty (map last (*schema-rules* [pred-type parent-type])))]
+  (if-let [res (not-empty (map last (schema-rules [pred-type parent-type])))]
     [pred-type (first res) parent-type] ))
 
 (defn leaf-pred? [parent-type]
@@ -158,7 +167,7 @@
       (fetch-pred :=> parent-type)))
 
 (defn all-types [parent-type]
-  (let [res (map last (*schema-rules* [:-- parent-type]))]
+  (let [res (map last (schema-rules [:-- parent-type]))]
     (distinct (cons parent-type (concat res (mapcat all-types res))))))
 
 (defn all-predicates [parent-type]
@@ -211,7 +220,7 @@
 
 (defn get-types-from-key-parent [parent-type ky]
   (map (comp last last)
-       (filter #(= parent-type (-> % last first)) (*schema-rules* [:- ky]))))
+       (filter #(= parent-type (-> % last first)) (schema-rules [:- ky]))))
 
 (declare type-checker)
 
@@ -219,8 +228,8 @@
   (if (sequence-like? parent-value) 0 k))
 
 (defn find-keyword-predicate [parent-type]
-  (when-let [[pred-id _ [pt _ kt]] (first (*schema-rules* [:parent :?- parent-type]))]
-    (when-let [pred-func (last (first (*schema-rules* [:= pred-id])))]
+  (when-let [[pred-id _ [pt _ kt]] (first (schema-rules [:parent :?- parent-type]))]
+    (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
       [pred-func kt])))
 
 ;; this is what implements or
@@ -246,7 +255,7 @@
           :path     (:path     state)}]))))
 
 (defn required-keys-for-type [parent-type]
-  (set (for [[t _ k]  (*schema-rules* [:requires-key parent-type])
+  (set (for [[t _ k]  (schema-rules [:requires-key parent-type])
                   :when (= t parent-type)]
               k)))
 
@@ -307,9 +316,10 @@
 #_(defn key-distance [k other-key]
   (metrics/dice (name k) (name other-key)) )
 
-(defn key-distance [ky ky1]
+#_(defn key-distance [ky ky1]
   (let [d (metrics/dice (name ky) (name ky1))
         l (metrics/levenshtein (name ky) (name ky1))]
+    (prn d l)
     (if (and (> d 0.4) (< l 5))
       (+ (- d 0.4)
          (/ (- 5 l) 10.0))
@@ -318,11 +328,34 @@
 #_(metrics/levenshtein "fihgweel" "figwheel")
 #_(metrics/mra-comparison )
 
+(defn step-log [thresh val]
+  (if (< thresh val)
+    (+ thresh (/ (- val thresh ) 2.0))
+    val))
+
+(defn ky-distance [ky ky1]
+  (let [l (metrics/levenshtein (name ky) (name ky1))
+        r  (/ (float l)
+              (step-log 5
+                        (/ (float (+ (count (name ky))
+                                     (count (name ky1))))
+                           2))
+              )]
+    r))
+
 (defn similar-key [thresh k other-key]
   (and (and (named? k)
             (named? other-key))
-       (> (key-distance k other-key)
-          thresh)))
+       (< (ky-distance k other-key)
+          0.51)))
+
+#_(metrics/dice "GSF" "GFS")
+
+#_(metrics/levenshtein "GSFD" "GFSD")
+
+#_(ky-distance :GFSD :GSFD)
+
+#_(ky-distance :figwheel :figwheeler)
 
 (defn complexity [c]
   (if (coll? c)
@@ -343,12 +376,12 @@
 
 (defn parents-for-type [typ']
   (concat (not-empty
-           (for [[ky _ [parent-type _ typ]] (*schema-rules* :-)
+           (for [[ky _ [parent-type _ typ]] (schema-rules :-)
                  :when (= typ typ')]
              [ky parent-type]))
           (not-empty
            (apply concat
-                  (for [[up-type _ typ] (*schema-rules* :--)
+                  (for [[up-type _ typ] (schema-rules :--)
                         :when (= typ typ')]
                     (parents-for-type up-type))))))
 
@@ -397,7 +430,7 @@
 
 ;; this could be improved by considering the type of the
 ;; current parent value by considering the parents other keys
-(defn misspelled-key [parent-type bad-key value error]
+#_(defn misspelled-key [parent-type bad-key value error]
   (take 1
    (sort-by
     #(-> % :distance-score -)
@@ -415,7 +448,7 @@
           :distance-score (+ score (key-distance bad-key ky))
           :confidence :high}))))))
 
-(defn misplaced-key [root-type parent-type bad-key value]
+#_(defn misplaced-key [root-type parent-type bad-key value]
   (let [parent-type-set
         (set (cons parent-type (decendent-types *schema-rules* parent-type)))]
     (for [[ky _ [other-parent-type _ typ]] (*schema-rules* [:- bad-key])
@@ -428,7 +461,7 @@
        :correct-paths (get-paths-for-key root-type typ ky)
        :confidence :high})))
 
-(defn misspelled-misplaced-key [root-type parent-type bad-key value]
+#_(defn misspelled-misplaced-key [root-type parent-type bad-key value]
   (let [parent-type-set
         (set (cons parent-type (decendent-types *schema-rules* parent-type)))]
     (sort-by
@@ -447,13 +480,273 @@
         :correct-paths (get-paths-for-key root-type typ ky)
         :confidence :high}))))
 
-(defn unknown-key-error-help [root-type parent-type bad-key value error]
+#_(defn unknown-key-error-help [root-type parent-type bad-key value error]
   (first
    (filter
     not-empty
     [(misspelled-key parent-type bad-key value error)
      (misplaced-key  root-type parent-type bad-key value)
      (misspelled-misplaced-key root-type parent-type bad-key value)])))
+
+
+;; ananlyzing the analysis results
+;; This is where the real smarts come in
+;; It isn't easy to tell from the code below but this chooses the possible error
+;; according to the probabilities that the config matches the defined
+;; types
+
+(declare tc-analyze)
+
+(defn detailed-config-analysis [config]
+  (let [path-analysis
+        (with-redefs [tc-analyze (memoize tc-analyze)]
+          (doall (tc-analyze config)))]
+    path-analysis))
+
+;; TODO look at standard deviation as a better way to do this
+(defn frequencies-to-pct [l]
+  (let [freqs (frequencies l)
+        count-uniq (float (count freqs))
+        sum   (float (count l))
+        average (/ count-uniq sum)]
+    (into {} (map (fn [[k v]] [k (- (/ v count-uniq)
+                                   average)]) freqs))))
+
+(defn max-val [mp]
+  (reduce (fn [[k v] [k1 v1]] (if (< v v1) [k1 v1] [k v])) [nil -1] mp))
+
+(defn which-type-wins? [parent-type types]
+  (let [type-map (into {} (filter (comp pos? second)
+                                  (frequencies-to-pct (cons parent-type types))))]
+    ;; TODO this states all we need is one representation of the type
+    ;; this is probably better done outside the function
+    ;; or we have a helper function
+    (if ((set types) parent-type)
+      parent-type
+      (first (max-val type-map)))))
+
+(defn analysis-type-matches [parent-type analysis]
+  (let [types (map first analysis)
+        type-set (set types)
+        ;; how much info
+        total-analysis-paths (count analysis)]
+    (cond
+      (empty? type-set) {:Error :no-type-match}
+      (<= total-analysis-paths 2) (if ((set types) parent-type)
+                                    true
+                                    {:Error :wrong-type :alternate-type (first type-set)})
+      (> total-analysis-paths 2)
+      (let [preferred-type (which-type-wins? parent-type types)]
+        (if (= preferred-type parent-type)
+          true
+          {:Error :wrong-type :alternate-type preferred-type})))))
+
+#_(which-type-wins? 'RootMap (map first [['FigOpts] ['FigOpts] ['FigOpts] ['FigOpts]]))
+
+#_(analysis-type-matches 'RootMap [['FigOpts] ['FigOpts] ['FigOpts] ['FigOpts]])
+
+(defn limit-analysis-to-type [parent-type analysis]
+  (filter #(= (first %) parent-type) analysis))
+
+#_(frequencies-to-pct (cons 'RootMap (map first [['FigOpts] ['FigOpts] ['FigOpts] ['FigOpts]])))
+;; XXX
+#_(pp)
+;; TODO still have to have a diferrent message for whole hog replacement
+(defn misspelled-key? [parent-type parent-config-value bad-key analysis]
+  (let [path-that-start-with-key (->> (limit-analysis-to-type parent-type analysis)
+                                      (map rest)
+                                      (filter (fn [[ky & xs]]
+                                                #_(prn ky)
+                                                (and (vector? ky)
+                                                     (seq ky)
+                                                     (= bad-key (second ky))
+                                                     (#{:subst :replace-key} (first ky))))))
+        potential-keys (sort-by
+                        first
+                        (for [[ky & xs] path-that-start-with-key
+                              :let [[_ bkey suggested-key] ky
+                                    error-count (count (filter vector? xs))]]
+                          [error-count suggested-key]))
+        ;; filter out keys that arleady exist in current config map
+        potential-keys (filter (comp (complement (set (keys parent-config-value)))
+                                     second)
+                               potential-keys)
+        ;; only return keys with no errors on path if they are around
+        high-potential-keys (filter (comp zero? first) potential-keys)
+        potential-keys (distinct (map second (or (not-empty high-potential-keys) potential-keys)))]
+    (when (not-empty potential-keys)
+      {:Error :misspelled-key
+       :key bad-key
+       :corrections potential-keys
+       :confidence :high})))
+
+#_(misspelled-key? 'Fig { }
+                   :figg [['Fig [:subst :figg :figwheel] 'Yep]
+                          ['Fig [:subst :figg :firstwheel] [:bad-value] [:bad-value]]
+                          ['Fig [:subst :figg :fogwheel] [:bad-value]]])
+
+(defn path-count [orig-config [x & xs]]
+  (if-let [next-config (and (coll? orig-config) (get orig-config x))]
+    (inc (path-count next-config xs))
+    0))
+
+(defn path-score [orig-config path]
+  (if (empty? path) 0
+    (/ (path-count orig-config path)
+       (count path))))
+
+(defn best-path [orig-config paths]
+  (when (not-empty paths)
+    (first (max-val (mapv (juxt identity (partial path-score orig-config)) paths)))))
+
+#_(best-path {:some {:a 1 :c 3}} [[:thing :c]])
+
+#_(path-score {:some {:a 1 :c 3}} [[:thing :c]])
+
+#_(best-path {:a {:b {:c {:d 5}}}} [[:a :b :c :d :e] [:a :b :r]])
+
+(defn misplaced-key? [root-type orig-config parent-typ parent-config-value bad-key]
+  (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules [:- bad-key])
+                              :when (not= pt parent-typ)]
+                          {:parent-type pt :child-type  val-typ})
+        correct-path-types
+        (filter
+         (comp not-empty :correct-paths)
+         (mapv
+          #(assoc %
+                  :correct-paths
+                  (get-paths-for-key root-type (get % :child-type) bad-key))
+          potential-types))
+        child-analysis (detailed-config-analysis {bad-key (get parent-config-value bad-key)})
+        correct-path-types
+        (filter (fn [{:keys [parent-type]}]
+                  (true? (analysis-type-matches parent-type child-analysis)))
+                correct-path-types)
+        best-fit-path  (best-path orig-config (mapcat :correct-paths correct-path-types))]
+    ;; TODO best path can't exist already!!
+    ;; make sure that value matches type
+    #_[bad-key child-analysis potential-types correct-path-types best-fit-path ]
+    #_(prn )
+    (when best-fit-path
+      (let [{:keys [parent-type child-type]}
+            (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
+        {:Error :misplaced-key
+         :key bad-key
+         :correct-type [parent-type :> child-type]
+         :correct-paths [best-fit-path]
+         :confidence :high}))
+    ))
+
+;; TODO this is a duplicate of the above functionality
+;; please take a look at this
+;; more than likely can use a simple child analysis to determine this
+;; info in one function
+(defn misspelled-misplaced-key? [root-type orig-config parent-typ parent-config-value bad-key]
+  (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules :-)
+                              :when (and
+                                     (not= pt parent-typ)
+                                     (similar-key 0 bad-key ky))]
+                          {:parent-type pt :child-type  val-typ :new-key ky})
+        correct-path-types
+        (filter
+         identity #_(comp not-empty :correct-paths)
+         (mapv
+          #(assoc %
+                  :correct-paths
+                  (get-paths-for-key root-type (get % :child-type) (get % :new-key)))
+          potential-types))
+        child-analysis-fn (fn [new-key]
+                            (detailed-config-analysis {new-key (get parent-config-value bad-key)}))
+        correct-path-types
+        (filter (fn [{:keys [parent-type new-key]}]
+                  (true? (analysis-type-matches parent-type (child-analysis-fn new-key))))
+                correct-path-types)
+        best-fit-path  (best-path orig-config (mapcat :correct-paths correct-path-types))]
+    ;; TODO best path can't exist already!!
+    ;; make sure that value matches type
+    #_[bad-key potential-types correct-path-types best-fit-path ]
+    #_(prn potential-types correct-path-types)
+    (when best-fit-path
+      (let [{:keys [parent-type new-key child-type]}
+            (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
+        {:Error :misspelled-misplaced-key
+         :key bad-key
+         :correction new-key
+         :correct-type [parent-type :> child-type]
+         :correct-paths [best-fit-path]
+         :confidence :high}))))
+
+#_(with-schema
+  (index-spec
+   (spec 'Topper
+         {:some (ref-schema 'Some)
+          :thing (ref-schema 'Thing)})
+   (spec 'Some
+         {:a 1
+          :b 2})
+   (spec 'Thing
+         {:c 3
+          :d 4})
+   (spec 'Bing
+         {:c 4
+          :g 4}))
+  (misplaced-key? 'Topper
+                  {:some {:a 1 :c 3}}
+                  'Some {:a 1 :c 3}
+                  :c ))
+
+#_(pp)
+
+(defn unknown-key-error-helper [root-type parent-type bad-key value error]
+  (let [parent-config-value (error-parent-value error)
+        analysis            (detailed-config-analysis parent-config-value)
+        actual-parent-type? (analysis-type-matches parent-type analysis)]
+    #_(prn root-type actual-parent-type?)
+    #_(pprint/pprint analysis)
+    #_(if (= bad-key :magicl))
+    (if (not (true? actual-parent-type?))
+      ;; not parent type we are looking at a misplaced configuration
+      ;; value
+      ;; TODO this is still weak
+      [{:Error :wrong-position-for-value
+        :current-path (-> error :path rest)
+        :expected-type parent-type
+        :value parent-config-value
+        :path (rest (:path error))
+        :actual-type (:alternate-type actual-parent-type?)
+        :correct-paths (get-paths-for-type root-type (:alternate-type actual-parent-type?))}]
+      ;; now we can determing if this is most likely a mispelled key
+      (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
+        [mispelled-key-error]
+        (if-let [misplaced-key-error
+                 (misplaced-key? root-type
+                                 (get error :orig-config)
+                                 parent-type
+                                 parent-config-value
+                                 bad-key)]
+          [misplaced-key-error]
+          (if-let [misspelled-misplaced-key-error
+                   (misspelled-misplaced-key? root-type
+                                              (get error :orig-config)
+                                              parent-type
+                                              parent-config-value
+                                              bad-key)]
+            [misspelled-misplaced-key-error]
+            []))))))
+
+#_(pp)
+
+#_(with-schema (index-spec
+                (spec 'Figwheel {:figwheel (ref-schema 'Boolean)
+                                 :cljsbuild (ref-schema 'Boolean)})
+                (spec 'Forest   {:figwheel (ref-schema 'Boolean)
+                                  :cljs (ref-schema 'Boolean)})
+                (spec 'Something {:something (ref-schema 'Figwheel)})
+                (or-spec 'Boolean true false))
+    (doall (type-check 'Something {:something
+                                  {:figheeler 5
+                                  :cljsbuild 5
+                                  }})))
 
 ;; Printing out errors
 
@@ -477,14 +770,13 @@
 (defmethod handle-type-error-groupp :unknown-key [root-type [typ errors]]
   (mapcat (fn [{:keys [key type-sig value] :as error}]
             (let [typ (first type-sig)
-                  err' (unknown-key-error-help root-type (first type-sig) key value error)]
+                  err' (unknown-key-error-helper root-type (first type-sig) key value error)]
               (if (empty? err')
                 [(assoc error :Error (:Error-type error))]
-                (map #(assoc %
-                           :path (:path error)
-                           :value (:value error)
-                           :type-sig (:type-sig error)
-                           :orig-error error) err'))
+                (map #(merge {:path (:path error)
+                              :value (:value error)
+                              :type-sig (:type-sig error)
+                              :orig-error error}  %) err'))
               ))
         errors))
 
@@ -497,19 +789,288 @@
            res-groups)))
     []))
 
-#_(with-schema (index-spec
-                (spec 'Figwheel {:figwheel (ref-schema 'Boolean)
-                                 :cljsbuild (ref-schema 'Boolean)})
-                (or-spec 'Boolean true false))
-    (doall (type-check 'Figwheel {:figheel true
-                                  :cljsbuild 5})))
 
 
 
+(defn group-and-sort-second-pass-errors [errors]
+  (let [res-groups (group-by :Error-type errors)
+        order  [:unknown-key :missing-required-key :failed-predicate]]
+    (sort-by (fn [[k v]] (let [pos (.indexOf order k)]
+                          (if (neg? pos) 100 pos))) res-groups)))
+
+(defn group-and-sort-first-pass-errors [errors]
+  (let [res-groups (group-by :Error-type errors)
+        order  [:wrong-position-for-value
+                :misspelled-key
+                :misplaced-key 
+                :misspelled-misplaced-key
+                :unknown-key
+                :missing-required-key
+                :combined-failed-predicate                
+                :failed-key-predicate
+                :failed-predicate]]
+    (sort-by (fn [[k v]] (let [pos (.indexOf order k)]
+                          (if (neg? pos) 100 pos))) res-groups)))
+
+(defn type-check-one-error [root-type value]
+    (when-let [results (not-empty (type-checker root-type value {}))]
+      (when-let [[[typ errors] & xs] (not-empty (->> results
+                                                   (map #(assoc % :orig-config value))
+                                                   group-and-sort-first-pass-errors))]
+        ;; TODO process one error?
+        (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
+          (when-let [[[typ errors] & xs] (not-empty (->> errors
+                                                         (map #(assoc % :orig-config value))
+                                                         group-and-sort-first-pass-errors))]
+            (first errors))))))
+
+#_(with-schema
+  (index-spec
+   (spec 'Thought number?)
+   (spec 'Thoughter (ref-schema 'Thought))
+   (spec 'Thing
+         {:Asdf 3
+          :GFSD 4
+          :qwerta (ref-schema 'Thoughter)                
+          :qwerty (ref-schema 'Thoughter)})
+   (spec 'Bing
+         {:Asdf 3
+          :GFSD 5
+          :qwert (ref-schema 'Thoughter)})
+   (spec 'Topper
+         {:bing (ref-schema 'Bing)}))
+  (doall (type-check-one-error 'Topper {:bing {:Asdf 3
+                                               :GSFD 5
+}}))
+  )
 
 
-;; error messages
+;; 
+
+#_(defn apply-predicate [pred val]
+  (l/project
+   [pred]
+   (l/pred val (fn [v] (boolean (apply-pred pred v))))))
+
+
+;; spiking on yet another way of analyzing a configuration for errors
+
+(defn predicate-rules-for-type [parent-type]
+  (let [f (if parent-type #(vector % parent-type) identity)]
+    (apply concat (mapv schema-rules (map f [:= :== :=>])))))
+
+(defn pred-type-help
+  ([simple-exp parent-typ]
+   (doall
+    (for [[typ pred-type pred] (predicate-rules-for-type parent-typ)
+          :when (apply-pred [pred-type pred] simple-exp)]
+      [typ simple-exp])))
+  ([simple-exp]
+   (pred-type-help simple-exp nil)))
+
+(defn concrete-parent [typ]
+  (doall
+   (distinct
+    (or (not-empty
+         (concat
+          (for [[ky _ [_ _ ty]] (schema-rules :-)
+                :when (= ty typ)]
+            typ)
+          (apply concat
+                 (for [[pt _ ty] (schema-rules :--)
+                       :when (= ty typ)]
+                   (concrete-parent pt)))))
+        [typ]))))
+
+
+#_(defn concrete-child** [typ]
+  (doall
+   (distinct
+    (or (not-empty
+         (concat
+          (for [[ky _ [_ _ ty]] (schema-rules [:parent :- typ])]
+            typ)
+          (apply concat
+                 (for [[pt _ ct] (schema-rules [:-- typ])]
+                   (concrete-child** ct)))))
+        [typ]))))
+
+#_(with-schema
+  (index-spec
+   (spec 'H (ref-schema 'Hey))
+   (spec 'Hey (ref-schema 'Now))
+   (spec 'Now (ref-schema 'Nower))
+   (spec 'Nower :asdf))
+  (concrete-child** 'H)
+  )
+
+(defn pred-type [exp]
+  (doall
+   (for [[typ exp]  (pred-type-help exp)
+         parent-typ (concrete-parent typ)]
+     [parent-typ exp])))
+
+#_(with-schema
+    (index-spec
+     (spec 'Thought number?)
+     (spec 'Thoughter (ref-schema 'Thought))
+     (spec 'Thing
+           {:Asdf 3
+            :GFSD 4
+            :qwerta (ref-schema 'Thoughter)                
+            :qwerty (ref-schema 'Thoughter)})
+     (spec 'Bing
+           {:Asdf 3
+            :GFSD 4
+            :qwert (ref-schema 'Thoughter)})
+     (spec 'Topper
+           {:bing (ref-schema 'Bing)}))
+  (doall (pred-type** 3))
+  )
+
+(defn good-bad-ratio
+  "analyze the ratio of good parts to bad parts of analyzed paths"
+  [paths]
+  (if (not-empty paths)
+    (let [total (reduce + (map count paths))
+          total-errors (reduce +
+                               (map
+                                (fn [p]
+                                  (count
+                                   (filter #(and (coll? %)
+                                                 (or (vector? %) (seq? %)))
+                                           p)))
+                                paths))]
+      (/ (float total-errors)
+         (float total)))
+    0))
+
+(def tc-simple pred-type)
+
+(declare tc-with-parent)
+
+(defn tc-kv [ky val]
+  (if-let [res (not-empty
+                (doall
+                 (concat
+                  (for [[_ _ [pt _ val-typ]] (schema-rules [:- ky])
+                        parent-type (concrete-parent pt)
+                        child-types (tc-with-parent val-typ val)]
+                    (concat [parent-type ky] child-types))
+                  ;; keys that are mispelled locals
+                  (for [[k _ [pt _ val-typ]] (schema-rules :-)
+                        :when (and (not= k ky)
+                                   (similar-key 0 k ky))
+                        parent-type (concrete-parent pt)
+                        child-types (tc-with-parent val-typ val)]
+                    (concat [parent-type [:subst ky k]] child-types))
+                  ;; keys that have complex children that match
+                  ;; this value
+                  ;; this needs to be refactored as we are covering the
+                  ;; same ground as above
+                  ;; TODO make this conditional like keyword
+                  ;; predicates
+                  ;; BEFORE keyword predicates
+                  (when (and (map? val) (> (count val) 0))
+                    (for [[k _ [pt _ val-typ]] (schema-rules :-)
+                          :when (and
+                                 (not= k ky)
+                                 (not (similar-key 0 k ky)))
+                          parent-type (concrete-parent pt)]
+                      (let [child-type-paths (filter #(= (first %) val-typ)
+                                                     (tc-with-parent val-typ val))]
+                        (when (< (good-bad-ratio child-type-paths)
+                                 (if (> (count val) 1)
+                                   0.5 0.3))
+                          (mapcat #(concat [parent-type [:replace-key ky k]] %)
+                                  child-type-paths))))))))]
+    res
+    ;; try keyword predicates expensive
+    (doall
+     (for [[pred-id _ [pt _ val-typ]] (schema-rules :?-)
+           parent-type (concrete-parent pt)
+           :when (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
+                   (pred-func ky)) 
+           child-types (tc-with-parent val-typ val)]
+       (concat [parent-type ky] child-types)))))
+
 #_(pp)
+
+#_(with-schema
+  (index-spec
+   (spec 'Thing {:asdf 3
+                 :asdg 4
+                 :asd 3})
+   (spec 'Thinger {keyword? number?}))
+  #_(doall (concrete-parent 'Thinger:pred-key_1518831777))
+  (doall (tc-kv :asdasd 3)))
+
+(defn tc-seq [ky val]
+  (for [[_ _ [pt _ val-typ]] (schema-rules [:- 0])
+        parent-type (concrete-parent pt)
+        child-types (tc-with-parent val-typ val)]
+    (concat [parent-type ky] child-types)))
+
+(defn tc-complex [exp]
+  (cond
+    (map? exp) ;; TODO pred-current type
+    (mapcat (fn [[k v]] (tc-kv k v)) (seq exp))
+    (sequence-like? exp)
+    (mapcat (fn [[k v]] (tc-kv k v)) (map vector (range) (seq exp)))))
+
+(defn tc-analyze [exp]
+  (distinct
+   (filter
+    not-empty
+    (cond
+      (or (map? exp) (sequence-like? exp))
+      (tc-complex exp)
+      (not (coll? exp))
+      (tc-simple exp)))))
+
+(defn tc-with-parent [parent-typ exp]
+  (let [res (tc-analyze exp)]
+    (if-let [good-types (not-empty (doall (filter #(= parent-typ (first %)) res)))]
+      good-types
+      (if (and (not-empty res) (not (coll? exp)))
+        [[[:bad-terminal-value parent-typ exp res]]]
+        [[[:wrong-type parent-typ exp res]]]))))
+
+
+#_(with-schema
+  (index-spec
+  (spec 'Thought number?)
+  (spec 'Thoughter (ref-schema 'Thought))
+  (spec 'Thing
+        {:Asdf 3
+         :GFSD 4
+         :qwerta (ref-schema 'Thoughter)                
+         :qwerty (ref-schema 'Thoughter)})
+  (spec 'Bing
+        {:Asdf 3
+         :GFSD 5
+         :qwert (ref-schema 'Thoughter)})
+  (or-spec 'Boolean
+           true
+           false)
+  (or-spec 'Number
+           1 2)
+  (or-spec 'Happy
+           {:hey 1}
+           #_(ref-schema 'Boolean))
+  (spec 'Topper
+        {;:bing (ref-schema 'Bing)
+         :bool (ref-schema 'Happy)})
+  (spec 'TArr
+        [{:bing (ref-schema 'Bing)}]))
+  (tc** {:bool {:he 1}}
+  #_{:hey 1}
+
+ ))
+
+
+;; Error messages
+
 (defn parent-is-sequence? [{:keys [type-sig path]}]
   (and (integer? (first path))
        ((set (map last (*schema-rules* [:=> (second type-sig)]))) :SEQQ)))
@@ -543,6 +1104,9 @@
 (defmethod explain-predicate-failure :SEQQ [pred value] "Sequence")
 
 (defmulti error-help-message :Error)
+
+
+
 
 (defmethod error-help-message :unknown-key [{:keys [path key]}]
   [:group "Found unrecognized key "
@@ -600,12 +1164,14 @@
 
 #_(pp)
 
-(defmethod error-help-message :misspelled-key [{:keys [key correction]}]
+(defmethod error-help-message :misspelled-key [{:keys [key corrections]}]
   [:group
    "The key "
    (color (pr-str key) :bold)
-   " is spelled wrong. It should be "
-   (color (pr-str correction) :green)])
+   " is spelled wrong. "
+   (if (= 1 (count corrections))
+     [:span "It should probably be " (color (pr-str (first corrections)) :green)]
+     [:span "It could be one of: " (cons :span (interpose ", " (mapv #(color (pr-str %) :green) corrections)))])])
 
 (defmethod error-help-message :misplaced-key [{:keys [key correct-paths]}]
   [:group
@@ -622,6 +1188,14 @@
    :line " It should be probably be spelled "
    (color (pr-str correction) :green)]
   )
+
+(defmethod error-help-message :wrong-position-for-value
+  [{:keys [key correction correct-paths]}]
+  [:group
+   "The value below "
+   " is most likely in the wrong place in your config."])
+
+#_(pp)
 ;; printing
 
 (defn print-path [[x & xs] leaf-node edn]
@@ -641,7 +1215,7 @@
 (defn print-path-error
   ([{:keys [path orig-config] :as error} leaf-node document]
    [:group
-    "------- Figwheel Configuration Error -------"
+    "\n------- Figwheel Configuration Error -------"
     :break
     (error-help-message error)
     :break
@@ -670,7 +1244,7 @@
         [(gen-path xs value)]
         :else {x (gen-path xs value)}))))
 
-(gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] 5)
+#_(gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] 5)
 
 (defn print-wrong-path-error
   ([{:keys [path orig-config correction path correct-paths value] :as error} leaf-node document]
@@ -680,7 +1254,7 @@
     (error-help-message error)
     :break
     :break
-    [:nest 2
+    [:nest 2 
      (print-path (reverse (rest path))
                  leaf-node
                  orig-config)]
@@ -925,6 +1499,26 @@
                     (document-key (first correct-type) correction))
                    {:width 40}))
 
+#_{:path (:five),
+   :value 5,
+   :current-path (),
+   :type-sig (RootMap),
+   :suggested-path-for-value [:figwheel],
+   :expected-type RootMap,
+   :actual-type FigOpts,
+   :Error :wrong-position-for-value,
+}
+
+(defmethod print-error :wrong-position-for-value [{:keys [key value correct-paths correct-type orig-error orig-config type-sig] :as error}]
+  (pprint-document (print-wrong-path-error
+                    (assoc error :correction (first (first correct-paths)))
+                    [:group
+                     (format-value value :bold)
+                     [:line " <- "]
+                     (str "^ value is in the wrong place")]
+                    (document-key (first correct-type) (first (first correct-paths))))
+                   {:width 40}))
+
 (defmethod print-error :failed-key-predicate [{:keys [key value orig-error orig-config type-sig path] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
@@ -934,15 +1528,24 @@
                                       (str "^ key " (pr-str key) " failed key predicate"))
                                      (document-key (first (rest type-sig)) (first (rest path))))
                    {:width 40}))
-#_(pp)
-(defmethod print-error :misspelled-key [{:keys [key correction orig-error orig-config type-sig] :as error}]
+
+
+
+(defn document-all [parent-typ all-keys]
+  (cons :group
+        (interpose :break
+                   (map
+                    (fn [ky]
+                      (document-key parent-typ ky)) all-keys))))
+
+(defmethod print-error :misspelled-key [{:keys [key corrections orig-error orig-config type-sig] :as error}]
   (pprint-document (print-path-error error
                                      (format-key-value
                                       key
                                       (format-key key :red)
                                       (format-value (:value orig-error))
                                       (str "^ key " (pr-str key) " is spelled wrong"))
-                                     (document-key (first type-sig) correction))
+                                     (document-all (first type-sig) corrections))
                    {:width 40}))
 
 (defn print-errors [rules root config]
@@ -950,10 +1553,21 @@
     (mapv #(do (print-error (assoc % :orig-config config)) %)
           (type-check root config))))
 
+(defn print-one-error [rules root config]
+  (with-schema rules
+    (when-let [single-error (type-check-one-error root config)]
+      (print-error (assoc single-error :orig-config config)) 
+      single-error)))
+
 (defn print-errors-test [config]
   #_(type-check 'RootMap config)
   (mapv #(print-error (assoc % :orig-config config))
         (type-check 'RootMap config)))
+
+(defn print-errors-test-first [config]
+  #_(type-check 'RootMap config)
+  (mapv #(print-error (assoc % :orig-config config))
+        (take 1 (type-check 'RootMap config))))
 
 (defn pp []
   (with-schema (index-spec
@@ -981,7 +1595,12 @@
                        :other   (ref-schema 'OtherType)
                        :string   string?
                        :what    [(ref-schema 'Boolean)] #_[string?]
-                       :magical "asdf"})
+                       :magical "asdf"
+                       :magicall 5})
+                (doc 'FigOpts "This is some doe"
+                     {:magicall "This is sooo magical"
+                      :magical  "This is magical as well"}
+                 )
                 (spec 'HeyOpts
                       {:whaaa 5
                        :yeah 6})
@@ -991,6 +1610,7 @@
                 (requires-keys 'OtherType :faster)
                 )
 
+    
 
   #_ (doall  (type-check 'RootMap {:figwheel {:five 6
                                             :string 'asdf
@@ -999,14 +1619,16 @@
                                             :magicl "asdf"}
                                  :willywonka 4}))
     
-  (print-errors-test {:figwheel {:five 6
+  #_(print-errors-test {:figwheel {:five 6
                                  :string 'asdf
                                  :boolean 4
                                  :builds {5 5}
                                  :what ["resources/public/js/out"
                                         "resources/public/js/out"
                                         "resources/public/js/out"]
-                                 :other {:master 4}
+                                 :wowzer {:master 4
+                                          :faster "asdf"
+                                          }
                                  :magicl "asdf"}
                       #_:crappers #_[{:whaaa 5
                                   :yeah 6}
@@ -1015,7 +1637,23 @@
                       :magicl "asdf"
                       
                       :willywonka 4})
-
+    (first (type-check 'RootMap {:five 5
+                                 :string "asdf"
+                                 :boolean true
+                                 :builds {"asdf" 5}
+                                 :what [ true ]
+                                 :other { :master 4
+                                          :faster "asdf"}
+                                 :magical "asdf"}))
+    (print-errors-test-first {:five "asdf"
+                              :string "asdf"
+                              :boolean true
+                              :builds {"asdf" 5}
+                              :what [ true]
+                              :other { :master 4
+                                      :faster "asdf"}
+                              :magical "asdf"})
+    
   #_(doall (document-key 'FigOpts :other))
     
     )
@@ -1026,80 +1664,8 @@
 
 
 
-#_(with-schema (index-spec (spec 'Root {:figwheel string?
-                                      :forest integer?
-                                      :other {:thing 5}}))
-  (doall (unknown-key-error-help 'Root 'Root :fighweel "asdf"))
-  (doall (unknown-key-error-help 'Root 'Root:other :figwheel "asdf"))
-  #_(doall (misspelled-misplaced-key 'Root 'Root :thinge 5))
-  )
 
 
 
-#_(defn unknown-key-error [schema-rules parent-type typ bad-key config-val result]
-  ;; check error conditions in order
-  (l/conda
-   ;; first error is where this key is mispelled and the config below
-   ;; it checks out 
-   [(l/fresh [k rt rk]
-      (db-query [k :- [parent-type :> typ]]  (:- schema-rules))
-      (key-like 0.4 bad-key k)
-      ;; even more sophisicated if the config below only has
-      ;; spelling errors !!:mind-blown:!!
-      #_(type-check schema-rules config-val typ rt rk [])
-      (pass-type-check? schema-rules typ config-val)
-      (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :high]))]
-   ;; second error is if key is suppossed to be located somewhere else
-   [(l/fresh [other-parent-type corrected-path rt rk]
-      (db-query [bad-key :- [other-parent-type :> typ]] (:- schema-rules))
-      ;; no errors below
-      (pass-type-check? schema-rules typ config-val)
-      #_(type-check schema-rules config-val typ rt rk [])
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :high]))]
-   ;; now its possible to be a mispelled global with correct chilren
-   [(l/fresh [other-parent-type corrected-path rt rk potential-key]
-      (db-query [potential-key :- [other-parent-type :> typ]] (:- schema-rules))
-      (key-like 0.4 bad-key potential-key)
-      ;; no errors below
-      (pass-type-check? schema-rules typ config-val)
-      #_(type-check schema-rules config-val typ rt rk [])
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :high]))]
-   ;; is there a key that most likely should be the name of this?
-   [(l/fresh [rt rk other-type potential-key]
-      (complex-config? config-val)
-      (db-query [potential-key :- [parent-type :> typ]] (:- schema-rules))
-      (pass-type-check? schema-rules typ config-val)
-      (l/== result [:Error :wrong-key-used :key bad-key :correct-key potential-key
-                    :confidence :high]))]
-   ;; does this exact config belong somewhere else?
-   
-   ;; now we can consider the cases where the types don't checkout below
-   ;; most likely its a mispelled local
-   [(l/fresh [k]
-      (db-query [k :- [parent-type :> typ]]  (:- schema-rules))
-      (key-like 0.6 bad-key k) ;; perhaps raise spelling requirement
-      (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :low]))]
-   ;; misplaced global
-   [(l/fresh [other-parent-type corrected-path]
-      (db-query [bad-key :- [other-parent-type :> typ]] (:- schema-rules))
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :low]))]
-   ;; misplaced mispelled
-   [(l/fresh [other-parent-type corrected-path potential-key]
-      (db-query [potential-key :- [other-parent-type :> typ]] (:- schema-rules))
-      (key-like 0.7 bad-key potential-key) ;; perhaps raise spelling requirement
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :low]))]
-   
-   [#_(l/== typ :unknown-type)
-    (l/== result [:Error :unknown-key :val bad-key])]))
+
+

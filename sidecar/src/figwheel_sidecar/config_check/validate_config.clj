@@ -5,16 +5,10 @@
                                         doc
                                         requires-keys
                                         string-or-symbol?
-                                        type-checker type-check print-errors index-spec with-schema] :as tc]
+                                        type-checker type-check print-one-error index-spec with-schema] :as tc]
    [fipp.engine :refer [pprint-document]]
-   [clojure.string :as string]))
-
-(defn enum [& args]
-  (let [enums (set args)]
-    (fn [x] (boolean (enums x)))))
-
-(defn or-pred [& args]
-  (fn [x] (boolean (some #(% x) args))))
+   [clojure.string :as string]
+   [clojure.java.io :as io]))
 
 (defn fmt-doc
   ([s] s)
@@ -163,12 +157,84 @@
     (or-spec 'SymbolOrString string? symbol?)
     (or-spec 'Named string? symbol? keyword?))))
 
-
-
-
 #_(spec 'RootMap
           {:figwheel  (ref-schema 'FigwheelOptions)
            :cljsbuild (ref-schema 'CljsbuildOptions)})
+
+(def figwheel-docs
+  (distinct
+   (concat
+    (doc 'RootMap "Top level configuration map. Most often top level keys in project.clj"
+         {:figwheel "A map of options for the Figwheel system and server."
+          :cljsbuild "A map of lein-cljsbuild options. Figwheel also uses the ClojureScript build configurations found in the cljsbuild options."})
+    (doc 'FigwheelOptions "Figwheel Server and System Options"
+         {:http-server-root (str "A string that specifies a sub directory on your resource path. "
+                                 "This is the path to the static resources that will be served by the figwheel server. "
+                                 "This defaults to 'public' and should never be blank.")
+          :server-port (str "An integer that the figwheel server should bind.  This defaults to 3449")
+          :server-ip   (str "The network interface that the figwheel server will listen on.  This defaults to 'localhost'.")
+          :css-dirs (str "A vector of paths from the project root to the location of your css files. "
+                         "These files will be watched for changes and the figwheel client will attempt to reload them.")
+          :reload-clj-files (str "Either false or a Map like {:cljc false :clj true}. "
+                                 "False will disable the reloading of clj files when they change. "
+                                 "You can also declare that you want to exclude .cljc or .clj files "
+                                 "from the auto reloading. Default: true")
+          :open-file-command (str "A path to an executable shell script that will be passed a file and line information "
+                                  "for a particualr compilation error or warning.")
+          :ring-handler (str "If you want to embed a ring handler into the figwheel http-kit server; "
+                             "this is for simple ring servers, if this doesn't work for you just run your own server. Default: Off")
+          :repl (str "A Boolean value indicated wether to run a ClojureScript "
+                     "REPL after the figwheel process has launched. Default: true")
+          :nrepl-port (str "An integer indicating that you would like figwheel to "
+                           "lauch nREPL from within the figwheel process and what "
+                           "port you would like it to launch on. Default: off")
+          :nrepl-middleware (str "A vector of strings indicating the nREPL middleware you want included when nREPL launches.")
+          }
+         )
+    (doc 'ReloadCljFiles "A map indicating which type of clj files should be reloaded on change."
+         {:clj (str "A boolean indicating whether you want changes to clj files to trigger a "
+                    "reloading of the clj file and the dependent cljs files.")
+          :cljc (str "A boolean indicating whether you want changes to cljc files to trigger a "
+                     "reloading of the clj file and the dependent cljs files.")})
+    (doc 'CljsbuildOptions "A map of options used by lein-cljsbuild and lein-figwheel"
+         {:builds (str "The :builds option should be set to either a sequence of build config maps or a map of build configs. "
+                       "Each map will be treated as a separate, independent, ClojureScript compiler configuration.")
+          :repl-listen-port (str "When using a ClojureScript REPL, this option controls what port "
+                                 "it listens on for a browser to connect to.  Defaults to 9000.")
+          :repl-launch-commands (str "The keys in this map identify repl-launch commands.  The values are "
+                                     "sequences representing shell commands like [command, arg1, arg2, ...]. "
+                                     "Defaults to the empty map")
+          :test-commands (str "The keys in this map identify test commands.  The values are sequences "
+                              "representing shell commands like [command, arg1, arg2, ...].  Note that "
+                              "the :stdout and :stderr options work here as well. Defaults to the empty map.")
+          :crossovers (str "Super deprecated. You should not be using :crossovers. Please use .cljc functionality.")
+          :crossover-path (str "Super deprecated. You should not be using :crossovers. Please use .cljc functionality.")
+          :crossover-jar (str "Super deprecated. You should not be using :crossovers. Please use .cljc functionality.") })
+    (doc 'BuildOptionsMap "A map of options that specifies a ClojrueScript 'build'"
+         {:id "A Keyword, String or Symbol that identifies this build."
+          :source-paths  (str "A vector of paths to your cljs source files. These paths should be relative from the"
+                              "root of the project to the root the namespace. "
+                              "For example, if you have an src/example/core.cljs file that contains a "
+                              "example.core namespace, the source path to this file is \"src\"")
+          :figwheel (str "Either the Boolean value true or a Map of options to be passed to the figwheel client. "
+                         "Supplying a true value or a map indicates that you want the figwheel client "
+                         "code to be injected into the build. ")
+          :compiler "A map of options are passed directly to the ClojureScript compiler."
+          :notify-command (str "If a :notify-command is specified, it will be called when compilation succeeds"
+                               "or fails, and a textual description of what happened will be appended as the "
+                               "last argument to the command.  If a more complex command needs to be constructed, "
+                               "the recommendation is to write a small shell script wrapper. "
+                               "Defaults to nil (disabled).")})
+    (doc 'FigwheelClientOptions "A map of options that will be passed to the figwheel client."
+         {:websocket-host (str "A String specifying the host part of the Figwheel websocket URL. This defaults to "
+                               "\"localhost\".  If you have JavaScript clients that need to access Figwheel "
+                               "that are not local you can supply the IP address of your machine "
+                               "here. You can also specify :js-client-host and the "
+                               "Figwheel client will use the js/location.host of the client.")
+          
+          })
+    ))
+  )
 
 
 (def figwheel-cljsbuild-rules
@@ -231,7 +297,8 @@
               :retry-count         integer?
               :devcards            (ref-schema 'Boolean)
               :eval-fn             (ref-schema 'Named)})
-    (or-spec 'WebsocketHost :js-client-host string?))))
+    (or-spec 'WebsocketHost :js-client-host string?)
+    figwheel-docs)))
 
 (def schema-rules-base
   (concat
@@ -255,11 +322,11 @@
                       #(first %)
                       (map (fn [[k v]] [(and (tc/similar-key 0 k ky)
                                             (map? v)
-                                            (tc/key-distance k ky))
+                                            (tc/ky-distance k ky))
                                        [k v]]) mp))))]
       (-> res first second))))
 
-(defn get-keyslike [kys mp]
+#_(defn get-keyslike [kys mp]
   (into {} (map #(get-keylike % mp) kys)))
 
 (defn validate-only-figwheel-rules [config]
@@ -293,87 +360,94 @@
      (when (tc/sequence-like? builds)
        (requires-keys 'BuildOptionsMap :id)))))
 
-#_(validate-regular {:figwheel {}
-                     :cljsbuild {:builds []}})
-
 (defn validate-project-config [config]
   (let [[cljb-k cljb-v] (get-keylike :cljsbuild config)
         [fig-k  fig-v]  (get-keylike :figwheel config)]
     (if (and fig-k (get fig-v :builds))
       (let [conf {fig-k fig-v}]
-        (print-errors (validate-only-figwheel-rules conf) 'RootMap conf))
-      (let [conf {fig-k  fig-v
-                  cljb-k cljb-v}]
-        (print-errors (validate-regular-rules conf) 'RootMap conf)))))
+        (print-one-error (validate-only-figwheel-rules conf) 'RootMap conf))
+      (let [conf (into {} (filter (comp not nil? first) [[fig-k  fig-v]
+                                                         [cljb-k cljb-v]]))]
+        (print-one-error (validate-regular-rules conf) 'RootMap conf)))))
 
 (defn validate-figwheel-edn-file [config]
-  (print-errors (validate-figwheel-edn-rules config)
+  (print-one-error (validate-figwheel-edn-rules config)
                 'FigwheelOptions
                 config))
 
-#_(validate-figwheel-edn-file {:http-server-root 3})
+(defn validate-config-data [config figwheel-options-only?]
+  (if figwheel-options-only?
+    (validate-figwheel-edn-file config)
+    (validate-project-config config)))
 
-(defn validate-loop [get-data-fn figwheel-options-only?]
-  (let [config-hash (atom nil)]
-    (loop [config (get-data-fn)]
-      (if (not= @config-hash (hash config))
+(defn file-change-wait [file timeout]
+  (let [orig-mod (.lastModified (io/file file))
+        time-start (System/currentTimeMillis)]
+    (loop []
+      (let [last-mod (.lastModified (io/file (str file)))
+            curent-time (System/currentTimeMillis)]
+        (Thread/sleep 100)
+        (when (and (= last-mod orig-mod)
+                   (< (- curent-time time-start) timeout))
+          (recur))))))
+
+(defn get-choice [choices]
+  (let [ch (string/trim (read-line))]
+    (if (empty? ch)
+      (first choices)
+      (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
         (do
-          (reset! config-hash (hash config))
-          (if-let [errors (not-empty (if figwheel-options-only?
-                                         (validate-figwheel-edn-file config)
-                                         (validate-project-config config)))]
-            (do
-              (println "Please fix your config file. I'll wait ...\n")
-              (Thread/sleep 1000)
-              (recur (get-data-fn)))
-            (println "\nFigwheel Configuration Validated!")))
-        (recur (get-data-fn)))
-      )
-    )
-  )
+          (println (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
+                        "Please choose one of the following: "(string/join ", " choices)))
+          (get-choice choices))
+        ch))))
+
+(defn validate-loop [get-data-fn options]
+  (let [{:keys [figwheel-options-only file]} options]
+    (if-not (.exists (io/file file))
+      (do
+        (println "Configuration file" (str (:file options)) "was not found")
+        (System/exit 1))
+      (let [file (io/file file)]
+        (println "Figwheel: Validating the configuration found in" (str file))
+        (loop [fix false]
+          (let [config (get-data-fn)]
+            (if (not (validate-config-data config figwheel-options-only))
+              config
+              (do
+                (println "Figwheel: There are errors in your configuration file" (str file))
+                (let [choice (or (and fix "f")
+                                 (do
+                                   (println "Figwheel: Would you like to:")
+                                   (println "(f)ix the error live while Figwheel watches for config changes?")
+                                   (println "(q)uit and fix your configuration?")
+                                   (println "(s)tart figwheel anyway?")
+                                   (print "Please choose f, q or s and then hit enter[f]: ")
+                                   (flush)
+                                   (get-choice ["f" "q" "s"])))]
+                  (condp = choice
+                    "q" false
+                    "s" config
+                    "f" (if (:file options)
+                          (do
+                            (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
+                            (file-change-wait file (* 120 1000))
+                            (recur true))
+                          (do ;; this branch shouldn't be taken
+                            (Thread/sleep 1000)
+                            (recur true)))))))))))))
 
 (comment
-  (def config {:builds {:hey {:source-paths ["asdf"]}}})
-  
-  (def thing (future (validate-loop (fn [] @#'config) true))))
+  ;; figure out
+  (defn get-all-keys [rules]
+    (for [[k & ks] (rules :-)] k))
 
-#_ (future-cancel thing)
+  (distinct
+   (for [k (get-all-keys schema-rules)
+        k2 (get-all-keys schema-rules)
+         :when (and
+                (not= k k2)
+                (tc/similar-key 0 k k2))]
+    #{k k2}))
 
-
-
-(comment
-  (def cljs-option-doc
-    (memoize (fn []
-               (slurp "https://raw.githubusercontent.com/wiki/clojure/clojurescript/Compiler-Options.md")))))
-
-
-#_(with-schema schema-rules
-  (type-check 'CompilerOptions {:closure-extra-annotations #{2 "asdf"}})
-
-  #_(tc/find-keys-for-type tc/*schema-rules* 'ClosureWarnings)
-  #_(tc/find-keys-for-type 'CljsbuildOptions)
-  
   )
-
-#_(print-errors schema-rules 'BuildOptionsMap
-              {:figwheel {:websocket-host :js-client-host}})
-
-
-
-#_(print-errors schema-rules 'CompilerOptions {:main "asdf"
-                                               :output-to 5
-                                               :anon-fn-naming-policy :off
-                                               :closure-warnings {:const :off}
-                                               :devcards true
-                                               :closure-defines {"asdfas.asdf" "asdf"}
-                                               :source-map true
-                                               :optimizations :none
-                                        ; :language-in :asdf
-                                               :foreign-libs [{:file "asdf"
-                                                               :provides ["asdf"]
-                                                               :module-type :commonj
-                                                               }]
-                                               
-                                               :modules {1 {:output-to "asdf"
-                                                            :entries ["asdf"]}}
-                                               :closure-extra-annotations #{"asdf" "asd" "asssss" }})
