@@ -14,7 +14,9 @@
 (def ^:dynamic *schema-rules* nil)
 
 (defmacro with-schema [rules & body] 
-  `(binding [*schema-rules* ~rules] ~@body))
+  `(with-redefs [tc-analyze (memoize tc-analyze)
+                 type-checker (memoize type-checker)]
+     (binding [*schema-rules* ~rules] ~@body)))
 
 (defn schema-rules [arg]
   (if *schema-rules*
@@ -571,7 +573,7 @@
                                potential-keys)
         ;; only return keys with no errors on path if they are around
         high-potential-keys (filter (comp zero? first) potential-keys)
-        potential-keys (map second (or (not-empty high-potential-keys) potential-keys))]
+        potential-keys (distinct (map second (or (not-empty high-potential-keys) potential-keys)))]
     (when (not-empty potential-keys)
       {:Error :misspelled-key
        :key bad-key
@@ -674,7 +676,7 @@
          :correct-paths [best-fit-path]
          :confidence :high}))))
 
-(with-schema
+#_(with-schema
   (index-spec
    (spec 'Topper
          {:some (ref-schema 'Some)
@@ -814,13 +816,14 @@
       (when-let [[[typ errors] & xs] (not-empty (->> results
                                                    (map #(assoc % :orig-config value))
                                                    group-and-sort-first-pass-errors))]
+        ;; TODO process one error?
         (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
           (when-let [[[typ errors] & xs] (not-empty (->> errors
                                                          (map #(assoc % :orig-config value))
                                                          group-and-sort-first-pass-errors))]
             (first errors))))))
 
-(with-schema
+#_(with-schema
   (index-spec
    (spec 'Thought number?)
    (spec 'Thoughter (ref-schema 'Thought))
@@ -1211,7 +1214,7 @@
 (defn print-path-error
   ([{:keys [path orig-config] :as error} leaf-node document]
    [:group
-    "------- Figwheel Configuration Error -------"
+    "\n------- Figwheel Configuration Error -------"
     :break
     (error-help-message error)
     :break
@@ -1549,6 +1552,11 @@
     (mapv #(do (print-error (assoc % :orig-config config)) %)
           (type-check root config))))
 
+(defn print-one-error [rules root config]
+  (with-schema rules
+    (when-let [single-error (type-check-one-error root config)]
+      (print-error (assoc single-error :orig-config config)) 
+      single-error)))
 
 (defn print-errors-test [config]
   #_(type-check 'RootMap config)
@@ -1655,80 +1663,8 @@
 
 
 
-#_(with-schema (index-spec (spec 'Root {:figwheel string?
-                                      :forest integer?
-                                      :other {:thing 5}}))
-  (doall (unknown-key-error-help 'Root 'Root :fighweel "asdf"))
-  (doall (unknown-key-error-help 'Root 'Root:other :figwheel "asdf"))
-  #_(doall (misspelled-misplaced-key 'Root 'Root :thinge 5))
-  )
 
 
 
-#_(defn unknown-key-error [schema-rules parent-type typ bad-key config-val result]
-  ;; check error conditions in order
-  (l/conda
-   ;; first error is where this key is mispelled and the config below
-   ;; it checks out 
-   [(l/fresh [k rt rk]
-      (db-query [k :- [parent-type :> typ]]  (:- schema-rules))
-      (key-like 0.4 bad-key k)
-      ;; even more sophisicated if the config below only has
-      ;; spelling errors !!:mind-blown:!!
-      #_(type-check schema-rules config-val typ rt rk [])
-      (pass-type-check? schema-rules typ config-val)
-      (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :high]))]
-   ;; second error is if key is suppossed to be located somewhere else
-   [(l/fresh [other-parent-type corrected-path rt rk]
-      (db-query [bad-key :- [other-parent-type :> typ]] (:- schema-rules))
-      ;; no errors below
-      (pass-type-check? schema-rules typ config-val)
-      #_(type-check schema-rules config-val typ rt rk [])
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :high]))]
-   ;; now its possible to be a mispelled global with correct chilren
-   [(l/fresh [other-parent-type corrected-path rt rk potential-key]
-      (db-query [potential-key :- [other-parent-type :> typ]] (:- schema-rules))
-      (key-like 0.4 bad-key potential-key)
-      ;; no errors below
-      (pass-type-check? schema-rules typ config-val)
-      #_(type-check schema-rules config-val typ rt rk [])
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :high]))]
-   ;; is there a key that most likely should be the name of this?
-   [(l/fresh [rt rk other-type potential-key]
-      (complex-config? config-val)
-      (db-query [potential-key :- [parent-type :> typ]] (:- schema-rules))
-      (pass-type-check? schema-rules typ config-val)
-      (l/== result [:Error :wrong-key-used :key bad-key :correct-key potential-key
-                    :confidence :high]))]
-   ;; does this exact config belong somewhere else?
-   
-   ;; now we can consider the cases where the types don't checkout below
-   ;; most likely its a mispelled local
-   [(l/fresh [k]
-      (db-query [k :- [parent-type :> typ]]  (:- schema-rules))
-      (key-like 0.6 bad-key k) ;; perhaps raise spelling requirement
-      (l/== result [:Error :mispelled-key :key bad-key :correction k :confidence :low]))]
-   ;; misplaced global
-   [(l/fresh [other-parent-type corrected-path]
-      (db-query [bad-key :- [other-parent-type :> typ]] (:- schema-rules))
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :low]))]
-   ;; misplaced mispelled
-   [(l/fresh [other-parent-type corrected-path potential-key]
-      (db-query [potential-key :- [other-parent-type :> typ]] (:- schema-rules))
-      (key-like 0.7 bad-key potential-key) ;; perhaps raise spelling requirement
-      (path-for-type schema-rules typ corrected-path)
-      (l/== result [:Error :mispelled-and-misplaced-key :key bad-key :correct-type [other-parent-type :> typ]
-                    :correct-path corrected-path
-                    :confidence :low]))]
-   
-   [#_(l/== typ :unknown-type)
-    (l/== result [:Error :unknown-key :val bad-key])]))
+
+

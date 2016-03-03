@@ -14,11 +14,11 @@
                  [datascript "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.3.11"]
                  [cljs-http "0.1.35"]]
-
+  
   :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
             [lein-figwheel "0.5.1-SNAPSHOT"]
-            [lein-npm "0.4.0"]]
+            #_[lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
                       [express "4.10.7"]
@@ -40,9 +40,9 @@
                                     "server_out/todo_server.js"]
 
   :resource-paths ["resources" "other_resources"]
-
+ 
   :cljsbuild {
-              :builds [{ ;:id "example"
+              :builds [{ :id "example"
                          :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
                         
                          :figwheel { :websocket-host "localhost"
@@ -101,7 +101,8 @@
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
                                     [figwheel-sidecar "0.5.1-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
-                                    [org.clojure/tools.nrepl "0.2.12"]]
+                                    [org.clojure/tools.nrepl "0.2.12"]
+                                    [leiningen-core "2.5.2"]]
                     
                     :source-paths ["src" "dev"]
                     :repl-options {:init (set! *print-length* 500)}
@@ -138,3 +139,6 @@
              ;; :hawk-options {:watcher :polling} 
              
              })
+
+
+
