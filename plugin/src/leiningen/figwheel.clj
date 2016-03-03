@@ -4,10 +4,9 @@
    [clojure.pprint :as pp]
    [leiningen.core.eval :as leval]
    [leiningen.core.project :as lproj]
-   
    [clojure.java.io :as io]
    [figwheel-sidecar.config :as fc]
-   [figwheel-sidecar.config-check.validate-config :as fvalidate]))
+   #_[figwheel-sidecar.config-check.validate-config :as fvalidate]))
 
 (defn make-subproject [project builds]
   (with-meta
@@ -67,25 +66,47 @@
       (figwheel-sidecar.repl-api/system-asserts)
       (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts))))
 
-(defn validate-figwheel-conf-helper []
-  (if (.exists (io/file "figwheel.edn"))
-    (fvalidate/validate-loop (fn [] (slurp "figwheel.edn"))
-                             {:file (io/file "figwheel.edn")
-                              :figwheel-options-only true})
-    (fvalidate/validate-loop (fn [] (lproj/read)) {:file (io/file "project.clj")})))
+(defn figwheel-edn? [] (.exists (io/file "figwheel.edn")))
 
-(defn validate-figwheel-conf []
-  (if-let [config (validate-figwheel-conf-helper)]
-    (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
-        config)
-    (do (println "Figwheel: Configuration validation failed. Exiting ...")
-        false)))
+(defn config-data [project]
+  (if (figwheel-edn?)
+    (read-string (slurp "figwheel.edn"))
+    project))
+
+(defn should-validate-config? [config-data]
+  (not
+   (false? (if (figwheel-edn?)
+             (get config-data :validate-config)
+             (get-in config-data [:figwheel :validate-config])))))
+
+(defn validate-figwheel-conf-helper []
+  (when-let [validate-loop (resolve 'figwheel-sidecar.config-check.validate-config/validate-loop)]
+    (if (figwheel-edn?)
+      (validate-loop
+       (fn [] (slurp "figwheel.edn"))
+       {:file (io/file "figwheel.edn")
+        :figwheel-options-only true})
+      (validate-loop
+       (fn [] (lproj/read))
+       {:file (io/file "project.clj")}))))
+
+(defn validate-figwheel-conf [project]
+  (let [config-data (config-data project)]
+    (if-not (should-validate-config? config-data)
+      config-data
+      (do
+        (require 'figwheel-sidecar.config-check.validate-config)
+        (if-let [config (validate-figwheel-conf-helper)]
+          (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
+              config)
+          (do (println "Figwheel: Configuration validation failed. Exiting ...")
+              false))))))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
   (fc/system-asserts)
-  (when-let [config-data (validate-figwheel-conf)]
+  (when-let [config-data (validate-figwheel-conf project)]
     (let [{:keys [all-builds figwheel-options]}
           (-> config-data
               (fc/config build-ids)

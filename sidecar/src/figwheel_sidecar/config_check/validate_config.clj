@@ -166,7 +166,8 @@
    (concat
     (doc 'RootMap "Top level configuration map. Most often top level keys in project.clj"
          {:figwheel "A map of options for the Figwheel system and server."
-          :cljsbuild "A map of lein-cljsbuild options. Figwheel also uses the ClojureScript build configurations found in the cljsbuild options."})
+          :cljsbuild (str "A map of lein-cljsbuild options. Figwheel also uses the "
+                          "ClojureScript build configurations found in the cljsbuild options.")})
     (doc 'FigwheelOptions "Figwheel Server and System Options"
          {:http-server-root (str "A string that specifies a sub directory on your resource path. "
                                  "This is the path to the static resources that will be served by the figwheel server. "
@@ -189,7 +190,9 @@
                            "lauch nREPL from within the figwheel process and what "
                            "port you would like it to launch on. Default: off")
           :nrepl-middleware (str "A vector of strings indicating the nREPL middleware you want included when nREPL launches.")
-          }
+          :validate-config (str "Set this to false to skip the configuration validation. This can "
+                                "speed up your figwheel start time."
+                                "Default: true")}
          )
     (doc 'ReloadCljFiles "A map indicating which type of clj files should be reloaded on change."
          {:clj (str "A boolean indicating whether you want changes to clj files to trigger a "
@@ -232,10 +235,7 @@
                                "here. You can also specify :js-client-host and the "
                                "Figwheel client will use the js/location.host of the client.")
           
-          })
-    ))
-  )
-
+          }))))
 
 (def figwheel-cljsbuild-rules
   (distinct
@@ -253,7 +253,8 @@
            :open-file-command string?
            :repl              (ref-schema 'Boolean)
            :nrepl-port        integer?
-           :nrepl-middleware  [(ref-schema 'Named)]})
+           :nrepl-middleware  [(ref-schema 'Named)]
+           :validate-config   (ref-schema 'Boolean)})
     (or-spec 'ReloadCljFiles
              (ref-schema 'Boolean)
              {:clj  (ref-schema 'Boolean)
@@ -421,8 +422,8 @@
                                    (println "Figwheel: Would you like to:")
                                    (println "(f)ix the error live while Figwheel watches for config changes?")
                                    (println "(q)uit and fix your configuration?")
-                                   (println "(s)tart figwheel anyway?")
-                                   (print "Please choose f, q or s and then hit enter[f]: ")
+                                   (println "(s)tart Figwheel anyway?")
+                                   (print "Please choose f, q or s and then hit Enter [f]: ")
                                    (flush)
                                    (get-choice ["f" "q" "s"])))]
                   (condp = choice
