@@ -17,6 +17,7 @@
                             :local-repo
                             :dependencies
                             :repositories
+                            :mirrors
                             :resource-paths])
       {:local-repo-classpath true
        :source-paths (concat
