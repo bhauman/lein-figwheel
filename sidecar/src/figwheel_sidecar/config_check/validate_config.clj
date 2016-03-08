@@ -2,10 +2,11 @@
   (:require
    [figwheel-sidecar.config-check.ansi :refer [color]]
    [figwheel-sidecar.config-check.type-check :refer [spec or-spec ref-schema named? anything?
-                                        doc
-                                        requires-keys
-                                        string-or-symbol?
-                                        type-checker type-check print-one-error index-spec with-schema] :as tc]
+                                                     doc
+                                                     requires-keys
+                                                     assert-not-empty
+                                                     string-or-symbol?
+                                                     type-checker type-check print-one-error index-spec with-schema] :as tc]
    [fipp.engine :refer [pprint-document]]
    [clojure.string :as string]
    [clojure.java.io :as io]))
@@ -138,14 +139,7 @@
    (or-spec 'JavaScriptLanguage :ecmascript3 :ecmascript5 :ecmascript5-strict)
    (or-spec 'ModuleType :commonjs :amd :es6)
    (or-spec 'CompilerOptimization :none :whitespace :simple :advanced)
-   (doc 'CompilerOptions
-        "Options to be passed to the ClojureScript Compiler"
-        {:output-to "The path to the JavaScript file that will be output.\n\n  :output-to \"resources/public/js/main.js\""
-         :output-dir
-         "Sets the output directory for temporary files used during compilation. Defaults to \"out\".\n\n :output-dir \"resources/public/js/out\""
-
-         }
-        ))))
+   )))
 
 (def shared-type-rules
   (distinct
@@ -227,7 +221,7 @@
                                "or fails, and a textual description of what happened will be appended as the "
                                "last argument to the command.  If a more complex command needs to be constructed, "
                                "the recommendation is to write a small shell script wrapper. "
-                               "Defaults to nil (disabled).")})
+                               "Default: nil (disabled).")})
     (doc 'FigwheelClientOptions "A map of options that will be passed to the figwheel client."
          {:websocket-host (str "A String specifying the host part of the Figwheel websocket URL. This defaults to "
                                "\"localhost\".  If you have JavaScript clients that need to access Figwheel "
@@ -244,7 +238,7 @@
     cljs-compiler-rules
     (spec 'FigwheelOptions
           {:http-server-root  string?
-                                        ; :builds            (ref-schema 'FigwheelOnlyBuilds)
+           ; :builds is added below
            :server-port       integer?
            :server-ip         string?
            :css-dirs          [string?]
@@ -273,13 +267,15 @@
              {named? (ref-schema 'BuildOptionsMap)})
     (spec 'BuildOptionsMap
           { :id              (ref-schema 'Named)
-           :source-paths    [string?]
-           :figwheel        (ref-schema 'FigwheelClientOptions)
-           :compiler        (ref-schema 'CompilerOptions)
-           :notify-command  [string?]
-           :jar             (ref-schema 'Boolean)
-           :incremental     (ref-schema 'Boolean)
-           :assert          (ref-schema 'Boolean) })
+            :source-paths    [string?]
+            :figwheel        (ref-schema 'FigwheelClientOptions)
+            :compiler        (ref-schema 'CompilerOptions)
+            :notify-command  [string?]
+            :jar             (ref-schema 'Boolean)
+            :incremental     (ref-schema 'Boolean)
+            :assert          (ref-schema 'Boolean) })
+    (assert-not-empty 'BuildOptionsMap :source-paths)
+    (requires-keys 'BuildOptionsMap :source-paths :compiler)
     (or-spec 'FigwheelClientOptions
              (ref-schema 'Boolean)
              {:websocket-host      (ref-schema 'WebsocketHost)
