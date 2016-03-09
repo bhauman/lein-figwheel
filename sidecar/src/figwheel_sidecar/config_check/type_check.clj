@@ -7,7 +7,7 @@
    [clojure.walk :as walk]
    [clojure.string :as string]
    [clojure.set :refer [difference]]
-   [clojure.core.logic :as l]))
+   #_[clojure.core.logic :as l]))
 
 (defn log [x] (prn x) x)
 
@@ -21,9 +21,10 @@
 (defn schema-rules [arg]
   (if *schema-rules*
     (*schema-rules* arg)
-    (throw (Exception. "Type Check Schema is not bound! Please bind type-check/*schema-rules* and watch lazyiness, binding scope."))))
+    (throw (Exception. (str "Type Check Schema is not bound! Please bind type-check/*schema-rules* "
+                            "and watch lazyiness, binding scope.")))))
 
-(defn db-query [q db]
+#_(defn db-query [q db]
   (fn [a]
     (l/to-stream
      (map #(l/unify a % q) db))))
@@ -41,16 +42,13 @@
     :else coll))
 
 (defn map?? [x]
-  (and (or (seq? x) (vector? x))
-       (= (first x) :MAPP)))
+  (and (sequence-like? x) (= (first x) :MAPP)))
 
 (defn list?? [x]
-    (and (or (seq? x) (vector? x))
-         (= (first x) :SEQQ)))
+    (and (sequence-like? x) (= (first x) :SEQQ)))
 
 (defn empty?? [x]
-  (and (or (map?? x)
-           (list?? x))
+  (and (or (map?? x) (list?? x))
        (empty? (rest x))))
 
 (defn complex-value? [v]
@@ -169,12 +167,36 @@
       (fetch-pred :== parent-type)
       (fetch-pred :=> parent-type)))
 
-(defn all-types [parent-type]
-  (let [res (map last (schema-rules [:-- parent-type]))]
-    (distinct (cons parent-type (concat res (mapcat all-types res))))))
+(defn decendent-typs [t]
+  (distinct
+   (apply concat
+         (for [[_ _ child-type] (schema-rules [:-- t])]
+           (cons child-type (decendent-typs child-type))))))
+
+(defn ancestor-typs [t]
+  (distinct
+   (apply concat
+          (for [[ancestor-type _ child-type] (schema-rules :--)
+                :when (= t child-type)]
+            (cons ancestor-type (ancestor-typs ancestor-type))))))
+
+#_(with-schema
+  (index-spec
+   (spec 'Rooter {:hi (ref-schema 'A)})
+   (or-spec 'A
+            (ref-schema 'B)
+            (ref-schema 'BB))
+   (or-spec 'B
+            (ref-schema 'C)
+            (ref-schema 'CC))
+   (or-spec 'C
+            (ref-schema 'D)
+            (ref-schema 'DD))
+   (spec 'D {:now 3}))
+  (doall (decendent-typs 'B)))
 
 (defn all-predicates [parent-type]
-  (keep leaf-pred? (all-types parent-type)))
+  (keep leaf-pred? (cons parent-type (decendent-typs parent-type))))
 
 #_(with-schema (index-spec (spec 'Integer integer?)
                          (spec 'AnotherInt string?)
@@ -381,6 +403,7 @@
       (empty? filtered-errors) (/ complex 2.0)
       :else false)))
 
+
 (defn parents-for-type [typ']
   (concat (not-empty
            (for [[ky _ [parent-type _ typ]] (schema-rules :-)
@@ -391,6 +414,21 @@
                   (for [[up-type _ typ] (schema-rules :--)
                         :when (= typ typ')]
                     (parents-for-type up-type))))))
+
+#_(with-schema
+  (index-spec
+   (spec 'Rooter {:hi (ref-schema 'A)})
+   (or-spec 'A
+            (ref-schema 'B)
+            (ref-schema 'BB))
+   (or-spec 'B
+            (ref-schema 'C)
+            (ref-schema 'CC))
+   (or-spec 'C
+            (ref-schema 'D)
+            (ref-schema 'DD))
+   (spec 'D {:now 3}))
+  (doall (parents-for-type 'D)))
 
 (defn get-paths-for-type [root typ]
   (vec
@@ -406,31 +444,51 @@
    (get-paths-for-type root type)))
 
 
+
+#_(defn keys-for-parent-typ [typ]
+  
+  )
+
 ; possible keys
 
-(defn decendent-type [rules typ t]
+#_(defn decendent-type [rules typ t]
   (l/fresh [child-type]
     (db-query [typ :-- child-type] (rules :--))
     (l/conde
      [(l/== t child-type)]
      [(decendent-type rules child-type t)])))
 
-(defn keys-for-parent-type [rules typ ky kt]
+#_(defn keys-for-parent-type [rules typ ky kt]
   (l/fresh [ct ot]
     (l/conda
      [(db-query [ky :- [typ :> kt]] (rules :-))]
      [(decendent-type rules typ ct)
       (db-query [ky :- [ct :> kt]] (rules :-))])))
 
-(defn find-keys-for-type [rules typ]
+#_(defn find-keys-for-type [rules typ]
   (l/run* [q]
     (l/fresh [ky kt]
       (keys-for-parent-type rules typ ky kt)
       (l/== q [ky kt]))))
 
-(defn decendent-types [rules typ]
+#_(defn decendent-types [rules typ]
   (l/run* [q]
     (decendent-type rules typ q)))
+
+#_(with-schema
+    (index-spec
+     (spec 'Rooter {:hi (ref-schema 'A)})
+     (or-spec 'A
+              (ref-schema 'B)
+              (ref-schema 'BB))
+     (or-spec 'B
+              (ref-schema 'C)
+              (ref-schema 'CC))
+     (or-spec 'C
+              (ref-schema 'D)
+              (ref-schema 'DD))
+     (spec 'D {:now 3}))
+    (ancestor-typs 'D))
 
 (defn error-parent-value [{:keys [path orig-config]}]
   (get-in orig-config (reverse (rest path))))
