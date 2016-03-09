@@ -17,7 +17,7 @@
 ;; actually we should probably lift the event system here off the DOM
 ;; so that we work well in Node and other environments
 (defn dispatch-custom-event [event-name data]
-  (when (and (html-env?) (aget js/window "CustomEvent"))
+  (when (and (html-env?) (aget js/window "CustomEvent") (js* "typeof document !== 'undefined'"))
     (.dispatchEvent (.-body js/document)
                     (js/CustomEvent. event-name
                                      (js-obj "detail" data)))))
