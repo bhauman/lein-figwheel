@@ -158,9 +158,11 @@
      (group-by (fn [x] [:parent (second x) (first (nth x 2))]) (filter #(#{:?- :-} (second %)) spc))
      (group-by (juxt second first) spc))))
 
+
+
 (defn fetch-pred [pred-type parent-type]
-  (if-let [res (not-empty (map last (schema-rules [pred-type parent-type])))]
-    [pred-type (first res) parent-type] ))
+  (first (not-empty (schema-rules [pred-type parent-type])))
+)
 
 (defn leaf-pred? [parent-type]
   (or (fetch-pred :=  parent-type)
@@ -202,35 +204,40 @@
                          (spec 'AnotherInt string?)
                          (spec 'AnotherInt (ref-schema 'Integer))
                          (spec 'AndAnotherInt (ref-schema 'AnotherInt)))
-  (doall (all-predicates 'AndAnotherInt))
+    (doall (all-predicates 'AndAnotherInt))
+    #_(doall (predicate-rules-for-type 'AndAnotherInt))
   #_(leaf-pred? 'AnotherInt)
   #_(all-types 'AndAnotherInt)
   #_(all-types 'AndAnotherInt)
   #_(to-leaf-types 'AAnotherInt)
   #_(to-leaf-types 'AnotherInt)
   )
-
-(defmulti apply-pred (fn [f v] (first f)))
-(defmethod apply-pred :== [[_ pred] value] (= value pred))
-(defmethod apply-pred := [[_ pred] value] (pred value))
-(defmethod apply-pred :=> [[_ pred] value] (= (cond
-                                                (map? value) :MAPP
-                                                (sequence-like? value) :SEQQ
-                                                :else :_____BAD)
-                                              pred))
+(ns-unmap *ns* 'apply-pred)
+(defmulti apply-pred (fn [f v] (second f)))
+(defmethod apply-pred :== [[t _ pred] value] (= value pred))
+(defmethod apply-pred :=  [[t _ pred] value] (pred value))
+(defmethod apply-pred :=> [[t _ pred] value] (= (cond
+                                                  (map? value) :MAPP
+                                                  (sequence-like? value) :SEQQ
+                                                  :else :_____BAD)
+                                                pred))
 
 (defn type-check-pred [pred value state]
-  (if-not (apply-pred pred value)
-    (let [error {:Error-type :failed-predicate
-                 :not (second pred)
-                 :value value
-                 :type-sig (:type-sig state)
-                 :path     (:path state)}]
-      [(if (not= (-> state :type-sig first)
-                 (last pred))
-         (assoc error :sub-type (last pred)) error)])
-    {:success-type (last pred)}))
+  (let [[typ _ pred-op] pred]
+    (if-not (apply-pred pred value)
+      (let [error {:Error-type :failed-predicate
+                   :not pred-op
+                   :value value
+                   :type-sig (:type-sig state)
+                   :path     (:path state)}]
+        [(if (not= (-> state :type-sig first)
+                   typ)
+           (assoc error :sub-type typ) error)])
+      {:success-type typ})))
 
+;; TODO this allows a OR reloationship??
+;; lets formalize this as an and relationship
+;; the or-spec handles the OR relationship
 (defn type-check-value [parent-type value state]
   (if-let [preds (all-predicates parent-type)]
     (let [errors   (map #(type-check-pred % value state) preds)
@@ -241,7 +248,7 @@
     (throw (Exception. (str "parent-type " parent-type "has no predicate.")))))
 
 (defn compound-type? [parent-type]
-  (#{:SEQQ :MAPP} (second (fetch-pred :=> parent-type))))
+  (#{:SEQQ :MAPP} (last (fetch-pred :=> parent-type))))
 
 (defn get-types-from-key-parent [parent-type ky]
   (map (comp last last)
@@ -402,6 +409,7 @@
       (empty? errors) complex
       (empty? filtered-errors) (/ complex 2.0)
       :else false)))
+
 
 (defn ancester-key-rules
   "Returns all the key terminal ancester rules for a given type."
@@ -851,10 +859,10 @@
 }}))
   )
 
-
-
 ;; spiking on yet another way of analyzing a configuration for errors
 
+;; TODO ignores descendent relationships, only works for the immediate
+;; type
 (defn predicate-rules-for-type [parent-type]
   (let [f (if parent-type #(vector % parent-type) identity)]
     (apply concat (mapv schema-rules (map f [:= :== :=>])))))
@@ -867,12 +875,6 @@
       [typ simple-exp])))
   ([simple-exp]
    (pred-type-help simple-exp nil)))
-
-
-
-
-
-
 
 #_(with-schema
   (index-spec
