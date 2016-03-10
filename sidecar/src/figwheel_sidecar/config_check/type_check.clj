@@ -167,11 +167,11 @@
       (fetch-pred :== parent-type)
       (fetch-pred :=> parent-type)))
 
-(defn decendent-typs [t]
+(defn descendent-typs [t]
   (distinct
    (apply concat
          (for [[_ _ child-type] (schema-rules [:-- t])]
-           (cons child-type (decendent-typs child-type))))))
+           (cons child-type (descendent-typs child-type))))))
 
 (defn ancestor-typs [t]
   (distinct
@@ -193,10 +193,10 @@
             (ref-schema 'D)
             (ref-schema 'DD))
    (spec 'D {:now 3}))
-  (doall (decendent-typs 'B)))
+  (doall (descendent-typs 'B)))
 
 (defn all-predicates [parent-type]
-  (keep leaf-pred? (cons parent-type (decendent-typs parent-type))))
+  (keep leaf-pred? (cons parent-type (descendent-typs parent-type))))
 
 #_(with-schema (index-spec (spec 'Integer integer?)
                          (spec 'AnotherInt string?)
@@ -403,21 +403,44 @@
       (empty? filtered-errors) (/ complex 2.0)
       :else false)))
 
+(defn ancester-key-rules
+  "Returns all the key terminal ancester rules for a given type."
+  [typ']
+  (doall
+   (distinct
+    (for [typ (cons typ' (ancestor-typs typ'))
+          [ky _ [parent-type _ t] :as rule] (schema-rules :-)
+          :when (= t typ)]
+     rule))))
+
+(defn concrete-parent [typ']
+  (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
+    t))
 
 (defn parents-for-type [typ']
-  (concat (not-empty
-           (for [[ky _ [parent-type _ typ]] (schema-rules :-)
-                 :when (= typ typ')]
-             [ky parent-type]))
-          (not-empty
-           (apply concat
-                  (for [[up-type _ typ] (schema-rules :--)
-                        :when (= typ typ')]
-                    (parents-for-type up-type))))))
+  (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
+    [ky parent-type]))
+
+#_(with-schema
+    (index-spec
+     (spec 'Rooter {:hi (ref-schema 'A)})
+     (spec 'Rooter2 {:hi (ref-schema 'B)})
+     (or-spec 'A
+              (ref-schema 'B)
+              (ref-schema 'BB))
+     (or-spec 'B
+              (ref-schema 'C)
+              (ref-schema 'CC))
+     (or-spec 'C
+              (ref-schema 'D)
+              (ref-schema 'DD))
+     (spec 'D {:now 3}))
+    (concrete-parent 'D))
 
 #_(with-schema
   (index-spec
    (spec 'Rooter {:hi (ref-schema 'A)})
+   (spec 'Rooter2 {:hi (ref-schema 'B)})
    (or-spec 'A
             (ref-schema 'B)
             (ref-schema 'BB))
@@ -428,7 +451,8 @@
             (ref-schema 'D)
             (ref-schema 'DD))
    (spec 'D {:now 3}))
-  (doall (parents-for-type 'D)))
+    #_(doall (ancestor-typs 'D))
+  (doall (parents-for-type2 'D)))
 
 (defn get-paths-for-type [root typ]
   (vec
@@ -828,13 +852,6 @@
   )
 
 
-;; 
-
-#_(defn apply-predicate [pred val]
-  (l/project
-   [pred]
-   (l/pred val (fn [v] (boolean (apply-pred pred v))))))
-
 
 ;; spiking on yet another way of analyzing a configuration for errors
 
@@ -851,32 +868,11 @@
   ([simple-exp]
    (pred-type-help simple-exp nil)))
 
-(defn concrete-parent [typ]
-  (doall
-   (distinct
-    (or (not-empty
-         (concat
-          (for [[ky _ [_ _ ty]] (schema-rules :-)
-                :when (= ty typ)]
-            typ)
-          (apply concat
-                 (for [[pt _ ty] (schema-rules :--)
-                       :when (= ty typ)]
-                   (concrete-parent pt)))))
-        [typ]))))
 
 
-#_(defn concrete-child** [typ]
-  (doall
-   (distinct
-    (or (not-empty
-         (concat
-          (for [[ky _ [_ _ ty]] (schema-rules [:parent :- typ])]
-            typ)
-          (apply concat
-                 (for [[pt _ ct] (schema-rules [:-- typ])]
-                   (concrete-child** ct)))))
-        [typ]))))
+
+
+
 
 #_(with-schema
   (index-spec
