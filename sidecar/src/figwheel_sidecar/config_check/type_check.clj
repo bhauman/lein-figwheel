@@ -158,16 +158,13 @@
      (group-by (fn [x] [:parent (second x) (first (nth x 2))]) (filter #(#{:?- :-} (second %)) spc))
      (group-by (juxt second first) spc))))
 
-
-
 (defn fetch-pred [pred-type parent-type]
-  (first (not-empty (schema-rules [pred-type parent-type])))
-)
+  (schema-rules [pred-type parent-type]))
 
 (defn leaf-pred? [parent-type]
-  (or (fetch-pred :=  parent-type)
-      (fetch-pred :== parent-type)
-      (fetch-pred :=> parent-type)))
+  (concat (fetch-pred :=  parent-type)
+          (fetch-pred :== parent-type)
+          (fetch-pred :=> parent-type)))
 
 (defn descendent-typs [t]
   (distinct
@@ -198,7 +195,7 @@
   (doall (descendent-typs 'B)))
 
 (defn all-predicates [parent-type]
-  (keep leaf-pred? (cons parent-type (descendent-typs parent-type))))
+  (keep identity (mapcat leaf-pred? (cons parent-type (descendent-typs parent-type)))))
 
 #_(with-schema (index-spec (spec 'Integer integer?)
                          (spec 'AnotherInt string?)
@@ -230,9 +227,9 @@
                    :value value
                    :type-sig (:type-sig state)
                    :path     (:path state)}]
-        [(if (not= (-> state :type-sig first)
-                   typ)
-           (assoc error :sub-type typ) error)])
+        [(if (not= (-> state :type-sig first) typ)
+           (assoc error :sub-type typ)
+           error)])
       {:success-type typ})))
 
 ;; TODO this allows a OR reloationship??
@@ -248,7 +245,7 @@
     (throw (Exception. (str "parent-type " parent-type "has no predicate.")))))
 
 (defn compound-type? [parent-type]
-  (#{:SEQQ :MAPP} (last (fetch-pred :=> parent-type))))
+  (#{:SEQQ :MAPP} (last (first (fetch-pred :=> parent-type)))))
 
 (defn get-types-from-key-parent [parent-type ky]
   (map (comp last last)
