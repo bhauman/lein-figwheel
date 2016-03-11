@@ -858,17 +858,17 @@
 
 ;; spiking on yet another way of analyzing a configuration for errors
 
-;; TODO ignores descendent relationships, only works for the immediate
-;; type
 (defn predicate-rules-for-type [parent-type]
-  (let [f (if parent-type #(vector % parent-type) identity)]
-    (apply concat (mapv schema-rules (map f [:= :== :=>])))))
+  (if parent-type
+    (all-predicates parent-type)
+    (mapcat schema-rules [:= :== :=>])))
 
 (defn pred-type-help
+  "Finds all possible "
   ([simple-exp parent-typ]
    (doall
-    (for [[typ pred-type pred] (predicate-rules-for-type parent-typ)
-          :when (apply-pred [pred-type pred] simple-exp)]
+    (for [[typ pred-type pred-op :as pred] (predicate-rules-for-type parent-typ)
+          :when (apply-pred pred simple-exp)]
       [typ simple-exp])))
   ([simple-exp]
    (pred-type-help simple-exp nil)))
@@ -878,8 +878,10 @@
    (spec 'H (ref-schema 'Hey))
    (spec 'Hey (ref-schema 'Now))
    (spec 'Now (ref-schema 'Nower))
-   (spec 'Nower :asdf))
-  (concrete-child** 'H)
+   (spec 'Nower :asdf)
+   (spec 'Nower3 keyword?))
+    (pred-type-help :asdf 'H)
+  #_(concrete-parent 'Nower)
   )
 
 (defn pred-type [exp]
