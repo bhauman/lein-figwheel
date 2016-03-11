@@ -131,10 +131,23 @@
 
 #_(required-keys 'FigOpts :hello :goodbye)
 
+(defn doc-type? [x]
+  (and (map? x)
+       (= #{:content :example} (set (keys x)))
+       (let [{:keys [example content]} x]
+         (or (fn? example)
+             (string? example)))))
+
+(defn doc-key-val [root k d]
+  (cond
+    (string?   d) [[root :doc-key k d]]
+    (doc-type? d) [[root :doc-key k (:content d)]
+                   [root :doc-key-example k (:example d)]]))
+
 (defn doc
   ([root type-doc kd]
    (cons [root :doc-type type-doc]
-         (mapv (fn [[k d]] [root :doc-key k d]) kd)))
+         (mapcat (fn [[k d]] (doc-key-val root k d)) kd)))
   ([root type-doc]
    (doc root type-doc [])))
 
@@ -142,7 +155,9 @@
  (doc 'FigOpts "This is a cool option"
       {
        :hello ":hello is needed to say hello"
-       :good ":good is needed to say goodbye"})) 
+       :good ":good is needed to say goodbye"
+       :hey-there {:content "This is docs"
+                   :example "This is an example"}})) 
 
 ;; Direct Implementation
 ;; this is still squirrely
@@ -1032,12 +1047,12 @@
 
 (defn parent-is-sequence? [{:keys [type-sig path]}]
   (and (integer? (first path))
-       ((set (map last (*schema-rules* [:=> (second type-sig)]))) :SEQQ)))
+       ((set (map last (schema-rules [:=> (second type-sig)]))) :SEQQ)))
 
 (defmulti predicate-explain (fn [pred _] pred))
 
 (defmethod predicate-explain :default [pred value]
-  (if-let [typ (first (for [[t _ p] (*schema-rules* :=)
+  (if-let [typ (first (for [[t _ p] (schema-rules :=)
                             :when (= p pred)] t))]
     (name typ)
     pred))
@@ -1259,7 +1274,7 @@
 ;; tighten up unknown-key errors to include information about current parent config
 
 (defn type-doc [parent-type]
-  (when-let [[_ _ d] (first (*schema-rules* [:doc-type parent-type]))]
+  (when-let [[_ _ d] (first (schema-rules [:doc-type parent-type]))]
     d))
 
 (declare key-doc)
@@ -1267,18 +1282,18 @@
 (defn find-key-doc [parent-type ky]
   (doall
    (concat
-    (for [[_ _ [pt _ next-type]] (*schema-rules* [:- ky])
+    (for [[_ _ [pt _ next-type]] (schema-rules [:- ky])
           :when (and pt (= pt parent-type))]
       (or (type-doc next-type)
           (first (find-key-doc next-type ky))))
-    (for [[_ _ next-type]  (*schema-rules* [:-- parent-type])
+    (for [[_ _ next-type]  (schema-rules [:-- parent-type])
           :when next-type]
       (or (type-doc next-type)
           (first (find-key-doc next-type ky)))))))
 
 (defn key-doc [parent-type ky]
   (first (concat
-          (for [[_ _ k d] (*schema-rules* [:doc-key parent-type])
+          (for [[_ _ k d] (schema-rules [:doc-key parent-type])
                 :when (and k (= ky k))]
             d)
           (find-key-doc parent-type ky))))
