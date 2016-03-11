@@ -331,6 +331,7 @@
    (spec 'RootMap         {:figwheel (ref-schema 'FigwheelOptions)})
    (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
    (requires-keys 'FigwheelOptions :builds)
+   (assert-not-empty 'FigwheelOptions :builds)
    (requires-keys 'RootMap :figwheel)
    (let [builds (get-in config [:figwheel :builds])]
      (when (tc/sequence-like? builds)
@@ -343,6 +344,7 @@
   (index-spec
    schema-rules-base
    (requires-keys 'CljsbuildOptions :builds)
+   (assert-not-empty 'CljsbuildOptions :builds)
    (requires-keys 'RootMap :cljsbuild)
    (let [builds (get-in config [:cljsbuild :builds])]
      (when (tc/sequence-like? builds)
@@ -353,6 +355,7 @@
    figwheel-cljsbuild-rules
    (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
    (requires-keys 'FigwheelOptions :builds)
+   (assert-not-empty 'FigwheelOptions :builds)   
    (let [builds (get config :builds)]
      (when (tc/sequence-like? builds)
        (requires-keys 'BuildOptionsMap :id)))))

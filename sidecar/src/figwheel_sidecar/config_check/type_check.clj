@@ -325,7 +325,7 @@
 
 (defn check-assert-not-empty [parent-type value state]
   (if (map? value)
-    (let [res (filter #(and (contains? value %) (empty? (get value %)))
+    (let [res (filter #(and (contains? value %) (coll? (get value %)) (empty? (get value %)))
                       (assert-not-empty-keys-for-type parent-type))]
       (mapv (fn [x]
               {:Error-type :should-not-be-empty
