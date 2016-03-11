@@ -24,7 +24,5 @@
    [hawk "0.2.9" :exclusions [org.clojure/clojure]]
 
    ;; for config validation
-   [org.clojure/core.logic "0.8.10"]
    [clj-fuzzy "0.3.1"]
-   [fipp "0.6.4"]
-   ])
+   [fipp "0.6.4"]])

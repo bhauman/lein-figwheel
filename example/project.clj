@@ -106,7 +106,7 @@
                     
                     :source-paths ["src" "dev"]
                     :repl-options {:init (set! *print-length* 50)}
-                    :plugins [[cider/cider-nrepl "0.10.1"]]}}
+                    :plugins [[cider/cider-nrepl "0.11.0"]]}}
   
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 

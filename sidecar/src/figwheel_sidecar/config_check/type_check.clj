@@ -6,13 +6,13 @@
    [clj-fuzzy.metrics :as metrics]
    [clojure.walk :as walk]
    [clojure.string :as string]
-   [clojure.set :refer [difference]]
-   #_[clojure.core.logic :as l]))
+   [clojure.set :refer [difference]]))
 
 (defn log [x] (prn x) x)
 
 (def ^:dynamic *schema-rules* nil)
 
+;; TODO more caching here and maybe compose over a separate caching macro
 (defmacro with-schema [rules & body] 
   `(with-redefs [tc-analyze (memoize tc-analyze)
                  type-checker (memoize type-checker)]
@@ -23,11 +23,6 @@
     (*schema-rules* arg)
     (throw (Exception. (str "Type Check Schema is not bound! Please bind type-check/*schema-rules* "
                             "and watch lazyiness, binding scope.")))))
-
-#_(defn db-query [q db]
-  (fn [a]
-    (l/to-stream
-     (map #(l/unify a % q) db))))
 
 (defn sequence-like? [x]
   (and (not (map? x)) (coll? x)))
@@ -45,22 +40,23 @@
   (and (sequence-like? x) (= (first x) :MAPP)))
 
 (defn list?? [x]
-    (and (sequence-like? x) (= (first x) :SEQQ)))
+  (and (sequence-like? x) (= (first x) :SEQQ)))
 
 (defn empty?? [x]
   (and (or (map?? x) (list?? x))
        (empty? (rest x))))
 
-(defn complex-value? [v]
-  (or (list?? v) (map?? v) (fn? v) (-> v meta :ref)))
+#_(defn complex-value? [v]
+    (or (list?? v) (map?? v) (fn? v) (-> v meta :ref)))
 
-(def simple-value? (complement complex-value?))
+#_(def simple-value? (complement complex-value?))
 
 (defn prep-key [k]
   (if (fn? k)
     (keyword (str "pred-key_" (hash k)))
     k))
 
+;; TODO examine need for initial recursion step
 (defn decompose [type-gen-fn node' s']
   (letfn [(handle-key-type [orig-key predicate-key-name node t]
             (if (fn? orig-key)
@@ -208,8 +204,9 @@
   #_(all-types 'AndAnotherInt)
   #_(to-leaf-types 'AAnotherInt)
   #_(to-leaf-types 'AnotherInt)
-  )
-(ns-unmap *ns* 'apply-pred)
+    )
+
+#_(ns-unmap *ns* 'apply-pred)
 (defmulti apply-pred (fn [f v] (second f)))
 (defmethod apply-pred :== [[t _ pred] value] (= value pred))
 (defmethod apply-pred :=  [[t _ pred] value] (pred value))
@@ -231,6 +228,25 @@
            (assoc error :sub-type typ)
            error)])
       {:success-type typ})))
+
+#_(with-schema (index-spec
+                (spec 'String string?)
+                (spec 'Integer integer?)
+                (spec 'Five 5)
+                (spec 'Map {})
+                (spec 'AnotherInt (ref-schema 'Integer))
+                (spec 'Cljsbuild {:server-port integer?
+                                  :server-ip string?})
+                (or-spec 'IntOrBool
+                      boolean?
+                      (ref-schema 'AnotherInt))
+                (or-spec 'IntOrBoolOrCljs
+                      (ref-schema 'IntOrBool)
+                      (ref-schema 'Cljsbuild))
+                )
+  (all-predicates 'IntOrBool)
+
+  )
 
 ;; TODO this allows a OR reloationship??
 ;; lets formalize this as an and relationship
@@ -256,6 +272,7 @@
 (defn fix-key [k parent-value]
   (if (sequence-like? parent-value) 0 k))
 
+;; not descendent aware
 (defn find-keyword-predicate [parent-type]
   (when-let [[pred-id _ [pt _ kt]] (first (schema-rules [:parent :?- parent-type]))]
     (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
@@ -285,8 +302,8 @@
 
 (defn required-keys-for-type [parent-type]
   (set (for [[t _ k]  (schema-rules [:requires-key parent-type])
-                  :when (= t parent-type)]
-              k)))
+             :when (= t parent-type)]
+         k)))
 
 (defn check-required-keys [parent-type value state]
   (if (map? value)
@@ -305,8 +322,6 @@
   (set (for [[t _ k]  (schema-rules [:not-empty parent-type])
                   :when (= t parent-type)]
               k)))
-
-#_(contains? {:asdf 1} :asdf)
 
 (defn check-assert-not-empty [parent-type value state]
   (if (map? value)
@@ -407,7 +422,6 @@
       (empty? filtered-errors) (/ complex 2.0)
       :else false)))
 
-
 (defn ancester-key-rules
   "Returns all the key terminal ancester rules for a given type."
   [typ']
@@ -471,38 +485,6 @@
   (filter
    #(= (last %) ky)
    (get-paths-for-type root type)))
-
-
-
-#_(defn keys-for-parent-typ [typ]
-  
-  )
-
-; possible keys
-
-#_(defn decendent-type [rules typ t]
-  (l/fresh [child-type]
-    (db-query [typ :-- child-type] (rules :--))
-    (l/conde
-     [(l/== t child-type)]
-     [(decendent-type rules child-type t)])))
-
-#_(defn keys-for-parent-type [rules typ ky kt]
-  (l/fresh [ct ot]
-    (l/conda
-     [(db-query [ky :- [typ :> kt]] (rules :-))]
-     [(decendent-type rules typ ct)
-      (db-query [ky :- [ct :> kt]] (rules :-))])))
-
-#_(defn find-keys-for-type [rules typ]
-  (l/run* [q]
-    (l/fresh [ky kt]
-      (keys-for-parent-type rules typ ky kt)
-      (l/== q [ky kt]))))
-
-#_(defn decendent-types [rules typ]
-  (l/run* [q]
-    (decendent-type rules typ q)))
 
 #_(with-schema
     (index-spec
@@ -856,8 +838,6 @@
 }}))
   )
 
-;; spiking on yet another way of analyzing a configuration for errors
-
 (defn predicate-rules-for-type [parent-type]
   (if parent-type
     (all-predicates parent-type)
@@ -1084,9 +1064,6 @@
 
 (defmulti error-help-message :Error)
 
-
-
-
 (defmethod error-help-message :unknown-key [{:keys [path key]}]
   [:group "Found unrecognized key "
    (color (pr-str key) :red)
@@ -1201,7 +1178,7 @@
 (defn print-path-error
   ([{:keys [path orig-config] :as error} leaf-node document]
    [:group
-    "\n------- Figwheel Configuration Error -------"
+    "\n------- Figwheel Configuration Error -------\n"
     :break
     (error-help-message error)
     :break
@@ -1235,7 +1212,7 @@
 (defn print-wrong-path-error
   ([{:keys [path orig-config correction path correct-paths value] :as error} leaf-node document]
    [:group
-    "------- Figwheel Configuration Error -------"
+    "------- Figwheel Configuration Error -------\n"
     :break
     (error-help-message error)
     :break
@@ -1637,7 +1614,7 @@
                       :magicl "asdf"
                       
                       :willywonka 4})
-    (first (type-check 'RootMap {:five 5
+    #_(first (type-check 'RootMap {:five 5
                                  :string "asdf"
                                  :boolean true
                                  :builds {"asdf" 5}
