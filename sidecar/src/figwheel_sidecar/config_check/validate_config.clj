@@ -1,12 +1,14 @@
 (ns figwheel-sidecar.config-check.validate-config
   (:require
    [figwheel-sidecar.config-check.ansi :refer [color]]
-   [figwheel-sidecar.config-check.type-check :refer [spec or-spec ref-schema named? anything?
-                                                     doc
-                                                     requires-keys
-                                                     assert-not-empty
-                                                     string-or-symbol?
-                                                     type-checker type-check print-one-error index-spec with-schema] :as tc]
+   [figwheel-sidecar.config-check.type-check
+    :as tc
+    :refer [spec or-spec ref-schema named? anything?
+            doc
+            requires-keys
+            assert-not-empty
+            string-or-symbol?
+            type-checker type-check print-one-error index-spec with-schema] :as tc]
    [fipp.engine :refer [pprint-document]]
    [clojure.string :as string]
    [clojure.java.io :as io]))
@@ -370,6 +372,19 @@
       (let [conf (into {} (filter (comp not nil? first) [[fig-k  fig-v]
                                                          [cljb-k cljb-v]]))]
         (print-one-error (validate-regular-rules conf) 'RootMap conf)))))
+
+#_(validate-project-config {:figweel {}
+                            :cljsuild {
+                                        }})
+
+(defn tester [conf]
+  (with-schema (validate-regular-rules {:figwheel {}})
+    (tc/tc-with-parent 'RootMap conf)
+    ))
+
+
+#_(tester {:fighweel {:css-dirs []}})
+
 
 (defn validate-figwheel-edn-file [config]
   (print-one-error (validate-figwheel-edn-rules config)
