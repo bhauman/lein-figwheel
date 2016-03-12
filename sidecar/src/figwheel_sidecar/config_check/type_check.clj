@@ -1,12 +1,21 @@
 (ns figwheel-sidecar.config-check.type-check
   (:require
    [clojure.pprint :as pprint]
+
+   [fipp.visit :refer [visit]]
+   [fipp.edn :as fedn]
    [fipp.engine :refer [pprint-document]]
+
    [figwheel-sidecar.config-check.ansi :refer [color]]
    [clj-fuzzy.metrics :as metrics]
    [clojure.walk :as walk]
    [clojure.string :as string]
    [clojure.set :refer [difference]]))
+
+(def edn-printer (fedn/map->EdnPrinter {}))
+
+(defn fipp-format-data [data]
+  (visit edn-printer data))
 
 (defn log [x] (prn x) x)
 
@@ -131,23 +140,17 @@
 
 #_(required-keys 'FigOpts :hello :goodbye)
 
-(defn doc-type? [x]
+#_(defn doc-type? [x]
   (and (map? x)
        (= #{:content :example} (set (keys x)))
        (let [{:keys [example content]} x]
          (or (fn? example)
              (string? example)))))
 
-(defn doc-key-val [root k d]
-  (cond
-    (string?   d) [[root :doc-key k d]]
-    (doc-type? d) [[root :doc-key k (:content d)]
-                   [root :doc-key-example k (:example d)]]))
-
 (defn doc
   ([root type-doc kd]
    (cons [root :doc-type type-doc]
-         (mapcat (fn [[k d]] (doc-key-val root k d)) kd)))
+         (mapv (fn [[k d]] [root :doc-key k d]) kd)))
   ([root type-doc]
    (doc root type-doc [])))
 
@@ -1178,17 +1181,26 @@
 
 (defn print-path [[x & xs] leaf-node edn]
   (if (and x (get edn x))
-    [:group (if (and (not (map? edn)) (integer? x))
-              "[{"
-              (str (pr-str x ) " {"))
-     [:nest 2
-      :line
-      (print-path xs leaf-node (get edn x))
-      ]
-     (if (and (not (map? edn)) (integer? x))
-       "}]"
-       "}")]
+    (let [v (get edn x)]
+      [:group
+       (str (if (map? edn)
+              (str (pr-str x) " ")
+              "")
+            (if (and (not (map? v)) (integer? (first xs)))
+              "["
+              "{"))
+       (if (map? v)
+         [:nest 2
+          :line
+          (print-path xs leaf-node v)]
+         (print-path xs leaf-node v))
+       (if (and (not (map? v)) (integer? (first xs)))
+         "]"
+         "}")])
     leaf-node))
+
+#_(pprint-document (print-path2 [:cljsbuild :builds 0 :css-dirs] [:group "hey"] {:cljsbuild {:builds [{:css-dirs []}]}})
+                 {:width 20})
 
 (defn print-path-error
   ([{:keys [path orig-config] :as error} leaf-node document]
@@ -1323,14 +1335,32 @@
   #_(doall (*schema-rules* [:doc-key 'Rap]))
   )
 
+(defn print-key-doc [k key-doc]
+  (cond
+    (string? key-doc) key-doc
+    (map? key-doc)
+    (if (:example key-doc)
+      (let [example (:example key-doc)
+            example (if (fn? example) (example) example)]
+        [:group
+         (color (:content key-doc) :underline) 
+         :break
+         :break
+         [:nest 2
+          (pr-str k)
+          " "
+          (fipp-format-data example)]
+         ])
+      (color (:content key-doc) :underline) )
+    :else ""))
+
 (defn document-key [parent-type k]
   (let [{:keys [ky] :as p} (docs-for parent-type k)]
     (if ky
       [:group
        "-- Docs for key " (color (pr-str k) :bold) " --" 
        :break
-       (color ky
-                       :underline)
+       (print-key-doc k ky)
        :break]
       "")))
 
