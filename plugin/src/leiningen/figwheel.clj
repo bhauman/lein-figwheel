@@ -98,9 +98,9 @@
       (do
         (require 'figwheel-sidecar.config-check.validate-config)
         (if-let [config (validate-figwheel-conf-helper)]
-          (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
+          (do (println "\nFigwheel: Configuration Valid. Starting Figwheel ...")
               config)
-          (do (println "Figwheel: Configuration validation failed. Exiting ...")
+          (do (println "\nFigwheel: Configuration validation failed. Exiting ...")
               false))))))
 
 (defn figwheel
