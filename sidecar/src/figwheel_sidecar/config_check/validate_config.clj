@@ -168,8 +168,9 @@
                                  "This defaults to 'public' and should never be blank.")
           :server-port (str "An integer that the figwheel server should bind.  This defaults to 3449")
           :server-ip   (str "The network interface that the figwheel server will listen on.  This defaults to 'localhost'.")
-          :css-dirs (str "A vector of paths from the project root to the location of your css files. "
-                         "These files will be watched for changes and the figwheel client will attempt to reload them.")
+          :css-dirs {:content (str "A vector of paths from the project root to the location of your css files. "
+                                   "These files will be watched for changes and the figwheel client will attempt to reload them.")
+                     :example ["resources/public/css"]}
           :reload-clj-files (str "Either false or a Map like {:cljc false :clj true}. "
                                  "False will disable the reloading of clj files when they change. "
                                  "You can also declare that you want to exclude .cljc or .clj files "
@@ -392,15 +393,16 @@
           (recur))))))
 
 (defn get-choice [choices]
-  (let [ch (string/trim (read-line))]
-    (if (empty? ch)
-      (first choices)
-      (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
-        (do
-          (println (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
-                        "Please choose one of the following: "(string/join ", " choices)))
-          (get-choice choices))
-        ch))))
+  (when-let [ch (read-line)]
+    (let [ch (string/trim ch)]
+      (if (empty? ch)
+        (first choices)
+        (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
+          (do
+            (println (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
+                          "Please choose one of the following: "(string/join ", " choices)))
+            (get-choice choices))
+          ch)))))
 
 (defn validate-loop [get-data-fn options]
   (let [{:keys [figwheel-options-only file]} options]
@@ -426,6 +428,7 @@
                                    (flush)
                                    (get-choice ["f" "q" "s"])))]
                   (condp = choice
+                    nil false
                     "q" false
                     "s" config
                     "f" (if (:file options)
