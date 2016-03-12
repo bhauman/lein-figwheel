@@ -451,8 +451,13 @@
      rule))))
 
 (defn concrete-parent [typ']
-  (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
-    t))
+  (or (not-empty
+       (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
+         t))
+      ;; TODO this type should exist in parent position in a rule
+      (if (not-empty (schema-rules [:parent :-  typ']))
+        [typ']
+        [])))
 
 (defn parents-for-type [typ']
   (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
@@ -927,20 +932,20 @@
 
 (declare tc-with-parent)
 
-(defn tc-kv [ky val]
+(defn tc-kv [ky vl]
   (if-let [res (not-empty
                 (doall
                  (concat
                   (for [[_ _ [pt _ val-typ]] (schema-rules [:- ky])
                         parent-type (concrete-parent pt)
-                        child-types (tc-with-parent val-typ val)]
+                        child-types (tc-with-parent val-typ vl)]
                     (concat [parent-type ky] child-types))
                   ;; keys that are mispelled locals
                   (for [[k _ [pt _ val-typ]] (schema-rules :-)
                         :when (and (not= k ky)
                                    (similar-key 0 k ky))
                         parent-type (concrete-parent pt)
-                        child-types (tc-with-parent val-typ val)]
+                        child-types (tc-with-parent val-typ vl)]
                     (concat [parent-type [:subst ky k]] child-types))
                   ;; keys that have complex children that match
                   ;; this value
@@ -949,27 +954,27 @@
                   ;; TODO make this conditional like keyword
                   ;; predicates
                   ;; BEFORE keyword predicates
-                  (when (and (map? val) (> (count val) 0))
+                  (when (and (map? vl) (> (count vl) 0))
                     (for [[k _ [pt _ val-typ]] (schema-rules :-)
                           :when (and
                                  (not= k ky)
                                  (not (similar-key 0 k ky)))
                           parent-type (concrete-parent pt)]
                       (let [child-type-paths (filter #(= (first %) val-typ)
-                                                     (tc-with-parent val-typ val))]
+                                                     (tc-with-parent val-typ vl))]
                         (when (< (good-bad-ratio child-type-paths)
-                                 (if (> (count val) 1)
+                                 (if (> (count vl) 1)
                                    0.5 0.3))
                           (mapcat #(concat [parent-type [:replace-key ky k]] %)
                                   child-type-paths))))))))]
     res
     ;; try keyword predicates expensive
-    (doall
+    (doall 
      (for [[pred-id _ [pt _ val-typ]] (schema-rules :?-)
            parent-type (concrete-parent pt)
            :when (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
                    (pred-func ky)) 
-           child-types (tc-with-parent val-typ val)]
+           child-types (tc-with-parent val-typ vl)]
        (concat [parent-type ky] child-types)))))
 
 #_(pp)
@@ -983,14 +988,27 @@
   #_(doall (concrete-parent 'Thinger:pred-key_1518831777))
   (doall (tc-kv :asdasd 3)))
 
-(defn tc-seq [ky val]
+(defn tc-seq [ky vl]
   (for [[_ _ [pt _ val-typ]] (schema-rules [:- 0])
         parent-type (concrete-parent pt)
-        child-types (tc-with-parent val-typ val)]
+        child-types (tc-with-parent val-typ vl)]
     (concat [parent-type ky] child-types)))
 
+(defn tc-empty-coll [exp]
+  (cond
+    (map? exp)
+    (for [[t _ col-typ] (schema-rules :=>)
+          :when (= col-typ :MAPP)]
+      [t exp])
+    (sequence-like? exp)
+    (for [[t _ col-typ] (schema-rules :=>)
+          :when (= col-typ :SEQQ)]
+      [t exp])))
+
+;; TODO empty case?
 (defn tc-complex [exp]
   (cond
+    (and (coll? exp) (empty? exp)) (tc-empty-coll exp)
     (map? exp) ;; TODO pred-current type
     (mapcat (fn [[k v]] (tc-kv k v)) (seq exp))
     (sequence-like? exp)
@@ -1006,9 +1024,11 @@
       (not (coll? exp))
       (tc-simple exp)))))
 
+
 (defn tc-with-parent [parent-typ exp]
-  (let [res (tc-analyze exp)]
-    (if-let [good-types (not-empty (doall (filter #(= parent-typ (first %)) res)))]
+  (let [res (tc-analyze exp)
+        descendents (set (cons parent-typ (descendent-typs parent-typ)))]
+    (if-let [good-types (not-empty (doall (filter #(descendents (first %)) res)))]
       good-types
       (if (and (not-empty res) (not (coll? exp)))
         [[[:bad-terminal-value parent-typ exp res]]]
@@ -1179,33 +1199,54 @@
 #_(pp)
 ;; printing
 
+(defn gen-path [path value]
+  (if (empty? path)
+    value
+    (let [[x & xs] path]
+      (cond
+        (and (integer? x) (zero? x))
+        [(gen-path xs value)]
+        :else {x (gen-path xs value)}))))
+
 (defn print-path [[x & xs] leaf-node edn]
-  (if (and x (get edn x))
-    (let [v (get edn x)]
-      [:group
-       (str (if (map? edn)
-              (str (pr-str x) " ")
-              "")
-            (if (and (not (map? v)) (integer? (first xs)))
-              "["
-              "{"))
-       (if (map? v)
-         [:nest 2
-          :line
-          (print-path xs leaf-node v)]
-         (print-path xs leaf-node v))
-       (if (and (not (map? v)) (integer? (first xs)))
-         "]"
-         "}")])
-    leaf-node))
+   (if (and x (get edn x))
+     (let [v (get edn x)]
+       [:group
+        (str (if (map? edn)
+               (str (pr-str x) " ")
+               "")
+             (if (and (not (map? v)) (integer? (first xs)))
+               "["
+               "{"))
+        (if (map? v)
+          [:nest 2
+           :line
+           (print-path xs leaf-node v)]
+          (print-path xs leaf-node v))
+        (if (and (not (map? v)) (integer? (first xs)))
+          "]"
+          "}")])
+     leaf-node))
 
 #_(pprint-document (print-path2 [:cljsbuild :builds 0 :css-dirs] [:group "hey"] {:cljsbuild {:builds [{:css-dirs []}]}})
                  {:width 20})
 
+(defn blank-document? [x]
+  (or (nil? x)
+      (and (string? x) (string/blank? x))
+      (empty? x)))
+
+(defn print-document [d]
+  (if (blank-document? d)
+    [:group :break :break]
+    [:group :break d :line]))
+
 (defn print-path-error
   ([{:keys [path orig-config] :as error} leaf-node document]
+   (prn document)
+   (prn (print-document document))
    [:group
-    "\n------- Figwheel Configuration Error -------\n"
+    (color "\n------- Figwheel Configuration Error -------\n" :red)
     :break
     (error-help-message error)
     :break
@@ -1216,30 +1257,27 @@
                     (rest (rest path))
                     (rest path)))
                  leaf-node
-                 orig-config)]
-    :break
-    :break
-    document
-    :line
-    ])
+                 orig-config)
+     :break]
+    (print-document document)])
   ([error leaf]
    (print-path-error error leaf "")))
 
-(defn gen-path [path value]
-  (if (empty? path)
-    value
-    (let [[x & xs] path]
-      (cond
-        (and (integer? x) (zero? x))
-        [(gen-path xs value)]
-        :else {x (gen-path xs value)}))))
+(pprint-document [:group
+ [:group
+  "-- Docs for key "
+  [:span [:pass "[1m"] ":figwheel" [:pass "[0m"]]
+  " --"
+  :break
+  "A map of options for the Figwheel system and server."
+  :break]] {})
 
 #_(gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] 5)
-
+#_(pp)
 (defn print-wrong-path-error
   ([{:keys [path orig-config correction path correct-paths value] :as error} leaf-node document]
    [:group
-    "------- Figwheel Configuration Error -------\n"
+    (color "\n------- Figwheel Configuration Error -------\n" :red)
     :break
     (error-help-message error)
     :break
@@ -1263,11 +1301,7 @@
                      (summerize-value value)]
                     :line]
                    (gen-path (first correct-paths) value)))]
-    :break
-    :break
-    document
-    :line
-    ])
+    (print-document document)])
   ([error leaf]
    (print-path-error error leaf "")))
 
@@ -1551,16 +1585,19 @@
                                      (document-key (first (rest type-sig)) (first (rest path))))
                    {:width 40}))
 
-
-
 (defn document-all [parent-typ all-keys]
-  (cons :group
+  (doall
+   (vec
+   (cons :group
         (interpose :break
                    (map
                     (fn [ky]
-                      (document-key parent-typ ky)) all-keys))))
+                      (document-key parent-typ ky)) all-keys))))))
 
 (defmethod print-error :misspelled-key [{:keys [key corrections orig-error orig-config type-sig] :as error}]
+  (prn type-sig)
+  (println "HERER")
+  (prn corrections)
   (pprint-document (print-path-error error
                                      (format-key-value
                                       key
