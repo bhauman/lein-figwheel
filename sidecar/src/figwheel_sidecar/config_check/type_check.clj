@@ -585,7 +585,6 @@
   (let [path-that-start-with-key (->> (limit-analysis-to-type parent-type analysis)
                                       (map rest)
                                       (filter (fn [[ky & xs]]
-                                                #_(prn ky)
                                                 (and (vector? ky)
                                                      (seq ky)
                                                      (= bad-key (second ky))
@@ -650,7 +649,6 @@
     ;; TODO best path can't exist already!!
     ;; make sure that value matches type
     #_[bad-key child-analysis potential-types correct-path-types best-fit-path ]
-    #_(prn )
     (when best-fit-path
       (let [{:keys [parent-type child-type]}
             (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
@@ -1243,8 +1241,6 @@
 
 (defn print-path-error
   ([{:keys [path orig-config] :as error} leaf-node document]
-   (prn document)
-   (prn (print-document document))
    [:group
     (color "\n------- Figwheel Configuration Error -------\n" :red)
     :break
@@ -1595,9 +1591,6 @@
                       (document-key parent-typ ky)) all-keys))))))
 
 (defmethod print-error :misspelled-key [{:keys [key corrections orig-error orig-config type-sig] :as error}]
-  (prn type-sig)
-  (println "HERER")
-  (prn corrections)
   (pprint-document (print-path-error error
                                      (format-key-value
                                       key
