@@ -419,7 +419,7 @@
             (get-choice choices))
           ch)))))
 
-(defn validate-loop [get-data-fn options]
+(defn validate-loop [projects options]
   (let [{:keys [figwheel-options-only file]} options]
     (if-not (.exists (io/file file))
       (do
@@ -427,8 +427,9 @@
         (System/exit 1))
       (let [file (io/file file)]
         (println "Figwheel: Validating the configuration found in" (str file))
-        (loop [fix false]
-          (let [config (get-data-fn)]
+        (loop [fix false
+               projects projects]
+          (let [config (first projects)]
             (if (not (validate-config-data config figwheel-options-only))
               config
               (do
@@ -450,10 +451,10 @@
                           (do
                             (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
                             (file-change-wait file (* 120 1000))
-                            (recur true))
+                            (recur true (rest projects)))
                           (do ;; this branch shouldn't be taken
                             (Thread/sleep 1000)
-                            (recur true)))))))))))))
+                            (recur true (rest projects))))))))))))))
 
 (comment
   ;; figure out
