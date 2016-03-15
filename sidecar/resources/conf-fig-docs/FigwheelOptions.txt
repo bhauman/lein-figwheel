@@ -1,0 +1,102 @@
+:FigwheelOptions
+
+Figwheel Server and System Options.
+
+  :FigwheelOptions [:CreateExampleMap :css-dirs]
+
+:http-server-root
+
+Figwheel relies on the compojure.route/resources handler to serve
+static files. This serves resources on the classpath from a specific
+subdirectory. The default is "public" so any file on the resource path
+in a "public" subdirectory is capable of being served.
+
+You can change the default "public" to something else. But you can't
+have a blank :http-server-root this can lead to insidious compiler
+problems because the compiler also looks up resources when it looks
+for source files.
+Default: "public"
+
+  :http-server-root "public"
+
+:server-port
+
+An integer that the figwheel HTTP and Websocket server should bind.
+Default: 3449
+
+  :server-port 3000
+
+:server-ip
+
+The network interface that the figwheel server will listen on. This is
+useful if you don't want to use a public network interface.
+Default: "localhost"
+
+  :server-ip "0.0.0.0"
+
+:css-dirs
+
+A vector of paths from the project root to the location of your css
+files. These files will be watched for changes and the figwheel client
+will attempt to reload them.
+
+  :css-dirs ["resources/public/css"]
+
+:open-file-command
+
+A path to an executable shell script that will be passed a file and
+line information for a particular compilation error or warning.
+
+A script like this would work
+ie. in  ~/bin/myfile-opener
+#! /bin/sh
+emacsclient -n +$2 $1
+
+  :open-file-command "myfile-opener"
+
+:ring-handler
+
+If you want to embed a ring handler into the figwheel http-kit server;
+this is for simple ring servers, if this doesn't work for you just run
+your own server.
+Default: Off
+
+  :ring-handler example.core/my-server-handler
+
+:repl
+
+A Boolean value indicated wether to run a ClojureScript REPL after the
+figwheel process has launched.
+Default: true
+
+  :repl false
+
+:nrepl-port
+
+An integer indicating that you would like figwheel to launch nREPL
+from within the figwheel process and what port you would like it to
+launch on.
+Default: off
+
+  :nrepl-port 7888
+
+:nrepl-middleware
+
+A vector of strings indicating the nREPL middleware you want included
+when nREPL launches.
+
+  :nrepl-middleware ["cider.nrepl/cider-middleware" "cemerick.piggieback/wrap-cljs-repl"]
+
+:validate-config
+
+Set this to false to skip the configuration validation.
+Default: true
+
+  :validate-config false
+
+:hawk-options 
+
+If you need to watch files with polling instead of FS events. This can
+be useful for certain docker environments.
+
+  :hawk-options {:watcher :polling} 

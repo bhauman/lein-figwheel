@@ -1,0 +1,26 @@
+:ReloadCljFiles
+
+A Boolean or Map indicating which type of clj files should be reloaded
+on change. Clojure source files on the a ClojureScript build's
+:source-paths are assumed to affect ClojureScript build so there is an
+attempt made to reload a Clojure and the .cljs files that depend on it
+each time it changes. Set this to false to disable this behavior. You
+can also enable and disable specific clj file types with a Map
+Default: true
+
+  :ReloadCljFiles [:CreateExampleMap :clj :cljc]
+
+:clj
+
+A boolean indicating whether you want changes to clj files to trigger
+a reloading of the clj file and the dependent cljs files.
+
+  :clj true
+
+:cljc
+
+A boolean indicating whether you want changes to cljc files to trigger
+a reloading of the cljc file and the dependent cljs files. Setting
+this to false is a common optimization if you are working with 
+
+  :cljc false

@@ -659,6 +659,7 @@
          :confidence :high}))
     ))
 
+
 ;; TODO this is a duplicate of the above functionality
 ;; please take a look at this
 ;; more than likely can use a simple child analysis to determine this
@@ -726,7 +727,7 @@
     #_(prn root-type actual-parent-type?)
     #_(pprint/pprint analysis)
     #_(if (= bad-key :magicl))
-    (if (not (true? actual-parent-type?))
+    (if (and (not (true? actual-parent-type?)) (not (nil? (:alternate-type actual-parent-type?))))
       ;; not parent type we are looking at a misplaced configuration
       ;; value
       ;; TODO this is still weak
@@ -1365,13 +1366,64 @@
   #_(doall (*schema-rules* [:doc-key 'Rap]))
   )
 
-(defn print-key-doc [k key-doc]
+;; building examples from docs
+
+(declare get-example construct-example)
+
+(defn get-example-for-type [parent-type]
+  (let [doc-body (type-doc parent-type)]
+    (when (map? doc-body)
+      (cond
+        (contains? doc-body :example) (:example doc-body)
+        (contains? doc-body :example-construct-from) (construct-example parent-type doc-body)
+        :else nil))))
+
+(defn get-example-for-key [parent-type key]
+  (let [{:keys [ky]} (docs-for parent-type key)]
+    (when ky
+      (get-example parent-type key ky))))
+
+(defn next-parent-type [parent-type key]
+  (first (for [[k _ [pt _ next-type]] (schema-rules [:- key])
+               :when (= pt parent-type)]
+           next-type)))
+
+(defn construct-example [parent-type {:keys [example-construct-from] :as ky}]
+  (condp = (first example-construct-from)
+    :CreateExampleMap
+    (into {}
+          (filter
+           (complement (comp nil? second))
+           (mapv (juxt identity
+                       (partial get-example-for-key parent-type))
+                 (rest example-construct-from))))
+    :CreateExampleVector
+    (let [typ (second example-construct-from)]
+      [(get-example-for-type typ)])))
+
+(defn get-example [parent-type k ky]
+  (if (not (or (map? ky) (string? ky)))
+    nil
+    (cond
+      (string? ky) nil
+      (contains? ky :example) (let [example (:example ky)]
+                      (if (fn? example) (example) example))
+      (contains? ky :example-construct-from)
+      (construct-example (next-parent-type parent-type k) ky)
+      #_(into {}
+            (filter
+             (complement (comp nil? second))
+             (mapv (juxt identity (partial get-example-for-key ))
+                  (:example-construct-from ky))))
+      :else nil)))
+
+(defn print-key-doc [parent-type k key-doc]
   (cond
     (string? key-doc) key-doc
     (map? key-doc)
-    (if (:example key-doc)
-      (let [example (:example key-doc)
-            example (if (fn? example) (example) example)]
+    (if (or (contains? key-doc :example)
+            (contains?  key-doc :example-construct-from))
+      (let [example (get-example parent-type k key-doc)]
         [:group
          (color (:content key-doc) :underline) 
          :break
@@ -1381,7 +1433,7 @@
           " "
           (fipp-format-data example)]
          ])
-      (color (:content key-doc) :underline) )
+      (color (:content key-doc) :underline))
     :else ""))
 
 (defn document-key [parent-type k]
@@ -1390,7 +1442,7 @@
       [:group
        "-- Docs for key " (color (pr-str k) :bold) " --" 
        :break
-       (print-key-doc k ky)
+       (print-key-doc parent-type k ky)
        :break]
       "")))
 
@@ -1713,11 +1765,3 @@
   )
 
 #_(pp)
-
-
-
-
-
-
-
-

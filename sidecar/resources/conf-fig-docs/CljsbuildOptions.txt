@@ -1,0 +1,47 @@
+:CljsbuildOptions
+
+A map of lein-cljsbuild options. Figwheel also uses the ClojureScript
+build configurations found in the :cljsbuild options.
+
+  :CljsbuildOptions [:CreateExampleMap :builds]
+
+:builds
+
+The :builds option should be set to either a sequence of build config
+maps or a map of build configs. Each map will be treated as a
+separate, independent, ClojureScript compiler configuration.
+
+  :builds [:CreateExampleVector BuildOptionsMap]
+
+:repl-listen-port
+
+When using a ClojureScript REPL, this option controls what port
+it listens on for a browser to connect to.
+Defaults to 9000
+
+  :repl-listen-port 9001
+
+:repl-launch-commands
+
+The keys in this map identify repl-launch commands. The values are
+sequences representing shell commands like [command, arg1, arg2, ...].
+Default: {}
+
+:test-commands
+
+The keys in this map identify test commands. The values are sequences
+representing shell commands like [command, arg1, arg2, ...]. Note that
+the :stdout and :stderr options work here as well. Defaults to the
+empty map.
+
+:crossovers
+
+Super deprecated. You should not be using :crossovers. Please use .cljc functionality.
+
+:crossovers-path
+
+Super deprecated. You should not be using :crossovers. Please use .cljc functionality.
+
+:crossovers-jar
+
+Super deprecated. You should not be using :crossovers. Please use .cljc functionality.

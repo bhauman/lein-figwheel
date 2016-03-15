@@ -1,0 +1,27 @@
+:BuildOptionsMap
+
+A Map of options that specifies a ClojrueScript 'build'
+
+  :BuildOptionsMap [:CreateExampleMap :id :source-paths :figwheel :compiler]
+
+:id
+
+A Keyword, String or Symbol that identifies this build.
+
+  :id "dev"
+
+:source-paths
+
+A vector of paths to your cljs source files. These paths should be
+relative from the root of the project to the root the namespace.
+For example, if you have an src/example/core.cljs file that contains a
+example.core namespace, the source path to this file is "src"
+
+  :source-paths ["src"]
+
+
+
+
+
+
+

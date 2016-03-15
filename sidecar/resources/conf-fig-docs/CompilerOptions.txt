@@ -1,0 +1,480 @@
+:CompilerOptions
+
+A map of options to be sent to the ClojureScript compiler
+
+  :CompilerOptions [:CreateExampleMap :main :output-to :output-dir :optimizations :source-map :source-map-timestamp :recompile-dependents]
+
+:output-to
+
+The path to the JavaScript file that will be output.
+
+  :output-to "resources/public/js/main.js"
+  
+:output-dir
+
+Sets the output directory for temporary files used during compilation.
+Defaults to "out".
+
+  :output-dir "resources/public/js/out"
+
+:optimizations
+
+The optimization level. May be :none, :whitespace, :simple, or
+:advanced. Only :none and :simple are supported for bootstrapped
+ClojureScript.
+
+  :none is the recommended setting for development, while :advanced is
+        the recommended setting for production, unless something
+        prevents it (incompatible external library, bug, etc.).
+
+For a detailed explanation of the different optimization modes see
+https://developers.google.com/closure/compiler/docs/compilation_levels
+
+When the :main option is not used, :none requires manual code loading
+and hence a separate HTML from the other options.
+
+Defaults to :none. Note: lein cljsbuild 1.0.5 will supply :whitespace.
+
+  :optimizations :none
+
+:main
+
+Specifies an entry point namespace. When combined with optimization
+level :none, :main will cause the compiler to emit a single JavaScript
+file that will import goog/base.js, the JavaScript file for the
+namespace, and emit the required goog.require statement. This permits
+leaving HTML markup identical between dev and production.
+
+Also see :asset-path.
+
+  :main "example.core"
+
+:asset-path
+
+When using :main it is often necessary to control where the entry
+point script attempts to load scripts from due to the configuration of
+the web server. :asset-path is a relative URL path not a file system
+path. For example, if your output directory is :ouput-dir
+"resources/public/js/compiled/out" but your webserver is serving files
+from "resources/public" then you want the entry point script to load
+scripts from "js/compiled/out".
+
+  :asset-path "js/compiled/out"
+
+:source-map
+
+See https://github.com/clojure/clojurescript/wiki/Source-maps. Under
+optimizations :none the valid values are true and false, with the
+default being true. Under all other optimization settings must specify
+a path to where the source map will be written.
+
+Under :none 
+
+  :source-map false
+
+Otherwise:
+
+  :source-map "path/to/source/map.js.map"
+
+:verbose
+
+Emit details and measurements from compiler activity.
+
+  :verbose true
+
+:pretty-print
+
+Determines whether the JavaScript output will be tabulated in a
+human-readable manner. Defaults to true.
+
+  :pretty-print false
+
+:target
+
+If targeting nodejs add this line. Takes no other options at the
+moment. The default (no :target specified) implies browsers are being
+targeted. Have a look here for more information on how to run your
+code in nodejs.
+
+  :target :nodejs
+  
+:foreign-libs
+
+Adds dependencies on foreign libraries. Be sure that the url returns a
+HTTP Code 200
+
+Defaults to the empty vector []
+
+  :foreign-libs [{ :file "http://example.com/remote.js"
+                   :provides  ["my.example"]}]
+
+Each element in the :foreign-libs vector should be a map, where the
+keys have these semantics:
+
+  :file Indicates the URL to the library
+
+  :file-min (Optional) Indicates the URL to the minified variant of
+            the library.
+  
+  :provides A synthetic namespace that is associated with the library.
+            This is typically a vector with a single string, but it
+            has the capability of specifying multiple namespaces
+            (typically used only by Google Closure libraries).
+  
+  :requires (Optional) A vector explicitly identifying dependencies
+            (:provides values from other foreign libs); used to form a
+            topological sort honoring dependencies.
+
+  :module-type (Optional) indicates that the foreign lib uses a given
+               module system. Can be one of :commonjs, :amd, :es6.
+               Note that if supplied, :requires is not used (as it is
+               implicitly determined).
+  
+  :preprocess (Optional) Used to preprocess / transform code in other
+              dialects (JSX, etc.). A defmethod for
+              cljs.clojure/js-transforms must be provided that matches
+              the supplied value in order to effect the desired code
+              transformation. :externs
+
+Configure externs files for external libraries.
+
+For this option, and those below, you can find a very good explanation at: http://lukevanderhart.com/2011/09/30/using-javascript-and-clojurescript.html
+
+Defaults to the empty vector [].
+
+  :externs ["jquery-externs.js"]
+
+:modules
+
+A new option for emitting Google Closure Modules. Closure Modules
+supports splitting up an optimized build into N different modules. If
+:modules is supplied it replaces the single :output-to. A module needs
+a name, an individual :output-to file path, :entries a set of
+namespaces, and :depends-on a set of modules on which the module
+depends. Modules are only supported with :simple and :advanced
+optimizations. An example follows:
+
+  {:optimizations :advanced
+   :source-map true
+   :output-dir "resources/public/js"
+   :modules {
+     :common 
+       {:output-to "resources/public/js/common.js"  
+        :entries #{"com.foo.common"}}
+     :landing 
+       {:output-to "resources/public/js/landing.js" 
+        :entries #{"com.foo.landing"}
+        :depends-on #{:common}}
+     :editor 
+       {:output-to "resources/public/js/editor.js"
+        :entries #{"com.foo.editor"}
+        :depends-on #{:common}}}}
+
+
+Any namespaces not in an :entries set will be moved into the default
+module :cljs-base. However thanks to cross module code motion, Google
+Closure can move functions and methods into the modules where they are
+actually used. This process is somewhat conservative so if you know
+that you want to keep some code together do this via :entries.
+
+The :cljs-base module defaults to being written out to :output-dir
+with the name "cljs_base.js". This may be overridden by specifying a
+:cljs-base module describing only :output-to.
+
+Take careful note that a namespace may only appear once across all
+module :entries.
+
+:modules fully supports :foreign-libs. :foreign-libs are always put
+into dependency order before any Google Closure compiled source.
+
+Source maps are fully supported, an individual one will be created for
+each module. Just supply :source-map true (see example) as there is no
+single source map to name.
+
+:source-map-path
+
+Set the path to source files references in source maps to avoid
+further web server configuration.
+
+  :source-map-path "public/js"
+
+:source-map-timestamp
+
+Add cache busting timestamps to source map urls. This is helpful for
+keeping source maps up to date when live reloading code.
+
+  :source-map-timestamp true
+
+:cache-analysis
+
+Experimental. Cache compiler analysis to disk. This enables faster
+cold build and REPL start up times.
+
+For REPLs, defaults to true. Otherwise, defaults to true if and only
+if :optimizations is :none.
+
+  :cache-analysis true
+
+:recompile-dependents
+
+For correctness the ClojureScript compiler now always recompiles
+dependent namespaces when a parent namespace changes. This prevents
+corrupted builds and swallowed warnings. However this can impact
+compile times depending on the structure of the application. This
+option defaults to true.
+
+  :recompile-dependents false
+
+:static-fns
+
+Employs static dispatch to specific function arities in emitted
+JavaScript, as opposed to making use of the call construct. Defaults
+to false except under advanced optimizations. Useful to have set to
+false at REPL development to facilitate function redefinition, and
+useful to set to true for release for performance.
+
+This setting does not apply to the standard library, which is always
+compiled with :static-fns implicitly set to true.
+
+  :static-fns true
+
+:warnings
+
+This flag will turn on/off compiler warnings for references to
+undeclared vars, wrong function call arities, etc. Can be a boolean
+for enabling/disabling common warnings, or a map of specific warning
+keys with associated booleans. Defaults to true.
+
+  :warnings true
+  
+;; OR
+
+  :warnings {:fn-deprecated false} ;; suppress this warning
+
+
+The following warnings are supported:
+
+  :preamble-missing, missing preamble
+  :undeclared-var, undeclared var
+  :undeclared-ns, var references non-existent namespace
+  :undeclared-ns-form, namespace reference in ns form that does not exist
+  :redef, var redefinition
+  :dynamic, dynamic binding of non-dynamic var
+  :fn-var, var previously bound to fn changed to different type
+  :fn-arity, invalid invoke arity
+  :fn-deprecated, deprecated function usage
+  :protocol-deprecated, deprecated protocol usage
+  :undeclared-protocol-symbol, undeclared protocol referred
+  :invalid-protocol-symbol, invalid protocol symbol
+  :multiple-variadic-overloads, multiple variadic arities
+  :variadic-max-arity, arity greater than variadic arity
+  :overload-arity, duplicate arities
+  :extending-base-js-type, JavaScript base type extension
+  :invoke-ctor, type constructor invoked as function
+  :invalid-arithmetic, invalid arithmetic
+  :protocol-invalid-method, protocol method does not match declaration
+  :protocol-duped-method, duplicate protocol method implementation
+  :protocol-multiple-impls, protocol implemented multiple times
+  :single-segment-namespace, single segment namespace
+
+:elide-asserts
+
+This flag will cause all (assert x ) calls to be removed during
+compilation, including implicit asserts associated with :pre and :post
+conditions. Useful for production. Default is always false even in
+advanced compilation. Does NOT specify goog.asserts.ENABLE_ASSERTS,
+which is different and used by the Closure library.
+
+Note that it is currently not possible to dynamically set *assert* to
+false at runtime; this compiler flag must explicitly be used to effect
+the elision.
+
+  :elide-asserts true
+
+:pseudo-names
+
+With :advanced mode optimizations, determines whether readable names
+are emitted. This can be useful when debugging issues in the optimized
+JavaScript and can aid in finding missing externs. Defaults to false.
+
+  :pseudo-names true
+
+:print-input-delimiter
+
+Determines whether comments will be output in the JavaScript that can
+be used to determine the original source of the compiled code.
+
+Defaults to false.
+
+  :print-input-delimiter false
+
+:output-wrapper
+
+Wrap the JavaScript output in (function(){...};)() to avoid clobbering
+globals. Defaults to false.
+
+  :output-wrapper false
+
+:libs
+
+Adds dependencies on external js libraries, i.e. Google
+Closure-compatible javascript files with correct goog.provides() and
+goog.requires() calls. Note that files in these directories will be
+watched and a rebuild will occur if they are modified.
+
+Paths or filenames can be given. Relative paths are relative to the
+current working directory (usually project root).
+
+Defaults to the empty vector []
+
+  :libs ["closure/library/third_party/closure"
+         "src/js"
+         "src/org/example/example.js"]
+         
+:preamble
+
+Prepends the contents of the given files to each output file. Only
+valid with optimizations other than :none.
+
+Defaults to the empty vector []
+
+  :preamble ["license.js"]
+  
+:hashbang
+
+When using :target :nodejs the compiler will emit a shebang as the
+first line of the compiled source, making it executable. When your
+intention is to build a node.js module, instead of executable, use
+this option to remove the shebang.
+
+  :hashbang false
+
+:compiler-stats
+
+Report basic timing measurements on compiler activity.
+
+Defaults to false.
+
+  :compiler-stats true
+  
+:language-in
+
+Configure the input and output languages for the closure library. May
+be :ecmascript3, ecmascript5, ecmascript5-strict, :ecmascript6-typed,
+:ecmascript6-strict, :ecmascript6 or :no-transpile.
+
+Defaults to :ecmascript3
+
+  :language-in  :ecmascript3
+
+:language-out
+
+Configure the input and output languages for the closure library. May
+be :ecmascript3, ecmascript5, ecmascript5-strict, :ecmascript6-typed,
+:ecmascript6-strict, :ecmascript6 or :no-transpile.
+
+Defaults to :ecmascript3
+
+  :language-out  :ecmascript3
+
+:closure-warnings
+
+Configure warnings generated by the Closure compiler. A map from
+Closure warning to configuration value, only :error, :warning and :off
+are supported.
+
+  :closure-warnings {:externs-validation :off}
+
+The following Closure warning options are exposed to ClojureScript:
+
+  :access-controls
+  :ambiguous-function-decl
+  :debugger-statement-present
+  :check-regexp
+  :check-types
+  :check-useless-code
+  :check-variables
+  :const
+  :constant-property
+  :deprecated
+  :duplicate-message
+  :es5-strict
+  :externs-validation
+  :fileoverview-jsdoc
+  :global-this
+  :internet-explorer-checks
+  :invalid-casts
+  :missing-properties
+  :non-standard-jsdoc
+  :strict-module-dep-check
+  :tweaks
+  :undefined-names
+  :undefined-variables
+  :unknown-defines
+  :visiblity
+  
+See the Closure Compiler Warning wiki for detailed descriptions.
+
+:closure-defines
+
+Set the values of Closure libraries' variables annotated with @define
+or with the cljs.core/goog-define helper macro. A common usage is
+setting goog.DEBUG to false:
+
+  :closure-defines {"goog.DEBUG" false}
+
+or
+
+  :closure-defines {'goog.DEBUG false}
+
+Note when using Lein the quote is unnecessary due to implicit quoting.
+
+For :optimization :none, a :main option must be specified for defines
+to work, and only goog-define defines are affected. :closure-defines
+currently does not have any effect with :optimization :whitespace.
+
+:closure-extra-annotations
+
+Define extra JSDoc annotations that a closure library might use so
+that they don't trigger compiler warnings.
+
+  :closure-extra-annotations #{"api"}
+
+:anon-fn-naming-policy
+
+Strategies for how the Google Closure compiler does naming of
+anonymous functions that occur as r-values in assignments and variable
+declarations. Defaults to :off.
+
+  :anon-fn-naming-policy :unmapped
+  
+The following values are supported:
+
+  :off Don't give anonymous functions names.
+  
+  :unmapped Generates names that are based on the left-hand side of
+            the assignment. Runs after variable and property renaming,
+            so that the generated names will be short and obfuscated.
+  
+  :mapped Generates short unique names and provides a mapping from
+          them back to a more meaningful name that's based on the
+          left-hand side of the assignment.
+  
+:optimize-constants
+
+When set to true, constants, such as keywords and symbols, will only
+be created once and will be written to a separate file called
+constants_table.js. The compiler will emit a reference to the constant
+as defined in the constants table instead of creating a new object for
+it. This option is mainly intended to be used for a release build
+since it can increase performance due to decreased allocation.
+Defaults to true under :advanced optimizations otherwise to false.
+
+  :optimize-constants true
+
+:parallel-build
+
+When set to true, compile source in parallel, utilizing multiple
+cores.
+
+  :parallel-build true

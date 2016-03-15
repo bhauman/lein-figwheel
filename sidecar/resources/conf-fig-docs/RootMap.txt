@@ -1,0 +1,5 @@
+:RootMap
+
+Top level configuration map. Most often top level keys in project.clj
+
+  :RootMap [:CreateExampleMap :cljsbuild :figwheel]

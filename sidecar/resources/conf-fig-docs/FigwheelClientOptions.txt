@@ -1,0 +1,53 @@
+:FigwheelClientOptions
+
+Either the Boolean value true or a Map of options to be passed to the
+figwheel client. Supplying a true value or a map indicates that you
+want the figwheel client code to be injected into the build.
+
+  :FigwheelClientOptions [:CreateExampleMap :on-jsload]
+
+:websocket-host
+
+A String specifying the host part of the Figwheel websocket URL. If
+you have JavaScript clients that need to access Figwheel that are not
+local, you can supply the IP address of your machine here. You can
+also specify :js-client-host and the Figwheel client will use the
+js/location.host of the client.
+Default: "localhost"
+
+  :websocket-host "192.168.1.101"
+
+:on-jsload
+
+A String or Symbol representing a client side ClojureScript function
+to be invoked after new code has been loaded.
+Default: Off
+
+  :on-jsload "example.core/fig-reload"
+
+:heads-up-display
+
+Show a notification in the browser on each refresh.
+Default: true
+
+  :heads-up-display false
+
+:load-warninged-code
+
+If there are warnings in your code emitted from the compiler, figwheel
+does not refresh. If you would like Figwheel to load code even if
+there are warnings generated set this to true.
+Default: false
+
+  :load-warninged-code true
+
+:notify-command
+
+If a :notify-command is specified, it will be called when compilation
+succeeds or fails, and a textual description of what happened will be
+appended as the last argument to the command. If a more complex
+command needs to be constructed, the recommendation is to write a
+small shell script wrapper.
+Default: nil (disabled)
+
+  :notify-command ["growlnotify" "-m"]
