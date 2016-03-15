@@ -145,7 +145,7 @@
    )))
 
 
-#_(get-docs)
+
 
 (def shared-type-rules
   (distinct
@@ -155,109 +155,11 @@
     (spec 'Integer (fn [x] (integer? x)))
     (or-spec 'BoolOrString string? (ref-schema 'Boolean))
     (or-spec 'SymbolOrString string? symbol?)
-    (or-spec 'Named string? symbol? keyword?)
-    (get-docs
-    ['CompilerOptions
-     'FigwheelOptions
-     'FigwheelClientOptions
-     'BuildOptionsMap
-     'CljsbuildOptions
-     'RootMap
-     'ReloadCljFiles]))))
+    (or-spec 'Named string? symbol? keyword?))))
 
 #_(spec 'RootMap
           {:figwheel  (ref-schema 'FigwheelOptions)
            :cljsbuild (ref-schema 'CljsbuildOptions)})
-
-(def figwheel-docs
-  (distinct
-   (concat
-
-    #_(doc 'RootMap "Top level configuration map. Most often top level keys in project.clj"
-         {:figwheel "A map of options for the Figwheel system and server."
-          :cljsbuild {:content (str "A map of lein-cljsbuild options. Figwheel also uses the\n"
-                                    "ClojureScript build configurations found in the cljsbuild\n"
-                                    "options.")
-                      :example {:builds [{:id "dev"
-                                          :source-paths ["src"]
-                                          :figwheel true
-                                          :compiler {:main 'example.core
-                                                     :output-dir "resources/public/compiled"
-                                                     :output-to  "resources/public/compiled/example.js"
-                                                     :source-maps true
-                                                     :source-map-timestamp true
-                                                     :recompile-dependents false}}]}}})
-    
-    #_(doc 'FigwheelOptions "Figwheel Server and System Options"
-         {:http-server-root (str "A string that specifies a sub directory on your resource path. "
-                                 "This is the path to the static resources that will be served by the figwheel server. "
-                                 "This defaults to 'public' and should never be blank.")
-          :server-port (str "An integer that the figwheel server should bind.  This defaults to 3449")
-          :server-ip   (str "The network interface that the figwheel server will listen on.  This defaults to 'localhost'.")
-          :css-dirs {:content (str "A vector of paths from the project root to the location of your css files. "
-                                   "These files will be watched for changes and the figwheel client will attempt to reload them.")
-                     :example ["resources/public/css"]}
-          :reload-clj-files (str "Either false or a Map like {:cljc false :clj true}. "
-                                 "False will disable the reloading of clj files when they change. "
-                                 "You can also declare that you want to exclude .cljc or .clj files "
-                                 "from the auto reloading. Default: true")
-          :open-file-command (str "A path to an executable shell script that will be passed a file and line information "
-                                  "for a particualr compilation error or warning.")
-          :ring-handler (str "If you want to embed a ring handler into the figwheel http-kit server; "
-                             "this is for simple ring servers, if this doesn't work for you just run your own server. Default: Off")
-          :repl (str "A Boolean value indicated wether to run a ClojureScript "
-                     "REPL after the figwheel process has launched. Default: true")
-          :nrepl-port (str "An integer indicating that you would like figwheel to "
-                           "lauch nREPL from within the figwheel process and what "
-                           "port you would like it to launch on. Default: off")
-          :nrepl-middleware (str "A vector of strings indicating the nREPL middleware you want included when nREPL launches.")
-          :validate-config (str "Set this to false to skip the configuration validation. This can "
-                                "speed up your figwheel start time."
-                                "Default: true")})
-    
-    #_(doc 'ReloadCljFiles "A map indicating which type of clj files should be reloaded on change."
-         {:clj (str "A boolean indicating whether you want changes to clj files to trigger a "
-                    "reloading of the clj file and the dependent cljs files.")
-          :cljc (str "A boolean indicating whether you want changes to cljc files to trigger a "
-                     "reloading of the clj file and the dependent cljs files.")})
-    
-    #_(doc 'CljsbuildOptions "A map of options used by lein-cljsbuild and lein-figwheel"
-         {:builds (str "The :builds option should be set to either a sequence of build config maps or a map of build configs. "
-                       "Each map will be treated as a separate, independent, ClojureScript compiler configuration.")
-          :repl-listen-port (str "When using a ClojureScript REPL, this option controls what port "
-                                 "it listens on for a browser to connect to.  Defaults to 9000.")
-          :repl-launch-commands (str "The keys in this map identify repl-launch commands.  The values are "
-                                     "sequences representing shell commands like [command, arg1, arg2, ...]. "
-                                     "Defaults to the empty map")
-          :test-commands (str "The keys in this map identify test commands.  The values are sequences "
-                              "representing shell commands like [command, arg1, arg2, ...].  Note that "
-                              "the :stdout and :stderr options work here as well. Defaults to the empty map.")
-          :crossovers (str "Super deprecated. You should not be using :crossovers. Please use .cljc functionality.")
-          :crossover-path (str "Super deprecated. You should not be using :crossovers. Please use .cljc functionality.")
-          :crossover-jar (str "Super deprecated. You should not be using :crossovers. Please use .cljc functionality.") })
-
-    #_(doc 'BuildOptionsMap "A map of options that specifies a ClojrueScript 'build'"
-         {:id "A Keyword, String or Symbol that identifies this build."
-          :source-paths  (str "A vector of paths to your cljs source files. These paths should be relative from the"
-                              "root of the project to the root the namespace. "
-                              "For example, if you have an src/example/core.cljs file that contains a "
-                              "example.core namespace, the source path to this file is \"src\"")
-
-          :notify-command (str "If a :notify-command is specified, it will be called when compilation succeeds"
-                               "or fails, and a textual description of what happened will be appended as the "
-                               "last argument to the command.  If a more complex command needs to be constructed, "
-                               "the recommendation is to write a small shell script wrapper. "
-                               "Default: nil (disabled).")})
-    #_(doc 'FigwheelClientOptions "A map of options that will be passed to the figwheel client."
-         {:websocket-host (str "A String specifying the host part of the Figwheel websocket URL. This defaults to "
-                               "\"localhost\".  If you have JavaScript clients that need to access Figwheel "
-                               "that are not local you can supply the IP address of your machine "
-                               "here. You can also specify :js-client-host and the "
-                               "Figwheel client will use the js/location.host of the client.")
-          
-          })
-
-    )))
 
 (def figwheel-cljsbuild-rules
   (distinct
@@ -326,7 +228,14 @@
               :devcards            (ref-schema 'Boolean)
               :eval-fn             (ref-schema 'Named)})
     (or-spec 'WebsocketHost :js-client-host string?)
-    figwheel-docs)))
+    (get-docs
+    ['CompilerOptions
+     'FigwheelOptions
+     'FigwheelClientOptions
+     'BuildOptionsMap
+     'CljsbuildOptions
+     'RootMap
+     'ReloadCljFiles]))))
 
 (def schema-rules-base
   (concat
