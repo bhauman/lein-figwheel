@@ -6,8 +6,8 @@
    [clojure.java.io :as io]
    [clojure.string :as string]))
 
-#_(def compiler-options-lines 
-  (string/split-lines (slurp (io/resource "conf-fig-docscompiler_options.txt"))))
+;; this is an initial implementation that allows me to write docs in
+;; text files
 
 (defn keyword-line? [s]
   (and (-> s
@@ -93,4 +93,4 @@
      'RootMap
      'ReloadCljFiles])
 
-#_(docs-for-type 'CompilerOptions)
+#_(get-docs ['BuildOptionsMap])

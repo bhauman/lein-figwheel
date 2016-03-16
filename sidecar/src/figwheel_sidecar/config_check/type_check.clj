@@ -668,8 +668,6 @@
                   'Some {:a 1 :c 3}
                   :c ))
 
-#_(pp)
-
 (defn unknown-key-error-helper [root-type parent-type bad-key value error]
   (let [parent-config-value (error-parent-value error)
         analysis            (detailed-config-analysis parent-config-value)
@@ -706,8 +704,6 @@
                                               bad-key)]
             [misspelled-misplaced-key-error]
             []))))))
-
-#_(pp)
 
 #_(with-schema (index-spec
                 (spec 'Figwheel {:figwheel (ref-schema 'Boolean)
