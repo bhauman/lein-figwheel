@@ -55,11 +55,6 @@
   (and (or (map?? x) (list?? x))
        (empty? (rest x))))
 
-#_(defn complex-value? [v]
-    (or (list?? v) (map?? v) (fn? v) (-> v meta :ref)))
-
-#_(def simple-value? (complement complex-value?))
-
 (defn prep-key [k]
   (if (fn? k)
     (keyword (str "pred-key_" (hash k)))
@@ -138,29 +133,12 @@
 (defn assert-not-empty [root & key-list]
   (mapv (fn [k] [root :not-empty k]) key-list))
 
-#_(required-keys 'FigOpts :hello :goodbye)
-
-#_(defn doc-type? [x]
-  (and (map? x)
-       (= #{:content :example} (set (keys x)))
-       (let [{:keys [example content]} x]
-         (or (fn? example)
-             (string? example)))))
-
 (defn doc
   ([root type-doc kd]
    (cons [root :doc-type type-doc]
          (mapv (fn [[k d]] [root :doc-key k d]) kd)))
   ([root type-doc]
    (doc root type-doc [])))
-
-#_(index-spec
- (doc 'FigOpts "This is a cool option"
-      {
-       :hello ":hello is needed to say hello"
-       :good ":good is needed to say goodbye"
-       :hey-there {:content "This is docs"
-                   :example "This is an example"}})) 
 
 ;; Direct Implementation
 ;; this is still squirrely
@@ -211,20 +189,6 @@
 (defn all-predicates [parent-type]
   (keep identity (mapcat leaf-pred? (cons parent-type (descendent-typs parent-type)))))
 
-#_(with-schema (index-spec (spec 'Integer integer?)
-                         (spec 'AnotherInt string?)
-                         (spec 'AnotherInt (ref-schema 'Integer))
-                         (spec 'AndAnotherInt (ref-schema 'AnotherInt)))
-    (doall (all-predicates 'AndAnotherInt))
-    #_(doall (predicate-rules-for-type 'AndAnotherInt))
-  #_(leaf-pred? 'AnotherInt)
-  #_(all-types 'AndAnotherInt)
-  #_(all-types 'AndAnotherInt)
-  #_(to-leaf-types 'AAnotherInt)
-  #_(to-leaf-types 'AnotherInt)
-    )
-
-#_(ns-unmap *ns* 'apply-pred)
 (defmulti apply-pred (fn [f v] (second f)))
 (defmethod apply-pred :== [[t _ pred] value] (= value pred))
 (defmethod apply-pred :=  [[t _ pred] value] (pred value))
@@ -247,28 +211,10 @@
            error)])
       {:success-type typ})))
 
-#_(with-schema (index-spec
-                (spec 'String string?)
-                (spec 'Integer integer?)
-                (spec 'Five 5)
-                (spec 'Map {})
-                (spec 'AnotherInt (ref-schema 'Integer))
-                (spec 'Cljsbuild {:server-port integer?
-                                  :server-ip string?})
-                (or-spec 'IntOrBool
-                      boolean?
-                      (ref-schema 'AnotherInt))
-                (or-spec 'IntOrBoolOrCljs
-                      (ref-schema 'IntOrBool)
-                      (ref-schema 'Cljsbuild))
-                )
-  (all-predicates 'IntOrBool)
-
-  )
-
 ;; TODO this allows a OR reloationship??
 ;; lets formalize this as an and relationship
 ;; the or-spec handles the OR relationship
+
 (defn type-check-value [parent-type value state]
   (if-let [preds (all-predicates parent-type)]
     (let [errors   (map #(type-check-pred % value state) preds)
@@ -394,6 +340,8 @@
 
 (defn anything? [x] true)
 
+;; my take on the degreee of difference in config spelling errors 
+
 (defn step-log [thresh val]
   (if (< thresh val)
     (+ thresh (/ (- val thresh ) 2.0))
@@ -414,6 +362,7 @@
           0.51)))
 
 (comment
+
   (metrics/dice "GSF" "GFS")
   
   (metrics/levenshtein "GSFD" "GFSD")
@@ -422,6 +371,8 @@
   
   (ky-distance :figwheel :figwheeler)
   )
+
+
 
 (defn complexity [c]
   (if (coll? c)
@@ -526,7 +477,6 @@
 
 (defn error-parent-value [{:keys [path orig-config]}]
   (get-in orig-config (reverse (rest path))))
-
 
 ;; analyzing the analysis results
 ;; This is where the real smarts come in
@@ -1254,20 +1204,11 @@
                     (rest (rest path))
                     (rest path)))
                  leaf-node
-                 orig-config)
-     :break]
+                 orig-config)]
+    :break
     (print-document document)])
   ([error leaf]
    (print-path-error error leaf "")))
-
-(pprint-document [:group
- [:group
-  "-- Docs for key "
-  [:span [:pass "[1m"] ":figwheel" [:pass "[0m"]]
-  " --"
-  :break
-  "A map of options for the Figwheel system and server."
-  :break]] {})
 
 #_(gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] 5)
 #_(pp)
@@ -1298,6 +1239,7 @@
                      (summerize-value value)]
                     :line]
                    (gen-path (first correct-paths) value)))]
+    :break
     (print-document document)])
   ([error leaf]
    (print-path-error error leaf "")))
@@ -1410,11 +1352,6 @@
                       (if (fn? example) (example) example))
       (contains? ky :example-construct-from)
       (construct-example (next-parent-type parent-type k) ky)
-      #_(into {}
-            (filter
-             (complement (comp nil? second))
-             (mapv (juxt identity (partial get-example-for-key ))
-                  (:example-construct-from ky))))
       :else nil)))
 
 (defn print-key-doc [parent-type k key-doc]
@@ -1441,7 +1378,6 @@
     (if ky
       [:group
        "-- Docs for key " (color (pr-str k) :bold) " --" 
-       :break
        (print-key-doc parent-type k ky)
        :break]
       "")))
@@ -1485,8 +1421,6 @@
     (seq? v) (summerize-seq v)
     :else (pr-str v)))
 
-#_ (pp)
-
 (defn format-key
   ([k] (pr-str k))
   ([k colr] (color (format-key k) colr)))
@@ -1515,7 +1449,6 @@
                                       (str "^ key " (pr-str key) " not recognized")))
                    {:width 40}))
 
-#_(pp)
 (defmethod print-error :missing-required-key [{:keys [path value type-sig] :as error}]
   (pprint-document (print-path-error error
                                      [:group
@@ -1527,12 +1460,6 @@
                                      (document-key (first type-sig) (first path))
                                      )
                    {:width 40}))
-
-
-
-#_(pp)
-
-
 
 (defn failed-predicate [{:keys [path value type-sig orig-config] :as error}]
   (if (parent-is-sequence? error)
@@ -1562,25 +1489,21 @@
                                         (format-value value :red)
                                         (str "^ key " (pr-str (first path)) " has wrong value"))
                                        (document-key (first (rest type-sig)) (first path)))
-                     {:width 40}))
-  )
+                     {:width 40})))
 
 (defmethod print-error :failed-predicate [error] (failed-predicate error))
 (defmethod print-error :combined-failed-predicate [error] (failed-predicate error))
-(defmethod print-error :should-not-be-empty [error] (failed-predicate error))
 
-#_(with-schema
-  (index-spec (concat
-               (assert-not-empty 'RootMap :hey)
-               (spec 'RootMap {:hey {}})))
-    (print-error (first (type-check 'RootMap {:hey {}})))
+(defmethod print-error :should-not-be-empty [{:keys [path value type-sig orig-config] :as error}]
+  (pprint-document (print-path-error error
+                                     (format-key-value
+                                      (first path)
+                                      (format-key (first path) :bold)
+                                      (format-value value :red)
+                                      (str "^ key " (pr-str (first path)) " should not be empty"))
+                                     (document-key (first type-sig) (first path)))
+                   {:width 40}))
 
-  )
-
-
-
-
-#_(pp)
 (defmethod print-error :misplaced-key [{:keys [key correct-paths correct-type orig-error orig-config type-sig] :as error}]
   (pprint-document (print-wrong-path-error
                     error
@@ -1602,16 +1525,6 @@
                      (str "^ key " (format-key key) " is mispelled and on the wrong path"))
                     (document-key (first correct-type) correction))
                    {:width 40}))
-
-#_{:path (:five),
-   :value 5,
-   :current-path (),
-   :type-sig (RootMap),
-   :suggested-path-for-value [:figwheel],
-   :expected-type RootMap,
-   :actual-type FigOpts,
-   :Error :wrong-position-for-value,
-}
 
 (defmethod print-error :wrong-position-for-value [{:keys [key value correct-paths correct-type orig-error orig-config type-sig] :as error}]
   (pprint-document (print-wrong-path-error
@@ -1664,12 +1577,10 @@
       single-error)))
 
 (defn print-errors-test [config]
-  #_(type-check 'RootMap config)
   (mapv #(print-error (assoc % :orig-config config))
         (type-check 'RootMap config)))
 
 (defn print-errors-test-first [config]
-  #_(type-check 'RootMap config)
   (mapv #(print-error (assoc % :orig-config config))
         (take 1 (type-check 'RootMap config))))
 
