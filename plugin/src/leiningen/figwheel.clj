@@ -46,8 +46,8 @@
 (defn- run-local-project [project builds requires form]
   (let [project' (-> project
                    (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version])
-                   (update-in [:dependencies] conj ['figwheel figwheel-version]) 
-                   (make-subproject builds))] 
+                   (update-in [:dependencies] conj ['figwheel figwheel-version])
+                   (make-subproject builds))]
     (leval/eval-in-project project'
      `(try
         (do
@@ -80,16 +80,19 @@
              (get config-data :validate-config)
              (get-in config-data [:figwheel :validate-config])))))
 
-(defn validate-figwheel-conf-helper []
+(defn validate-figwheel-conf-helper [project]
   (when-let [validate-loop (resolve 'figwheel-sidecar.config-check.validate-config/color-validate-loop)]
     (if (figwheel-edn?)
       (validate-loop
-       (fn [] (slurp "figwheel.edn"))
-       {:file (io/file "figwheel.edn")
-        :figwheel-options-only true})
+        (repeatedly #(slurp "figwheel.edn"))
+        {:file (io/file "figwheel.edn")
+         :figwheel-options-only true})
       (validate-loop
-       (fn [] (lproj/read))
-       {:file (io/file "project.clj")}))))
+        (cons project
+              (repeatedly #(lproj/set-profiles (lproj/read)
+                                               (:included-profiles (meta project))
+                                               (:excluded-profiles (meta project)))))
+        {:file (io/file "project.clj")}))))
 
 (defn validate-figwheel-conf [project]
   (let [config-data (config-data project)]
@@ -97,7 +100,7 @@
       config-data
       (do
         (require 'figwheel-sidecar.config-check.validate-config)
-        (if-let [config (validate-figwheel-conf-helper)]
+        (if-let [config (validate-figwheel-conf-helper project)]
           (do (println "\nFigwheel: Configuration Valid. Starting Figwheel ...")
               config)
           (do (println "\nFigwheel: Configuration validation failed. Exiting ...")
@@ -117,7 +120,7 @@
                                    all-builds
                                    build-ids))]
       (if (empty? errors)
-        (run-compiler project 
+        (run-compiler project
                       { :figwheel-options figwheel-options
                         :all-builds all-builds
                         :build-ids  (vec build-ids)})

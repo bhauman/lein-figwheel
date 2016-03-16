@@ -355,7 +355,7 @@
             (get-choice choices))
           ch)))))
 
-(defn validate-loop [get-data-fn options]
+(defn validate-loop [lazy-config-list options]
   (let [{:keys [figwheel-options-only file]} options]
     (if-not (.exists (io/file file))
       (do
@@ -363,10 +363,10 @@
         (System/exit 1))
       (let [file (io/file file)]
         (println "Figwheel: Validating the configuration found in" (str file))
-        (loop [fix false]
-          (let [config (get-data-fn)]
-            (if (and config
-                     (not (validate-config-data config figwheel-options-only)))
+        (loop [fix false
+               lazy-config-list lazy-config-list]
+          (let [config (first lazy-config-list)]
+            (if (not (validate-config-data config figwheel-options-only))
               config
               (do
                 (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
@@ -388,15 +388,15 @@
                           (do
                             (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
                             (file-change-wait file (* 120 1000))
-                            (recur true))
+                            (recur true (rest lazy-config-list)))
                           (do ;; this branch shouldn't be taken
                             (Thread/sleep 1000)
-                            (recur true)))))))
+                            (recur true (rest lazy-config-list))))))))
             ))))))
 
-(defn color-validate-loop [get-data-fn options]
+(defn color-validate-loop [lazy-config-list options]
   (with-color
-    (validate-loop get-data-fn options)))
+    (validate-loop lazy-config-list options)))
 
 (comment
   ;; figure out
