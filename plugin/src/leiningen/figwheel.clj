@@ -81,7 +81,7 @@
              (get-in config-data [:figwheel :validate-config])))))
 
 (defn validate-figwheel-conf-helper []
-  (when-let [validate-loop (resolve 'figwheel-sidecar.config-check.validate-config/validate-loop)]
+  (when-let [validate-loop (resolve 'figwheel-sidecar.config-check.validate-config/color-validate-loop)]
     (if (figwheel-edn?)
       (validate-loop
        (fn [] (slurp "figwheel.edn"))

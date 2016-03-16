@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.config-check.validate-config
   (:require
    [figwheel-sidecar.config-check.document :refer [get-docs]]
-   [figwheel-sidecar.config-check.ansi :refer [color]]
+   [figwheel-sidecar.config-check.ansi :refer [color color-text with-color]]
    [figwheel-sidecar.config-check.type-check
     :as tc
     :refer [spec or-spec ref-schema named? anything?
@@ -143,9 +143,6 @@
    (or-spec 'ModuleType :commonjs :amd :es6)
    (or-spec 'CompilerOptimization :none :whitespace :simple :advanced)
    )))
-
-
-
 
 (def shared-type-rules
   (distinct
@@ -310,9 +307,10 @@
                                                          [cljb-k cljb-v]]))]
         (print-one-error (validate-regular-rules conf) 'RootMap conf)))))
 
-#_(validate-project-config {
-                            :cljsbuild { :wowow 1
-                                        }})
+#_(validate-project-config {:cljsbuild
+                            {:builds [{:id "dev"
+                                       :source-path 1
+                                       :compiler {}}] }})
 
 #_(defn tester [conf]
     (with-schema (validate-regular-rules {:figwheel {}})
@@ -352,8 +350,8 @@
         (first choices)
         (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
           (do
-            (println (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
-                          "Please choose one of the following: "(string/join ", " choices)))
+            (print (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
+                          "Please choose one of the following ("(string/join ", " choices) "):"))
             (get-choice choices))
           ch)))))
 
@@ -367,10 +365,12 @@
         (println "Figwheel: Validating the configuration found in" (str file))
         (loop [fix false]
           (let [config (get-data-fn)]
-            (if (not (validate-config-data config figwheel-options-only))
+            (if (and config
+                     (not (validate-config-data config figwheel-options-only)))
               config
               (do
-                (println "Figwheel: There are errors in your configuration file" (str file))
+                (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
+                (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
                 (let [choice (or (and fix "f")
                                  (do
                                    (println "Figwheel: Would you like to:")
@@ -391,7 +391,12 @@
                             (recur true))
                           (do ;; this branch shouldn't be taken
                             (Thread/sleep 1000)
-                            (recur true)))))))))))))
+                            (recur true)))))))
+            ))))))
+
+(defn color-validate-loop [get-data-fn options]
+  (with-color
+    (validate-loop get-data-fn options)))
 
 (comment
   ;; figure out
