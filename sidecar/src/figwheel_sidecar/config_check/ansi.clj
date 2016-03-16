@@ -34,6 +34,8 @@
    :bg-256     48
    :bg-reset   49})
 
+(def ^:dynamic *enable-color* true)
+
 (defn esc
   "Returns an ANSI escope string which will apply the given collection of SGR
   codes."
@@ -53,12 +55,15 @@
   [string & codes]
   (str (esc codes) string (escape :none)))
 
+(defn color-text [text & args]
+  (if *enable-color*
+    (apply sgr text args)
+    text))
+
 (defn strip
   "Removes color codes from the given string."
   [string]
   (str/replace string #"\u001b\[[0-9;]*[mK]" ""))
-
-(def ^:dynamic *enable-color* true)
 
 (defmacro without-color [& body]
   `(binding [*enable-color* false]
