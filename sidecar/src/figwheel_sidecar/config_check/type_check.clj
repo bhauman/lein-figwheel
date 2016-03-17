@@ -63,12 +63,15 @@
 ;; TODO examine need for initial recursion step
 (defn decompose [type-gen-fn node' s']
   (letfn [(handle-key-type [orig-key predicate-key-name node t]
-            (if (fn? orig-key)
+            (cond
+              (fn? orig-key)
               [[predicate-key-name :?- [node :> t]]
                [predicate-key-name := orig-key]]
-              [[orig-key :- [node :> t]]]))
+              (not (nil? orig-key))
+              [[orig-key :- [node :> t]]]
+              :else []))
           (decomp [node s]
-            (if (nil? s)
+            (if (or (nil? s) (empty? s))
               nil
               (let [[[k' v] & r] s
                     k (prep-key k')
@@ -448,11 +451,14 @@
   (doall (parents-for-type2 'D)))
 
 (defn get-paths-for-type [root typ]
+  (prn root)
+  (prn typ)
+  (prn (parents-for-type typ))
   (vec
      (mapcat (fn [[ky pt]]
-            (if (= pt root)
-              [[ky]]
-              (mapv #(conj % ky) (get-paths-for-type root pt))))
+               (if (= pt root)
+                 [[ky]]
+                 (mapv #(conj % ky) (get-paths-for-type root pt))))
              (parents-for-type typ))))
 
 (defn get-paths-for-key [root type ky]
@@ -501,9 +507,11 @@
 (defn max-val [mp]
   (reduce (fn [[k v] [k1 v1]] (if (< v v1) [k1 v1] [k v])) [nil -1] mp))
 
+
 (defn which-type-wins? [parent-type types]
-  (let [type-map (into {} (filter (comp pos? second)
+  (let [type-map (into {} (filter (comp (partial < (- 0.1)) second)
                                   (frequencies-to-pct (cons parent-type types))))]
+    (prn "prob map" type-map)
     ;; TODO this states all we need is one representation of the type
     ;; this is probably better done outside the function
     ;; or we have a helper function
@@ -668,25 +676,47 @@
                   'Some {:a 1 :c 3}
                   :c ))
 
+
+(defn miss-matches-type? [actual-type?]
+  (and (not (true? actual-type?))
+       (not (nil? (:alternate-type actual-type?)))))
+
+(defn analyze-for-type-misplacement-helper [root-type type-sig path config collected-path]
+  (when (not-empty type-sig)
+    (let [analysis     (detailed-config-analysis config)
+          actual-type? (analysis-type-matches (last type-sig) analysis)]
+      (prn actual-type?)
+      (if (miss-matches-type? actual-type?)
+        {:Error :wrong-position-for-value
+         :current-path collected-path
+         :expected-type (last type-sig)
+         :value config
+         :path collected-path
+         :actual-type (:alternate-type actual-type?)
+         :correct-paths (get-paths-for-type root-type (:alternate-type actual-type?))}
+        (let [k (last path)]
+          (analyze-for-type-misplacement-helper
+           root-type
+           (butlast type-sig)
+           (butlast path)
+           (get config k)
+           (cons k collected-path)))))))
+
+(defn analyze-for-type-misplacement [root-type {:keys [type-sig path orig-config] :as error}]
+  (analyze-for-type-misplacement-helper root-type type-sig path orig-config '()))
+
 (defn unknown-key-error-helper [root-type parent-type bad-key value error]
-  (let [parent-config-value (error-parent-value error)
-        analysis            (detailed-config-analysis parent-config-value)
-        actual-parent-type? (analysis-type-matches parent-type analysis)]
-    #_(prn root-type actual-parent-type?)
-    #_(pprint/pprint analysis)
-    #_(if (= bad-key :magicl))
-    (if (and (not (true? actual-parent-type?)) (not (nil? (:alternate-type actual-parent-type?))))
-      ;; not parent type we are looking at a misplaced configuration
-      ;; value
-      ;; TODO this is still weak
-      [{:Error :wrong-position-for-value
-        :current-path (-> error :path rest)
-        :expected-type parent-type
-        :value parent-config-value
-        :path (rest (:path error))
-        :actual-type (:alternate-type actual-parent-type?)
-        :correct-paths (get-paths-for-type root-type (:alternate-type actual-parent-type?))}]
-      ;; now we can determing if this is most likely a mispelled key
+  (if-let [error (analyze-for-type-misplacement root-type error)]
+    [error]
+    (let [parent-config-value (error-parent-value error)
+          analysis            (detailed-config-analysis parent-config-value)
+          actual-parent-type? (analysis-type-matches parent-type analysis)]
+      #_(prn root-type actual-parent-type?)
+      (prn "START ----")
+      (prn bad-key)
+      (prn parent-type)
+      (pprint/pprint analysis)
+      (prn "END -----")
       (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
         [mispelled-key-error]
         (if-let [misplaced-key-error
@@ -775,16 +805,16 @@
                           (if (neg? pos) 100 pos))) res-groups)))
 
 (defn type-check-one-error [root-type value]
-    (when-let [results (not-empty (type-checker root-type value {}))]
-      (when-let [[[typ errors] & xs] (not-empty (->> results
+  (when-let [results (not-empty (type-checker root-type value {}))]
+    (when-let [[[typ errors] & xs] (not-empty (->> results
                                                    (map #(assoc % :orig-config value))
                                                    group-and-sort-first-pass-errors))]
-        ;; TODO process one error?
-        (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
-          (when-let [[[typ errors] & xs] (not-empty (->> errors
-                                                         (map #(assoc % :orig-config value))
-                                                         group-and-sort-first-pass-errors))]
-            (first errors))))))
+      ;; TODO process one error?
+      (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
+        (when-let [[[typ errors] & xs] (not-empty (->> errors
+                                                       (map #(assoc % :orig-config value))
+                                                       group-and-sort-first-pass-errors))]
+          (first errors))))))
 
 #_(with-schema
   (index-spec
@@ -1137,44 +1167,52 @@
 
 (defmethod error-help-message :wrong-position-for-value
   [{:keys [key correction correct-paths]}]
-  [:group
-   "The value below "
-   " is most likely in the wrong place in your config."])
+  [:group "The value below is most likely in the wrong place in your config."])
 
 #_(pp)
 ;; printing
 
-(defn gen-path [path value]
+(defn format-map [leaf-node]
+  [:group "{"
+   [:nest 2
+    :line
+    leaf-node]
+   "}"])
+
+(defn print-path-helper [[x & xs :as path] leaf-node]
   (if (empty? path)
-    value
-    (let [[x & xs] path]
-      (cond
-        (and (integer? x) (zero? x))
-        [(gen-path xs value)]
-        :else {x (gen-path xs value)}))))
+    leaf-node
+    (let [array? (and (number? x) (zero? x))]
+      [:group
+       (if array? "[" "{")
+       (if array?
+         (print-path-helper xs leaf-node)
+         [:nest 2
+          :line
+          (list
+           (if array? "" [:span [:text (pr-str x)] " "])
+           (print-path-helper xs leaf-node))])
+       (if array? "]" "}")])))
 
-(defn print-path [[x & xs] leaf-node edn]
-   (if (and x (get edn x))
-     (let [v (get edn x)]
-       [:group
-        (str (if (map? edn)
-               (str (pr-str x) " ")
-               "")
-             (if (and (not (map? v)) (integer? (first xs)))
-               "["
-               "{"))
-        (if (map? v)
-          [:nest 2
-           :line
-           (print-path xs leaf-node v)]
-          (print-path xs leaf-node v))
-        (if (and (not (map? v)) (integer? (first xs)))
-          "]"
-          "}")])
-     leaf-node))
+;; print-path ignores the initial wrapping 
+(defn print-path [[x & xs :as path] leaf-node]
+  (if (empty? path)
+    leaf-node
+    (let [array? (and (number? x) (zero? x))]
+      (if array?
+      (print-path-helper xs leaf-node)
+      [:group
+       (if array? "" [:span [:text (pr-str x)] " "])
+       (print-path-helper xs leaf-node)]))))
 
-#_(pprint-document (print-path2 [:cljsbuild :builds 0 :css-dirs] [:group "hey"] {:cljsbuild {:builds [{:css-dirs []}]}})
-                 {:width 20})
+
+
+#_(fipp-format-data {:asdf {:Asdf {:asdf 1 :asdfff 2}}}) 
+
+
+(print-path [] [:text "3"])
+#_(pprint-document (print-path [:asdf 0 :asdfff :asdf 0 ] [:text "3"] )
+                 {:width 20} )
 
 (defn blank-document? [x]
   (or (nil? x)
@@ -1186,59 +1224,45 @@
     [:group :break :break]
     [:group :break d :line]))
 
-(defn print-path-error
-  ([{:keys [path orig-config] :as error} leaf-node document]
+(defn print-path-error [message path leaf-node document]
    [:group
     (color "\n------- Figwheel Configuration Error -------\n" :red)
     :break
-    (error-help-message error)
+    message
     :break
     :break
-    [:nest 2
-     (print-path (reverse
-                  (if (parent-is-sequence? error)
-                    (rest (rest path))
-                    (rest path)))
-                 leaf-node
-                 orig-config)]
+    [:nest 2 (print-path path leaf-node)]
     :break
     (print-document document)])
-  ([error leaf]
-   (print-path-error error leaf "")))
+
+#_(pprint-document (print-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] "5"
+                             (gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] "5"))
+                 {:width 20})
 
 #_(gen-path [:cljsbuild :builds 0 :compiler :closure-warnings :const] 5)
+
 #_(pp)
-(defn print-wrong-path-error
-  ([{:keys [path orig-config correction path correct-paths value] :as error} leaf-node document]
-   [:group
-    (color "\n------- Figwheel Configuration Error -------\n" :red)
-    :break
-    (error-help-message error)
-    :break
-    :break
-    [:nest 2 
-     (print-path (reverse (rest path))
-                 leaf-node
-                 orig-config)]
-    :break
-    :break
-    [:group "It should probably be placed here:"]
-    :break
-    :break
-    [:nest 2
-     (let [k (or correction (first path))]
-       (print-path (butlast (first correct-paths))
-                   [:group
-                    (color (pr-str k) :green)
-                    " "
-                    [:nest (+ (count (pr-str k)) 2)
-                     (summerize-value value)]
-                    :line]
-                   (gen-path (first correct-paths) value)))]
-    :break
-    (print-document document)])
-  ([error leaf]
-   (print-path-error error leaf "")))
+(defn print-wrong-path-error [message path leaf-node document correct-path value]
+     [:group
+   (color "\n------- Figwheel Configuration Error -------\n" :red)
+   :break
+   message
+   :break
+   :break
+   [:nest 2 
+    (print-path path leaf-node)]
+   :break
+   :break
+   [:group "It should probably be placed here:"]
+   :break
+   :break
+   [:nest 2
+    (print-path correct-path
+                (if (empty? correct-path)
+                  (summerize-value-unwrap-top value)
+                  (summerize-value value)))]
+   :break
+   (print-document document)])
 
 #_(pp)
 
@@ -1379,14 +1403,15 @@
       "")))
 
 (defn summerize-coll [open close fn v]
-  (let [res (vec (concat [:nest (inc (count open))] (interpose :line (take 2 (map fn v)))))]
+  (let [res (vec (cons :align
+                         (list
+                          (concat
+                           (interpose :line (take 2 (map fn v)))
+                           (if (> (count v) 2) [:line "..."] [])))))]
     (vec
-     (concat
-      [:group open " "]
-      [(vec
-        (concat res
-                (if (> (count v) 2) [:line "... " close] [" " close]))) ]
-      ))))
+     (concat [:group open " "]
+             (list res)
+             (list " " close)))))
 
 (declare summerize-value summerize-term)
 
@@ -1417,6 +1442,18 @@
     (seq? v) (summerize-seq v)
     :else (pr-str v)))
 
+(defn summerize-value-unwrap-top [v]
+  (let [res (summerize-value v)]
+    (if (map? v)
+      (nth res 3)
+      res)))
+
+#_(pprint-document (summerize-value-unwrap-top {:aasdfasdfasdf 1
+                                                :basdfasdfasdf 2
+                                                :casdfasdfasdf 2
+                                                :dasdfasdfasdf 2})
+                   {:width 10})
+
 (defn format-key
   ([k] (pr-str k))
   ([k colr] (color (format-key k) colr)))
@@ -1425,122 +1462,292 @@
   ([value] (summerize-value value))
   ([value colr] (color (format-value value) colr)))
 
+(defn format-under-message [message]
+  [:group
+   [:line "                             "]
+   (color message :underline :magenta)])
+
 (defn format-key-value [ky fk fv message]
   [:group
    fk 
    " "
    [:nest (inc (count (pr-str ky))) fv]
-   [:line " <- "]
-    (color message :underline :magenta)
-    :line])
+   (format-under-message message)
+   :line])
+
 
 (defmulti print-error :Error)
 
 (defmethod print-error :unknown-key [{:keys [key value path type-sig] :as error}]
-  (pprint-document (print-path-error error
-                                     (format-key-value
-                                      key
-                                      (format-key key :red)
-                                      (format-value value)
-                                      (str "^ key " (pr-str key) " not recognized")))
-                   {:width 40}))
+  (let [parent-path (reverse (rest path))]
+    (pprint-document (print-path-error (error-help-message error)
+                                       parent-path
+                                       ((if (not-empty parent-path) format-map identity)
+                                        (format-key-value
+                                         key
+                                         (format-key key :red)
+                                         (format-value value)
+                                         (str "^ key " (pr-str key) " not recognized")))
+                                       "")
+                     {:width 40})))
 
-(defmethod print-error :missing-required-key [{:keys [path value type-sig] :as error}]
-  (pprint-document (print-path-error error
-                                     [:group
-                                      (color (pr-str (first path)) :red)
-                                      [:line " <- "]
-                                      (color (str "^ required key " (pr-str (first path)) " is missing")
-                                             :underline :magenta)
-                                      :line]
-                                     (document-key (first type-sig) (first path))
-                                     )
-                   {:width 40}))
+(comment
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nah)})
+                                (spec 'Nah {:a 3})
+                                (requires-keys 'RootMap :wowza))
+                    'RootMap {:asdf 2})
+  )
+
+(defmethod print-error :missing-required-key [{:keys [path value key type-sig] :as error}]
+  (let [parent-path (-> path rest reverse)]
+    (pprint-document
+     (print-path-error (error-help-message error)
+                       parent-path
+                       ((if (not-empty parent-path) format-map identity)
+                        [:group
+                         (color (pr-str key) :red)
+                         [:line "                              "]
+                         (color (str "^ required key " (pr-str key) " is missing")
+                                :underline :magenta)
+                         :line])
+                       (document-key (first type-sig) key))
+                   {:width 40})))
+
+(comment
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nah)})
+                                (spec 'Nah {:a 3})
+                                (requires-keys 'RootMap :wowza)
+                                (requires-keys 'Nah :a))
+                    'RootMap {:wowza {}})
+  )
 
 (defn failed-predicate [{:keys [path value type-sig orig-config] :as error}]
-  (if (parent-is-sequence? error)
-    (let [orig-config-seq (get-in orig-config (reverse (rest path)))]
-      (pprint-document (print-path-error error 
-                                         [:nest 2
-
-                                          (concat
-                                           [:group (format-key (second path))  " [ " ]
-                                           [[:nest (+ 3 (count (str (second path))))
-                                             
-                                             (cons :group
-                                                   (interpose :line (map-indexed 
-                                                             #(if (= (first path) %1)
-                                                                (color (pr-str %2) :red)
-                                                                (pr-str %2))
-                                                             orig-config-seq)
-                                                      ))]]
-                                           #_(format-value value :red)
-                                           [" ] "])]
-                                         (document-key (first (rest (rest type-sig))) (second path)))
+  (let [parent-path (-> path rest reverse)]
+    (if (parent-is-sequence? error)
+      (let [orig-config-seq (get-in orig-config parent-path)]
+        (pprint-document (print-path-error (error-help-message error)
+                                           parent-path
+                                           [:nest 2
+                                            
+                                            (concat
+                                             [:group #_(format-key (second path))
+                                              " [ " ]
+                                             [[:align 
+                                               (cons :group
+                                                     (interpose :line (map-indexed 
+                                                                       #(if (= (first path) %1)
+                                                                          [:group (color (pr-str %2) :red)
+                                                                           (format-under-message "^ is a bad value")]
+                                                                          (pr-str %2))
+                                                                       orig-config-seq)
+                                                                ))]]
+                                             #_(format-value value :red)
+                                             [" ] "])]
+                                           (document-key (first (rest (rest type-sig))) (second path)))
+                         {:width 40}))
+      (pprint-document (print-path-error (error-help-message error)
+                                         parent-path
+                                         ((if (not-empty parent-path) format-map identity)
+                                          (format-key-value
+                                           (first path)
+                                           (format-key (first path) :bold)
+                                           (format-value value :red)
+                                           (str "^ key " (pr-str (first path)) " has wrong value")))
+                                         (document-key (first (rest type-sig)) (first path)))
                        {:width 40}))
-    (pprint-document (print-path-error error
-                                       (format-key-value
-                                        (first path)
-                                        (format-key (first path) :bold)
-                                        (format-value value :red)
-                                        (str "^ key " (pr-str (first path)) " has wrong value"))
-                                       (document-key (first (rest type-sig)) (first path)))
-                     {:width 40})))
+
+    )
+  )
+
+(comment
+
+  (print-one-error  (index-spec (spec 'RootMap {:wowza 3 #_(ref-schema 'Nah)})
+                                (spec 'Nah {:a 3})
+                                #_(requires-keys 'RootMap :wowza)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap {:wowza {:a 4}})
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nah)})
+                                (spec 'Nah [string?])
+                                #_(requires-keys 'RootMap :wowza)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap {:wowza ["Asdf" 1 "asdf" ]})
+  )
+
+
 
 (defmethod print-error :failed-predicate [error] (failed-predicate error))
 (defmethod print-error :combined-failed-predicate [error] (failed-predicate error))
 
 (defmethod print-error :should-not-be-empty [{:keys [path value type-sig orig-config] :as error}]
-  (pprint-document (print-path-error error
-                                     (format-key-value
-                                      (first path)
-                                      (format-key (first path) :bold)
-                                      (format-value value :red)
-                                      (str "^ key " (pr-str (first path)) " should not be empty"))
-                                     (document-key (first type-sig) (first path)))
-                   {:width 40}))
+  (let [parent-path (-> path rest reverse)
+        ky          (first path)]
+    (pprint-document (print-path-error (error-help-message error)
+                                       parent-path
+                                       ((if (not-empty parent-path) format-map identity)
+                                        (format-key-value
+                                         ky
+                                         (format-key ky :bold)
+                                         (format-value value :red)
+                                         (str "^ key " (pr-str ky) " should not be empty")))
+                                       (document-key (first type-sig) ky))
+                     {:width 40})))
 
-(defmethod print-error :misplaced-key [{:keys [key correct-paths correct-type orig-error orig-config type-sig] :as error}]
-  (pprint-document (print-wrong-path-error
-                    error
-                    (format-key-value
-                     key
-                     (format-key key :red)
-                     (format-value (:value orig-error))
-                     (str "^ key " (format-key key) " is on the wrong path"))
-                    (document-key (first correct-type) key))
-                   {:width 40}))
+(comment
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nah)})
+                                (spec 'Nah {:a [string?]})
+                                (assert-not-empty 'Nah :a)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap {:wowza {:a []}})
+  )
 
-(defmethod print-error :misspelled-misplaced-key [{:keys [key correct-paths correction correct-type orig-error orig-config type-sig] :as error}]
-  (pprint-document (print-wrong-path-error
-                    error
-                    (format-key-value
-                     key
-                     (format-key key :red)
-                     (format-value (:value orig-error))
-                     (str "^ key " (format-key key) " is mispelled and on the wrong path"))
-                    (document-key (first correct-type) correction))
-                   {:width 40}))
+(defmethod print-error :misplaced-key [{:keys [key path correct-paths correct-type value orig-error orig-config type-sig] :as error}]
+  (let [parent-path (reverse (rest path))
+        correct-path (first correct-paths)
+        correct-key  (last correct-path)]
+    (pprint-document
+     (print-wrong-path-error
+      (error-help-message error)
+      parent-path
+      ((if (not-empty parent-path) format-map identity)
+       (format-key-value
+        key
+        (format-key key :red)
+        (format-value value)
+        (str "^ key " (format-key key) " is on the wrong path")))
+      (document-key (first correct-type) key)
+      correct-path
+      value)
+     {:width 40})))
 
-(defmethod print-error :wrong-position-for-value [{:keys [key value correct-paths correct-type orig-error orig-config type-sig] :as error}]
-  (pprint-document (print-wrong-path-error
-                    (assoc error :correction (first (first correct-paths)))
-                    [:group
-                     (format-value value :bold)
-                     [:line " <- "]
-                     (str "^ value is in the wrong place")]
-                    (document-key (first correct-type) (first (first correct-paths))))
-                   {:width 40}))
+(comment
+
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nahbu)
+                                                :asdf {}})
+                                (spec 'Nah {:aasdfasdfasdf 1
+                                            :basdfasdfasdf 2
+                                            :casdfasdfasdf 3
+                                            })
+                                (spec 'Nahbu {:nah (ref-schema 'Nah)
+                                              :bleh {}})
+                                #_(assert-not-empty 'Nah :a)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap
+                    {:wowza {:nah {
+                                  :aasdfasdfasdf 1
+                                  :basdfasdfasdf 2
+                                  :bleh {:asfd 1}
+                                  }}
+                     })
+  
+  )
+
+(defmethod print-error :misspelled-misplaced-key
+  [{:keys [key correct-paths correction path value correct-type orig-error orig-config type-sig] :as error}]
+  (let [parent-path (reverse (rest path))
+        correct-path (first correct-paths)
+        correct-key  correction]
+    (pprint-document (print-wrong-path-error
+                      (error-help-message error)
+                      parent-path
+                      ((if (not-empty parent-path) format-map identity)
+                       (format-key-value
+                        key
+                        (format-key key :red)
+                        (format-value value)
+                        (str "^ key " (format-key key) " is mispelled and on the wrong path")))
+                      (document-key (first correct-type) correction)
+                      correct-path
+                      value)
+                     {:width 40})))
+
+(comment
+'WORK
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nahbu)
+                                                :asdf {}})
+                                (spec 'Nah {:aasdfasdfasdf 1
+                                            :basdfasdfasdf 2
+                                            :casdfasdfasdf 3
+                                            })
+                                (spec 'Nahbu {:nah (ref-schema 'Nah)
+                                              :bleh {}})
+                                #_(assert-not-empty 'Nah :a)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap
+                    {:wowza {:nah {
+                                  :aasdfasdfasdf 1
+                                  :basdfasdfasdf 2
+                                  :blehh {:asfd 1}
+                                  }}
+                     })
+
+
+  
+  )
+
+
+(defmethod print-error :wrong-position-for-value
+  [{:keys [key value path correct-paths correct-type orig-error orig-config type-sig] :as error}]
+#_[message path leaf-node document correct-path value]
+  (let [parent-path (reverse path)
+        correct-path (first correct-paths)
+        correct-key  (last correct-path)]
+    (pprint-document
+     (print-wrong-path-error
+      (error-help-message error)
+      parent-path
+      [:align
+       (list
+        (format-value value :bold)
+        [:line "                           "]
+        (str "^ value is in the wrong place"))]
+      (document-key (first correct-type) correct-key)
+      correct-path
+      value)
+   {:width 40})))
+
+
+(comment
+
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nahbu)
+                                                :asdf {}})
+                                (spec 'Nah {:aasdfasdfasdf 1
+                                            :basdfasdfasdf 2
+                                            :casdfasdfasdf 3
+                                            })
+                                (spec 'Nahbu {:nah (ref-schema 'Nah)})
+                                #_(assert-not-empty 'Nah :a)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap
+                    {:asdf {:aasdfasdfasdf 1
+                            :basdfasdfasdf 2
+                            :casdfasdfasdf 3
+                            }
+                      })
+  )
+
+
 
 (defmethod print-error :failed-key-predicate [{:keys [key value orig-error orig-config type-sig path] :as error}]
-  (pprint-document (print-path-error error
-                                     (format-key-value
-                                      key
-                                      (format-key key :red)
-                                      (format-value value)
-                                      (str "^ key " (pr-str key) " failed key predicate"))
-                                     (document-key (first (rest type-sig)) (first (rest path))))
-                   {:width 40}))
+  (let [parent-path (-> path rest reverse)]
+    (pprint-document (print-path-error (error-help-message error)
+                                       parent-path
+                                       ((if (not-empty parent-path) format-map identity)
+                                        (format-key-value
+                                         key
+                                         (format-key key :red)
+                                         (format-value value)
+                                         (str "^ key " (pr-str key) " failed key predicate")))
+                                       ;; document-parent
+                                       (document-key (first (rest type-sig)) (first (rest path))))
+                     {:width 40})))
+
+(comment
+  (print-one-error  (index-spec (spec 'RootMap {integer? (ref-schema 'Nah)})
+                                (spec 'Nah {string? [string?]})
+                                #_(assert-not-empty 'Nah :a)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap {:w 1})
+  )
 
 (defn document-all [parent-typ all-keys]
   (doall
@@ -1551,15 +1758,26 @@
                     (fn [ky]
                       (document-key parent-typ ky)) all-keys))))))
 
-(defmethod print-error :misspelled-key [{:keys [key corrections orig-error orig-config type-sig] :as error}]
-  (pprint-document (print-path-error error
-                                     (format-key-value
-                                      key
-                                      (format-key key :red)
-                                      (format-value (:value orig-error))
-                                      (str "^ key " (pr-str key) " is spelled wrong"))
-                                     (document-all (first type-sig) corrections))
-                   {:width 40}))
+(defmethod print-error :misspelled-key [{:keys [key corrections orig-error value orig-config type-sig path] :as error}]
+  (let [parent-path (-> path rest reverse)]
+    (pprint-document (print-path-error (error-help-message error)
+                                       parent-path
+                                       ((if (not-empty parent-path) format-map identity)
+                                        (format-key-value
+                                         key
+                                         (format-key key :red)
+                                         (format-value value)
+                                         (str "^ key " (pr-str key) " is spelled wrong")))
+                                       (document-all (first type-sig) corrections))
+                     {:width 40})))
+
+(comment
+  (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nah)})
+                                (spec 'Nah {:nada [string?]})
+                                #_(assert-not-empty 'Nah :a)
+                                #_(requires-keys 'Nah :a))
+                    'RootMap {:wowza {:nad []}})
+  )
 
 (defn print-errors [rules root config]
   (with-schema rules
