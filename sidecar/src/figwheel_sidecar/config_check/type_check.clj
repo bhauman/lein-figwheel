@@ -399,17 +399,18 @@
   [typ']
   (doall
    (distinct
-    (for [typ (cons typ' (ancestor-typs typ'))
-          [ky _ [parent-type _ t] :as rule] (schema-rules :-)
-          :when (= t typ)]
-     rule))))
+    (concat
+     (for [typ (cons typ' (ancestor-typs typ'))
+           [ky _ [parent-type _ t] :as rule] (concat (schema-rules :-) (schema-rules :?-))
+           :when (= t typ)]
+       rule)))))
 
 (defn concrete-parent [typ']
   (or (not-empty
        (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
          t))
       ;; TODO this type should exist in parent position in a rule
-      (if (not-empty (schema-rules [:parent :-  typ']))
+      (if (not-empty (concat (schema-rules [:parent :-  typ']) (schema-rules [:parent :?-  typ']) ))
         [typ']
         [])))
 
@@ -451,9 +452,9 @@
   (doall (parents-for-type2 'D)))
 
 (defn get-paths-for-type [root typ]
-  (prn root)
-  (prn typ)
-  (prn (parents-for-type typ))
+  #_(prn root)
+  #_(prn typ)
+  #_(prn (parents-for-type typ))
   (vec
      (mapcat (fn [[ky pt]]
                (if (= pt root)
@@ -465,6 +466,15 @@
   (filter
    #(= (last %) ky)
    (get-paths-for-type root type)))
+
+(with-schema
+  (index-spec
+   (spec 'Rooter {:hi (ref-schema 'A)})
+   (or-spec 'A {string? (ref-schema 'C)}
+            [(ref-schema 'C)])
+   (spec 'C {:a 1
+             :b 2}))
+  (get-paths-for-key 'Rooter 'C:b :b))
 
 #_(with-schema
     (index-spec
@@ -495,30 +505,28 @@
 (defn detailed-config-analysis [config]
   (doall (tc-analyze config)))
 
-;; TODO look at standard deviation as a better way to do this
-(defn frequencies-to-pct [l]
-  (let [freqs (frequencies l)
-        count-uniq (float (count freqs))
-        sum   (float (count l))
-        average (/ count-uniq sum)]
-    (into {} (map (fn [[k v]] [k (- (/ v count-uniq)
-                                   average)]) freqs))))
-
 (defn max-val [mp]
   (reduce (fn [[k v] [k1 v1]] (if (< v v1) [k1 v1] [k v])) [nil -1] mp))
 
+(defn which-type-wins? [expected-type types]
+  (let [types (if ((set types) expected-type)
+                ;; this is a little too subtle
+                ;; by adding this to the start of the
+                ;; list it ends up being first in the
+                ;; ordered-map returned by frequencies
+                (cons expected-type types) ;; bias towards expected-type
+                types)
+        freqs (frequencies types)]
+    (first (max-val freqs))))
 
-(defn which-type-wins? [parent-type types]
-  (let [type-map (into {} (filter (comp (partial < (- 0.1)) second)
-                                  (frequencies-to-pct (cons parent-type types))))]
-    (prn "prob map" type-map)
-    ;; TODO this states all we need is one representation of the type
-    ;; this is probably better done outside the function
-    ;; or we have a helper function
-    (if ((set types) parent-type)
-      parent-type
-      (first (max-val type-map)))))
+#_(which-type-wins? 'b '[c
+                         d d d d d d 
+                         a a a a a a a
+                         b b b b b])
 
+#_(which-type-wins? 'b '[])
+
+;; TODO this is redundant which-type-wins? encompases most of this behavior
 (defn analysis-type-matches [parent-type analysis]
   (let [types (map first analysis)
         type-set (set types)
@@ -526,7 +534,7 @@
         total-analysis-paths (count analysis)]
     (cond
       (empty? type-set) {:Error :no-type-match}
-      (<= total-analysis-paths 2) (if ((set types) parent-type)
+      (<= total-analysis-paths 2) (if (type-set parent-type)
                                     true
                                     {:Error :wrong-type :alternate-type (first type-set)})
       (> total-analysis-paths 2)
@@ -566,25 +574,62 @@
        :corrections potential-keys
        :confidence :high})))
 
-(defn path-count [orig-config [x & xs]]
-  (if-let [next-config (and (coll? orig-config) (get orig-config x))]
-    (inc (path-count next-config xs))
-    0))
+;; determining the best path for the existing config
 
-(defn path-score [orig-config path]
-  (if (empty? path) 0
-    (/ (path-count orig-config path)
-       (count path))))
+(defn pred-key? [k]
+  (and (keyword? k)
+       (.startsWith (name k) "pred-key_")))
+
+(defn predicate-for-pred-key [pred-key]
+  (when-let [[k _ pred-fn] (first (schema-rules [:= pred-key]))]
+    pred-fn))
+
+(defn next-configs [config x]
+  (cond
+    (and (pred-key? x) (map? config))
+    (when-let [pred-fn (predicate-for-pred-key x)]
+      (keep (fn [[k v]] (when (pred-fn k) [k v])) config))
+    (and (number? x) (zero? x) (sequential? config))
+    (map vector (range) config)
+    :else
+    (when (get config x) [[x (get config x)]])))
+
+(defn longest-path-into-config [config [x & xs :as path]]
+  (when-not (and (coll? config) (empty? config) (empty? path))
+    (first
+     (sort-by
+      (comp - count)
+      (for [[k next-config] (not-empty (next-configs config x))]
+        (cons k (longest-path-into-config next-config xs)))))))
 
 (defn best-path [orig-config paths]
-  (when (not-empty paths)
-    (first (max-val (mapv (juxt identity (partial path-score orig-config)) paths)))))
+  (when-let [[path-pattern path]
+             (first
+              (sort-by
+               (comp - count flatten)
+               (filter #(apply not= %)
+                       (map (juxt identity (partial longest-path-into-config orig-config)) paths))))]
+    [path-pattern (concat path (drop (count path) path-pattern))]))
 
-#_(best-path {:some {:a 1 :c 3}} [[:thing :c]])
+#_(best-path {:some {:a {:b {:c {}}}
+                    :d {:e {:f { :g {}}}}}}
+            [[:some :a :b] [:some :d :e :r :g]]
+            )
+
+#_(best-path {:some {:a {:b {:c {}}}
+                    :d [{:a {:f { :g {}}}}
+                        {:e {:f { :g {}}}}]}}
+            [[:some :a :b] [:some :d 0 :e :r :g]]
+            )
+
+
+#_(longest-path-into-config {:some {}} [:some :c])
+
+#_(best-path2 {:some {:a 1 :c 3}} [[:some :c :d]])
 
 #_(path-score {:some {:a 1 :c 3}} [[:thing :c]])
 
-#_(best-path {:a {:b {:c {:d 5}}}} [[:a :b :c :d :e] [:a :b :r]])
+#_(best-path2 {:a {:b {:c {:d 5}}}} [[:a :b :c :d :e] [:a :b :r]])
 
 (defn misplaced-key? [root-type orig-config parent-typ parent-config-value bad-key]
   (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules [:- bad-key])
@@ -603,13 +648,10 @@
         (filter (fn [{:keys [parent-type]}]
                   (true? (analysis-type-matches parent-type child-analysis)))
                 correct-path-types)
-        best-fit-path  (best-path orig-config (mapcat :correct-paths correct-path-types))]
-    ;; TODO best path can't exist already!!
-    ;; make sure that value matches type
-    #_[bad-key child-analysis potential-types correct-path-types best-fit-path ]
-    (when best-fit-path
+        [path-pattern best-fit-path] (best-path orig-config (mapcat :correct-paths correct-path-types))]
+    (when path-pattern
       (let [{:keys [parent-type child-type]}
-            (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
+            (first (filter #((set (:correct-paths %)) path-pattern) correct-path-types))]
         {:Error :misplaced-key
          :key bad-key
          :correct-type [parent-type :> child-type]
@@ -642,14 +684,14 @@
         (filter (fn [{:keys [parent-type new-key]}]
                   (true? (analysis-type-matches parent-type (child-analysis-fn new-key))))
                 correct-path-types)
-        best-fit-path  (best-path orig-config (mapcat :correct-paths correct-path-types))]
+        [path-pattern best-fit-path] (best-path orig-config (mapcat :correct-paths correct-path-types))]
     ;; TODO best path can't exist already!!
     ;; make sure that value matches type
     #_[bad-key potential-types correct-path-types best-fit-path ]
     #_(prn potential-types correct-path-types)
-    (when best-fit-path
+    (when path-pattern
       (let [{:keys [parent-type new-key child-type]}
-            (first (filter #((set (:correct-paths %)) best-fit-path) correct-path-types))]
+            (first (filter #((set (:correct-paths %)) path-pattern) correct-path-types))]
         {:Error :misspelled-misplaced-key
          :key bad-key
          :correction new-key
@@ -685,7 +727,7 @@
   (when (not-empty type-sig)
     (let [analysis     (detailed-config-analysis config)
           actual-type? (analysis-type-matches (last type-sig) analysis)]
-      (prn actual-type?)
+      #_(prn actual-type?)
       (if (miss-matches-type? actual-type?)
         {:Error :wrong-position-for-value
          :current-path collected-path
@@ -706,34 +748,32 @@
   (analyze-for-type-misplacement-helper root-type type-sig path orig-config '()))
 
 (defn unknown-key-error-helper [root-type parent-type bad-key value error]
-  (if-let [error (analyze-for-type-misplacement root-type error)]
-    [error]
-    (let [parent-config-value (error-parent-value error)
-          analysis            (detailed-config-analysis parent-config-value)
-          actual-parent-type? (analysis-type-matches parent-type analysis)]
-      #_(prn root-type actual-parent-type?)
-      (prn "START ----")
-      (prn bad-key)
-      (prn parent-type)
-      (pprint/pprint analysis)
-      (prn "END -----")
-      (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
-        [mispelled-key-error]
-        (if-let [misplaced-key-error
-                 (misplaced-key? root-type
-                                 (get error :orig-config)
-                                 parent-type
-                                 parent-config-value
-                                 bad-key)]
-          [misplaced-key-error]
-          (if-let [misspelled-misplaced-key-error
-                   (misspelled-misplaced-key? root-type
-                                              (get error :orig-config)
-                                              parent-type
-                                              parent-config-value
-                                              bad-key)]
-            [misspelled-misplaced-key-error]
-            []))))))
+  (let [parent-config-value (error-parent-value error)
+        analysis            (detailed-config-analysis parent-config-value)
+        actual-parent-type? (analysis-type-matches parent-type analysis)]
+    #_(prn root-type actual-parent-type?)
+    #_(prn "START ----")
+    #_(prn bad-key)
+    #_(prn parent-type)
+    #_(pprint/pprint analysis)
+    #_(prn "END -----")
+    (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
+      [mispelled-key-error]
+      (if-let [misplaced-key-error
+               (misplaced-key? root-type
+                               (get error :orig-config)
+                               parent-type
+                               parent-config-value
+                               bad-key)]
+        [misplaced-key-error]
+        (if-let [misspelled-misplaced-key-error
+                 (misspelled-misplaced-key? root-type
+                                            (get error :orig-config)
+                                            parent-type
+                                            parent-config-value
+                                            bad-key)]
+          [misspelled-misplaced-key-error]
+          [])))))
 
 #_(with-schema (index-spec
                 (spec 'Figwheel {:figwheel (ref-schema 'Boolean)
@@ -809,12 +849,16 @@
     (when-let [[[typ errors] & xs] (not-empty (->> results
                                                    (map #(assoc % :orig-config value))
                                                    group-and-sort-first-pass-errors))]
-      ;; TODO process one error?
-      (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
-        (when-let [[[typ errors] & xs] (not-empty (->> errors
-                                                       (map #(assoc % :orig-config value))
-                                                       group-and-sort-first-pass-errors))]
-          (first errors))))))
+      (let [errors (take 1 errors)]
+        (if-let [error
+                 (and (#{:unknown-key :missing-required-key} (:Error-type (first errors)))
+                      (analyze-for-type-misplacement root-type (first errors)))]
+          error
+          (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
+            (when-let [[[typ errors] & xs] (not-empty (->> errors
+                                                           (map #(assoc % :orig-config value))
+                                                           group-and-sort-first-pass-errors))]
+              (first errors))))))))
 
 #_(with-schema
   (index-spec
@@ -1099,7 +1143,7 @@
 
 #_(pp)
 
-(declare format-key summerize-value)
+(declare format-key summarize-value summarize-value-unwrap-top)
 
 (defmethod error-help-message :failed-key-predicate [{:keys [key path not value type-sig] :as error}]
   [:group "The key "
@@ -1259,8 +1303,8 @@
    [:nest 2
     (print-path correct-path
                 (if (empty? correct-path)
-                  (summerize-value-unwrap-top value)
-                  (summerize-value value)))]
+                  (summarize-value-unwrap-top value)
+                  (summarize-value value)))]
    :break
    (print-document document)])
 
@@ -1402,31 +1446,31 @@
        :break]
       "")))
 
-(defn summerize-coll [open close fn v]
+(defn summarize-coll [open close fn v]
   (let [res (vec (cons :align
                          (list
                           (concat
-                           (interpose :line (take 2 (map fn v)))
-                           (if (> (count v) 2) [:line "..."] [])))))]
+                           (interpose :line (take 3 (map fn v)))
+                           (if (> (count v) 3) [:line "..."] [])))))]
     (vec
      (concat [:group open " "]
              (list res)
              (list " " close)))))
 
-(declare summerize-value summerize-term)
+(declare summarize-value summarize-term)
 
-(def summerize-map (partial summerize-coll "{" "}"
-                            (fn [[k v']] [:group (summerize-value k)
-                                         " " (summerize-term v')])))
+(def summarize-map (partial summarize-coll "{" "}"
+                            (fn [[k v']] [:group (summarize-value k)
+                                         " " (summarize-term v')])))
 
-(defn summer-seq [v] [:group (summerize-value v)])
-(def summerize-vec (partial summerize-coll "[" "]" summer-seq))
-(def summerize-seq (partial summerize-coll "(" ")" summer-seq))
-(def summerize-set (partial summerize-coll "#{" "}" summer-seq))
+(defn summer-seq [v] [:group (summarize-value v)])
+(def summarize-vec (partial summarize-coll "[" "]" summer-seq))
+(def summarize-seq (partial summarize-coll "(" ")" summer-seq))
+(def summarize-set (partial summarize-coll "#{" "}" summer-seq))
 
-#_(summerize-map {:asdf 4 :asd 6})
+#_(summarize-map {:asdf 4 :asd 6})
 
-(defn summerize-term [v]
+(defn summarize-term [v]
   (cond
     (map? v)    "{ ... }"
     (vector? v) "[ ... ]"
@@ -1434,21 +1478,21 @@
     (seq? v)    "( ... )"
     :else (pr-str v)))
 
-(defn summerize-value [v]
+(defn summarize-value [v]
   (cond
-    (map? v) (summerize-map v)
-    (vector? v) (summerize-vec v)
-    (set? v) (summerize-set v)
-    (seq? v) (summerize-seq v)
+    (map? v) (summarize-map v)
+    (vector? v) (summarize-vec v)
+    (set? v) (summarize-set v)
+    (seq? v) (summarize-seq v)
     :else (pr-str v)))
 
-(defn summerize-value-unwrap-top [v]
-  (let [res (summerize-value v)]
+(defn summarize-value-unwrap-top [v]
+  (let [res (summarize-value v)]
     (if (map? v)
       (nth res 3)
       res)))
 
-#_(pprint-document (summerize-value-unwrap-top {:aasdfasdfasdf 1
+#_(pprint-document (summarize-value-unwrap-top {:aasdfasdfasdf 1
                                                 :basdfasdfasdf 2
                                                 :casdfasdfasdf 2
                                                 :dasdfasdfasdf 2})
@@ -1459,7 +1503,7 @@
   ([k colr] (color (format-key k) colr)))
 
 (defn format-value
-  ([value] (summerize-value value))
+  ([value] (summarize-value value))
   ([value colr] (color (format-value value) colr)))
 
 (defn format-under-message [message]
