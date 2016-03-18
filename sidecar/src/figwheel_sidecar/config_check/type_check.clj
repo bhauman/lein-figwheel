@@ -22,10 +22,11 @@
 (def ^:dynamic *schema-rules* nil)
 
 ;; TODO more caching here and maybe compose over a separate caching macro
-(defmacro with-schema [rules & body] 
+(defmacro with-schema
+  [indexed-rules & body] 
   `(with-redefs [tc-analyze (memoize tc-analyze)
                  type-checker (memoize type-checker)]
-     (binding [*schema-rules* ~rules] ~@body)))
+     (binding [*schema-rules* ~indexed-rules] ~@body)))
 
 (defn schema-rules [arg]
   (if *schema-rules*
@@ -161,33 +162,20 @@
           (fetch-pred :== parent-type)
           (fetch-pred :=> parent-type)))
 
+;; this is really transitive decendents
 (defn descendent-typs [t]
   (distinct
    (apply concat
          (for [[_ _ child-type] (schema-rules [:-- t])]
            (cons child-type (descendent-typs child-type))))))
 
+;; this is really transitive ancestor-typs
 (defn ancestor-typs [t]
   (distinct
    (apply concat
           (for [[ancestor-type _ child-type] (schema-rules :--)
                 :when (= t child-type)]
             (cons ancestor-type (ancestor-typs ancestor-type))))))
-
-#_(with-schema
-  (index-spec
-   (spec 'Rooter {:hi (ref-schema 'A)})
-   (or-spec 'A
-            (ref-schema 'B)
-            (ref-schema 'BB))
-   (or-spec 'B
-            (ref-schema 'C)
-            (ref-schema 'CC))
-   (or-spec 'C
-            (ref-schema 'D)
-            (ref-schema 'DD))
-   (spec 'D {:now 3}))
-  (doall (descendent-typs 'B)))
 
 (defn all-predicates [parent-type]
   (keep identity (mapcat leaf-pred? (cons parent-type (descendent-typs parent-type)))))
@@ -331,7 +319,7 @@
             (apply concat errors-list)))
         res))))
 
-;; more sophisticated errors
+;; public predicates for API
 
 (defn named? [x]
   (or (string? x) (instance? clojure.lang.Named x)))
@@ -375,25 +363,6 @@
   (ky-distance :figwheel :figwheeler)
   )
 
-
-
-(defn complexity [c]
-  (if (coll? c)
-    (+ (if (map? c) (count c) 1)
-       (reduce + (map complexity c)))
-    1))
-
-(defn value-checks-out? [parent-type value]
-  (let [errors (type-checker parent-type value {})
-        filtered-errors (filter #(contains? #{:misspelled-key :missing-required-key}
-                                  (get % :Error-type))
-                                errors)
-        complex (complexity value)]
-    (cond
-      (empty? errors) complex
-      (empty? filtered-errors) (/ complex 2.0)
-      :else false)))
-
 (defn ancester-key-rules
   "Returns all the key terminal ancester rules for a given type."
   [typ']
@@ -409,8 +378,8 @@
   (or (not-empty
        (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
          t))
-      ;; TODO this type should exist in parent position in a rule
-      (if (not-empty (concat (schema-rules [:parent :-  typ']) (schema-rules [:parent :?-  typ']) ))
+      (if (not-empty (concat (schema-rules [:parent :-  typ'])
+                             (schema-rules [:parent :?-  typ']) ))
         [typ']
         [])))
 
@@ -418,43 +387,7 @@
   (for [[ky _ [parent-type _ t]] (ancester-key-rules typ')]
     [ky parent-type]))
 
-#_(with-schema
-    (index-spec
-     (spec 'Rooter {:hi (ref-schema 'A)})
-     (spec 'Rooter2 {:hi (ref-schema 'B)})
-     (or-spec 'A
-              (ref-schema 'B)
-              (ref-schema 'BB))
-     (or-spec 'B
-              (ref-schema 'C)
-              (ref-schema 'CC))
-     (or-spec 'C
-              (ref-schema 'D)
-              (ref-schema 'DD))
-     (spec 'D {:now 3}))
-    (concrete-parent 'D))
-
-#_(with-schema
-  (index-spec
-   (spec 'Rooter {:hi (ref-schema 'A)})
-   (spec 'Rooter2 {:hi (ref-schema 'B)})
-   (or-spec 'A
-            (ref-schema 'B)
-            (ref-schema 'BB))
-   (or-spec 'B
-            (ref-schema 'C)
-            (ref-schema 'CC))
-   (or-spec 'C
-            (ref-schema 'D)
-            (ref-schema 'DD))
-   (spec 'D {:now 3}))
-    #_(doall (ancestor-typs 'D))
-  (doall (parents-for-type2 'D)))
-
 (defn get-paths-for-type [root typ]
-  #_(prn root)
-  #_(prn typ)
-  #_(prn (parents-for-type typ))
   (vec
      (mapcat (fn [[ky pt]]
                (if (= pt root)
@@ -466,30 +399,6 @@
   (filter
    #(= (last %) ky)
    (get-paths-for-type root type)))
-
-(with-schema
-  (index-spec
-   (spec 'Rooter {:hi (ref-schema 'A)})
-   (or-spec 'A {string? (ref-schema 'C)}
-            [(ref-schema 'C)])
-   (spec 'C {:a 1
-             :b 2}))
-  (get-paths-for-key 'Rooter 'C:b :b))
-
-#_(with-schema
-    (index-spec
-     (spec 'Rooter {:hi (ref-schema 'A)})
-     (or-spec 'A
-              (ref-schema 'B)
-              (ref-schema 'BB))
-     (or-spec 'B
-              (ref-schema 'C)
-              (ref-schema 'CC))
-     (or-spec 'C
-              (ref-schema 'D)
-              (ref-schema 'DD))
-     (spec 'D {:now 3}))
-    (ancestor-typs 'D))
 
 (defn error-parent-value [{:keys [path orig-config]}]
   (get-in orig-config (reverse (rest path))))
@@ -518,13 +427,6 @@
                 types)
         freqs (frequencies types)]
     (first (max-val freqs))))
-
-#_(which-type-wins? 'b '[c
-                         d d d d d d 
-                         a a a a a a a
-                         b b b b b])
-
-#_(which-type-wins? 'b '[])
 
 ;; TODO this is redundant which-type-wins? encompases most of this behavior
 (defn analysis-type-matches [parent-type analysis]
@@ -611,26 +513,6 @@
                        (map (juxt identity (partial longest-path-into-config orig-config)) paths))))]
     [path-pattern (concat path (drop (count path) path-pattern))]))
 
-#_(best-path {:some {:a {:b {:c {}}}
-                    :d {:e {:f { :g {}}}}}}
-            [[:some :a :b] [:some :d :e :r :g]]
-            )
-
-#_(best-path {:some {:a {:b {:c {}}}
-                    :d [{:a {:f { :g {}}}}
-                        {:e {:f { :g {}}}}]}}
-            [[:some :a :b] [:some :d 0 :e :r :g]]
-            )
-
-
-#_(longest-path-into-config {:some {}} [:some :c])
-
-#_(best-path2 {:some {:a 1 :c 3}} [[:some :c :d]])
-
-#_(path-score {:some {:a 1 :c 3}} [[:thing :c]])
-
-#_(best-path2 {:a {:b {:c {:d 5}}}} [[:a :b :c :d :e] [:a :b :r]])
-
 (defn misplaced-key? [root-type orig-config parent-typ parent-config-value bad-key]
   (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules [:- bad-key])
                               :when (not= pt parent-typ)]
@@ -658,7 +540,6 @@
          :correct-paths [best-fit-path]
          :confidence :high}))
     ))
-
 
 ;; TODO this is a duplicate of the above functionality
 ;; please take a look at this
@@ -699,26 +580,6 @@
          :correct-paths [best-fit-path]
          :confidence :high}))))
 
-#_(with-schema
-  (index-spec
-   (spec 'Topper
-         {:some (ref-schema 'Some)
-          :thing (ref-schema 'Thing)})
-   (spec 'Some
-         {:a 1
-          :b 2})
-   (spec 'Thing
-         {:c 3
-          :d 4})
-   (spec 'Bing
-         {:c 4
-          :g 4}))
-  (misplaced-key? 'Topper
-                  {:some {:a 1 :c 3}}
-                  'Some {:a 1 :c 3}
-                  :c ))
-
-
 (defn miss-matches-type? [actual-type?]
   (and (not (true? actual-type?))
        (not (nil? (:alternate-type actual-type?)))))
@@ -751,12 +612,6 @@
   (let [parent-config-value (error-parent-value error)
         analysis            (detailed-config-analysis parent-config-value)
         actual-parent-type? (analysis-type-matches parent-type analysis)]
-    #_(prn root-type actual-parent-type?)
-    #_(prn "START ----")
-    #_(prn bad-key)
-    #_(prn parent-type)
-    #_(pprint/pprint analysis)
-    #_(prn "END -----")
     (if-let [mispelled-key-error (misspelled-key? parent-type parent-config-value bad-key analysis)]
       [mispelled-key-error]
       (if-let [misplaced-key-error
@@ -911,24 +766,6 @@
    (for [[typ exp]  (pred-type-help exp)
          parent-typ (concrete-parent typ)]
      [parent-typ exp])))
-
-#_(with-schema
-    (index-spec
-     (spec 'Thought number?)
-     (spec 'Thoughter (ref-schema 'Thought))
-     (spec 'Thing
-           {:Asdf 3
-            :GFSD 4
-            :qwerta (ref-schema 'Thoughter)                
-            :qwerty (ref-schema 'Thoughter)})
-     (spec 'Bing
-           {:Asdf 3
-            :GFSD 4
-            :qwert (ref-schema 'Thoughter)})
-     (spec 'Topper
-           {:bing (ref-schema 'Bing)}))
-  (doall (pred-type** 3))
-  )
 
 (defn good-bad-ratio
   "analyze the ratio of good parts to bad parts of analyzed paths"
@@ -1117,7 +954,7 @@
 (defmethod explain-predicate-failure :default [pred value] (pr-str pred))
 (defmethod explain-predicate-failure ::pred-function [pred value] (predicate-explain pred value))
 (defmethod explain-predicate-failure :MAPP [pred value] "Map")
-(defmethod explain-predicate-failure :SEQQ [pred value] "Sequence")
+(defmethod explain-predicate-failure :SEQQ [pred value] "Vector")
 
 (defmulti error-help-message :Error)
 
@@ -1161,7 +998,7 @@
      [:group "The key "
       (color (pr-str (first path)) :bold)
       " has the wrong value. "])
-   ["It should be a "
+   ["It should probably be a "
     (color (explain-predicate-failure not value) :green)]))
 
 (defmethod error-help-message :combined-failed-predicate [{:keys [path not value] :as error}]
