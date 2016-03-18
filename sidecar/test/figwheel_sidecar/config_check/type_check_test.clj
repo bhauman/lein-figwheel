@@ -35,6 +35,7 @@
    (spec 'FigwheelOptions
          {:server-port integer?
           :server-ip   string?
+          :server-opts map?
           :source-paths [string?]})))
 
 (deftest basic-passing
@@ -45,12 +46,14 @@
     (is (empty? (type-checker 'RootMap {:static :huh?} {})))    
     (is (empty? (type-checker 'RootMap {:figwheel {:server-port 5}} {})))
     (is (empty? (type-checker 'RootMap {:figwheel {:server-ip "asdf"}} {})))
+    (is (empty? (type-checker 'RootMap {:figwheel {:server-opts {}}} {})))
     (is (empty? (type-checker 'RootMap {:figwheel {:source-paths []}} {})))
     (is (empty? (type-checker 'RootMap {:figwheel {:source-paths ["asdf" "asdf" "asdf"]}} {})))
     (is (empty? (type-checker 'RootMap {:cljsbuild {:repl-listen-port 5}} {})))
     (is (empty? (type-checker 'RootMap {:cljsbuild {:crossovers 5}} {})))
     (is (empty? (type-checker 'RootMap {:figwheel {:server-port 5
                                                    :server-ip "asdf"
+                                                   :server-opts {}
                                                    :source-paths ["asdf" "asdf" "asdf"]}
                                         :cljsbuild {:repl-listen-port 5
                                                     :crossovers 5}

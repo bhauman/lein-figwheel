@@ -168,6 +168,8 @@
            ; :builds is added below
            :server-port       integer?
            :server-ip         string?
+           :server-logfile    string?
+           :server-opts       map?
            :css-dirs          [string?]
            :ring-handler      (ref-schema 'Named)
            :reload-clj-files  (ref-schema 'ReloadCljFiles)
