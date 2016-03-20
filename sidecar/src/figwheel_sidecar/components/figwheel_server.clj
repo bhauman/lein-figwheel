@@ -103,7 +103,7 @@
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
-  [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
+  [{:keys [server-port server-ip server-opts http-server-root resolved-ring-handler] :as server-state}]
   (try
     (-> (routes
          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
@@ -117,7 +117,7 @@
         (cors/wrap-cors
          :access-control-allow-origin #".*"
          :access-control-allow-methods [:head :options :get :put :post :delete :patch])
-        (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+        (run-server (let [config (merge server-opts {:port server-port :worker-name-prefix "figwh-httpkit-"})]
                       (if server-ip
                         (assoc config :ip server-ip)
                         config))))
