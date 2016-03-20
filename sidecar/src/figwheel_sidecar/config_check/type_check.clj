@@ -1139,9 +1139,10 @@
    :break
    [:nest 2
     (print-path correct-path
-                (if (empty? correct-path)
-                  (summarize-value-unwrap-top value)
-                  (summarize-value value)))]
+                (color (if (empty? correct-path)
+                         (summarize-value-unwrap-top value)
+                         (summarize-value value))
+                       :bold))]
    :break
    (print-document document)])
 
