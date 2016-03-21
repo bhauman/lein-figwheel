@@ -14,14 +14,6 @@
    [clojure.string :as string]
    [clojure.java.io :as io]))
 
-(defn fmt-doc
-  ([s] s)
-  ([s ex]
-   [:group (fmt-doc s)
-    :line
-    :line
-    [:nest 2 ex] :line]))
-
 (def CompilerWarningsSpec
   (->>
    [:undeclared-ns-form
@@ -92,12 +84,7 @@
           :verbose                   (ref-schema 'Boolean)
           :pretty-print              (ref-schema 'Boolean)
           :target                    :nodejs
-          :foreign-libs              [{:file string?
-                                       :provides [string?]
-                                       :file-min string?
-                                       :requires [string?]
-                                       :module-type (ref-schema 'ModuleType)
-                                       :preprocess (ref-schema 'Named)}]
+          :foreign-libs              [(ref-schema 'ForeignLib)]
           :externs                   [string?]
                                      ;; TODO keys only work with direct predicates
           :modules                   {named?
@@ -125,7 +112,22 @@
           :anon-fn-naming-policy     (ref-schema 'AnonFnNamingPolicy)
           :optimize-constants        (ref-schema 'Boolean)
           :parallel-build            (ref-schema 'Boolean)
-          :devcards                  (ref-schema 'Boolean)})
+          :devcards                  (ref-schema 'Boolean)
+
+          :dump-core                 (ref-schema 'Boolean)
+          :emit-constants            (ref-schema 'Boolean)
+          
+          :warning-handlers          [anything?]
+          :source-map-inline         (ref-schema 'Boolean)
+          :ups-libs                  [string?]
+          :ups-externs               [string?]
+          :ups-foreign-libs          [(ref-schema 'ForeignLib)]})
+    (spec 'ForeignLib {:file string?
+                       :provides [string?]
+                       :file-min string?
+                       :requires [string?]
+                       :module-type (ref-schema 'ModuleType)
+                       :preprocess (ref-schema 'Named)} )
    (or-spec 'CompilerWarnings
             (ref-schema 'Boolean)
             CompilerWarningsSpec)
@@ -241,7 +243,8 @@
           :cljsbuild (ref-schema 'CljsbuildOptions)})
    figwheel-cljsbuild-rules))
 
-(def schema-rules (index-spec schema-rules-base))
+
+
 
 ;; alright everyting below is the result of being so wishywashy about
 ;; configuration and now I'm having to support multiple ways of doing things
@@ -307,10 +310,17 @@
                                                          [cljb-k cljb-v]]))]
         (print-one-error (validate-regular-rules conf) 'RootMap conf)))))
 
-#_(validate-project-config {:cljsbuild
-                            {:builds [{:id "dev"
-                                       :source-path 1
-                                       :compiler {}}] }})
+#_ (with-color
+     (validate-project-config
+   {:cljsbuild
+    {:builds { :source-paths ["src" ]
+              :fighweel true
+              :compiler {}}
+
+                                        }
+    :figwheel {}
+                            }
+                           ))
 
 #_(defn tester [conf]
     (with-schema (validate-regular-rules {:figwheel {}})
@@ -400,12 +410,14 @@
 
 (comment
   ;; figure out
+  (def schema-rulest (index-spec schema-rules-base))
+
   (defn get-all-keys [rules]
     (for [[k & ks] (rules :-)] k))
 
   (distinct
-   (for [k (get-all-keys schema-rules)
-        k2 (get-all-keys schema-rules)
+   (for [k (get-all-keys schema-rulest)
+        k2 (get-all-keys schema-rulest)
          :when (and
                 (not= k k2)
                 (tc/similar-key 0 k k2))]
