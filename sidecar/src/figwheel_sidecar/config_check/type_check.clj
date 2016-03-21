@@ -137,6 +137,9 @@
 (defn assert-not-empty [root & key-list]
   (mapv (fn [k] [root :not-empty k]) key-list))
 
+
+;; TODO I'm thinking documentation should only be attached to types
+;; this would be much more consistent
 (defn doc
   ([root type-doc kd]
    (cons [root :doc-type type-doc]
@@ -202,10 +205,7 @@
            error)])
       {:success-type typ})))
 
-;; TODO this allows a OR reloationship??
-;; lets formalize this as an and relationship
-;; the or-spec handles the OR relationship
-
+;; TODO or relationship
 (defn type-check-value [parent-type value state]
   (if-let [preds (all-predicates parent-type)]
     (let [errors   (map #(type-check-pred % value state) preds)
@@ -233,7 +233,7 @@
     (when-let [pred-func (last (first (schema-rules [:= pred-id])))]
       [pred-func kt])))
 
-;; this is what implements or
+;; TODO this is what implements or
 (defn type-check-key-value [parent-type ky value state]
   (let [next-types (get-types-from-key-parent parent-type (fix-key ky (:parent-value state)))
         state      (update-in state [:path] conj ky)]
@@ -1146,20 +1146,6 @@
    :break
    (print-document document)])
 
-#_(pp)
-
-;; Todos
-
-;; handle printing :correct-path with knowledge of available config
-;;     esp. for bad path errors
-
-;; make coloring conditional
-
-;; move current enum functions into type system in config_validation
-;; look at adding smart documentation fns
-;; conditional predicate i.e. conditional on neighbor or sister config parameters
-;; tighten up unknown-key errors to include information about current parent config
-
 (defn type-doc [parent-type]
   (when-let [[_ _ d] (first (schema-rules [:doc-type parent-type]))]
     d))
@@ -1191,24 +1177,6 @@
          (fn [[k d]] d)
          [[:typ (type-doc parent-type)]
           [:ky  (key-doc parent-type ky)]])))
-
-#_(with-schema (index-spec
-              (concat
-               (doc 'Root "The root doc"
-                    {:fan "How many fans do you have."})
-               (spec 'Boot
-                     {:root (ref-schema 'Rap)}
-                     )
-               (spec 'Rap (ref-schema 'Batt))
-               (spec 'Batt (ref-schema 'Root)))
-              )
-  (type-doc 'Root)
-  (key-doc 'Root :fan)
-  (docs-for 'Boot :root)
-  #_(key-doc 'Boot :root)
-
-  #_(doall (*schema-rules* [:doc-key 'Rap]))
-  )
 
 ;; building examples from docs
 
@@ -1306,8 +1274,6 @@
 (def summarize-seq (partial summarize-coll "(" ")" summer-seq))
 (def summarize-set (partial summarize-coll "#{" "}" summer-seq))
 
-#_(summarize-map {:asdf 4 :asd 6})
-
 (defn summarize-term [v]
   (cond
     (map? v)    "{ ... }"
@@ -1330,12 +1296,6 @@
       (nth res 3)
       res)))
 
-#_(pprint-document (summarize-value-unwrap-top {:aasdfasdfasdf 1
-                                                :basdfasdfasdf 2
-                                                :casdfasdfasdf 2
-                                                :dasdfasdfasdf 2})
-                   {:width 10})
-
 (defn format-key
   ([k] (pr-str k))
   ([k colr] (color (format-key k) colr)))
@@ -1356,7 +1316,6 @@
    [:nest (inc (count (pr-str ky))) fv]
    (format-under-message message)
    :line])
-
 
 (defmulti print-error :Error)
 
