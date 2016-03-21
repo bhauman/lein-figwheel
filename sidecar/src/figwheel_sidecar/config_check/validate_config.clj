@@ -173,6 +173,7 @@
            :css-dirs          [string?]
            :ring-handler      (ref-schema 'Named)
            :reload-clj-files  (ref-schema 'ReloadCljFiles)
+           :server-logfile    string?
            :open-file-command string?
            :repl              (ref-schema 'Boolean)
            :nrepl-port        integer?
@@ -242,9 +243,6 @@
          {:figwheel  (ref-schema 'FigwheelOptions)
           :cljsbuild (ref-schema 'CljsbuildOptions)})
    figwheel-cljsbuild-rules))
-
-
-
 
 ;; alright everyting below is the result of being so wishywashy about
 ;; configuration and now I'm having to support multiple ways of doing things
