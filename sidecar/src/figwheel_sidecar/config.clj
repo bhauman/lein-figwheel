@@ -17,14 +17,18 @@
     (do
       (print "System Assertion: ")
       (println message)
-      (System/exit 1))))
+      ;; don't bail just in case there is some strange system problem
+      #_(System/exit 1)
+      )))
 
 (defn system-asserts []
   (let [java-version (System/getProperty "java.version")]
     (friendly-assert (>= (compare java-version "1.8.0") 0)
                      (str "Java >= 1.8.0 - Figwheel requires Java 1.8.0 at least. Current version  "
                           java-version
-                          "\n  Please install Java 1.8.0 at least."))
+                          "\n  Please install Java 1.8.0 at least.\n"
+                          "  This may only be occuring in the Leiningen (bootstrapping) process but still something to be aware of.\n"
+                          "  Especially if this message is immediately followed by an strange stack trace.\n" ))
     (when-not (>= (compare (clojure-version) "1.7.0") 0)
       (println
        (str
