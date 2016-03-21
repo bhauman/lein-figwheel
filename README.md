@@ -367,7 +367,7 @@ we [write reloadable code](https://github.com/bhauman/lein-figwheel#writing-relo
 
 Please check out the example project in the `example` directory.
 
-To see all the client side config options [look here](https://github.com/bhauman/lein-figwheel/blob/master/support/src/figwheel/client.cljs#L254).
+To see all the client side config options [look here](https://github.com/bhauman/lein-figwheel/blob/47cadd7982ffd005ea21ba86139d5ea8dd20e8ed/support/src/figwheel/client.cljs#L290-L316).
 
 ### Preventing and forcing file reloads
 
