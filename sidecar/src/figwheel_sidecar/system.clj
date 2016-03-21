@@ -499,19 +499,20 @@
 
 (defn get-build-choice [choices]
   (let [choices (set (map name choices))]
-    (loop []
-      (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") or quit > "))
-      (flush)
-      (let [res (read-line)]
-        (cond
-          (nil? res) false
-          (choices res) res          
-          (= res "quit") false
-          (= res "exit") false
-          :else
-          (do
-            (println (str "Error: " res " is not a valid choice"))
-            (recur)))))))
+    (when (> (count choices) 1)
+      (loop []
+        (print (str "Choose focus build for CLJS REPL (" (clojure.string/join ", " choices) ") or quit > "))
+        (flush)
+        (let [res (read-line)]
+          (cond
+            (nil? res) false
+            (choices res) res          
+            (= res "quit") false
+            (= res "exit") false
+            :else
+            (do
+              (println (str "Error: " res " is not a valid choice"))
+              (recur))))))))
 
 (defn choose-repl-build [system build-id]
   (let [builds (get-in system [:figwheel-server :builds])]
