@@ -206,7 +206,9 @@
             :notify-command  [string?]
             :jar             (ref-schema 'Boolean)
             :incremental     (ref-schema 'Boolean)
-            :assert          (ref-schema 'Boolean) })
+            :assert          (ref-schema 'Boolean)
+            :warning-handlers [anything?]
+           })
     (assert-not-empty 'BuildOptionsMap :source-paths)
     (requires-keys 'BuildOptionsMap :source-paths :compiler)
     (or-spec 'FigwheelClientOptions
@@ -310,25 +312,11 @@
 
 #_ (with-color
      (validate-project-config
-   {:cljsbuild
-    {:builds { :source-paths ["src" ]
-              :fighweel true
-              :compiler {}}
-
-                                        }
-    :figwheel {}
-                            }
-                           ))
-
-#_(defn tester [conf]
-    (with-schema (validate-regular-rules {:figwheel {}})
-      (tc/tc-with-parent 'RootMap conf)
-      #_(doall (tc/document-all 'BuildOptionsMap [:compiler]))
-      (doall (tc/get-example-for-key 'RootMap :cljsbuild))
-      #_(doall (tc/docs-for 'BuildOptionsMap :compiler))
-    ))
-
-#_(tester {:fighweel {:css-dirs []}})
+      {:cljsbuild
+       {:builds { :source-paths ["src" ]
+                 :fighweel true
+                 :compiler {}}}
+       :figwheel {}}))
 
 (defn validate-figwheel-edn-file [config]
   (print-one-error (validate-figwheel-edn-rules config)
