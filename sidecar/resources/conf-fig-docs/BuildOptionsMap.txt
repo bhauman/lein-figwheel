@@ -1,6 +1,6 @@
 :BuildOptionsMap
 
-A Map of options that specifies a ClojrueScript 'build'
+A Map of options that specifies a ClojureScript 'build'
 
   :BuildOptionsMap [:CreateExampleMap :id :source-paths :figwheel :compiler]
 
@@ -19,9 +19,14 @@ example.core namespace, the source path to this file is "src"
 
   :source-paths ["src"]
 
+:notify-command
 
+If a :notify-command is specified, it will be called when compilation
+succeeds or fails, and a textual description of what happened will be
+appended as the last argument to the command. If a more complex
+command needs to be constructed, the recommendation is to write a
+small shell script wrapper.
+Default: nil (disabled)
 
-
-
-
+  :notify-command ["growlnotify" "-m"]
 

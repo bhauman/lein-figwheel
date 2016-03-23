@@ -287,8 +287,9 @@
            :build-ids
            (mapv :id
                  (narrow-builds* (:all-builds prepped)
-                                 (or (not-empty (:build-ids prepped))
-                                     (get-in prepped [:figwheel-options :builds-to-start])))))))
+                                 (not-empty
+                                  (or (:build-ids prepped)
+                                      (map name (get-in prepped [:figwheel-options :builds-to-start])))))))))
 
 (defn fetch-config []
   (prep-config (config)))

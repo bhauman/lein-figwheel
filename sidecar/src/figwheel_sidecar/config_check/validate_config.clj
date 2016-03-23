@@ -172,6 +172,7 @@
            :server-ip         string?
            :css-dirs          [string?]
            :ring-handler      (ref-schema 'Named)
+           :builds-to-start   [(ref-schema 'Named)]
            :reload-clj-files  (ref-schema 'ReloadCljFiles)
            :server-logfile    string?
            :open-file-command string?

@@ -6,13 +6,24 @@ A map of options to be sent to the ClojureScript compiler
 
 :output-to
 
-The path to the JavaScript file that will be output.
+After your ClojureScript has been compiled to JavaScript, this
+specifies the name of the JavaScript output file.  The contents of
+this file will differ based on the :optimizations setting.
+
+If :optimizations is set to :none then this file will merely contain
+the code needed to load Google Closure the and rest of the compiled
+namespaces (which are separate files).
+
+If :optimizations is set to :simple, :whitespace, or :advanced this
+output file will contain all the compiled code.
 
   :output-to "resources/public/js/main.js"
   
 :output-dir
 
-Sets the output directory for temporary files used during compilation.
+Sets the output directory for output files generated during
+compilation.
+
 Defaults to "out".
 
   :output-dir "resources/public/js/out"
@@ -23,9 +34,11 @@ The optimization level. May be :none, :whitespace, :simple, or
 :advanced. Only :none and :simple are supported for bootstrapped
 ClojureScript.
 
-  :none is the recommended setting for development, while :advanced is
-        the recommended setting for production, unless something
-        prevents it (incompatible external library, bug, etc.).
+  :none is the recommended setting for development
+  
+  :advanced is the recommended setting for production, unless
+        something prevents it (incompatible external library, bug,
+        etc.).
 
 For a detailed explanation of the different optimization modes see
 https://developers.google.com/closure/compiler/docs/compilation_levels
@@ -68,13 +81,13 @@ optimizations :none the valid values are true and false, with the
 default being true. Under all other optimization settings must specify
 a path to where the source map will be written.
 
-Under :none 
-
-  :source-map false
-
-Otherwise:
+Under :simple, :whitespace, or :advanced
 
   :source-map "path/to/source/map.js.map"
+
+Under :none 
+
+  :source-map true
 
 :verbose
 

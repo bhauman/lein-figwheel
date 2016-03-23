@@ -42,6 +42,13 @@ will attempt to reload them.
 
   :css-dirs ["resources/public/css"]
 
+:builds-to-start
+
+A vector of build ids that you would like figwheel to start building
+when you invoke lein figwheel without arguments.
+
+  :builds-to-start ["dev" "test"]
+
 :open-file-command
 
 A path to an executable shell script that will be passed a file and
