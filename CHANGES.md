@@ -1,3 +1,9 @@
+## 0.5.1 Configuration Validation
+
+* added a fairly comprehensive configuration validation that is triggered
+  when running 'lein figwheel' - there is a large surface area here so if
+  you discover problems please report them
+
 ## 0.5.0-5 More work on system dependency conflicts
 
 * adding system asserts to ensure and warn if not using Java 1.8 or Clojure 1.7.0
