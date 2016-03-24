@@ -179,7 +179,7 @@
    (let [state (if-not (:file-md5-atom opts)
                  (create-initial-state opts)
                  opts)]
-     (println (str "Figwheel: Starting server at http://localhost:" (:server-port state)))
+     (println (str "Figwheel: Starting server at http://" (:server-ip state) ":" (:server-port state)))
      (assoc state :http-server (server state)))))
 
 (defn stop-server [{:keys [http-server]}]
