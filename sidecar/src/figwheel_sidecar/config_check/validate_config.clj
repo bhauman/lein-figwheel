@@ -161,7 +161,8 @@
            :cljsbuild (ref-schema 'CljsbuildOptions)})
 
 (def figwheel-cljsbuild-rules
-  (distinct
+  (doall
+   (distinct
    (concat
     shared-type-rules
     cljs-compiler-rules
@@ -232,13 +233,13 @@
               :eval-fn             (ref-schema 'Named)})
     (or-spec 'WebsocketHost :js-client-host string?)
     (get-docs
-    ['CompilerOptions
-     'FigwheelOptions
-     'FigwheelClientOptions
-     'BuildOptionsMap
-     'CljsbuildOptions
-     'RootMap
-     'ReloadCljFiles]))))
+     ['CompilerOptions
+      'FigwheelOptions
+      'FigwheelClientOptions
+      'BuildOptionsMap
+      'CljsbuildOptions
+      'RootMap
+      'ReloadCljFiles])))))
 
 (def schema-rules-base
   (concat

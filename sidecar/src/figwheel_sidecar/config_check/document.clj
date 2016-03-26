@@ -64,10 +64,7 @@
 
 (defn docs-for-type [typ]
   (when-let [doc-resource
-             (->> (str typ ".txt")
-                  (java.io.File. "conf-fig-docs")
-                  str
-                  io/resource)]
+             (io/resource (str "conf-fig-docs" java.io.File/separator typ ".txt"))]
     (-> doc-resource
         slurp
         string/split-lines
@@ -82,7 +79,7 @@
     (doc name-sym typ-doc rules)))
 
 (defn get-docs [typs]
-  (vec (mapcat ->doc-rules (mapv docs-for-type typs))))
+  (doall (vec (mapcat ->doc-rules (keep docs-for-type typs)))))
 
 #_ (get-docs
     ['CompilerOptions
