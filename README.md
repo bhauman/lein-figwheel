@@ -336,16 +336,23 @@ The following configuration options are available:
 
 ```clojure
 
-;; configure a websocket host, figwheel already knows the port
-;; this is helpful if you want to broadcast to devices
-:websocket-host "localhost" ;; or "www.myhost.com", "192.168.0.112"
-
-;; An important configuration option for :websocket-host
-;; if you set it to :js-client-host it will set the host based on the
-;; js/location.host param of the browser
-;; This is helpful for multiple device settings where you are using
-;; fighweel to serve your app.
-;; :websocket-host :js-client-host
+;; Configure :websocket-host for the figwheel js client to connect to.
+;; (Don't specify the port; figwheel already knows it).
+;; Defaults to "localhost".  Valid values are:
+;; 
+;;   <any-string>      Uses that exact string as hostname.
+;;
+;;   :js-client-host   Uses window.location.host from JS.  This is useful when connecting
+;;                     from a different device/computer on your LAN, e.g. testing mobile
+;;                     safari.
+;;
+;;   :server-ip        Uses the IP address of the figwheel server.  This is Useful in special
+;;                     situations like an iOS (WK)WebView.  Be sure to check your CORS headers.
+;;
+;;   :server-hostname  Like :server-ip, but uses hostname string rather than IP address.
+;;                     (On unix, check that `hostname` outputs the right string in shell).
+;;
+:websocket-host :js-client-host
 
 ;; optional callback
 :on-jsload "example.core/fig-reload"

@@ -231,7 +231,7 @@
               :retry-count         integer?
               :devcards            (ref-schema 'Boolean)
               :eval-fn             (ref-schema 'Named)})
-    (or-spec 'WebsocketHost :js-client-host string?)
+    (or-spec 'WebsocketHost :js-client-host :server-ip :server-hostname string?)
     (get-docs
      ['CompilerOptions
       'FigwheelOptions
