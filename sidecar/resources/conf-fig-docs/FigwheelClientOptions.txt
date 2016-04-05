@@ -8,14 +8,16 @@ want the figwheel client code to be injected into the build.
 
 :websocket-host
 
-A String specifying the host part of the Figwheel websocket URL. If
-you have JavaScript clients that need to access Figwheel that are not
-local, you can supply the IP address of your machine here. You can
-also specify :js-client-host and the Figwheel client will use the
-js/location.host of the client.
+A String specifying the host part of the Figwheel websocket URL. If you have
+JavaScript clients that need to access Figwheel that are not local, you can
+supply the IP address of your machine here, or you can specify one of the
+following keywords to have figwheel determine the string for you.
+  :js-client-host  -- will use js/window.location.host
+  :server-ip       -- will use local IP address of figwheel server
+  :server-hostname -- will do a local hostname lookup on figwheel server
 Default: "localhost"
 
-  :websocket-host "192.168.1.101"
+  :websocket-host :server-ip
 
 :on-jsload
 

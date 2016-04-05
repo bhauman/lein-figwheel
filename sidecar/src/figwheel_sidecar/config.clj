@@ -206,24 +206,53 @@
 (defn prepped? [build]
   (-> build meta ::prepped))
 
-(defn update-figwheel-connect-options [figwheel-server build]
-  (if (figwheel-build? build)
-    (let [build (forward-to-figwheel-build-id build)]
-      (if-not (get-in build [:figwheel :websocket-url]) ;; prefer 
-        (let [host (or (get-in build [:figwheel :websocket-host]) "localhost")]
-          (if-not (= :js-client-host host)
-            (-> build
-                (update-in [:figwheel] dissoc :websocket-host)
-              (assoc-in [:figwheel :websocket-url]
-                        (str "ws://" host ":" (:server-port figwheel-server) "/figwheel-ws")))
-            (update-in build [:figwheel] dissoc :websocket-host)))
-        build))
-    build))
+(defn websocket-host->str [host]
+  (cond
+    (nil? host)               "localhost" ; default
+    (string? host)            host
+    (= host :js-client-host)  nil ; will be set by figwheel.client/config-defaults
+    (= host :server-hostname) (.getHostName (java.net.InetAddress/getLocalHost))
+    (= host :server-ip)       (.getHostAddress (java.net.InetAddress/getLocalHost))
+    :else                     (throw (Exception. (str "Unrecognized :websocket-host " host)))))
+
+(defn update-figwheel-connect-options [{:keys [server-port]} build]
+  (let [fig?     (figwheel-build? build)
+        host-str (websocket-host->str (get-in build [:figwheel :websocket-host]))]
+    (cond-> build
+      fig?
+      (-> (forward-to-figwheel-build-id)
+          (update-in [:figwheel] dissoc :websocket-host))
+
+      (and fig? host-str)
+      (update-in [:figwheel :websocket-url]
+                 #(or % (str "ws://" host-str ":" server-port "/figwheel-ws"))))))
 
 (comment
-  (update-figwheel-connect-options {:port 5555} {:figwheel {:websocket-host "llllll"} :yeah 6})
-  (update-figwheel-connect-options {:port 5555} {:figwheel {:websocket-host "llllll" :websocket-url "yep"} :yeah 6})
-  (update-figwheel-connect-options {:port 5555} {:figwheel true})
+
+  (update-figwheel-connect-options {:server-port 5555}
+                                   {:figwheel {:websocket-host "llllll"} :yeah 6})
+
+  (update-figwheel-connect-options {:server-port 5555}
+                                   {:figwheel {:websocket-host "llllll"
+                                               :websocket-url "yep"}
+                                    :yeah 6})
+
+  (update-figwheel-connect-options {:server-port 5555}
+                                   {:id "dev"
+                                    :figwheel true
+                                    :compiler {:optimizations :none}})
+
+  (update-figwheel-connect-options {:server-port 5555}
+                                   {:yeah 6
+                                    :id "dev"
+                                    :figwheel {:foo 1
+                                               :websocket-host :js-client-host}})
+
+  (update-figwheel-connect-options {:server-port 5555}
+                                   {:yeah 6
+                                    :id "dev"
+                                    :figwheel {:foo 1
+                                               :websocket-host :server-ip}})
   )
 
 (comment
