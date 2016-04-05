@@ -121,7 +121,8 @@
           :source-map-inline         (ref-schema 'Boolean)
           :ups-libs                  [string?]
           :ups-externs               [string?]
-          :ups-foreign-libs          [(ref-schema 'ForeignLib)]})
+          :ups-foreign-libs          [(ref-schema 'ForeignLib)]
+          :closure-output-charset    string?})
     (spec 'ForeignLib {:file string?
                        :provides [string?]
                        :file-min string?
