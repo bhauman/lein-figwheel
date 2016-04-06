@@ -7,7 +7,7 @@
         :url "https://github.com/bhauman/lein-figwheel"
         :dir ".."}
   :dependencies
-  [[org.clojure/clojure "1.7.0"]
+  [[org.clojure/clojure "1.8.0"]
    [org.clojure/clojurescript "1.7.228"
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.2.374"
