@@ -34,5 +34,7 @@ pom.xml.asc
 .lein-classpath
 config.ru
 
+*~
+
 *-init.clj
 sidecar/figwheel_server.log
