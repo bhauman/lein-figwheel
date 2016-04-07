@@ -209,7 +209,7 @@ be called after new code gets reloaded.
 from figwheel's built in server**, then the output directory has to be
 in a directory that can be served by the static webserver. The default
 for the webserver root is "resources/public" so your output files need
-to be in a subdirectory "resources/public" unless you change the
+to be in a subdirectory of "resources/public" unless you change the
 webserver root. For now the webserver root has to be in a subdirectory
 of `resources`.
 
@@ -228,7 +228,7 @@ or optionally give the name of the build
 This will start a server at `http://localhost:3449` with your
 resources being served via the compojure `resources` ring handler.
 
-So you can load the HTML file thats hosting your ClojureScript app
+So you can load the HTML file that's hosting your ClojureScript app
 by going to `http://localhost:3449/<yourfilename>.html`
 
 If you are using your own server please load your app from that server.
@@ -414,7 +414,7 @@ REPL to connect and show its prompt.
 
 This REPL is a little different than other REPLs in that it has live
 compile information from the build process. This effectively means
-that you will not have to call `(require` or `(load-namesapce` unless
+that you will not have to call `(require` or `(load-namespace` unless
 it is a namespace that isn't in your loaded application's required
 dependencies. In many cases you can just `(in-ns 'my.namespace)` and
 everything you need to access will be there already.
@@ -818,7 +818,7 @@ You can fix this by using an event delegation strategy as so:
 ```
 
 But even with the above strategy you won't be able to edit any of the
-code in the setup up block and see your changes take affect.
+code in the setup up block and see your changes take effect.
 
 If you are not using React and you want to build things this way and
 have reloadable code we need to create `setup` and `teardown`
