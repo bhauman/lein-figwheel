@@ -202,15 +202,16 @@
              [(ref-schema 'BuildOptionsMap)]
              {named? (ref-schema 'BuildOptionsMap)})
     (spec 'BuildOptionsMap
-          { :id              (ref-schema 'Named)
-            :source-paths    [string?]
-            :figwheel        (ref-schema 'FigwheelClientOptions)
-            :compiler        (ref-schema 'CompilerOptions)
-            :notify-command  [string?]
-            :jar             (ref-schema 'Boolean)
-            :incremental     (ref-schema 'Boolean)
-            :assert          (ref-schema 'Boolean)
-            :warning-handlers [anything?]
+          {:id                     (ref-schema 'Named)
+           :source-paths           [string?]
+           :figwheel               (ref-schema 'FigwheelClientOptions)
+           :compiler               (ref-schema 'CompilerOptions)
+           :notify-command         [string?]
+           :initial-notify-command [string?]
+           :jar                    (ref-schema 'Boolean)
+           :incremental            (ref-schema 'Boolean)
+           :assert                 (ref-schema 'Boolean)
+           :warning-handlers       [anything?]
            })
     (assert-not-empty 'BuildOptionsMap :source-paths)
     (requires-keys 'BuildOptionsMap :source-paths :compiler)
