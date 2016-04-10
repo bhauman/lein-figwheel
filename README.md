@@ -242,8 +242,8 @@ side configuration parameters:
 ```clojure
 :figwheel {
    :http-server-root "public" ;; this will be in resources/
-   :server-port 3449          ;; default
-   :server-ip   "0.0.0.0"     ;; default
+   :server-port 5309          ;; default is 3449
+   :server-ip   "0.0.0.0"     ;; default is "localhost"
 
    ;; CSS reloading (optional)
    ;; :css-dirs has no default value 
