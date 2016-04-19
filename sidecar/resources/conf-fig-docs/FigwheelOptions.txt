@@ -87,6 +87,14 @@ Default: off
 
   :nrepl-port 7888
 
+:nrepl-host
+
+If the :nrepl-port is provided Figwheel will launch an nREPL server
+into the figwheel compilation process.  :nrepl-host is a string which
+specifies which local network interface you want to launch the server on.
+
+  :nrepl-host "localhost"
+
 :nrepl-middleware
 
 A vector of strings indicating the nREPL middleware you want included

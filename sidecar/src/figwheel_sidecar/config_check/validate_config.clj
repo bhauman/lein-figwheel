@@ -180,6 +180,7 @@
            :open-file-command string?
            :repl              (ref-schema 'Boolean)
            :nrepl-port        integer?
+           :nrepl-host        string?
            :hawk-options      (ref-schema 'HawkOptionsMap)
            :nrepl-middleware  [(ref-schema 'Named)]
            :validate-config   (ref-schema 'Boolean)})
