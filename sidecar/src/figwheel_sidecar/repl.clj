@@ -140,8 +140,9 @@
                         (assoc opts'
                                :repl-env figwheel-env))))))
     (catch Exception e
-      (println "INFO: nREPL connection found but unable to load piggieback. Starting default REPL")
-      (start-cljs-repl :default figwheel-env opts))))
+      (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.\nPlease install https://github.com/cemerick/piggieback"]
+        (println message)
+        (throw (Exception. message))))))
 
 (defmethod start-cljs-repl :default
   [_ figwheel-env opts]
