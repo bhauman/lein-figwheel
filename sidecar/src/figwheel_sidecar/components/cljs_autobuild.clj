@@ -136,6 +136,12 @@
           (assoc cljs-autobuild
                  :changed-files (map str files))))))))
 
+(defn initial-notify [build-fn]
+  (fn [build-state]
+    (build-fn build-state)
+    (when-let [initial-notify-command (-> build-state :build-config :initial-notify-command)]
+      (println (:out (apply sh initial-notify-command))))))
+
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
   (start [this]
@@ -153,13 +159,14 @@
         (let [cljs-build-fn (extract-cljs-build-fn this)]
           ;; build once before watching
           ;; tiny experience tweak
-          ;; first build shouldn't send notifications
+          ;; first build does not send :notify-command notifications, but sends :initial-notify-command notifications
           ((if (= cljs-build-fn figwheel-build)
              (-> cljs-build
                  notify-command-hook
                  catch-print-hook
                  injection/hook
-                 figwheel-start-and-end-messages)
+                 figwheel-start-and-end-messages
+                 initial-notify)
              cljs-build-fn) this)
           (assoc this
                  ;; for simple introspection

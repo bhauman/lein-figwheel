@@ -30,3 +30,11 @@ Default: nil (disabled)
 
   :notify-command ["growlnotify" "-m"]
 
+:initial-notify-command
+
+This option works like :notify-command, but specifies a command to be called
+after initial compilation. :notify-command is called only for compilations
+triggered in reaction to file changes.
+Default: nil (disabled)
+
+  :initial-notify-command ["growlnotify" "-m"]
