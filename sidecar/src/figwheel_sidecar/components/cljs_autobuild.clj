@@ -52,9 +52,26 @@
                       "\" in " (elapsed started-at) "." reset-color))
         (flush)))))
 
+
+(defn handle-notify-command [build-state s]
+  (when-let [notify-command (-> build-state :build-config :notify-command)]
+    (apply sh (concat notify-command [s]))))
+
+(defn notify-command-hook [build-fn]
+  (fn [build-state]
+    (try
+      (build-fn build-state)
+      (handle-notify-command build-state (str "Successfully compiled ClojureScript build: "
+                                              (name (-> build-state :build-config :id))))
+      (catch Throwable e
+        (handle-notify-command build-state (str "Failed compiling ClojureScript build: "
+                                                (name (-> build-state :build-config :id))))
+        (throw e)))))
+
 (def figwheel-build
   (-> cljs-build
       injection/hook
+      notify-command-hook
       notifications/hook
       clj-reloading/hook
       javascript-reloading/hook
@@ -63,6 +80,7 @@
 (def figwheel-build-without-javascript-reloading
   (-> cljs-build
       injection/hook
+      notify-command-hook      
       notifications/hook
       clj-reloading/hook
       figwheel-start-and-end-messages))
@@ -70,6 +88,7 @@
 (def figwheel-build-without-clj-reloading
   (-> cljs-build
       injection/hook
+      notify-command-hook      
       notifications/hook
       javascript-reloading/hook
       figwheel-start-and-end-messages))
@@ -115,9 +134,7 @@
                  *err* log-writer]
          (cljs-build-fn
           (assoc cljs-autobuild
-            :changed-files (map str files))))
-       (when-let [notify-command (-> cljs-autobuild :build-config :notify-command)]
-         (println (:out (apply sh notify-command))))))))
+                 :changed-files (map str files))))))))
 
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle
@@ -139,6 +156,7 @@
           ;; first build shouldn't send notifications
           ((if (= cljs-build-fn figwheel-build)
              (-> cljs-build
+                 notify-command-hook
                  catch-print-hook
                  injection/hook
                  figwheel-start-and-end-messages)
