@@ -1,3 +1,7 @@
+## 0.5.2 Quick fix for Windows
+
+* fix null pointer because of bad resource path to config docs
+
 ## 0.5.1 Configuration Validation
 
 * added a fairly comprehensive configuration validation that is triggered
