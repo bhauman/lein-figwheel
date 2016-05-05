@@ -98,7 +98,7 @@
                                      :optimizations :whitespace
                                     }}]}
 
-  :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
+  :profiles { :dev { :dependencies [#_[com.cemerick/piggieback "0.2.1"]
                                     [figwheel-sidecar "0.5.3"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
@@ -108,7 +108,7 @@
                     :repl-options {:init (set! *print-length* 50)}
                     :plugins [[cider/cider-nrepl "0.11.0"]]}}
   
-  :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  ; :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources" 
@@ -126,7 +126,7 @@
 
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 #_"refactor-nrepl.middleware/wrap-refactor"
-                                "cemerick.piggieback/wrap-cljs-repl"]
+                                #_"cemerick.piggieback/wrap-cljs-repl"]
 
              ;; to disable to launched repl 
              ;; :repl false

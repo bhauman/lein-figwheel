@@ -1,3 +1,16 @@
+## 0.5.3
+
+* fail fast if trying to launch cljs REPL in nREPL environment and piggieback is not available
+  fixes issue #347
+* passing :notify-command a more descriptive message, and call it on the very first build
+  much more system notification friendly now, fixes PR #376
+* PR #369 added :server-hostname and :server-ip as options for build > :figwheel > :websocket-host
+  this will insert host specific info to the figwheel client config
+* PR #371 added :closure-output-charset compiler option to config validation
+* moved to Clojure 1.8.0
+* add :nrepl-host to configuration validation
+* PR #363 print out actual server ip in "Figwheel: Starting server at"
+
 ## 0.5.2 Quick fix for Windows
 
 * fix null pointer because of bad resource path to config docs
