@@ -204,6 +204,28 @@
                          (:message analysis-exception))})
     ex))
 
+(defn parse-reader-error [{:keys [exception-data] :as ex}]
+  (if-let [reader-exception
+           (first
+            (filter (fn [{:keys [data] :as exc}]
+                      (when (and (exception-info? exc) data)
+                        (= (:type data) :reader-exception)))
+                    exception-data))]
+    (merge {:reader-exception reader-exception}
+           (select-keys (:data reader-exception) [:file :line :column])
+           ex
+           {:message (:message reader-exception)})
+    ex))
+
+;; we need to patch the line, column numbers for EOF Reader Exceptions
+(defn patch-eof-reader-exception [{:keys [reader-exception message] :as ex}]
+  (if (and reader-exception (re-matches #"EOF while reading, starting.*" message))
+    (when-let [[_ line column] (re-matches #".*line\s(\d*)\sand\scolumn\s(\d*).*" message)]
+      (assoc ex
+             :line (int line)
+             :column (int column)))
+    ex))
+
 ;; last resort if no line or file data available in exception
 (defn ensure-file-line [{:keys [exception-data] :as ex}]
   (let [{:keys [file line]} (apply merge (keep :data exception-data))]
@@ -222,12 +244,14 @@
       (update-in [:exception-data] flatten-exception)
       parse-failed-compile
       parse-analysis-error
+      parse-reader-error
+      patch-eof-reader-exception
       remove-file-from-message))
 
 (defn escape [x]
   (goog.string/htmlEscape x))
 
-(defn exception->display-data [{:keys [failed-compiling analysis-exception
+(defn exception->display-data [{:keys [failed-compiling reader-exception analysis-exception
                                        class file line column message] :as exception}]
   (let [last-message (cond
                        (and file line)
@@ -236,6 +260,7 @@
                        :else nil)]
     {:head (cond
                 analysis-exception "Could not Analyze"
+                reader-exception   "Could not Read"
                 failed-compiling   "Could not Compile"
                 :else "Compile Exception")
      :sub-head file

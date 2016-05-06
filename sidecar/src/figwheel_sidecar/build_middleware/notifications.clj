@@ -14,7 +14,10 @@
    [clj-stacktrace.repl :refer [pst-on]]
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [digest]))
+   [digest]
+   ;; dev
+   #_[clojure.pprint :refer [pprint]]
+   ))
 
 (defn find-figwheel-meta []
   (into {}
@@ -124,6 +127,7 @@
    :cause (when (.getCause ex) (inspect-exception (.getCause ex)))})
 
 (defn compile-error-occured [figwheel-server exception]
+  #_(pprint (inspect-exception exception))
   (let [parsed-exception (inspect-exception exception)
         formatted-exception (with-out-str (pst-on *out* false exception))]
     (server/send-message figwheel-server
@@ -131,6 +135,7 @@
                           { :msg-name :compile-failed
                             :exception-data parsed-exception
                             :formatted-exception formatted-exception })))
+
 
 (defn notify-compile-error [server-state build-config {:keys [exception]}]
   (compile-error-occured
