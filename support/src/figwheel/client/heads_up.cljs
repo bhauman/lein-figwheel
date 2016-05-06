@@ -112,16 +112,24 @@
      (<! (timeout 300))
      (set-style! c {:height "auto"}))))
 
+(defn heading
+  ([s] (heading s ""))
+  ([s sub-head]
+   (str "<div style=\""
+        "font-size: 26px;"
+        "line-height: 26px;"
+        "margin-bottom: 2px;"
+        "padding-top: 1px;"
+        "\">"        
+        s
+        " <span style=\""
+        "display: inline-block;"
+        "font-size: 13px;"
+        "\">"       
+        sub-head
+        "</span></div>")))
 
-(defn heading [s]
-  (str"<div style=\""
-      "font-size: 26px;"
-      "line-height: 26px;"
-      "margin-bottom: 2px;"
-      "padding-top: 1px;"
-      "\">"
-      s "</div>"))
-
+;; deplrecated
 (defn file-and-line-number [msg]
   (when (re-matches #".*at\sline.*" msg)
     (take 2 (reverse (string/split msg " ")))))
@@ -154,6 +162,149 @@
                                                           (:line cause)
                                                           ", column " (:column cause))
                                                      "")))))))
+
+
+
+
+
+;; more interesting handling of exceptions
+
+(defn flatten-exception [ex]
+  (->> ex
+       (iterate :cause)
+       (take-while (comp not nil?))))
+
+(defn exception-info? [ex] (= (:class ex) 'clojure.lang.ExceptionInfo))
+
+(defn parse-failed-compile [{:keys [exception-data] :as ex}]
+  (let [exception (first exception-data)]
+    (if (and
+         (exception-info? exception)
+         (->> exception
+             :message
+             (re-matches #"failed compiling.*")))
+      (assoc ex
+             :failed-compiling true
+             :message (:message exception)
+             :file (get-in exception [:data :file]))
+      ex)))
+
+(defn parse-analysis-error [{:keys [exception-data] :as ex}]
+  (if-let [analysis-exception
+           (first
+            (filter (fn [{:keys [data] :as exc}]
+                      (when (and (exception-info? exc) data)
+                        (= (:tag data) :cljs/analysis-error)))
+                    exception-data))]
+    (merge {:analysis-exception analysis-exception
+            :class   (get-in analysis-exception [:cause :class])}
+           (select-keys (:data analysis-exception) [:file :line :column])
+           ex
+           {:message (or (get-in analysis-exception [:cause :message])
+                         (:message analysis-exception))})
+    ex))
+
+;; last resort if no line or file data available in exception
+(defn ensure-file-line [{:keys [exception-data] :as ex}]
+  (let [{:keys [file line]} (apply merge (keep :data exception-data))]
+    (cond->> ex
+        (-> :file nil?) (assoc ex :file file)
+        (-> :line nil?) (assoc ex :line line)
+        (-> :message nil?) (assoc ex :message (last (keep :message exception-data))))))
+
+(defn remove-file-from-message [{:keys [message file] :as ex}]
+  (if (and file (re-matches #".*in file.*" message))
+    (assoc ex :message (first (string/split message "in file")) )
+    ex))
+
+(defn parse-exception [exception-data]
+  (-> {:exception-data exception-data}
+      (update-in [:exception-data] flatten-exception)
+      parse-failed-compile
+      parse-analysis-error
+      remove-file-from-message))
+
+(defn escape [x]
+  (goog.string/htmlEscape x))
+
+(defn exception->display-data [{:keys [failed-compiling analysis-exception
+                                       class file line column message] :as exception}]
+  (let [last-message (cond
+                       (and file line)
+                       (str "Please see line " line " of file " file )
+                       file (str "Please see " file)
+                       :else nil)]
+    {:head (cond
+                analysis-exception "Could not Analyze"
+                failed-compiling   "Could not Compile"
+                :else "Compile Exception")
+     :sub-head file
+     :messages (concat
+                (map
+                #(str "<div>" % "</div>")
+                (if message
+                  [(str (if class
+                          (str (escape class)
+                               ": ") "")
+                        "<span style=\"font-weight:bold;\">" (escape message) "</span>")]
+                  (map #(str (escape (:class %))
+                             ": " (escape (:message %)))  (:exception-data exception))))
+                (when last-message [(str "<div style=\"color: #AD4F4F; padding-top: 3px;\">" (escape last-message) "</div>")]))
+     :file file
+     :line line
+     :column column}))
+
+(defn display-exception [exception-data]
+  (let [{:keys [head
+                sub-head
+                messages
+                last-message
+                file
+                line
+                column]}
+        (-> exception-data
+            parse-exception
+            exception->display-data)
+        msg (apply str messages
+                   #_(map #(str "<div>" (goog.string/htmlEscape %)
+                                             "</div>") messages))]
+    (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
+                      (str (close-link) (heading head sub-head)
+                           (file-selector-div file line msg)))))
+
+
+(comment
+
+  (def ddd 
+    {:class 'clojure.lang.ExceptionInfo,
+     :message "failed compiling file:src/example/core.cljs",
+     :data {:file "src/example/core.cljs"},
+     :cause
+     {:class 'clojure.lang.ExceptionInfo,
+      :message
+      "Wrong number of args (0) passed to: core/defn--29347 at line 28 src/example/core.cljs",
+      :data
+      {:file "src/example/core.cljs",
+       :line 28,
+       :column 1,
+       :tag :cljs/analysis-error },
+      :cause
+      {:class 'clojure.lang.ArityException,
+       :message "Wrong number of args (0) passed to: core/defn--29347",
+       :data nil,
+       :cause nil}}})
+  
+  (-> {:exception-data ddd}
+      (update-in [:exception-data] flatten-exception)
+      parse-failed-compile
+      parse-analysis-error)
+  
+  (exception->display-data (parse-exception ddd))
+  )
+
+
+
+
 
 (defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }

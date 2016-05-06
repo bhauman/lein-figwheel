@@ -14,8 +14,7 @@
    [clj-stacktrace.repl :refer [pst-on]]
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [digest]
-   ))
+   [digest]))
 
 (defn find-figwheel-meta []
   (into {}
@@ -99,23 +98,44 @@
    (merge-build-into-server-state state build-config)
    ns-syms))
 
-(defn compile-error-occured [figwheel-server exception cause]
-  (let [parsed-exception (parse-exception exception)
-        formatted-exception (let [out (java.io.ByteArrayOutputStream.)]
-                              (pst-on (io/writer out) false exception)
-                              (.toString out))]
+;; I think this is duplicate functionality
+(defn relativize-local [path]
+  (.getPath
+   (.relativize
+    (.toURI (io/file (.getCanonicalPath (io/file "."))))
+    (.toURI (io/file path)))))
+
+(defn data-serialize [o]
+  (cond
+    (or (number? o)
+        (symbol? o)
+        (keyword? o)) o
+    (= (type o) java.io.File)
+    (relativize-local o)
+    :else (str o)))
+
+(defn inspect-exception [ex]
+  {:class (type ex)
+   :message (.getMessage ex)
+   :data (when-let [data (ex-data ex)]
+           (->> data
+                (map #(vector (first %) (data-serialize (second %))))
+                (into {})))  
+   :cause (when (.getCause ex) (inspect-exception (.getCause ex)))})
+
+(defn compile-error-occured [figwheel-server exception]
+  (let [parsed-exception (inspect-exception exception)
+        formatted-exception (with-out-str (pst-on *out* false exception))]
     (server/send-message figwheel-server
                           (:build-id figwheel-server)
                           { :msg-name :compile-failed
                             :exception-data parsed-exception
-                            :formatted-exception formatted-exception
-                            :cause cause })))
+                            :formatted-exception formatted-exception })))
 
-(defn notify-compile-error [server-state build-config {:keys [exception cause]}]
+(defn notify-compile-error [server-state build-config {:keys [exception]}]
   (compile-error-occured
    (merge-build-into-server-state server-state build-config)
-   exception
-   cause))
+   exception))
 
 (defn compile-warning-occured [figwheel-server msg]
   (server/send-message figwheel-server
@@ -173,7 +193,7 @@
     (let [cause (ex-data (.getCause exception))]
       (report-exception exception cause)
       (flush)
-      (notify-compile-error figwheel-server build {:exception exception :cause cause}))))
+      (notify-compile-error figwheel-server build {:exception exception}))))
 
 ;; ware in all figwheel notifications
 (defn hook [build-fn]

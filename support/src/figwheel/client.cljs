@@ -214,10 +214,10 @@
       (compile-refail-state? msg-names)
       (do
         (<! (heads-up/clear))
-        (<! (heads-up/display-error (format-messages (:exception-data msg)) (:cause msg))))
+        (<! (heads-up/display-exception (:exception-data msg))))
       
       (compile-fail-state? msg-names)
-      (<! (heads-up/display-error (format-messages (:exception-data msg)) (:cause msg)))
+      (<! (heads-up/display-exception (:exception-data msg)))
       
       (warning-append-state? msg-names)
       (heads-up/append-message (:message msg))
