@@ -1,3 +1,8 @@
+## 0.5.3-1 First take on improving compiler error messages
+
+I'm planning on investing some time in fixing up the error messages. This is just a
+first take.
+
 ## 0.5.3
 
 * fail fast if trying to launch cljs REPL in nREPL environment and piggieback is not available
