@@ -157,7 +157,7 @@
         :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
         :http-server-root (or http-server-root "public")
         :server-port (or server-port 3449)
-        :server-ip (or server-ip "localhost")
+        :server-ip (or server-ip "0.0.0.0")
         :ring-handler ring-handler
         ;; TODO handle this better
         :resolved-ring-handler (or resolved-ring-handler
