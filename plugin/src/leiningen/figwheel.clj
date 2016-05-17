@@ -60,12 +60,13 @@
      requires)))
 
 (defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
-  (run-local-project
-   project all-builds
-   '(require 'figwheel-sidecar.repl-api)
-   `(do
-      (figwheel-sidecar.repl-api/system-asserts)
-      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts))))
+  (let [builds (into [] (filter #(contains? (set build-ids) (:id %))) all-builds)]
+    (run-local-project
+     project builds
+     '(require 'figwheel-sidecar.repl-api)
+     `(do
+        (figwheel-sidecar.repl-api/system-asserts)
+        (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts)))))
 
 (defn figwheel-edn? [] (.exists (io/file "figwheel.edn")))
 
