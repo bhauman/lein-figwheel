@@ -1,5 +1,6 @@
 (ns ^:figwheel-no-load figwheel.client.utils
-    (:require [clojure.string :as string])
+  (:require [clojure.string :as string]
+            [goog.userAgent.product :as product])
     (:import [goog]))
 
 ;; don't auto reload this file it will mess up the debug printing
@@ -14,13 +15,23 @@
 
 (defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" "$1"))
 
+;; Custom Event must exist before calling this
+(defn create-custom-event [event-name data]
+  (if-not product/IE
+    (js/CustomEvent. event-name (js-obj "detail" data))
+    ;; in windows world
+    ;; this will probably not work at some point in
+    ;; newer versions of IE
+    (let [event (js/document.createEvent "CustomEvent")]
+      (.. event (initCustomEvent event-name false false data))
+      event)))
+
 ;; actually we should probably lift the event system here off the DOM
 ;; so that we work well in Node and other environments
 (defn dispatch-custom-event [event-name data]
   (when (and (html-env?) (aget js/window "CustomEvent") (js* "typeof document !== 'undefined'"))
     (.dispatchEvent (.-body js/document)
-                    (js/CustomEvent. event-name
-                                     (js-obj "detail" data)))))
+                    (create-custom-event event-name data))))
 
 (defn debug-prn [o]
   (when *print-debug*
