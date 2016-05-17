@@ -15,13 +15,16 @@
    [example.fun-tester]
    [tabby]
    [tweaky]
-   [wowzacore])
+   [wowzacore]
+   #_[clojure.string :refer [hithere]])
 
   (:require-macros
    [example.macros :refer [testmac]]
    [cljs.core.async.macros :refer [go]]
    [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
+
+#_(defn)
 
 (prn (testmac "hey there"))
 
