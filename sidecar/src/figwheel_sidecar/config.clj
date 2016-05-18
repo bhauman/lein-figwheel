@@ -63,6 +63,15 @@
 
 (def optimizations-none? (comp opt-none? get-build-options))
 
+(defn default-source-map-timestamp
+  "If we are in a figwheel build,
+  default :build-options :source-map-timestamp to true, unless it's
+  explicitly set to false."
+  [{:keys [figwheel] :as build}]
+  (if figwheel
+    (update-in build [:build-options :source-map-timestamp] #(if (false? %) % true))
+    build))
+
 (defn forward-devcard-option
   "Given a build-config has a [:figwheel :devcards] config it make
   sure that the :build-options has :devcards set to true"
@@ -200,6 +209,7 @@
       (update-in [:build-options] fix-build-options)
       forward-to-figwheel-build-id
       forward-devcard-option
+      default-source-map-timestamp
       ensure-output-dirs!
       (vary-meta assoc ::prepped true)))
 
