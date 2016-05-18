@@ -342,7 +342,7 @@ The following configuration options are available:
 ;; 
 ;;   <any-string>      Uses that exact string as hostname.
 ;;
-;;   :js-client-host   Uses window.location.host from JS.  This is useful when connecting
+;;   :js-client-host   Uses window.location.hostname from JS.  This is useful when connecting
 ;;                     from a different device/computer on your LAN, e.g. testing mobile
 ;;                     safari.
 ;;
@@ -367,6 +367,27 @@ The following configuration options are available:
 ;; when the compiler emits warnings figwheel blocks the loading of files.
 ;; To disable this behavior:
 :load-warninged-code true
+
+;; You can override the websocket url that is used by the figwheel client
+;; by specifying a :websocket-url
+;;
+;; The value of :websocket-url is usually
+;; :websocket-url "ws://localhost:3449/figwheel-ws"
+;;
+;; The :websocket-url is normally derived from the :websocket-host option.
+;; If you supply a :websocket-url the :websocket-host option will be ignored.
+;;
+;; The :websocket-url allows you to use tags for common dynamic values.
+;; For example in:
+;; :websocket-url "ws://[[client-hostname]]:[[server-port]]/figwheel-ws"
+;; Figwheel will fill in the [[client-hostname]] and [[server-port]] tags
+;;
+;; Available tags are
+;; [[server-hostname]]
+;; [[server-ip]]
+;; [[server-port]]
+;; [[client-hostname]]
+;; [[client-port]]
 ```
 
 Whole files will be reloaded on change so we have to make sure that
