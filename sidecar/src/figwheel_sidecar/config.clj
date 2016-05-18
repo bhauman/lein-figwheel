@@ -220,27 +220,35 @@
   (cond
     (nil? host)               "localhost" ; default
     (string? host)            host
-    (= host :js-client-host)  nil ; will be set by figwheel.client/config-defaults
-    (= host :server-hostname) (.getHostName (java.net.InetAddress/getLocalHost))
-    (= host :server-ip)       (.getHostAddress (java.net.InetAddress/getLocalHost))
+    (= host :js-client-host)  "[[client-hostname]]" ; will be set by figwheel.client/config-defaults
+    (= host :server-hostname) "[[server-hostname]]"
+    (= host :server-ip)       "[[server-ip]]"
     :else                     (throw (Exception. (str "Unrecognized :websocket-host " host)))))
 
-(defn update-figwheel-connect-options [{:keys [server-port]} build]
-  (let [fig?     (figwheel-build? build)
-        host-str (websocket-host->str (get-in build [:figwheel :websocket-host]))]
-    (cond-> build
-      fig?
-      (-> (forward-to-figwheel-build-id)
-          (update-in [:figwheel] dissoc :websocket-host))
+(defn fill-websocket-url-template [server-port url]
+  (-> url
+      (string/replace "[[server-hostname]]" (.getHostName (java.net.InetAddress/getLocalHost)))
+      (string/replace "[[server-ip]]"       (.getHostAddress (java.net.InetAddress/getLocalHost)))
+      (string/replace "[[server-port]]"     (str server-port))))
 
-      (and fig? host-str)
-      (update-in [:figwheel :websocket-url]
-                 #(or % (str "ws://" host-str ":" server-port "/figwheel-ws"))))))
+#_(fillin-websocket-url-template 1234 "ws://[[server-ip]]:[[server-port]]/figwheel-ws")
+
+(defn update-figwheel-connect-options [{:keys [server-port]} build]
+  (if (figwheel-build? build)
+    (let [host-str (websocket-host->str (get-in build [:figwheel :websocket-host]))]
+      (-> build
+          forward-to-figwheel-build-id
+          (update-in [:figwheel] dissoc :websocket-host)
+          (update-in [:figwheel :websocket-url]
+                     #(or % (str "ws://" host-str ":" server-port "/figwheel-ws")))
+          (update-in [:figwheel :websocket-url] (partial fill-websocket-url-template server-port))))
+    build))
 
 (comment
 
   (update-figwheel-connect-options {:server-port 5555}
-                                   {:figwheel {:websocket-host "llllll"} :yeah 6})
+                                   {:id 5
+                                    :figwheel {:websocket-host "llllll"} :yeah 6})
 
   (update-figwheel-connect-options {:server-port 5555}
                                    {:figwheel {:websocket-host "llllll"
@@ -263,6 +271,13 @@
                                     :id "dev"
                                     :figwheel {:foo 1
                                                :websocket-host :server-ip}})
+  
+  (update-figwheel-connect-options {:server-port 5555}
+                                   {:yeah 6
+                                    :id "dev"
+                                    :figwheel {:foo 1
+                                               :websocket-host :server-hostname}})
+  
   )
 
 (comment

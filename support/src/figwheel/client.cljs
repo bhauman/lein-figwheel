@@ -322,6 +322,13 @@
         (dissoc :jsload-callback))
     config))
 
+(defn fill-url-template [config]
+  (update-in config [:websocket-url]
+             (fn [x]
+               (-> x
+                   (string/replace "[[client-hostname]]" js/location.hostname)
+                   (string/replace "[[client-port]]" js/location.port)))))
+
 (defn base-plugins [system-options]
   (let [base {:enforce-project-plugin enforce-project-plugin
               :file-reloader-plugin     file-reloader-plugin
@@ -362,8 +369,9 @@
           #(let [plugins' (:plugins opts) ;; plugins replaces all plugins
                  merge-plugins (:merge-plugins opts) ;; merges plugins
                  system-options (-> config-defaults
-                                  (merge (dissoc opts :plugins :merge-plugins))
-                                  (handle-deprecated-jsload-callback))
+                                    (merge (dissoc opts :plugins :merge-plugins))
+                                    handle-deprecated-jsload-callback
+                                    fill-url-template)
                  plugins  (if plugins'
                             plugins'
                             (merge (base-plugins system-options) merge-plugins))]
