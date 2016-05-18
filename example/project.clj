@@ -17,7 +17,7 @@
   
   :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
-            [lein-figwheel "0.5.3-1"]
+            [lein-figwheel "0.5.3-2"]
             #_[lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -55,7 +55,6 @@
                                      :asset-path "js/out"
                                      :output-to "resources/public/js/example.js"
                                      :output-dir "resources/public/js/out"
-                                     :source-map-timestamp true
                                      :libs ["libs_src" "libs_sscr/tweaky.js"]
                                      ;; :externs ["foreign/wowza-externs.js"]
                                      :foreign-libs [{:file "foreign/wowza.js"
@@ -99,7 +98,7 @@
                                     }}]}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [figwheel-sidecar "0.5.3-1"]
+                                    [figwheel-sidecar "0.5.3-2"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
                                     [leiningen-core "2.5.2"]]
