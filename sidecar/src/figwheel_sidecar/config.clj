@@ -309,10 +309,14 @@
   "This loads the project map form project.clj without merging profiles."
   []
   (if (.exists (io/file "project.clj"))
-    (try
-      (into {} (map vec (partition 2 (drop 3 (read-string (slurp "project.clj"))))))
-      (catch Exception e
-        {}))
+    (->> (str "[" (slurp "project.clj") "]")
+         read-string
+         (filter #(= 'defproject (first %)))
+         first
+         (drop 3)
+         (partition 2)
+         (map vec)
+         (into {}))
     {}))
 
 (defn project-builds [project]
