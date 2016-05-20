@@ -1631,6 +1631,13 @@
       (print-error (assoc single-error :orig-config config)) 
       single-error)))
 
+(defn raise-one-error [rules root config]
+  (with-schema rules
+    (when-let [single-error (type-check-one-error root config)]
+      (let [message ])
+      (print-error (assoc single-error :orig-config config)) 
+      single-error)))
+
 (defn print-errors-test [config]
   (mapv #(print-error (assoc % :orig-config config))
         (type-check 'RootMap config)))

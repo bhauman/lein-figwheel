@@ -111,7 +111,8 @@
   [project & build-ids]
   (fc/system-asserts)
   (when-let [config-data (validate-figwheel-conf project)]
-    (let [{:keys [all-builds figwheel-options]}
+    (pp/pprint config-data)
+    #_(let [{:keys [all-builds figwheel-options]}
           (-> config-data
               (fc/config build-ids)
               fc/prep-config)

@@ -9,6 +9,8 @@
    [figwheel-sidecar.components.css-watcher     :as css-watch]
    [figwheel-sidecar.components.cljs-autobuild  :as autobuild]
    [figwheel-sidecar.components.figwheel-server :as server]
+
+   [figwheel-sidecar.config-check.validate-config :as vc]
    
    [com.stuartsierra.component :as component]
 
@@ -584,7 +586,9 @@
 
 (defn start-figwheel!
   [{:keys [figwheel-options all-builds build-ids] :as options}]
-  (let [system (create-figwheel-system options)]
+  #_(vc/validate-api-config! options)
+  (let [options (update-in options [:all-builds] config/prep-builds)
+        system (create-figwheel-system options)]
     (component/start system)))
 
 (defn stop-figwheel! [system]

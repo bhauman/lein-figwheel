@@ -4,7 +4,8 @@
    [clojure.edn :as edn]
    [clojure.string :as string]
    [clojure.java.io :as io]
-   [clojure.walk :as walk]))
+   [clojure.walk :as walk]
+   [figwheel-sidecar.config-check.validate-config :as vc]))
 
 ;; trying to keep this whole file clojure 1.5.1 compatible because
 ;; it is required by the leiningen process in the plugin
@@ -189,11 +190,13 @@
        (apply-to-key normalize-dir :output-dir)
        sane-output-to-dir))
 
+;; idempotent
 (defn move-compiler-to-build-options [build]
   (-> build
       (assoc :build-options (get-build-options build))
       (dissoc :compiler)))
 
+; idempotent
 (defn ensure-id
   "Converts given build :id to a string and if no :id exists generate and id."
   [opts]
@@ -215,6 +218,16 @@
 
 (defn prepped? [build]
   (-> build meta ::prepped))
+
+(defn prep-build-if-not-prepped [build]
+  (if-not (prepped? build)
+    (prep-build build)
+    build))
+
+(defn prep-builds* [builds]
+  (-> builds
+      map-to-vec-builds
+      (->> (mapv prep-build-if-not-prepped))))
 
 (defn websocket-host->str [host]
   (cond
@@ -293,10 +306,7 @@
    { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5 :devcards true} :build-options {:fun false}})
  )
 
-(defn prep-builds [builds]
-  (-> builds
-      map-to-vec-builds
-      (->> (mapv prep-build))))
+
 
 ;; high level configuration helpers
 
@@ -323,14 +333,150 @@
   (or (get-in project [:figwheel :builds])
       (get-in project [:cljsbuild :builds])))
 
-(defn needs-lein-project-config? []
-  (not (.exists (io/file "figwheel.edn"))))
+(defn figwheel-edn-exists? []
+  (.exists (io/file "figwheel.edn")))
 
-(defn config
+(defn needs-lein-project-config? []
+  (not (figwheel-edn-exists?)))
+
+#_(defn retrieve-and-validate-config
+  ([] (retrieve-and-validate-config nil)) 
+  ([project-config-data]
+   (let [project-based-config (needs-lein-project-config?)
+         config-data (if project-based-config
+                       (or project-config-data (get-project-config))
+                       (read-edn-file "figwheel.edn"))
+         error-message (with-out-str
+                         (vc/validate-config-data config-data
+                                                  (not project-based-config)))]
+     (when (and error-message (not (string/blank? error-message)))
+       (throw
+        (ex-info error-message {:cause (str "Configuration error found in "
+                                            (if project-based-config
+                                              "project.clj"
+                                              "figwheel.edn"))})))
+     (vary-meta config-data
+                assoc (if project-based-config ::lein-project ::figwheel-edn)
+                true))))
+
+#_(defn raw-config->config [config-data]
+  (if (-> config-data meta ::figwheel-edn)
+    {:figwheel-options (dissoc config-data :builds)
+     :all-builds (:builds config-data)}
+    {:figwheel-options (dissoc (:figwheel config-data) :builds)
+     :all-builds (project-builds config-data)}))
+
+
+
+;; ConfigSource methods
+
+(defn read-config-source-data [{:keys [data read-fn type] :as config-source}]
+  (cond
+    data data
+    read-fn (read-fn)
+    :else (condp = type
+            ::lein-project (get-project-config)
+            ::figwheel-edn (slurp "figwheel.edn"))))
+
+(defn read-config-source [{:keys [data read-fn] :as config-source}]
+  (assoc
+   config-source
+   :data (read-config-source-data config-source)))
+
+;; ConfigData methods
+
+
+
+;; ConfigData -> nil ; raises runtime exception with on configuration error
+(defn validate-config-data [{:keys [file type data] :as config-data}]
+  (condp = type
+    ::figwheel-edn    (vc/validate-figwheel-edn-config-data config-data)
+    ::lein-project    (vc/validate-project-config-data      config-data)
+    ::figwheel-config (vc/validate-figwheel-config-data     config-data)))
+
+;; ConfigData -> FigwheelConfig
+(defn canonical-figwheel-config [{:keys [file type data] :as config-data}]
+  (condp = type
+    ::figwheel-edn {:figwheel-options (dissoc data :builds)
+                    :all-builds (:builds data)}
+    ::lein-project {:figwheel-options (dissoc (:figwheel data) :builds)
+                    :all-builds (project-builds data)}))
+
+;; FigwheelConfig, ConfigData -> nil or runtime exception with config error
+(defn validate-figwheel-config [figwheel-config config-data]
+  (validate-config-data (assoc
+                         config-data
+                         :type ::figwheel-config
+                         :data figwheel-config)))
+
+;; FigwheelConfig -> FigwheelConfig
+(defn prep-builds [figwheel-config]
+  (update-in figwheel-config [:all-builds] prep-builds*))
+
+
+;; FigwheelConfig -> FigwheelConfig
+(defn populate-build-ids [{:keys [all-builds build-ids figwheel-options]
+                           :as figwheel-config}]
+  (->> figwheel-options
+       :builds-to-start
+       (map name)
+       (or build-ids)
+       not-empty
+       (narrow-builds* all-builds)
+       (mapv :id)
+       (assoc figwheel-config :build-ids))
+  #_(assoc figwheel-config
+           :build-ids
+           (mapv :id
+                 (narrow-builds* all-builds
+                                 (not-empty
+                                (or build-ids
+                                    (map name
+                                         (:builds-to-start figwheel-options))))))))
+
+;; FigwheelConfig -> FigwheelConfig
+(def prepped-figwheel-config (comp populate-build-ids prep-builds*))
+
+(defn intial-config-source []
+  (if (figwheel-edn-exists?)
+    {:file "figwheel.edn" :type ::figwheel-edn}
+    {:file "project.clj"  :type ::lein-project}))
+
+(defn fetch-figwheel-config []
+  (let [config-data (read-config-source (intial-config-source))]
+    (validate-config-data config-data)
+    (-> config-data
+        canonical-figwheel-config
+        prepped-figwheel-config)))
+
+(def fetch-config fetch-figwheel-config)
+
+#_(fetch-config)
+
+(comment
+  ConfigSource [:file :type [optional :data] [optional :read-fn]] ;; optional data is an identity under read config source
+  read-config-source (ConfigSource) -> ConfigData [:data :type :file]
+  validate-config-data (ConfigData) -> nil ;; raises exception
+  canonical-figwheel-config (ConfigData) -> FigwheelConfig [:figwheel-options :all-builds :build-ids]
+  validate-figwheel-config (FigwheelConfig, ConfigData) -> nil ;; raises exception
+  prep-builds (FigwheelConfig) -> FigwheelConfig
+  populate-build-ids (FigwheelConfig) -> FigwheelConfig
+  ;; this is a convenience method that does both of the above
+  prepped-figwheel-config (FigwheelConfig) -> FigwheelConfig
+  
+  )
+
+
+#_(raw-config->config (retrieve-and-validate-config))
+
+#_(defn config
   ([] (config (get-project-config) nil))
   ([project] (config project nil))
   ([project build-ids]
    (assoc
+    (raw-config->config (if (needs-lein-project-config?)
+                          project
+                          (read-edn-file "figwheel.edn")))
     (if-not (needs-lein-project-config?)
       (let [fig-opts (read-edn-file "figwheel.edn")]
         {:figwheel-options (dissoc fig-opts :builds)
@@ -339,7 +485,7 @@
        :all-builds (project-builds project)})
     :build-ids build-ids)))
 
-(defn prep-config [config]
+#_(defn prep-config [config]
   (let [prepped (update-in config [:all-builds] prep-builds)]
     (assoc prepped
            :build-ids
@@ -349,5 +495,5 @@
                                   (or (:build-ids prepped)
                                       (map name (get-in prepped [:figwheel-options :builds-to-start])))))))))
 
-(defn fetch-config []
+#_(defn fetch-config []
   (prep-config (config)))

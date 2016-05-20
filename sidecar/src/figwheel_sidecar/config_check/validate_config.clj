@@ -161,13 +161,17 @@
           {:figwheel  (ref-schema 'FigwheelOptions)
            :cljsbuild (ref-schema 'CljsbuildOptions)})
 
-(def figwheel-cljsbuild-rules
+(def figwheel-options-rules
   (doall
    (distinct
-   (concat
-    shared-type-rules
-    cljs-compiler-rules
-    (spec 'FigwheelOptions
+    (concat
+     (or-spec 'HawkWatcher :barbary :java :polling)
+     (spec 'HawkOptionsMap {:watcher (ref-schema 'HawkWatcher)})
+     (or-spec 'ReloadCljFiles
+              (ref-schema 'Boolean)
+              {:clj  (ref-schema 'Boolean)
+               :cljc (ref-schema 'Boolean)})
+     (spec 'FigwheelOptions
           {:http-server-root  string?
            ; :builds is added below
            :server-port       integer?
@@ -184,15 +188,75 @@
            :hawk-options      (ref-schema 'HawkOptionsMap)
            :nrepl-middleware  [(ref-schema 'Named)]
            :validate-config   (ref-schema 'Boolean)})
-    (spec 'HawkOptionsMap {:watcher (ref-schema 'HawkWatcher)})
-    (or-spec 'HawkWatcher :barbary :java :polling)
-    (or-spec 'ReloadCljFiles
-             (ref-schema 'Boolean)
-             {:clj  (ref-schema 'Boolean)
-              :cljc (ref-schema 'Boolean)})
-    (spec 'CljsbuildOptions
-          {
-           :builds               (ref-schema 'CljsBuilds)
+         (get-docs ['FigwheelOptions])))))
+
+(def build-options-rules
+  (doall
+   (distinct
+    (concat
+     (or-spec 'WebsocketHost :js-client-host :server-ip :server-hostname string?)
+     (or-spec 'FigwheelClientOptions
+              (ref-schema 'Boolean)
+              {:build-id            string?
+               :websocket-host      (ref-schema 'WebsocketHost)
+               :websocket-url       string?
+               :on-jsload           (ref-schema 'Named)
+               :before-jsload       (ref-schema 'Named)
+               :on-cssload          (ref-schema 'Named)
+               :on-message          (ref-schema 'Named)
+               :on-compile-fail     (ref-schema 'Named)
+               :on-compile-warning  (ref-schema 'Named)
+               :reload-dependents   (ref-schema 'Boolean)
+               :debug               (ref-schema 'Boolean)
+               :autoload            (ref-schema 'Boolean)
+               :heads-up-display    (ref-schema 'Boolean)
+               :load-warninged-code (ref-schema 'Boolean)
+               :retry-count         integer?
+               :devcards            (ref-schema 'Boolean)
+               :eval-fn             (ref-schema 'Named)})
+     (spec 'BuildOptionsMap
+           {:id              (ref-schema 'Named)
+            :source-paths    [string?]
+            :figwheel        (ref-schema 'FigwheelClientOptions)
+            ;:compiler        (ref-schema 'CompilerOptions)
+            :notify-command  [string?]
+            :jar             (ref-schema 'Boolean)
+            :incremental     (ref-schema 'Boolean)
+            :assert          (ref-schema 'Boolean)
+            :warning-handlers [anything?]})
+     (assert-not-empty 'BuildOptionsMap :source-paths)
+     (requires-keys 'BuildOptionsMap :source-paths #_:compiler)
+     (get-docs ['CompilerOptions
+                'FigwheelClientOptions
+                'BuildOptionsMap
+                'ReloadCljFiles])))))
+
+;; this is not good I'm having to inject rules for build-options
+;; versus compiler 
+(defn build-options-map-compiler-options [key]
+  {:pre [(keyword? key)]
+   :post [(sequence %)]}  
+  (distinct
+   (concat
+    (spec 'BuildOptionsMap {key (ref-schema 'CompilerOptions)})
+    (requires-keys 'BuildOptionsMap key))))
+
+(def common-validation-rules-base
+  (doall
+   (distinct
+    (concat
+     shared-type-rules
+     cljs-compiler-rules
+     figwheel-options-rules
+     build-options-rules))))
+
+(def figwheel-cljsbuild-rules
+  (doall
+   (distinct
+    (concat
+     common-validation-rules-base
+     (spec 'CljsbuildOptions
+          {:builds               (ref-schema 'CljsBuilds)
            :repl-listen-port     integer?
            :repl-launch-commands {named? [(ref-schema 'Named)]}
            :test-commands        {named? [(ref-schema 'Named)]}
@@ -202,56 +266,58 @@
     (or-spec 'CljsBuilds
              [(ref-schema 'BuildOptionsMap)]
              {named? (ref-schema 'BuildOptionsMap)})
-    (spec 'BuildOptionsMap
-          { :id              (ref-schema 'Named)
-            :source-paths    [string?]
-            :figwheel        (ref-schema 'FigwheelClientOptions)
-            :compiler        (ref-schema 'CompilerOptions)
-            :notify-command  [string?]
-            :jar             (ref-schema 'Boolean)
-            :incremental     (ref-schema 'Boolean)
-            :assert          (ref-schema 'Boolean)
-            :warning-handlers [anything?]
-           })
-    (assert-not-empty 'BuildOptionsMap :source-paths)
-    (requires-keys 'BuildOptionsMap :source-paths :compiler)
-    (or-spec 'FigwheelClientOptions
-             (ref-schema 'Boolean)
-             {:websocket-host      (ref-schema 'WebsocketHost)
-              :websocket-url       string?
-              :on-jsload           (ref-schema 'Named)
-              :before-jsload       (ref-schema 'Named)
-              :on-cssload          (ref-schema 'Named)
-              :on-message          (ref-schema 'Named)
-              :on-compile-fail     (ref-schema 'Named)
-              :on-compile-warning  (ref-schema 'Named)
-              :reload-dependents   (ref-schema 'Boolean)
-              :debug               (ref-schema 'Boolean)
-              :autoload            (ref-schema 'Boolean)
-              :heads-up-display    (ref-schema 'Boolean)
-              :load-warninged-code (ref-schema 'Boolean)
-              :retry-count         integer?
-              :devcards            (ref-schema 'Boolean)
-              :eval-fn             (ref-schema 'Named)})
-    (or-spec 'WebsocketHost :js-client-host :server-ip :server-hostname string?)
     (get-docs
-     ['CompilerOptions
-      'FigwheelOptions
-      'FigwheelClientOptions
-      'BuildOptionsMap
-      'CljsbuildOptions
-      'RootMap
-      'ReloadCljFiles])))))
+     ['CljsbuildOptions])))))
 
 (def schema-rules-base
   (concat
    (spec 'RootMap
          {:figwheel  (ref-schema 'FigwheelOptions)
           :cljsbuild (ref-schema 'CljsbuildOptions)})
-   figwheel-cljsbuild-rules))
+   figwheel-cljsbuild-rules
+   (get-docs ['RootMap])))
 
 ;; alright everyting below is the result of being so wishywashy about
 ;; configuration and now I'm having to support multiple ways of doing things
+
+(def api-config-rules-base
+  (doall
+   (distinct
+    (concat
+     common-validation-rules-base
+     (build-options-map-compiler-options :build-options)     
+     (spec 'Builds [(ref-schema 'BuildOptionsMap)])
+     (spec 'ApiRootMap
+           {:all-builds (ref-schema 'Builds)
+            :figwheel-options (ref-schema 'FigwheelOptions)
+            :build-ids [string?]})
+     (requires-keys 'ApiRootMap :figwheel-options :all-builds)
+     (assert-not-empty 'ApiRootMap :all-builds)
+     #_(get-docs ['ApiRootMap])))))
+
+(defn raise-one-error [rules root {:keys [data file type] :as config-data}]
+  (tc/with-schema rules
+    (when-let [single-error (tc/type-check-one-error root data)]
+      (let [message (with-out-str (tc/print-error (assoc single-error :orig-config data)))]
+        (throw
+         (ex-info message
+                  {:cause "You provided figwheel with a bad config."
+                   :validation-error single-error
+                   :config-provided data
+                   :config-source-file file
+                   :config-type type})))
+      single-error)))
+
+(defn validate-api-config! [config]
+  (when-not (get config :skip-api-validation)
+    (tc/with-schema (index-spec api-config-rules-base)
+      (when-let [single-error (tc/type-check-one-error 'ApiRootMap config)]
+        (let [message (with-out-str (tc/print-error (assoc single-error :orig-config config)))]
+          (throw
+           (ex-info message
+                    {:cause "You provided figwheel with a bad config."
+                     :error single-error
+                     :config-provided config})))))))
 
 (defn get-keylike [ky mp]
   (if-let [val (get mp ky)]
@@ -262,9 +328,9 @@
                      (filter
                       #(first %)
                       (map (fn [[k v]] [(and (tc/similar-key 0 k ky)
-                                            (map? v)
-                                            (tc/ky-distance k ky))
-                                       [k v]]) mp))))]
+                                             (map? v)
+                                             (tc/ky-distance k ky))
+                                        [k v]]) mp))))]
       (-> res first second))))
 
 #_(defn get-keyslike [kys mp]
@@ -280,13 +346,15 @@
    (let [builds (get-in config [:figwheel :builds])]
      (when (tc/sequence-like? builds)
        (requires-keys 'BuildOptionsMap :id)))
-   figwheel-cljsbuild-rules))
+   figwheel-cljsbuild-rules
+   (build-options-map-compiler-options :compiler)))
 
 #_(validate-only-figwheel-rules {:figwheel {:builds []}})
 
 (defn validate-regular-rules [config]
   (index-spec
    schema-rules-base
+   (build-options-map-compiler-options :compiler)   
    (requires-keys 'CljsbuildOptions :builds)
    (assert-not-empty 'CljsbuildOptions :builds)
    (requires-keys 'RootMap :cljsbuild)
@@ -297,6 +365,7 @@
 (defn validate-figwheel-edn-rules [config]
   (index-spec
    figwheel-cljsbuild-rules
+   (build-options-map-compiler-options :compiler)   
    (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
    (requires-keys 'FigwheelOptions :builds)
    (assert-not-empty 'FigwheelOptions :builds)   
@@ -304,30 +373,33 @@
      (when (tc/sequence-like? builds)
        (requires-keys 'BuildOptionsMap :id)))))
 
-(defn validate-project-config [config]
-  (let [[cljb-k cljb-v] (get-keylike :cljsbuild config)
-        [fig-k  fig-v]  (get-keylike :figwheel config)]
+(defn validate-project-config-data [{:keys [data] :as config-data}]
+  (let [[cljb-k cljb-v] (get-keylike :cljsbuild data)
+        [fig-k  fig-v]  (get-keylike :figwheel data)]
     (if (and fig-k (get fig-v :builds))
       (let [conf {fig-k fig-v}]
-        (print-one-error (validate-only-figwheel-rules conf) 'RootMap conf))
+        (raise-one-error (validate-only-figwheel-rules conf) 'RootMap (assoc config-data :data conf)))
       (let [conf (into {} (filter (comp not nil? first) [[fig-k  fig-v]
                                                          [cljb-k cljb-v]]))]
-        (print-one-error (validate-regular-rules conf) 'RootMap conf)))))
+        (raise-one-error (validate-regular-rules conf) 'RootMap (assoc config-data :data conf))))))
 
 #_ (with-color
-     (validate-project-config
-      {:cljsbuild
-       {:builds { :source-paths ["src" ]
-                 :fighweel true
-                 :compiler {}}}
-       :figwheel {}}))
+     (validate-project-config-data
+      {:file (io/file "project.clj")
+       :type :lein-project
+       :data
+       {:cljsbuild
+        {:builds { :source-paths ["src" ]
+                  :fighweel true
+                  :compiler {}}}
+        :figwheel {}}}))
 
-(defn validate-figwheel-edn-file [config]
-  (print-one-error (validate-figwheel-edn-rules config)
+(defn validate-figwheel-edn-config-data [{:keys [data] :as config-data}]
+  (raise-one-error (validate-figwheel-edn-rules data)
                 'FigwheelOptions
-                config))
+                config-data))
 
-(defn validate-config-data [config figwheel-options-only?]
+#_(defn validate-config-data [config figwheel-options-only?]
   (if figwheel-options-only?
     (validate-figwheel-edn-file config)
     (validate-project-config config)))
