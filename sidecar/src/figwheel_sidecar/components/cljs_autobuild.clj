@@ -129,7 +129,7 @@
           ;; the user is in an interactive development environment
           ;; if not we need to stop and let them know
           (when-not (.exists (io/file output-to-filepath))
-            (throw (ex-info "---- Initial Figwheel ClojureScript Compilation Failed ---- \nWe need a sucessful initial build for Figwheel to connect correctly.\n"
+            (throw (ex-info "---- Initial Figwheel ClojureScript Compilation Failed ---- \nWe need a successful initial build for Figwheel to connect correctly.\n"
                         {:reason :initial-cljs-build-exception
                          :escape-system-exceptions true}
                         e))))))))
