@@ -56,16 +56,20 @@
         (catch Exception e#
           (do
             (.printStackTrace e#)
-           (System/exit 1))))
+            (System/exit 1))))
      requires)))
 
 (defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
-  (run-local-project
-   project all-builds
-   '(require 'figwheel-sidecar.repl-api)
-   `(do
-      (figwheel-sidecar.repl-api/system-asserts)
-      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts))))
+  (if (empty? all-builds)
+    (do
+      (println "\nFigwheel: No builds detected. Exiting ...")
+      (System/exit 1))
+    (run-local-project
+     project all-builds
+     '(require 'figwheel-sidecar.repl-api)
+     `(do
+        (figwheel-sidecar.repl-api/system-asserts)
+        (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts)))))
 
 (defn figwheel-edn? [] (.exists (io/file "figwheel.edn")))
 
