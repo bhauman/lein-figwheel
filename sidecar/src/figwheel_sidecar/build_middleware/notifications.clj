@@ -191,6 +191,26 @@
 
 (let [foreground-red "\u001b[31m"
       reset-color "\u001b[0m"]
+  (defmulti report-exception (fn [exception cause] (or (:type cause) (:tag cause))))
+  
+  (defmethod report-exception :reader-exception [e {:keys [file line column]}]
+    (println (str foreground-red
+                  (format "ERROR: %s on file %s, line %d, column %d"
+                     (some-> e (.getCause) (.getMessage))
+                     file line column)
+                  reset-color)))
+  
+  (defmethod report-exception :cljs/analysis-error [e {:keys [file line column]}]
+    (println (str foreground-red
+                  (format "ANALYSIS ERROR: %s on file %s, line %d, column %d"
+                          (some-> e (.getCause) (.getMessage))
+                          file line column)
+                  reset-color)))
+  
+  (defmethod report-exception :default [e _]
+    #_(clj-stacktrace.repl/pst+ e)
+    (stack/print-stack-trace e 30))
+  
   (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
     (println
      (str foreground-red "Compiling \"" (:output-to build-options) "\" failed."))
