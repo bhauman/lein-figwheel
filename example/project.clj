@@ -136,6 +136,10 @@
              ;; :ring-handler example.server/handler
 
              ;; if you need polling instead of FS events
-             ;; :hawk-options {:watcher :polling} 
-             
+             ;; :hawk-options {:watcher :polling}
+
+             ;; if your project.clj contains conflicting builds,
+             ;; you can choose to only load the builds specified
+             ;; on the command line
+             ;; :all-builds false ; default is true
              })

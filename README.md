@@ -288,7 +288,11 @@ side configuration parameters:
    ;; if you need to watch files with polling instead of FS events
    ;; :hawk-options {:watcher :polling}     
    ;; ^ this can be useful in Docker environments
- 
+
+   ;; if your project.clj contains conflicting builds,
+   ;; you can choose to only load the builds specified
+   ;; on the command line
+   ;; :all-builds false ; default is true
 } 
 ```
 

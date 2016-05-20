@@ -60,13 +60,12 @@
      requires)))
 
 (defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
-  (let [builds (into [] (filter #(contains? (set build-ids) (:id %))) all-builds)]
-    (run-local-project
-     project builds
-     '(require 'figwheel-sidecar.repl-api)
-     `(do
-        (figwheel-sidecar.repl-api/system-asserts)
-        (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts)))))
+  (run-local-project
+   project all-builds
+   '(require 'figwheel-sidecar.repl-api)
+   `(do
+      (figwheel-sidecar.repl-api/system-asserts)
+      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts))))
 
 (defn figwheel-edn? [] (.exists (io/file "figwheel.edn")))
 
@@ -107,6 +106,13 @@
           (do (println "\nFigwheel: Configuration validation failed. Exiting ...")
               false))))))
 
+(defn autobuild-opts [figwheel-options all-builds build-ids]
+  {:build-ids (vec build-ids)
+   :all-builds (if (:all-builds figwheel-options)
+                 all-builds
+                 (into [] (filter #(contains? (set build-ids) (:id %))) all-builds))
+   :figwheel-options (dissoc figwheel-options :all-builds)})
+
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
@@ -121,8 +127,5 @@
                                    all-builds
                                    build-ids))]
       (if (empty? errors)
-        (run-compiler project
-                      { :figwheel-options figwheel-options
-                        :all-builds all-builds
-                        :build-ids  (vec build-ids)})
+        (run-compiler project (autobuild-opts figwheel-options all-builds build-ids))
         (mapv println errors)))))
