@@ -26,8 +26,11 @@
    (:build-options build-config)
    (:compiler-env build-config)))
 
+;; TODO use ansi color lib here
 (let [reset-color "\u001b[0m"
-      foreground-green "\u001b[32m"
+      foreground-red "\u001b[31m"
+      foreground-green "\u001b[32m"      
+      
       elapsed
       (fn [started-at]
         (let [elapsed-us (- (System/currentTimeMillis) started-at)]
@@ -43,14 +46,22 @@
                       output-to
                       "\" from " (pr-str source-paths) "..."))
         (flush)
-                                        ; build
-        (build-fn build-state)
-                                        ; print end message
-        (println (str foreground-green
-                      "Successfully compiled \""
-                      output-to
-                      "\" in " (elapsed started-at) "." reset-color))
-        (flush)))))
+        (try
+          ; build
+          (build-fn build-state)
+          ; print end message
+          (println (str foreground-green
+                        "Successfully compiled \""
+                        output-to
+                        "\" in " (elapsed started-at) "." reset-color))
+          (flush)
+          (catch Throwable e
+            (println (str foreground-red
+                          "Failed to compile \""
+                          output-to
+                          "\" in " (elapsed started-at) "." reset-color))
+            (flush)
+            (throw e)))))))
 
 
 (defn handle-notify-command [build-state s]
@@ -72,26 +83,26 @@
   (-> cljs-build
       injection/hook
       notify-command-hook
-      notifications/hook
       clj-reloading/hook
       javascript-reloading/hook
-      figwheel-start-and-end-messages))
+      figwheel-start-and-end-messages
+      notifications/hook))
 
 (def figwheel-build-without-javascript-reloading
   (-> cljs-build
       injection/hook
       notify-command-hook      
-      notifications/hook
       clj-reloading/hook
-      figwheel-start-and-end-messages))
+      figwheel-start-and-end-messages
+      notifications/hook))
 
 (def figwheel-build-without-clj-reloading
   (-> cljs-build
       injection/hook
       notify-command-hook      
-      notifications/hook
       javascript-reloading/hook
-      figwheel-start-and-end-messages))
+      figwheel-start-and-end-messages
+      notifications/hook))
 
 (defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
   (let [{:keys [libs foreign-libs]} build-options]
@@ -108,8 +119,20 @@
     (try
       (build-fn build-state)
       (catch Throwable e
-        (prn (ex-data (.getCause e)))
-        (notifications/report-exception e (ex-data (.getCause e)))))))
+        #_(prn (ex-data (.getCause e)))
+        (notifications/report-exception e (ex-data (.getCause e)))
+        ;; this only applies if :output-to doesn't exist
+        (flush)
+        (let [output-to-filepath
+              (get-in build-state [:build-config :build-options :output-to])]
+          ;; I am assuming for now that if the output file exists
+          ;; the user is in an interactive development environment
+          ;; if not we need to stop and let them know
+          (when-not (.exists (io/file output-to-filepath))
+            (throw (ex-info "---- Initial Figwheel ClojureScript Compilation Failed ---- \nWe need a sucessful initial build for Figwheel to connect correctly.\n"
+                        {:reason :initial-cljs-build-exception
+                         :escape-system-exceptions true}
+                        e))))))))
 
 (defn extract-cljs-build-fn
   [{:keys [figwheel-server] :as cljs-autobuild}]
@@ -161,11 +184,15 @@
           ;; A better solution is to differentiate in these warnings and have a system
           ;; that says wether a warning is a blocking warning
           ((if (= cljs-build-fn figwheel-build)
+             ;; the order here is very very important
+             ;; must think about the exception flow
+             ;; exceptions must skip over code that needs the build to succeed
+             ;; also consider the messages that the user recieves 
              (-> cljs-build
-                 notify-command-hook
-                 catch-print-hook
                  injection/hook
-                 figwheel-start-and-end-messages)
+                 notify-command-hook
+                 figwheel-start-and-end-messages
+                 catch-print-hook)
              cljs-build-fn) this)
           (assoc this
                  ;; for simple introspection
