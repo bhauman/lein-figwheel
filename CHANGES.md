@@ -1,9 +1,8 @@
 ## 0.5.3-2 Fix regression for initial build errors
 
-* cleaned up initial compile experience and horrendous errors in this common case
-  When you started figwheel and you have a syntax error in your code the experience
-  was really less than satisfactory. I have improved this, and have work planned to
-  improve this further.
+* cleaned up initial compile failure experience. There are horrendous errors
+  if you start figwheel and you have a syntax error in your initial build.
+  #fixes 392
 * hopefully fixed CustomEvent dispatch in IE Edge made
 * :source-map-timestamp default to true unless specifically set to false.
   This if for :figwheel builds only.
