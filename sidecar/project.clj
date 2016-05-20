@@ -23,6 +23,7 @@
     :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.9" :exclusions [org.clojure/clojure]]
 
+   [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
    [clj-fuzzy "0.3.1"]
    [fipp "0.6.4"]])
