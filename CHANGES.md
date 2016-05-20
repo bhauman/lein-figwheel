@@ -1,3 +1,15 @@
+## 0.5.3-2 Fix regression for initial build errors
+
+* cleaned up initial compile failure experience. There are horrendous errors
+  if you start figwheel and you have a syntax error in your initial build.
+  #fixes 392
+* hopefully fixed CustomEvent dispatch in IE Edge made
+* :source-map-timestamp default to true unless specifically set to false.
+  This if for :figwheel builds only.
+* fixed a problem with :js-client-host, it now uses the localhost.hostname + server-port
+* Added :websocket-url template tags, see the Readme.
+* When reading raw project.clj extract data only from first form that starts with 'defproject
+
 ## 0.5.3-1 First take on improving compiler error messages
 
 I'm planning on investing some time in fixing up the error messages. This is just a

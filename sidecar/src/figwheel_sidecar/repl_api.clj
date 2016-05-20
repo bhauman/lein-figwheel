@@ -134,7 +134,7 @@ the first default id)."
   (doc api-help))
 
 (defn start-figwheel-from-lein [{:keys [figwheel-options all-builds build-ids] :as options}]
-  (let [system (fs/start-figwheel! options)]
+  (when-let [system (fs/start-figwheel! options)]
     (alter-var-root #'*repl-api-system* (fn [_] system))
     (if (false? (:repl figwheel-options))
       (loop [] (Thread/sleep 30000) (recur))

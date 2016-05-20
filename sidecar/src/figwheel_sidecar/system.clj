@@ -584,19 +584,32 @@
 
 ;; figwheel starting and stopping helpers
 
+(defn unest-component-exception [e]
+  (if (-> e ex-data :reason (= :com.stuartsierra.component/component-function-threw-exception))
+    (unest-component-exception (.getCause e))
+    e))
+
 (defn start-figwheel!
   [{:keys [figwheel-options all-builds build-ids] :as options}]
-  #_(vc/validate-api-config! options)
   (let [options (update-in options [:all-builds] config/prep-builds)
         system (create-figwheel-system options)]
-    (component/start system)))
+    (try
+      (component/start system)
+      (catch Throwable e
+        (let [orig-exception  (unest-component-exception e)
+              [escape reason] ((juxt :escape-system-exceptions :reason)
+                               (ex-data orig-exception))]
+          (if escape
+            (do (println (.getMessage orig-exception))
+                (when-not (= reason :initial-cljs-build-exception)
+                  (throw (.getCause orig-exception))))
+            (throw e)))))))
+
 
 (defn stop-figwheel! [system]
   (component/stop system))
 
 ;; this is a blocking call
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
-  (let [system (start-figwheel! autobuild-options)]
+  (when-let [system (start-figwheel! autobuild-options)]
     (cljs-repl (:figwheel-system system))))
-
-
