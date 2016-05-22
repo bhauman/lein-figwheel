@@ -511,20 +511,6 @@
 
 #_(fetch-config)
 
-(comment
-  ConfigSource [:file :type [optional :data] [optional :read-fn]] ;; optional data is an identity under read config source
-  read-config-source (ConfigSource) -> ConfigData [:data :type :file]
-  validate-config-data (ConfigData) -> nil ;; raises exception
-  canonical-figwheel-config (ConfigData) -> FigwheelConfig [:figwheel-options :all-builds :build-ids]
-  validate-figwheel-config (FigwheelConfig, ConfigData) -> nil ;; raises exception
-  prep-builds (FigwheelConfig) -> FigwheelConfig
-  populate-build-ids (FigwheelConfig) -> FigwheelConfig
-  ;; this is a convenience method that does both of the above
-  prepped-figwheel-config (FigwheelConfig) -> FigwheelConfig
-  
-  )
-
-
 ;;; looping and waiting to fix config
 ;; probably needs to be in another namespace
 
