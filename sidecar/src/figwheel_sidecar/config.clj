@@ -502,7 +502,8 @@
   (-> config-source
       ->config-data
       validate-config-data
-      config-data->prepped-figwheel-internal))
+      config-data->prepped-figwheel-internal
+      (vary-meta assoc :validate-config false)))
 
 (defn fetch-figwheel-config []
   (config-source->prepped-figwheel-internal (initial-config-source)))

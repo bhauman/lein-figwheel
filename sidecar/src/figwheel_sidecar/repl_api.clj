@@ -17,10 +17,10 @@
 (defn start-figwheel!
   "If you aren't connected to an env where fighweel is running already,
   this method will start the figwheel server with the passed in build info."
-  ([{:keys [figwheel-options all-builds build-ids] :as autobuild-options}]
+  ([config-source]
    (when *repl-api-system*
      (alter-var-root #'*repl-api-system* component/stop))
-   (alter-var-root #'*repl-api-system* (fn [_] (fs/start-figwheel! autobuild-options)))
+   (alter-var-root #'*repl-api-system* (fn [_] (fs/start-figwheel! config-source)))
    nil)
   ([]
    (if *repl-api-system*

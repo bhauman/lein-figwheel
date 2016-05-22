@@ -1,9 +1,8 @@
 (ns user
   (:require
    [figwheel-sidecar.repl-api :as f]
+   [figwheel-sidecar.config   :as fc]
    [clojure.tools.namespace.repl :refer (refresh refresh-all)]))
-
-(def sys f/*repl-api-system*)
 
 (defn start []
   (f/start-figwheel!))

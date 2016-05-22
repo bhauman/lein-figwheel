@@ -614,13 +614,15 @@
     config-options
     (config/->figwheel-internal-config-source config-options)))
 
-(defn start-figwheel! [config-options]
+(defn start-figwheel!
+  ([] (start-figwheel! (config/fetch-config)))
+  ([config-options]
   (let [internal-config-data
         (-> config-options
             normalize-start-figwheel-config-options
             config/config-source->prepped-figwheel-internal
             :data)]
-    (start-figwheel-system internal-config-data)))
+    (start-figwheel-system internal-config-data))))
 
 (defn stop-figwheel! [system]
   (component/stop system))
