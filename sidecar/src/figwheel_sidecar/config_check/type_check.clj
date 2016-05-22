@@ -1634,7 +1634,6 @@
 (defn raise-one-error [rules root config]
   (with-schema rules
     (when-let [single-error (type-check-one-error root config)]
-      (let [message ])
       (print-error (assoc single-error :orig-config config)) 
       single-error)))
 

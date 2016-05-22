@@ -5,7 +5,8 @@
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.walk :as walk]
-   [figwheel-sidecar.config-check.validate-config :as vc]))
+   [figwheel-sidecar.config-check.validate-config :as vc]
+   [figwheel-sidecar.config-check.ansi :refer [color-text with-color]]))
 
 ;; trying to keep this whole file clojure 1.5.1 compatible because
 ;; it is required by the leiningen process in the plugin
@@ -313,13 +314,14 @@
 (defn read-edn-file [file-name]
   (let [file (io/file file-name)]
     (when-let [body (and (.exists file) (slurp file))]
-      (edn/read-string body))))
+      (read-string body))))
 
 (defn get-project-config
   "This loads the project map form project.clj without merging profiles."
-  []
-  (if (.exists (io/file "project.clj"))
-    (->> (str "[" (slurp "project.clj") "]")
+  ([] (get-project-config "project.clj"))
+  ([file]
+  (if (.exists (io/file file))
+    (->> (str "[" (slurp file) "]")
          read-string
          (filter #(= 'defproject (first %)))
          first
@@ -327,127 +329,183 @@
          (partition 2)
          (map vec)
          (into {}))
-    {}))
-
-(defn project-builds [project]
-  (or (get-in project [:figwheel :builds])
-      (get-in project [:cljsbuild :builds])))
+    {})))
 
 (defn figwheel-edn-exists? []
   (.exists (io/file "figwheel.edn")))
 
-(defn needs-lein-project-config? []
-  (not (figwheel-edn-exists?)))
 
-#_(defn retrieve-and-validate-config
-  ([] (retrieve-and-validate-config nil)) 
-  ([project-config-data]
-   (let [project-based-config (needs-lein-project-config?)
-         config-data (if project-based-config
-                       (or project-config-data (get-project-config))
-                       (read-edn-file "figwheel.edn"))
-         error-message (with-out-str
-                         (vc/validate-config-data config-data
-                                                  (not project-based-config)))]
-     (when (and error-message (not (string/blank? error-message)))
-       (throw
-        (ex-info error-message {:cause (str "Configuration error found in "
-                                            (if project-based-config
-                                              "project.clj"
-                                              "figwheel.edn"))})))
-     (vary-meta config-data
-                assoc (if project-based-config ::lein-project ::figwheel-edn)
-                true))))
+;; configuration
 
-#_(defn raw-config->config [config-data]
-  (if (-> config-data meta ::figwheel-edn)
-    {:figwheel-options (dissoc config-data :builds)
-     :all-builds (:builds config-data)}
-    {:figwheel-options (dissoc (:figwheel config-data) :builds)
-     :all-builds (project-builds config-data)}))
+(defprotocol ConfigData
+  (figwheel-options [_])
+  (all-builds [_])
+  (build-ids [_])
+  (-validate [_]))
 
+(defrecord LeinProjectConfigData [data file]
+  ConfigData
+  (figwheel-options [_]
+    (-> data :figwheel (dissoc :builds)))
+  (all-builds [_]
+    (or (get-in data [:figwheel :builds])
+        (get-in data [:cljsbuild :builds])))
+  (build-ids [_]
+    (get-in data [:figwheel :builds-to-start]))
+  (-validate [self]
+    (vc/validate-project-config-data self)))
 
+(defrecord FigwheelConfigData [data file]
+  ConfigData
+  (figwheel-options [_] (dissoc data :builds))
+  (all-builds [_]       (:builds data))
+  (build-ids [_]        (:builds-to-start data))
+  (-validate [self]
+    (vc/validate-figwheel-edn-config-data self)))
 
-;; ConfigSource methods
+(defrecord FigwheelInternalConfigData [data file]
+  ConfigData
+  (figwheel-options [_] (:figwheel-options data))
+  (all-builds [_]       (:all-builds data))
+  (build-ids [_]        (:build-ids data))
+  (-validate [self]
+    (vc/validate-figwheel-config-data self)))
 
-(defn read-config-source-data [{:keys [data read-fn type] :as config-source}]
+(defprotocol ConfigSource
+  (-config-data [_]))
+
+(defrecord LeinProjectConfigSource [data]
+  ConfigSource
+  (-config-data [_]
+    (->LeinProjectConfigData (or data (get-project-config)) "project.clj")))
+
+(defrecord FigwheelConfigSource [data file]
+  ConfigSource
+  (-config-data [_]
+    (->FigwheelConfigData (or data (read-edn-file file)) file)))
+
+(defrecord FigwheelInternalConfigSource [data file]
+  ConfigSource
+  (-config-data [_] (->FigwheelInternalConfigData data file)))
+
+(defn config-source? [x] (satisfies? ConfigSource x))
+
+(defn config-data? [x]   (satisfies? ConfigData x))
+
+(defn figwheel-internal-config-data? [x] (instance? FigwheelInternalConfigData x))
+
+(defn ->config-data [config-source]
   (cond
-    data data
-    read-fn (read-fn)
-    :else (condp = type
-            ::lein-project (get-project-config)
-            ::figwheel-edn (slurp "figwheel.edn"))))
+    (config-data? config-source) config-source
+    (config-source? config-source) (-config-data config-source)))
 
-(defn read-config-source [{:keys [data read-fn] :as config-source}]
-  (assoc
-   config-source
-   :data (read-config-source-data config-source)))
+;; config source constructors
+(defn ->figwheel-internal-config-source
+  ([data] (->figwheel-internal-config-source data nil))
+  ([data file] (->FigwheelInternalConfigSource data file)))
 
-;; ConfigData methods
+(defn ->figwheel-config-source
+  ([] (->figwheel-config-source nil "figwheel.edn"))
+  ([data] (->figwheel-config-source data nil))
+  ([data file] (->FigwheelConfigSource data file)))
 
+(defn ->lein-project-config-source
+  ([] (->lein-project-config-source nil))
+  ([project-data]
+   (->LeinProjectConfigSource project-data)))
 
+(defn initial-config-source
+  ([] (initial-config-source nil))
+  ([project]
+   (if (figwheel-edn-exists?)
+     (->figwheel-config-source)
+     (->lein-project-config-source project))))
 
-;; ConfigData -> nil ; raises runtime exception with on configuration error
-(defn validate-config-data [{:keys [file type data] :as config-data}]
-  (condp = type
-    ::figwheel-edn    (vc/validate-figwheel-edn-config-data config-data)
-    ::lein-project    (vc/validate-project-config-data      config-data)
-    ::figwheel-config (vc/validate-figwheel-config-data     config-data)))
+;; ConfigData -> Boolean
+(defn validate-config-data? [config-data]
+  {:pre [(config-data? config-data)]}
+  (not
+   (or
+    (false? (-> config-data meta :validate-config))
+    (false? (-> config-data figwheel-options :validate-config)))))
 
-;; ConfigData -> FigwheelConfig
-(defn canonical-figwheel-config [{:keys [file type data] :as config-data}]
-  (condp = type
-    ::figwheel-edn {:figwheel-options (dissoc data :builds)
-                    :all-builds (:builds data)}
-    ::lein-project {:figwheel-options (dissoc (:figwheel data) :builds)
-                    :all-builds (project-builds data)}))
+;; ConfigData -> ConfigData ; raises runtime exception with on configuration error
+(defn validate-config-data [config-data]
+  {:pre [(config-data? config-data)]
+   :post [(config-data? %)]}
+  (if (validate-config-data? config-data)
+    (do
+      #_(println "VALIDATING!!!!")
+      (-validate config-data) config-data)
+    config-data))
 
-;; FigwheelConfig, ConfigData -> nil or runtime exception with config error
-(defn validate-figwheel-config [figwheel-config config-data]
-  (validate-config-data (assoc
-                         config-data
-                         :type ::figwheel-config
-                         :data figwheel-config)))
+;; ConfigData -> ConfigData | nil
+(defn print-validate-config-data [config-data]
+  {:pre [(config-data? config-data)]
+   :post [(or (config-data? %) (nil? %))]}
+  (try
+    (validate-config-data config-data)
+    (catch Throwable e
+      (if (-> e ex-data :reason (= :figwheel-configuration-validation-error))
+        (do (println (.getMessage e))
+            #_(ex-data e)
+            nil)
+        (throw e)))))
 
-;; FigwheelConfig -> FigwheelConfig
-(defn prep-builds [figwheel-config]
-  (update-in figwheel-config [:all-builds] prep-builds*))
+;; ConfigData -> FigwheelInternalData
+(defn config-data->figwheel-internal-config-data [{:keys [file type data] :as config-data}]
+  {:pre  [(config-data? config-data)]
+   :post [(figwheel-internal-config-data? %)]}
+  (if (figwheel-internal-config-data? config-data)
+    config-data
+    (->FigwheelInternalConfigData
+     {:figwheel-options (figwheel-options config-data)
+      :all-builds       (all-builds config-data)
+      :build-ids        (build-ids config-data)}
+     file)))
 
+;; FigwheelConfigData -> FigwheelInternalData
+(defn prep-builds [figwheel-internal-data]
+  {:pre [(figwheel-internal-config-data? figwheel-internal-data)]
+   :post [(figwheel-internal-config-data? figwheel-internal-data)]}
+  (update-in figwheel-internal-data [:data :all-builds] prep-builds*))
 
-;; FigwheelConfig -> FigwheelConfig
-(defn populate-build-ids [{:keys [all-builds build-ids figwheel-options]
-                           :as figwheel-config}]
-  (->> figwheel-options
-       :builds-to-start
-       (map name)
-       (or build-ids)
-       not-empty
-       (narrow-builds* all-builds)
-       (mapv :id)
-       (assoc figwheel-config :build-ids))
-  #_(assoc figwheel-config
-           :build-ids
-           (mapv :id
-                 (narrow-builds* all-builds
-                                 (not-empty
-                                (or build-ids
-                                    (map name
-                                         (:builds-to-start figwheel-options))))))))
+;; FigwheelConfigData -> FigwheelConfigData
+(defn populate-build-ids
+  ([figwheel-internal-data]
+   {:pre  [(figwheel-internal-config-data?  figwheel-internal-data)]
+    :post [(figwheel-internal-config-data?  figwheel-internal-data)]}
+   (update-in
+    figwheel-internal-data
+    [:data]
+    (fn [{:keys [figwheel-options all-builds build-ids] :as figwheel-internal}]
+      (->> figwheel-options
+           :builds-to-start
+           (map name)
+           (or (not-empty build-ids))
+           not-empty
+           (narrow-builds* all-builds)
+           (mapv :id)
+           (assoc figwheel-internal :build-ids)))))
+  ([figwheel-internal-data build-ids]
+   (populate-build-ids
+    (assoc-in figwheel-internal-data [:data :build-ids] (not-empty (vec build-ids))))))
 
-;; FigwheelConfig -> FigwheelConfig
-(def prepped-figwheel-config (comp populate-build-ids prep-builds*))
+;; FigwheelInternalData -> FigwheelInternalData
+(def prepped-figwheel-internal (comp populate-build-ids prep-builds))
 
-(defn intial-config-source []
-  (if (figwheel-edn-exists?)
-    {:file "figwheel.edn" :type ::figwheel-edn}
-    {:file "project.clj"  :type ::lein-project}))
+;; ConfigData -> FigwheelInternalData
+(def config-data->prepped-figwheel-internal
+  (comp prepped-figwheel-internal config-data->figwheel-internal-config-data))
+
+(defn config-source->prepped-figwheel-internal [config-source]
+  (-> config-source
+      ->config-data
+      validate-config-data
+      config-data->prepped-figwheel-internal))
 
 (defn fetch-figwheel-config []
-  (let [config-data (read-config-source (intial-config-source))]
-    (validate-config-data config-data)
-    (-> config-data
-        canonical-figwheel-config
-        prepped-figwheel-config)))
+  (config-source->prepped-figwheel-internal (initial-config-source)))
 
 (def fetch-config fetch-figwheel-config)
 
@@ -467,33 +525,71 @@
   )
 
 
-#_(raw-config->config (retrieve-and-validate-config))
+;;; looping and waiting to fix config
+;; probably needs to be in another namespace
 
-#_(defn config
-  ([] (config (get-project-config) nil))
-  ([project] (config project nil))
-  ([project build-ids]
-   (assoc
-    (raw-config->config (if (needs-lein-project-config?)
-                          project
-                          (read-edn-file "figwheel.edn")))
-    (if-not (needs-lein-project-config?)
-      (let [fig-opts (read-edn-file "figwheel.edn")]
-        {:figwheel-options (dissoc fig-opts :builds)
-         :all-builds (:builds fig-opts)})
-      {:figwheel-options (dissoc (:figwheel project) :builds)
-       :all-builds (project-builds project)})
-    :build-ids build-ids)))
+(defn file-change-wait [file timeout]
+  (let [orig-mod (.lastModified (io/file file))
+        time-start (System/currentTimeMillis)]
+    (loop []
+      (let [last-mod (.lastModified (io/file (str file)))
+            curent-time (System/currentTimeMillis)]
+        (Thread/sleep 100)
+        (when (and (= last-mod orig-mod)
+                   (< (- curent-time time-start) timeout))
+          (recur))))))
 
-#_(defn prep-config [config]
-  (let [prepped (update-in config [:all-builds] prep-builds)]
-    (assoc prepped
-           :build-ids
-           (mapv :id
-                 (narrow-builds* (:all-builds prepped)
-                                 (not-empty
-                                  (or (:build-ids prepped)
-                                      (map name (get-in prepped [:figwheel-options :builds-to-start])))))))))
+(defn get-choice [choices]
+  (when-let [ch (read-line)]
+    (let [ch (string/trim ch)]
+      (if (empty? ch)
+        (first choices)
+        (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
+          (do
+            (print (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
+                          "Please choose one of the following ("(string/join ", " choices) "):"))
+            (get-choice choices))
+          ch)))))
 
-#_(defn fetch-config []
-  (prep-config (config)))
+(defn validate-loop [lazy-config-data-list]
+  (let [{:keys [file]} (first lazy-config-data-list)]
+    (if-not (.exists (io/file file))
+      (do
+        (println "Configuration file" (str file) "was not found")
+        (System/exit 1))
+      (let [file (io/file file)]
+        (println "Figwheel: Validating the configuration found in" (str file))
+        (loop [fix false
+               lazy-config-data-list lazy-config-data-list]
+          (let [config-data (first lazy-config-data-list)]
+            (if (print-validate-config-data config-data)
+              config-data
+              (do
+                (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
+                (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
+                (let [choice (or (and fix "f")
+                                 (do
+                                   (println "Figwheel: Would you like to:")
+                                   (println "(f)ix the error live while Figwheel watches for config changes?")
+                                   (println "(q)uit and fix your configuration?")
+                                   (println "(s)tart Figwheel anyway?")
+                                   (print "Please choose f, q or s and then hit Enter [f]: ")
+                                   (flush)
+                                   (get-choice ["f" "q" "s"])))]
+                  (condp = choice
+                    nil false
+                    "q" false
+                    "s" config-data
+                    "f" (if file
+                          (do
+                            (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
+                            (file-change-wait file (* 120 1000))
+                            (recur true (rest lazy-config-data-list)))
+                          (do ;; this branch shouldn't be taken
+                            (Thread/sleep 1000)
+                            (recur true (rest lazy-config-data-list))))))))
+            ))))))
+
+(defn color-validate-loop [lazy-config-list]
+  (with-color
+    (validate-loop lazy-config-list)))

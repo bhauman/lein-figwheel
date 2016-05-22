@@ -584,27 +584,43 @@
 
 ;; figwheel starting and stopping helpers
 
-(defn unest-component-exception [e]
+(defn unwrap-component-exception [e]
   (if (-> e ex-data :reason (= :com.stuartsierra.component/component-function-threw-exception))
-    (unest-component-exception (.getCause e))
+    (unwrap-component-exception (.getCause e))
     e))
 
-(defn start-figwheel!
-  [{:keys [figwheel-options all-builds build-ids] :as options}]
-  (let [options (update-in options [:all-builds] config/prep-builds)
-        system (create-figwheel-system options)]
-    (try
-      (component/start system)
-      (catch Throwable e
-        (let [orig-exception  (unest-component-exception e)
-              [escape reason] ((juxt :escape-system-exceptions :reason)
-                               (ex-data orig-exception))]
-          (if escape
-            (do (println (.getMessage orig-exception))
-                (when-not (= reason :initial-cljs-build-exception)
-                  (throw (.getCause orig-exception))))
-            (throw e)))))))
+(defn dispatch-system-component-errors [component-control-fn]
+  (try
+    (component-control-fn)
+    (catch Throwable e
+      (let [orig-exception  (unwrap-component-exception e)
+            [escape reason] ((juxt :escape-system-exceptions :reason)
+                             (ex-data orig-exception))]
+        (if escape
+          (do (println (.getMessage orig-exception))
+              (when-not (= reason :initial-cljs-build-exception)
+                (throw (.getCause orig-exception))))
+          (throw e))))))
 
+;; This should eventually take a figwheel config data
+(defn start-figwheel-system [{:keys [figwheel-options all-builds build-ids] :as options}]
+  (let [system (create-figwheel-system options)]
+    (dispatch-system-component-errors #(component/start system))))
+
+;; this can be a lot smarter
+(defn normalize-start-figwheel-config-options [config-options]
+  (if (or (config/config-source? config-options)
+          (config/config-data? config-options))
+    config-options
+    (config/->figwheel-internal-config-source config-options)))
+
+(defn start-figwheel! [config-options]
+  (let [internal-config-data
+        (-> config-options
+            normalize-start-figwheel-config-options
+            config/config-source->prepped-figwheel-internal
+            :data)]
+    (start-figwheel-system internal-config-data)))
 
 (defn stop-figwheel! [system]
   (component/stop system))
@@ -613,3 +629,4 @@
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
   (when-let [system (start-figwheel! autobuild-options)]
     (cljs-repl (:figwheel-system system))))
+

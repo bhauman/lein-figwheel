@@ -5,8 +5,7 @@
    [leiningen.core.eval :as leval]
    [leiningen.core.project :as lproj]
    [clojure.java.io :as io]
-   [figwheel-sidecar.config :as fc]
-   #_[figwheel-sidecar.config-check.validate-config :as fvalidate]))
+   [figwheel-sidecar.config :as fc]))
 
 (defn make-subproject [project builds]
   (with-meta
@@ -59,70 +58,54 @@
            (System/exit 1))))
      requires)))
 
-(defn run-compiler [project {:keys [all-builds build-ids] :as autobuild-opts}]
+(defn run-compiler [project {:keys [data] :as figwheel-internal-config-data}]
   (run-local-project
-   project all-builds
+   project (get data :all-builds)
    '(require 'figwheel-sidecar.repl-api)
    `(do
       (figwheel-sidecar.repl-api/system-asserts)
-      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~autobuild-opts))))
+      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~figwheel-internal-config-data))))
 
-(defn figwheel-edn? [] (.exists (io/file "figwheel.edn")))
+;; validation help
 
-(defn config-data [project]
-  (if (figwheel-edn?)
-    (read-string (slurp "figwheel.edn"))
-    project))
+(defn read-project-with-profiles [project]
+  (lproj/set-profiles (lproj/read)
+                      (:included-profiles (meta project))
+                      (:excluded-profiles (meta project))))
 
-(defn should-validate-config? [config-data]
-  (not
-   (false? (if (figwheel-edn?)
-             (get config-data :validate-config)
-             (get-in config-data [:figwheel :validate-config])))))
-
-(defn validate-figwheel-conf-helper [project]
-  (when-let [validate-loop (resolve 'figwheel-sidecar.config-check.validate-config/color-validate-loop)]
-    (if (figwheel-edn?)
-      (validate-loop
-        (repeatedly #(slurp "figwheel.edn"))
-        {:file (io/file "figwheel.edn")
-         :figwheel-options-only true})
-      (validate-loop
-        (cons project
-              (repeatedly #(lproj/set-profiles (lproj/read)
-                                               (:included-profiles (meta project))
-                                               (:excluded-profiles (meta project)))))
-        {:file (io/file "project.clj")}))))
+(defn config-sources [project]
+  (if (fc/figwheel-edn-exists?)
+    (repeatedly #(fc/->figwheel-config-source))
+    (map fc/->lein-project-config-source
+         (cons project
+               (repeatedly #(read-project-with-profiles project))))))
 
 (defn validate-figwheel-conf [project]
-  (let [config-data (config-data project)]
-    (if-not (should-validate-config? config-data)
-      config-data
-      (do
-        (require 'figwheel-sidecar.config-check.validate-config)
-        (if-let [config (validate-figwheel-conf-helper project)]
-          (do (println "\nFigwheel: Configuration Valid. Starting Figwheel ...")
-              config)
-          (do (println "\nFigwheel: Configuration validation failed. Exiting ...")
-              false))))))
+  (if-let [valid-config-data (->> (config-sources project)
+                                  (map fc/->config-data)
+                                  fc/color-validate-loop)]
+    (do (println "\nFigwheel: Configuration Valid. Starting Figwheel ...")
+        valid-config-data)
+    (do (println "\nFigwheel: Configuration validation failed. Exiting ...")
+        false)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
   (fc/system-asserts)
   (when-let [config-data (validate-figwheel-conf project)]
-    (pp/pprint config-data)
-    #_(let [{:keys [all-builds figwheel-options]}
+    (let [{:keys [data] :as figwheel-internal-data}
           (-> config-data
-              (fc/config build-ids)
-              fc/prep-config)
+              fc/config-data->figwheel-internal-config-data
+              fc/prep-builds)
+          {:keys [figwheel-options all-builds]} data
+          ;; TODO this is really outdated
           errors (fc/check-config figwheel-options
                                   (fc/narrow-builds*
                                    all-builds
-                                   build-ids))]
+                                   build-ids))
+          figwheel-internal-final (fc/populate-build-ids figwheel-internal-data build-ids)]
+      #_(pp/pprint figwheel-internal-final)
       (if (empty? errors)
-        (run-compiler project
-                      { :figwheel-options figwheel-options
-                        :all-builds all-builds
-                        :build-ids  (vec build-ids)})
+        (run-compiler project figwheel-internal-final)
         (mapv println errors)))))

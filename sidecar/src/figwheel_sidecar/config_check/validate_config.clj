@@ -301,23 +301,15 @@
       (let [message (with-out-str (tc/print-error (assoc single-error :orig-config data)))]
         (throw
          (ex-info message
-                  {:cause "You provided figwheel with a bad config."
+                  {:reason :figwheel-configuration-validation-error
                    :validation-error single-error
-                   :config-provided data
-                   :config-source-file file
-                   :config-type type})))
+                   :config-data config-data})))
       single-error)))
 
-(defn validate-api-config! [config]
-  (when-not (get config :skip-api-validation)
-    (tc/with-schema (index-spec api-config-rules-base)
-      (when-let [single-error (tc/type-check-one-error 'ApiRootMap config)]
-        (let [message (with-out-str (tc/print-error (assoc single-error :orig-config config)))]
-          (throw
-           (ex-info message
-                    {:cause "You provided figwheel with a bad config."
-                     :error single-error
-                     :config-provided config})))))))
+(defn validate-figwheel-config-data [config-data]
+  (raise-one-error (index-spec api-config-rules-base)
+                   'ApiRootMap
+                   config-data))
 
 (defn get-keylike [ky mp]
   (if-let [val (get mp ky)]
@@ -396,79 +388,14 @@
 
 (defn validate-figwheel-edn-config-data [{:keys [data] :as config-data}]
   (raise-one-error (validate-figwheel-edn-rules data)
-                'FigwheelOptions
-                config-data))
+                   'FigwheelOptions
+                   config-data))
 
 #_(defn validate-config-data [config figwheel-options-only?]
   (if figwheel-options-only?
     (validate-figwheel-edn-file config)
     (validate-project-config config)))
 
-(defn file-change-wait [file timeout]
-  (let [orig-mod (.lastModified (io/file file))
-        time-start (System/currentTimeMillis)]
-    (loop []
-      (let [last-mod (.lastModified (io/file (str file)))
-            curent-time (System/currentTimeMillis)]
-        (Thread/sleep 100)
-        (when (and (= last-mod orig-mod)
-                   (< (- curent-time time-start) timeout))
-          (recur))))))
-
-(defn get-choice [choices]
-  (when-let [ch (read-line)]
-    (let [ch (string/trim ch)]
-      (if (empty? ch)
-        (first choices)
-        (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
-          (do
-            (print (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
-                          "Please choose one of the following ("(string/join ", " choices) "):"))
-            (get-choice choices))
-          ch)))))
-
-(defn validate-loop [lazy-config-list options]
-  (let [{:keys [figwheel-options-only file]} options]
-    (if-not (.exists (io/file file))
-      (do
-        (println "Configuration file" (str (:file options)) "was not found")
-        (System/exit 1))
-      (let [file (io/file file)]
-        (println "Figwheel: Validating the configuration found in" (str file))
-        (loop [fix false
-               lazy-config-list lazy-config-list]
-          (let [config (first lazy-config-list)]
-            (if (not (validate-config-data config figwheel-options-only))
-              config
-              (do
-                (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
-                (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
-                (let [choice (or (and fix "f")
-                                 (do
-                                   (println "Figwheel: Would you like to:")
-                                   (println "(f)ix the error live while Figwheel watches for config changes?")
-                                   (println "(q)uit and fix your configuration?")
-                                   (println "(s)tart Figwheel anyway?")
-                                   (print "Please choose f, q or s and then hit Enter [f]: ")
-                                   (flush)
-                                   (get-choice ["f" "q" "s"])))]
-                  (condp = choice
-                    nil false
-                    "q" false
-                    "s" config
-                    "f" (if (:file options)
-                          (do
-                            (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
-                            (file-change-wait file (* 120 1000))
-                            (recur true (rest lazy-config-list)))
-                          (do ;; this branch shouldn't be taken
-                            (Thread/sleep 1000)
-                            (recur true (rest lazy-config-list))))))))
-            ))))))
-
-(defn color-validate-loop [lazy-config-list options]
-  (with-color
-    (validate-loop lazy-config-list options)))
 
 (comment
   ;; figure out

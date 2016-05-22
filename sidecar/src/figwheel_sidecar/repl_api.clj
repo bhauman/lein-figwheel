@@ -133,8 +133,11 @@ the first default id)."
   (doc reload-config)
   (doc api-help))
 
-(defn start-figwheel-from-lein [{:keys [figwheel-options all-builds build-ids] :as options}]
-  (when-let [system (fs/start-figwheel! options)]
+(defn start-figwheel-from-lein [{:keys [figwheel-options]
+                                 :as figwheel-internal-config-data}]
+  {:pre [(config/figwheel-internal-config-data? figwheel-internal-config-data)]}
+  (when-let [system (fs/start-figwheel! (vary-meta figwheel-internal-config-data
+                                                   assoc :validate-config false))]
     (alter-var-root #'*repl-api-system* (fn [_] system))
     (if (false? (:repl figwheel-options))
       (loop [] (Thread/sleep 30000) (recur))

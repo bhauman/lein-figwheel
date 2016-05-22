@@ -251,7 +251,7 @@
         @default-handler)))
 
 (defn figwheel-server [{:keys [figwheel-options all-builds] :as options}]
-  (let [all-builds          (map butils/add-compiler-env (config/prep-builds all-builds))
+  (let [all-builds (map butils/add-compiler-env (config/prep-builds* all-builds))
         all-builds (ensure-array-map all-builds)
         
         initial-state       (create-initial-state figwheel-options)
