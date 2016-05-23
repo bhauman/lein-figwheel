@@ -1,8 +1,9 @@
 (ns figwheel-sidecar.build-middleware.notifications
   (:require
    [figwheel-sidecar.components.figwheel-server :as server]
-   [figwheel-sidecar.utils :as utils]   
-
+   [figwheel-sidecar.utils :as utils]
+   [figwheel-sidecar.config-check.ansi :refer [with-color color-text]]   
+   [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [cljs.env :as env]
    [cljs.analyzer :as ana]
    [cljs.analyzer.api :as ana-api]
@@ -101,41 +102,14 @@
    (merge-build-into-server-state state build-config)
    ns-syms))
 
-;; I think this is duplicate functionality
-(defn relativize-local [path]
-  (.getPath
-   (.relativize
-    (.toURI (io/file (.getCanonicalPath (io/file "."))))
-    (.toURI (io/file path)))))
-
-(defn data-serialize [o]
-  (cond
-    (or (number? o)
-        (symbol? o)
-        (keyword? o)) o
-    (= (type o) java.io.File)
-    (relativize-local o)
-    :else (str o)))
-
-(defn inspect-exception [ex]
-  {:class (type ex)
-   :message (.getMessage ex)
-   :data (when-let [data (ex-data ex)]
-           (->> data
-                (map #(vector (first %) (data-serialize (second %))))
-                (into {})))  
-   :cause (when (.getCause ex) (inspect-exception (.getCause ex)))})
-
 (defn compile-error-occured [figwheel-server exception]
-  #_(pprint (inspect-exception exception))
-  (let [parsed-exception (inspect-exception exception)
-        formatted-exception (with-out-str (pst-on *out* false exception))]
-    (server/send-message figwheel-server
-                          (:build-id figwheel-server)
-                          { :msg-name :compile-failed
-                            :exception-data parsed-exception
-                            :formatted-exception formatted-exception })))
-
+  (server/send-message figwheel-server
+                       (:build-id figwheel-server)
+                       {:msg-name :compile-failed
+                        :exception-data (cljs-ex/parse-exception exception)})
+  (with-color
+    (cljs-ex/print-exception exception))
+    (flush))
 
 (defn notify-compile-error [server-state build-config {:keys [exception]}]
   (compile-error-occured
@@ -173,37 +147,8 @@
       (when-let [s (cljs.analyzer/error-message warning-type extra)]
         (callback (cljs.analyzer/message env s))))))
 
-;; TODO use ansi library
-(let [foreground-red "\u001b[31m"
-      reset-color "\u001b[0m"]
-  (defmulti report-exception (fn [exception cause] (or (:type cause) (:tag cause))))
-  
-  (defmethod report-exception :reader-exception [e {:keys [file line column]}]
-    (println (str foreground-red
-                  (format "ERROR: %s on file %s, line %d, column %d"
-                     (some-> e (.getCause) (.getMessage))
-                     file line column)
-                  reset-color)))
-  
-  (defmethod report-exception :cljs/analysis-error [e {:keys [file line column]}]
-    (println (str foreground-red
-                  (format "ANALYSIS ERROR: %s on file %s, line %d, column %d"
-                          (some-> e (.getCause) (.getMessage))
-                          file line column)
-                  reset-color)))
-  
-  (defmethod report-exception :default [e _]
-    #_(clj-stacktrace.repl/pst+ e)
-    (stack/print-stack-trace e 30))
-  
-  (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
-    (println
-     (str foreground-red "Compiling \"" (:output-to build-options) "\" failed."))
-    (print reset-color)
-    (let [cause (ex-data (.getCause exception))]
-      (report-exception exception cause)
-      (flush)
-      (notify-compile-error figwheel-server build {:exception exception}))))
+(defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
+  (notify-compile-error figwheel-server build {:exception exception}))
 
 ;; ware in all figwheel notifications
 (defn hook [build-fn]

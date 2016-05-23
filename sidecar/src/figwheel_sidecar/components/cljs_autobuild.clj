@@ -4,7 +4,8 @@
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
-
+   [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
+   
       ;; build hooks
    [figwheel-sidecar.build-middleware.injection :as injection]
    [figwheel-sidecar.build-middleware.notifications :as notifications]
@@ -120,7 +121,8 @@
       (build-fn build-state)
       (catch Throwable e
         #_(prn (ex-data (.getCause e)))
-        (notifications/report-exception e (ex-data (.getCause e)))
+        (with-color
+          (cljs-ex/print-exception e))
         ;; this only applies if :output-to doesn't exist
         (flush)
         (let [output-to-filepath

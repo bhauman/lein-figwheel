@@ -21,7 +21,6 @@
 (defn is-valid [data]
   (is (nil? (check-reg data))))
 
-
 (deftest checking-config-errors-1
   (check-reg-keys {} [:Error-type :key] [:missing-required-key :cljsbuild])
   (check-reg-keys {:cljsbuild []} [:Error-type :not] [:failed-predicate :MAPP])
@@ -71,6 +70,3 @@
                                          :compiler {}}}}
               :figwheel {:reload-clj-files {:clj true}}})
   )
-
-
-

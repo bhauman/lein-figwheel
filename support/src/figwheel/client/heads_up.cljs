@@ -3,7 +3,8 @@
    [clojure.string :as string]
    [figwheel.client.socket :as socket]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
-   [goog.string])
+   [goog.string]
+   [cljs.pprint :as pp])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
@@ -163,96 +164,41 @@
                                                           ", column " (:column cause))
                                                      "")))))))
 
-
-
-
-
-;; more interesting handling of exceptions
-
-(defn flatten-exception [ex]
-  (->> ex
-       (iterate :cause)
-       (take-while (comp not nil?))))
-
-(defn exception-info? [ex] (= (:class ex) 'clojure.lang.ExceptionInfo))
-
-(defn parse-failed-compile [{:keys [exception-data] :as ex}]
-  (let [exception (first exception-data)]
-    (if (and
-         (exception-info? exception)
-         (->> exception
-             :message
-             (re-matches #"failed compiling.*")))
-      (assoc ex
-             :failed-compiling true
-             :message (:message exception)
-             :file (get-in exception [:data :file]))
-      ex)))
-
-(defn parse-analysis-error [{:keys [exception-data] :as ex}]
-  (if-let [analysis-exception
-           (first
-            (filter (fn [{:keys [data] :as exc}]
-                      (when (and (exception-info? exc) data)
-                        (= (:tag data) :cljs/analysis-error)))
-                    exception-data))]
-    (merge {:analysis-exception analysis-exception
-            :class   (get-in analysis-exception [:cause :class])}
-           (select-keys (:data analysis-exception) [:file :line :column])
-           ex
-           {:message (or (get-in analysis-exception [:cause :message])
-                         (:message analysis-exception))})
-    ex))
-
-(defn parse-reader-error [{:keys [exception-data] :as ex}]
-  (if-let [reader-exception
-           (first
-            (filter (fn [{:keys [data] :as exc}]
-                      (when (and (exception-info? exc) data)
-                        (= (:type data) :reader-exception)))
-                    exception-data))]
-    (merge {:reader-exception reader-exception}
-           (select-keys (:data reader-exception) [:file :line :column])
-           ex
-           {:message (:message reader-exception)})
-    ex))
-
-;; we need to patch the line, column numbers for EOF Reader Exceptions
-(defn patch-eof-reader-exception [{:keys [reader-exception message] :as ex}]
-  (if (and reader-exception (re-matches #"EOF while reading, starting.*" message))
-    (when-let [[_ line column] (re-matches #".*line\s(\d*)\sand\scolumn\s(\d*).*" message)]
-      (assoc ex
-             :line (int line)
-             :column (int column)))
-    ex))
-
-;; last resort if no line or file data available in exception
-(defn ensure-file-line [{:keys [exception-data] :as ex}]
-  (let [{:keys [file line]} (apply merge (keep :data exception-data))]
-    (cond->> ex
-        (-> :file nil?) (assoc ex :file file)
-        (-> :line nil?) (assoc ex :line line)
-        (-> :message nil?) (assoc ex :message (last (keep :message exception-data))))))
-
-(defn remove-file-from-message [{:keys [message file] :as ex}]
-  (if (and file (re-matches #".*in file.*" message))
-    (assoc ex :message (first (string/split message "in file")) )
-    ex))
-
-(defn parse-exception [exception-data]
-  (-> {:exception-data exception-data}
-      (update-in [:exception-data] flatten-exception)
-      parse-failed-compile
-      parse-analysis-error
-      parse-reader-error
-      patch-eof-reader-exception
-      remove-file-from-message))
-
 (defn escape [x]
   (goog.string/htmlEscape x))
 
+(defn pad-line-number [n line-number]
+  (let [len (count ((fnil str "") line-number))]
+    (-> (if (< len n)
+          (apply str (repeat (- n len) " "))
+          "")
+        (str line-number))))
+
+(defn inline-error-line [style line-number line]
+  (str "<span style='" style "'>" "<span style='color: #757575;'>" line-number "  </span>" (escape line) "</span>"))
+
+(defn format-inline-error-line [[typ line-number line]]
+  (condp = typ
+    :code-line     (inline-error-line "color: #999;" line-number line)
+    :error-in-code (inline-error-line "color: #ccc; font-weight: bold;" line-number line)
+    :error-message (inline-error-line "color: #D07D7D;" line-number line)
+    (inline-error-line "color: #666;" line-number line)))
+
+(defn pad-line-numbers [inline-error]
+  (let [max-line-number-length (count (str (reduce max (map second inline-error))))]
+    (map #(update-in % [1]
+                     (partial pad-line-number max-line-number-length)) inline-error)))
+
+(defn format-inline-error [inline-error]
+  (let [lines (map format-inline-error-line (pad-line-numbers inline-error))]
+    (str "<pre style='whitespace:pre; font-family:monospace; font-size:0.8em;"
+         " line-height: 1.1em; padding: 10px; overflow: hidden; background-color: rgb(24,26,38); margin-right: 5px'>"
+         (string/join "\n" lines)
+         "</pre>")))
+
+
 (defn exception->display-data [{:keys [failed-compiling reader-exception analysis-exception
-                                       class file line column message] :as exception}]
+                                       class file line column message error-inline] :as exception}]
   (let [last-message (cond
                        (and file line)
                        (str "Please see line " line " of file " file )
@@ -269,9 +215,11 @@
                 #(str "<div>" % "</div>")
                 (if message
                   [(str (if class
-                          (str (escape class)
-                               ": ") "")
-                        "<span style=\"font-weight:bold;\">" (escape message) "</span>")]
+                           (str (escape class)
+                                ": ") "")
+                        "<span style=\"font-weight:bold;\">" (escape message) "</span>")
+                   (when (pos? (count error-inline))
+                     (format-inline-error error-inline))]
                   (map #(str (escape (:class %))
                              ": " (escape (:message %)))  (:exception-data exception))))
                 (when last-message [(str "<div style=\"color: #AD4F4F; padding-top: 3px;\">" (escape last-message) "</div>")]))
@@ -288,7 +236,6 @@
                 line
                 column]}
         (-> exception-data
-            parse-exception
             exception->display-data)
         msg (apply str messages
                    #_(map #(str "<div>" (goog.string/htmlEscape %)
