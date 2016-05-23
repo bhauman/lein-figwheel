@@ -112,10 +112,10 @@
 
 (defn autobuild-opts [figwheel-options all-builds build-ids]
   {:build-ids (vec build-ids)
-   :all-builds (if (:all-builds figwheel-options)
+   :all-builds (if (:load-all-builds figwheel-options)
                  all-builds
                  (into [] (filter #(contains? (set build-ids) (:id %))) all-builds))
-   :figwheel-options (dissoc figwheel-options :all-builds)})
+   :figwheel-options (dissoc figwheel-options :load-all-builds)})
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."

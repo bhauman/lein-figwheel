@@ -141,5 +141,5 @@
              ;; if your project.clj contains conflicting builds,
              ;; you can choose to only load the builds specified
              ;; on the command line
-             ;; :all-builds false ; default is true
+             ;; :load-all-builds false ; default is true
              })
