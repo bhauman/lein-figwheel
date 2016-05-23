@@ -323,11 +323,13 @@
     config))
 
 (defn fill-url-template [config]
-  (update-in config [:websocket-url]
+  (if (utils/html-env?)
+      (update-in config [:websocket-url]
              (fn [x]
                (-> x
                    (string/replace "[[client-hostname]]" js/location.hostname)
-                   (string/replace "[[client-port]]" js/location.port)))))
+                   (string/replace "[[client-port]]" js/location.port))))
+      config))
 
 (defn base-plugins [system-options]
   (let [base {:enforce-project-plugin enforce-project-plugin
