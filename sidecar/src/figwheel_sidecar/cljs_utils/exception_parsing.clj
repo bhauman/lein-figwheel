@@ -14,8 +14,11 @@
     (.toURI (io/file (.getCanonicalPath (io/file "."))))
     (.toURI (io/file path)))))
 
-(defn data-serialize [o]
+(defn data-serialize [k o]
   (cond
+    (= k :root-source-info) o
+    (= k :form) o
+    (= k :focused-form) o
     (or (number? o)
         (symbol? o)
         (keyword? o)) o
@@ -24,13 +27,18 @@
     :else (str o)))
 
 (defn inspect-exception [ex]
-  {:class (type ex)
-   :message (.getMessage ex)
-   :data (when-let [data (ex-data ex)]
+  (-> 
+   {:class (type ex)
+    :message (.getMessage ex)
+    :data (when-let [data (ex-data ex)]
            (->> data
-                (map #(vector (first %) (data-serialize (second %))))
+                (map #(vector (first %) (data-serialize (first %) (second %))))
                 (into {})))  
-   :cause (when (.getCause ex) (inspect-exception (.getCause ex)))})
+    :cause (when (.getCause ex) (inspect-exception (.getCause ex)))}
+   ;; adding exception to meta data because I don't want it serialize over the wire
+   ;; and its only here as a fall back
+   ;; I also don't wanted printed out during development
+   (vary-meta assoc :orig-exception ex)))
 
 (defn flatten-exception [ex]
   (->> ex
@@ -130,28 +138,35 @@
         #(<= start (first %) end)
         (map-indexed vector lines))))
 
-(defn display-error-in-context [{:keys [message line file column] :as ex}
+(defn display-error-in-context [{:keys [message line file column root-source-info]
+                                 :as ex}
                                 context-amount]
-  (let [lines (doall (line-seq (io/reader file)))]
-    (if (and line (<= 0 line (count lines)))
-      (->>
-       (concat (map-indexed
-                #(vector :code-line (inc %1) %2)
-                (take (dec line) lines))
-               [[:error-in-code line (nth lines (dec line))]]
-               [[:error-message nil (breaker-line (nth lines (dec line))
-                                              message
-                                              column)]]
-               (map-indexed
-                #(vector :code-line (+ line (inc %1)) %2)
-                (drop line lines)))
-       (take-range (- line context-amount) (+ line context-amount))
-       trim-blank
-       (assoc ex :error-inline))
-      ex)))
+  (prn ex)
+  (if-not (and file (.exists (io/file file))) 
+    ex
+    (let [lines (doall (line-seq (io/reader file)))]
+      (if (and line (<= 0 line (count lines)))
+        (->>
+         (concat (map-indexed
+                  #(vector :code-line (inc %1) %2)
+                  (take (dec line) lines))
+                 [[:error-in-code line (nth lines (dec line))]]
+                 [[:error-message nil (breaker-line (nth lines (dec line))
+                                                    message
+                                                    column)]]
+                 (map-indexed
+                  #(vector :code-line (+ line (inc %1)) %2)
+                  (drop line lines)))
+         (take-range (- line context-amount) (+ line context-amount))
+         trim-blank
+         (assoc ex :error-inline))
+        ex))))
+
+
+
 
 (defn parse-inspected-exception [inspected-exception]
-  (-> {:exception-data (flatten inspected-exception)}
+  (-> {:exception-data (flatten-exception inspected-exception)}
       parse-failed-compile
       parse-analysis-error
       parse-reader-error
@@ -173,29 +188,36 @@
 
 (defn exception-data->display-data [{:keys [failed-compiling reader-exception analysis-exception
                                             class file line column message error-inline] :as exception}]
-  (let [last-message (cond
-                       (and file line column)
-                       (str "Please see line " line ", column " column " of file " file )
-                       (and file line)
-                       (str "Please see line " line " of file " file )
+  (let [direct-form (#{"<cljs repl>" "NO_SOURCE_FILE"} file)
+        file         (if direct-form "<cljs form>" file)
+        last-message (cond
+                       direct-form
+                       nil
+                       #_(and file line column)
+                       #_(str "Please see line " line ", column " column " of file " file )
+                       #_(and file line)
+                       #_(str "Please see line " line " of file " file )
                        file (str "Please see " file)
                        :else nil)]
     {:error-type (cond
                    analysis-exception "Analysis"
                    reader-exception   "Reader"
                    failed-compiling   "Compiler"
-                   :else "Compiler")
+                   :else "Exception")
      :head (cond
                 analysis-exception "Could not Analyze"
                 reader-exception   "Could not Read"
                 failed-compiling   "Could not Compile"
-                :else "Compile Exception")
+                :else "Exception")
      :sub-head file
      :messages (map
                 #(update-in % [:class] get-class-name)
                 (if message
                  [{:class class :message message}]
                  (:exception-data exception)))
+     :stack-trace (when-not (or failed-compiling reader-exception analysis-exception)
+                    (when-let [e (-> exception :exception-data last meta :orig-exception)]
+                      (with-out-str (stack/print-cause-trace e))))
      :error-inline error-inline
      :last-message last-message
      :file file
@@ -230,8 +252,23 @@
   (let [lines (pad-line-numbers context-code-lines)]
     (string/join "\n" (map format-error-line lines))))
 
-(defn formatted-exception-display-str [{:keys [error-type head sub-head last-message messages line column error-inline] :as display-data}]
+;; needs to know the length of the current namespace
+(defn repl-pointer-line [current-ns line column]
+  (when (and column current-ns)
+    (str (apply str (repeat (+ column
+                                 (if (> line 1)
+                                   0
+                                   (inc (count (name current-ns)))))
+                            \space))
+         (color-text "^" :red) " \n")))
+
+#_(repl-pointer-line 'cljs.user 3 10)
+
+(defn formatted-exception-display-str [{:keys [current-ns environment error-type head sub-head last-message messages
+                                               line column error-inline stack-trace] :as display-data}]
   (str
+   (when (and (= :repl environment) (empty? error-inline))
+     (repl-pointer-line current-ns line column))
    (color-text (str "----  " head "  " sub-head "  "
                     (when line (str " line:" line " "))
                     (when column (str " column:" column "  "))
@@ -239,35 +276,95 @@
                :cyan)
    "\n\n"
    (let [max-len (reduce max (map (comp count :class) messages))]
-     (str (string/join "\n"
-                       (map
-                        (fn [{:keys [class message]}]
-                          (str "  " (when class (str (left-pad-string max-len class) " : "))
-                               (color-text message :bold)))
-                        messages))
+     (str
+      (if (= 1 (count messages))
+        (str "  "
+             (color-text (-> messages first :message)
+                         :bold))
+        (string/join "\n"
+                     (map
+                      (fn [{:keys [class message]}]
+                        (str "  " (when class (str (left-pad-string max-len class) " : "))
+                             (color-text message :bold)))
+                      messages)))      
           "\n\n"))
    (when (pos? (count error-inline))
      (str  (format-error-inline error-inline)
           "\n\n"))
-   (color-text (str "---- " error-type " Error: " last-message "  ----")
-               :cyan)))
+   (color-text (str "----  " (if stack-trace
+                               "Exception Stack Trace"
+                               (str error-type
+                                    " Error"
+                                    (when last-message
+                                      (str " : " last-message))))
+                    "  ----")
+               :cyan)
+   (when stack-trace
+     (str "\n\n" stack-trace))))
 
-(defn print-exception [exception]
-  
-  (try
-    #_(int "asd")
-    (-> exception
-        parse-exception
-        exception-data->display-data
-        formatted-exception-display-str
-        println)
-    ;; print something if there is an error in the code above;
-    ;; this is a signal that something is wrong with the code
-    ;; this is necessary because these exceptions are getting eaten??? TODO
-    (catch Throwable e
-      (stack/print-cause-trace exception))))
+(defn print-exception
+  ([exception] (print-exception exception {}))
+  ([exception opts]
+   (prn (inspect-exception exception))
+   (-> exception
+       parse-exception
+       exception-data->display-data
+       (merge opts)
+       formatted-exception-display-str
+       println)
+   (flush)))
 
+#_(-> (:reader example-ex)
+    parse-inspected-exception
+    exception-data->display-data
+    formatted-exception-display-str)
 
+;; this is only for development
+
+#_(def example-ex
+  {:analysis {:class clojure.lang.ExceptionInfo,
+                  :message "failed compiling file:test.cljs",
+                  :data {:file "test.cljs"},
+                  :cause
+                  {:class clojure.lang.ExceptionInfo,
+                   :message "Wrong number of args (0) passed to: core/defn--32200 at line 6 test.cljs",
+                   :data {:file "test.cljs", :line 6, :column 4, :tag :cljs/analysis-error},
+                   :cause {:class clojure.lang.ArityException, :message "Wrong number of args (0) passed to: core/defn--32200", :data nil, :cause nil}}}
+   :analysis2 {:class clojure.lang.ExceptionInfo,
+                   :message "failed compiling file:test.cljs",
+                   :data {:file "test.cljs"},
+                   :cause
+                   {:class clojure.lang.ExceptionInfo,
+                    :message "Parameter declaration \"a\" should be a vector at line 6 test.cljs",
+                    :data {:file "test.cljs", :line 6, :column 4, :tag :cljs/analysis-error},
+                    :cause {:class java.lang.IllegalArgumentException, :message "Parameter declaration \"a\" should be a vector", :data nil, :cause nil}}}
+   :analysis3 {:class clojure.lang.ExceptionInfo,
+                   :message "failed compiling file:test.cljs",
+                   :data {:file "test.cljs"},
+                   :cause
+                   {:class clojure.lang.ExceptionInfo,
+                    :message "Invalid :refer, var var cljs.core.async/yep does not exist in file test.cljs",
+                    :data {:tag :cljs/analysis-error},
+                    :cause nil}}
+   :reader {:class clojure.lang.ExceptionInfo,
+                :message "failed compiling file:test.cljs",
+                :data {:file "test.cljs"},
+                :cause
+                {:class clojure.lang.ExceptionInfo,
+                 :message "EOF while reading, starting at line 3 and column 4",
+                 :data {:type :reader-exception, :line 10, :column 1, :file "/Users/bhauman/workspace/lein-figwheel/example/test.cljs"},
+                 :cause nil}}
+   :plain-exception (let [e (try (throw (Exception. "HEEEY"))
+                                                    (catch Throwable e
+                                                      e))]
+                      (inspect-exception e))
+   :repl-based-exception {:class clojure.lang.ExceptionInfo,
+                          :message "Wrong number of args (0) passed to: core/defn--32200 at line 1 <cljs repl>",
+                          :data {:file "<cljs repl>", :line 1, :column 1, :tag :cljs/analysis-error},
+                          :cause {:class clojure.lang.ArityException,
+                                  :message "Wrong number of args (0) passed to: core/defn--32200", :data nil, :cause nil}}
+
+   })
 
 
 #_(try
@@ -284,44 +381,4 @@
           )
       #_(println ())
     #_(ex-data e)))
-   
-(comment
-
-  (def analysis-ex {:class clojure.lang.ExceptionInfo,
-                    :message "failed compiling file:test.cljs",
-                    :data {:file "test.cljs"},
-                    :cause
-                    {:class clojure.lang.ExceptionInfo,
-                     :message "Wrong number of args (0) passed to: core/defn--32200 at line 6 test.cljs",
-                     :data {:file "test.cljs", :line 6, :column 4, :tag :cljs/analysis-error},
-                     :cause {:class clojure.lang.ArityException, :message "Wrong number of args (0) passed to: core/defn--32200", :data nil, :cause nil}}})
-  (def analysis-ex2 {:class clojure.lang.ExceptionInfo,
-                     :message "failed compiling file:test.cljs",
-                     :data {:file "test.cljs"},
-                     :cause
-                     {:class clojure.lang.ExceptionInfo,
-                      :message "Parameter declaration \"a\" should be a vector at line 6 test.cljs",
-                      :data {:file "test.cljs", :line 6, :column 4, :tag :cljs/analysis-error},
-                      :cause {:class java.lang.IllegalArgumentException, :message "Parameter declaration \"a\" should be a vector", :data nil, :cause nil}}})
-
-  (def analysis-ex3 {:class clojure.lang.ExceptionInfo,
-                     :message "failed compiling file:test.cljs",
-                     :data {:file "test.cljs"},
-                     :cause
-                     {:class clojure.lang.ExceptionInfo,
-                      :message "Invalid :refer, var var cljs.core.async/yep does not exist in file test.cljs",
-                      :data {:tag :cljs/analysis-error},
-                      :cause nil}})
-
-  (def reader-ex {:class clojure.lang.ExceptionInfo,
-                  :message "failed compiling file:test.cljs",
-                  :data {:file "test.cljs"},
-                  :cause
-                  {:class clojure.lang.ExceptionInfo,
-                   :message "EOF while reading, starting at line 3 and column 4",
-                   :data {:type :reader-exception, :line 10, :column 1, :file "/Users/bhauman/workspace/lein-figwheel/example/test.cljs"},
-                   :cause nil}})
-  
-  
-  )
 

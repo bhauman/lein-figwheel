@@ -1,7 +1,10 @@
 (ns figwheel-sidecar.repl
   (:require
+   [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
+   [figwheel-sidecar.config-check.ansi :refer [with-color]]
    [cljs.repl]
    [cljs.stacktrace]
+   [cljs.analyzer :as ana]   
    [cljs.env :as env]
 
    [clojure.java.io :as io]
@@ -11,7 +14,8 @@
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
    [figwheel-sidecar.components.figwheel-server :as server]
    
-   [figwheel-sidecar.config :as config]))
+   [figwheel-sidecar.config :as config])
+  (:import [clojure.lang IExceptionInfo]))
 
 ;; slow but works
 ;; TODO simplify in the future
@@ -151,12 +155,25 @@
 (defn in-nrepl-env? []
   (thread-bound? #'nrepl-eval/*msg*))
 
+(defn catch-exception [e repl-env opts]
+  (if (and (instance? IExceptionInfo e)
+           (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
+    (cljs.repl/repl-caught e repl-env opts)
+    ;; color is going to have to be configurable
+    (do
+      #_(prn ana/*cljs-ns*)
+      (with-color
+        (cljs-ex/print-exception e {:environment :repl
+                                    :current-ns ana/*cljs-ns*})))))
+
 (defn repl
   ([build figwheel-server]
    (repl build figwheel-server {}))
   ([build figwheel-server opts]
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
-                            :warn-on-undeclared true)
+                            :warn-on-undeclared true
+                            :caught #'catch-exception
+                            )
                      opts)
          figwheel-repl-env (repl-env figwheel-server build)
          repl-opts (assoc opts :compiler-env (:compiler-env build))

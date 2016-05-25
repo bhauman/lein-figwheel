@@ -5,6 +5,7 @@
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
+   [figwheel-sidecar.config-check.ansi :refer [with-color]]
    
       ;; build hooks
    [figwheel-sidecar.build-middleware.injection :as injection]
