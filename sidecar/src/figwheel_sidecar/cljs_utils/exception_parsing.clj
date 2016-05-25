@@ -4,9 +4,8 @@
    [clojure.java.io :as io]
    [clojure.stacktrace :as stack]
    [figwheel-sidecar.config-check.ansi :refer [with-color color-text]]
-   [cljs.build.api :as bapi]))
-
-;; more interesting handling of exceptions
+   #_[cljs.build.api :as bapi]
+   [clojure.pprint :as pp]))
 
 (defn relativize-local [path]
   (.getPath
@@ -69,7 +68,7 @@
                     exception-data))]
     (merge {:analysis-exception analysis-exception
             :class   (get-in analysis-exception [:cause :class])}
-           (select-keys (:data analysis-exception) [:file :line :column])
+           (select-keys (:data analysis-exception) [:file :line :column :root-source-info])
            ex
            {:message (or (get-in analysis-exception [:cause :message])
                          (:message analysis-exception))})
@@ -138,46 +137,94 @@
         #(<= start (first %) end)
         (map-indexed vector lines))))
 
-(defn display-error-in-context [{:keys [message line file column root-source-info]
+;; more interesting handling of exceptions
+(defn blank-line-column-prefix [line column]
+  (apply str
+         (concat (repeat (dec line) "\n")
+                 (repeat (dec column) " "))))
+
+(defn repl-prompt-indent [environment current-ns]
+  (if (= environment :repl)
+    (let [current-ns ((fnil name "") current-ns)]
+      (+ 2 (count current-ns)))
+    0))
+
+;; if we are in a repl environment
+;; we need to account for the prompt
+(defn extract-and-format-source
+  [{:keys [source line column]} environment current-ns]
+  (let [res (str (blank-line-column-prefix line column) source)]
+    (if (= :repl environment)
+      (str (apply str
+                  (repeat
+                   (repl-prompt-indent environment current-ns)
+                   " ")) res)
+      res)))
+
+(defn fetch-code-lines [{:keys [file root-source-info environment current-ns] :as ex}]
+  (let [source-data (-> root-source-info :source-form meta)]
+    (cond
+      (and source-data (not (string/blank? (:source source-data))))
+      (string/split (extract-and-format-source
+                     source-data environment current-ns)
+                    #"\n")
+      (and file (.exists (io/file file)))
+      (doall (line-seq (io/reader (io/file file))))
+      :else nil)))
+
+#_(fetch-code-lines {:file "<cljs repl>"
+                   :environment :repl
+                   :current-ns 'cljs.user
+                   :root-source-info {:source-form (vary-meta '(do )
+                                                              merge {:source "hello"
+                                                                     :line 1 :column 1})}})
+
+(defn display-error-in-context [{:keys [message line file column root-source-info environment current-ns]
                                  :as ex}
                                 context-amount]
-  (prn ex)
-  (if-not (and file (.exists (io/file file))) 
-    ex
-    (let [lines (doall (line-seq (io/reader file)))]
-      (if (and line (<= 0 line (count lines)))
-        (->>
-         (concat (map-indexed
-                  #(vector :code-line (inc %1) %2)
-                  (take (dec line) lines))
-                 [[:error-in-code line (nth lines (dec line))]]
-                 [[:error-message nil (breaker-line (nth lines (dec line))
-                                                    message
-                                                    column)]]
-                 (map-indexed
-                  #(vector :code-line (+ line (inc %1)) %2)
-                  (drop line lines)))
-         (take-range (- line context-amount) (+ line context-amount))
-         trim-blank
-         (assoc ex :error-inline))
-        ex))))
+  (if-let [lines (not-empty (fetch-code-lines ex))]
+    (if (and line (<= 0 line (count lines)))
+      (->>
+       (concat (map-indexed
+                #(vector :code-line (inc %1) %2)
+                (take (dec line) lines))
+               [[:error-in-code line (nth lines (dec line))]]
+               [[:error-message nil
+                 (breaker-line (nth lines (dec line))
+                               message
+                               (if (= line 1)
+                                 (+ (repl-prompt-indent
+                                     environment
+                                     current-ns)
+                                    column)
+                                 column))]]
+               (map-indexed
+                #(vector :code-line (+ line (inc %1)) %2)
+                (drop line lines)))
+       (take-range (- line context-amount) (+ line context-amount))
+       trim-blank
+       (assoc ex :error-inline))
+      ex)
+    ex))
 
+(defn parse-inspected-exception
+  ([inspected-exception] (parse-inspected-exception inspected-exception nil))
+  ([inspected-exception opts]
+   (-> {:exception-data (flatten-exception inspected-exception)}
+       (merge opts)
+       parse-failed-compile
+       parse-analysis-error
+       parse-reader-error
+       patch-eof-reader-exception
+       remove-file-from-message
+       (display-error-in-context (if (= (:environment opts) :repl) 15 3)))))
 
-
-
-(defn parse-inspected-exception [inspected-exception]
-  (-> {:exception-data (flatten-exception inspected-exception)}
-      parse-failed-compile
-      parse-analysis-error
-      parse-reader-error
-      patch-eof-reader-exception
-      remove-file-from-message
-      (display-error-in-context 3)))
-
-(defn parse-exception [exception]
-  (-> exception
-      inspect-exception
-      parse-inspected-exception))
+(defn parse-exception
+  ([exception] (parse-exception exception nil))
+  ([exception opts]
+   (-> exception
+       inspect-exception
+       (parse-inspected-exception opts))))
 
 ;; display
 
@@ -187,7 +234,7 @@
     (catch Exception e x)))
 
 (defn exception-data->display-data [{:keys [failed-compiling reader-exception analysis-exception
-                                            class file line column message error-inline] :as exception}]
+                                            class file line column message error-inline environment current-ns] :as exception}]
   (let [direct-form (#{"<cljs repl>" "NO_SOURCE_FILE"} file)
         file         (if direct-form "<cljs form>" file)
         last-message (cond
@@ -223,6 +270,9 @@
      :file file
      :line line
      :column column
+     :environment environment
+     :current-ns current-ns
+     
      }))
 
 (defn left-pad-string [n s]
@@ -303,13 +353,11 @@
      (str "\n\n" stack-trace))))
 
 (defn print-exception
-  ([exception] (print-exception exception {}))
+  ([exception] (print-exception exception nil))
   ([exception opts]
-   (prn (inspect-exception exception))
    (-> exception
-       parse-exception
+       (parse-exception opts)
        exception-data->display-data
-       (merge opts)
        formatted-exception-display-str
        println)
    (flush)))

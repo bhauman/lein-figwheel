@@ -160,11 +160,9 @@
            (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
     (cljs.repl/repl-caught e repl-env opts)
     ;; color is going to have to be configurable
-    (do
-      #_(prn ana/*cljs-ns*)
-      (with-color
+    (with-color
         (cljs-ex/print-exception e {:environment :repl
-                                    :current-ns ana/*cljs-ns*})))))
+                                    :current-ns ana/*cljs-ns*}))))
 
 (defn repl
   ([build figwheel-server]
