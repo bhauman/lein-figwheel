@@ -11,8 +11,10 @@
   (.getPath
    (.relativize
     (.toURI (io/file (.getCanonicalPath (io/file "."))))
-    (.toURI (io/file path)))))
+    ;; just in case we get a URL or some such let's change it to a string first
+    (.toURI (io/file (str path))))))
 
+;; TODO this should append before sending across the wire
 (defn data-serialize [k o]
   (cond
     (= k :root-source-info) o
@@ -21,10 +23,8 @@
     (or (number? o)
         (symbol? o)
         (keyword? o)) o
-    (= (type o) java.io.File)
-    (relativize-local o)
     :else (str o)))
-
+ 
 (defn inspect-exception [ex]
   (-> 
    {:class (type ex)
@@ -119,6 +119,9 @@
                                       \space)) "^--- " (if message message "error starts here"))
       :else (str (apply str (repeat previous-line-start-pos \space)) (if message message "^^^^ error originates on line above ^^^^")))))
 
+
+;;; above here is exception specific
+
 ;;; in context display
 
 (defn trim-blank* [lines]
@@ -207,6 +210,13 @@
       ex)
     ex))
 
+(defn relativize-file-to-project-root [{:keys [file] :as ex}]
+  (if file
+    (update-in ex [:file] relativize-local)
+    ex))
+
+;; parse exceptions
+
 (defn parse-inspected-exception
   ([inspected-exception] (parse-inspected-exception inspected-exception nil))
   ([inspected-exception opts]
@@ -217,7 +227,9 @@
        parse-reader-error
        patch-eof-reader-exception
        remove-file-from-message
-       (display-error-in-context (if (= (:environment opts) :repl) 15 3)))))
+       relativize-file-to-project-root
+       (display-error-in-context (if (= (:environment opts) :repl) 15 3))
+       )))
 
 (defn parse-exception
   ([exception] (parse-exception exception nil))
@@ -226,6 +238,16 @@
        inspect-exception
        (parse-inspected-exception opts))))
 
+;; parse warnings
+
+;;; --- WARNINGS
+
+(defn parse-warning [{:keys [message warning-type
+                             line column ns file message extra] :as warning}]
+  (-> warning
+      relativize-file-to-project-root
+      (display-error-in-context 5)))
+
 ;; display
 
 (defn get-class-name [x]
@@ -233,7 +255,7 @@
     (.getName x)
     (catch Exception e x)))
 
-(defn exception-data->display-data [{:keys [failed-compiling reader-exception analysis-exception
+ (defn exception-data->display-data [{:keys [failed-compiling reader-exception analysis-exception
                                             class file line column message error-inline environment current-ns] :as exception}]
   (let [direct-form (#{"<cljs repl>" "NO_SOURCE_FILE"} file)
         file         (if direct-form "<cljs form>" file)
@@ -246,10 +268,11 @@
                        #_(str "Please see line " line " of file " file )
                        file (str "Please see " file)
                        :else nil)]
-    {:error-type (cond
-                   analysis-exception "Analysis"
-                   reader-exception   "Reader"
-                   failed-compiling   "Compiler"
+    {:type ::exception
+     :error-type (cond
+                   analysis-exception "Analysis Error"
+                   reader-exception   "Reader Error"
+                   failed-compiling   "Compiler Error"
                    :else "Exception")
      :head (cond
                 analysis-exception "Could not Analyze"
@@ -274,6 +297,24 @@
      :current-ns current-ns
      
      }))
+
+(defn warning-data->display-data [{:keys [file line column message error-inline ns] :as exception}]
+  (let [direct-form (#{"<cljs repl>" "NO_SOURCE_FILE"} file)
+        file         (if direct-form "<cljs form>" file)
+        last-message (cond
+                       direct-form nil
+                       file (str "Please see " file)
+                       :else nil)]
+    {:type ::warning
+     :error-type "Compiler Warning"
+     :head "Compiler Warning on "
+     :sub-head file
+     :messages [{:message message}]
+     :error-inline error-inline
+     :last-message last-message
+     :file file
+     :line line
+     :column column}))
 
 (defn left-pad-string [n s]
   (let [len (count ((fnil str "") s))]
@@ -344,7 +385,6 @@
    (color-text (str "----  " (if stack-trace
                                "Exception Stack Trace"
                                (str error-type
-                                    " Error"
                                     (when last-message
                                       (str " : " last-message))))
                     "  ----")
@@ -361,6 +401,12 @@
        formatted-exception-display-str
        println)
    (flush)))
+
+(defn format-warning [warning]
+  (-> warning
+      parse-warning
+      warning-data->display-data
+      formatted-exception-display-str))
 
 #_(-> (:reader example-ex)
     parse-inspected-exception

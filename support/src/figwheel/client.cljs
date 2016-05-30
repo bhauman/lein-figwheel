@@ -220,7 +220,7 @@
       (<! (heads-up/display-exception (:exception-data msg)))
       
       (warning-append-state? msg-names)
-      (heads-up/append-message (:message msg))
+      (heads-up/append-warning-message (:message msg))
       
       (rewarning-state? msg-names)
       (do

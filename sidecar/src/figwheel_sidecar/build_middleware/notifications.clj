@@ -5,6 +5,7 @@
    [figwheel-sidecar.config-check.ansi :refer [with-color color-text]]   
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [cljs.env :as env]
+   [cljs.util :refer [debug-prn]]
    [cljs.analyzer :as ana]
    [cljs.analyzer.api :as ana-api]
    [cljs.build.api :as build-api]
@@ -145,7 +146,18 @@
   (fn [warning-type env extra]
     (when (warning-type cljs.analyzer/*cljs-warnings*)
       (when-let [s (cljs.analyzer/error-message warning-type extra)]
-        (callback (cljs.analyzer/message env s))))))
+        (let [warning-data {:line   (:line env)
+                            :column (:column env)
+                            :ns     (-> env :ns :name)
+                            :file (if (= (-> env :ns :name) 'cljs.core)
+                                    "cljs/core.cljs"
+                                    ana/*cljs-file*)
+                            :message s
+                            :extra   extra}
+              parsed-warning (cljs-ex/parse-warning warning-data)]
+          (debug-prn (with-color
+                       (cljs-ex/format-warning warning-data)))
+          (callback parsed-warning))))))
 
 (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
   (notify-compile-error figwheel-server build {:exception exception}))
@@ -154,9 +166,8 @@
 (defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (binding [cljs.analyzer/*cljs-warning-handlers*
-              (conj cljs.analyzer/*cljs-warning-handlers*
-                    (warning-message-handler
-                     #(notify-compile-warning figwheel-server build-config %)))]
+              [(#'warning-message-handler
+                #(notify-compile-warning figwheel-server build-config %))]]
       (try
         (binding [env/*compiler* (:compiler-env build-config)]
           (build-fn build-state)

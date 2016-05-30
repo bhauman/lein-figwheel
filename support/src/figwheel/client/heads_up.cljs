@@ -4,6 +4,9 @@
    [figwheel.client.socket :as socket]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [goog.string]
+   [goog.dom.dataset :as data]
+   [goog.object :as gobj]
+   [goog.dom :as dom]
    [cljs.pprint :as pp])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
@@ -23,7 +26,8 @@
 (defmethod heads-up-event-dispatch "file-selected" [dataset]
   (socket/send! {:figwheel-event "file-selected"
                  :file-name (.-fileName dataset)
-                 :file-line (.-fileLine dataset)}))
+                 :file-line (.-fileLine dataset)
+                 :file-column (.-fileColumn dataset)}))
 
 (defmethod heads-up-event-dispatch "close-heads-up" [dataset] (clear))
 
@@ -130,39 +134,16 @@
         sub-head
         "</span></div>")))
 
-;; deplrecated
-(defn file-and-line-number [msg]
-  (when (re-matches #".*at\sline.*" msg)
-    (take 2 (reverse (string/split msg " ")))))
-
-(defn file-selector-div [file-name line-number msg]
-  (str "<div data-figwheel-event=\"file-selected\" data-file-name=\""
-       file-name "\" data-file-line=\"" line-number
+(defn file-selector-div [file-name line-number column-number msg]
+  (str "<div style=\"cursor: pointer;\" data-figwheel-event=\"file-selected\" data-file-name=\""
+       file-name "\" data-file-line=\"" line-number "\" data-file-column=\"" column-number
        "\">" msg "</div>"))
 
-(defn format-line [msg]
+(defn format-line [msg {:keys [file line column]}]
   (let [msg (goog.string/htmlEscape msg)]
-    (if-let [[f ln] (file-and-line-number msg)]
-      (file-selector-div f ln msg)
+    (if (or file line)
+      (file-selector-div file line column msg)
       (str "<div>" msg "</div>"))))
-
-(defn display-error [formatted-messages cause]
-  (let [[file-name file-line file-column]
-        (if cause
-          [(:file cause) (:line cause) (:column cause)]
-          (first (keep file-and-line-number formatted-messages)))
-        msg (apply str (map #(str "<div>" (goog.string/htmlEscape %)  "</div>") formatted-messages))]
-    (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
-                      (str (close-link) (heading "Compile Error")
-                           (file-selector-div file-name (or file-line (and cause (:line cause)))
-                                              (str msg
-                                                   (if cause
-                                                     (str "Error on file "
-                                                          (goog.string/htmlEscape (:file cause))
-                                                          ", line "
-                                                          (:line cause)
-                                                          ", column " (:column cause))
-                                                     "")))))))
 
 (defn escape [x]
   (goog.string/htmlEscape x))
@@ -191,11 +172,10 @@
 
 (defn format-inline-error [inline-error]
   (let [lines (map format-inline-error-line (pad-line-numbers inline-error))]
-    (str "<pre style='whitespace:pre; font-family:monospace; font-size:0.8em;"
+    (str "<pre style='whitespace:pre; font-family:monospace; font-size:0.8em; border-radius: 3px;"
          " line-height: 1.1em; padding: 10px; overflow: hidden; background-color: rgb(24,26,38); margin-right: 5px'>"
          (string/join "\n" lines)
          "</pre>")))
-
 
 (defn exception->display-data [{:keys [failed-compiling reader-exception analysis-exception
                                        class file line column message error-inline] :as exception}]
@@ -241,56 +221,80 @@
                    #_(map #(str "<div>" (goog.string/htmlEscape %)
                                              "</div>") messages))]
     (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
-                      (str (close-link) (heading head sub-head)
-                           (file-selector-div file line msg)))))
+                      (str (close-link)
+                           (heading head sub-head)
+                           (file-selector-div file line column msg)))))
 
-
-(comment
-
-  (def ddd 
-    {:class 'clojure.lang.ExceptionInfo,
-     :message "failed compiling file:src/example/core.cljs",
-     :data {:file "src/example/core.cljs"},
-     :cause
-     {:class 'clojure.lang.ExceptionInfo,
-      :message
-      "Wrong number of args (0) passed to: core/defn--29347 at line 28 src/example/core.cljs",
-      :data
-      {:file "src/example/core.cljs",
-       :line 28,
-       :column 1,
-       :tag :cljs/analysis-error },
-      :cause
-      {:class 'clojure.lang.ArityException,
-       :message "Wrong number of args (0) passed to: core/defn--29347",
-       :data nil,
-       :cause nil}}})
-  
-  (-> {:exception-data ddd}
-      (update-in [:exception-data] flatten-exception)
-      parse-failed-compile
-      parse-analysis-error)
-  
-  (exception->display-data (parse-exception ddd))
-  )
-
-
-
-
+(defn warning-data->display-data [{:keys [file line column message error-inline] :as warning-data}]
+  (let [last-message (cond
+                       (and file line)
+                       (str "Please see line " line " of file " file )
+                       file (str "Please see " file)
+                       :else nil)]
+    {:head "Compile Warning"
+     :sub-head file
+     :messages (concat
+                (map
+                 #(str "<div>" % "</div>")
+                 [(when message
+                    (str "<span style=\"font-weight:bold;\">" (escape message) "</span>"))
+                  (when (pos? (count error-inline))
+                    (format-inline-error error-inline))])
+                (when last-message
+                  [(str "<div style=\"color: #AD4F4F; padding-top: 3px; margin-bottom: 10px;\">" (escape last-message) "</div>")]))
+     :file file
+     :line line
+     :column column}))
 
 (defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
                     (str (close-link) (heading header)
-                         (format-line msg))))
+                         (format-line msg {}))))
 
-(defn display-warning [msg]
-  (display-system-warning "Compile Warning" msg))
+(defn display-warning [warning-data]
+  (let [{:keys [head
+                sub-head
+                messages
+                last-message
+                file
+                line
+                column]}
+        (-> warning-data
+            warning-data->display-data)
+        msg (apply str messages)]
+    (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
+                      (str (close-link)
+                           (heading head sub-head)
+                           (file-selector-div file line column msg)))))
 
-(defn append-message [message]
-  (let [{:keys [content-area-el]} (ensure-container)
-        el (.createElement js/document "div")]
-    (set! (.-innerHTML el) (format-line message))
-    (.appendChild content-area-el el)))
+(defn format-warning-message [{:keys [message file line column] :as warning-data}]
+  (cond-> message
+    line (str " at line " line)
+    (and line column) (str ", column " column)
+    file (str " in file " file)) )
+
+(defn append-warning-message [{:keys [message file line column] :as warning-data}]
+  (when message
+    (let [{:keys [content-area-el]} (ensure-container)
+          el (dom/createElement "div")
+          child-count (.-length (dom/getChildren content-area-el))]
+      (if (< child-count 6)
+        (do
+          (dom/append el (dom/htmlToDocumentFragment
+                          (format-line (format-warning-message warning-data)
+                                       warning-data)))
+          (dom/append content-area-el el))
+        (when-let [last-child (dom/getLastElementChild content-area-el)]
+          (if-let [message-count (data/get last-child "figwheel_count")]
+            (let [message-count (inc (js/parseInt message-count))]
+              (data/set last-child "figwheel_count" message-count)
+              (set! (.-innerHTML last-child)
+                    (str message-count " more warnings have not been displayed ...")))
+            (dom/append
+             content-area-el
+             (dom/createDom "div" #js {:data-figwheel_count 1
+                                       :style "margin-top: 3px; font-weight: bold"}
+                            "1 more warning that has not been displayed ..."))))))))
 
 (defn clear []
   (go
