@@ -55,7 +55,7 @@
         (catch Exception e#
           (do
             (.printStackTrace e#)
-           (System/exit 1))))
+            (System/exit 1))))
      requires)))
 
 (defn run-compiler [project {:keys [data] :as figwheel-internal-config-data}]

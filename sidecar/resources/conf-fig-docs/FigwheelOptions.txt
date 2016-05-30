@@ -49,6 +49,23 @@ when you invoke lein figwheel without arguments.
 
   :builds-to-start ["dev" "test"]
 
+:load-all-builds 
+
+A Boolean value that specifies wether or not to load all the
+ClojureScript builds that are available in your config.  When these
+builds are loaded all of their source paths are added to the classpath.
+
+This can result in load conflicts if you are overloading a Clojure
+namespace.
+
+If your project.clj contains conflicting builds, you can choose to
+only load the builds specified on the command line or in
+:builds-to-start by setting :load-all-builds to false.
+
+Default value: true
+
+  :load-all-builds false
+
 :open-file-command
 
 A path to an executable shell script that will be passed a file and
