@@ -15,7 +15,7 @@
    [example.fun-tester]
    [tabby]
    [tweaky]
-   [wowzacore]
+   #_[wowzacore]
    #_[clojure.string :refer [hithere]])
 
   (:require-macros
@@ -24,7 +24,11 @@
    [figwheel.client.utils :refer [enable-dev-blocks!]]
    #_[example.sss :refer [adder]]))
 
-#_(defn)
+#_(defn asdf ( asf ))
+
+    #_(d d d d d d d d d d d d d d d d d d d d d d d)
+
+              #_(defn)
 
 (prn (testmac "hey there"))
 
@@ -35,7 +39,8 @@
 
 (prn (example.sss/adder 1 2))
 
-(prn (js/wowza.hello))
+
+#_(prn (js/wowza.hello))
 
 #_(prn example.tester)
 
@@ -202,8 +207,6 @@
                                         (println "Transaction:")
                                         (prn x)
                                         (remote-transact x))})
-
-
 
 (defn on-message [msg-hist]
   (prn (first msg-hist)))
