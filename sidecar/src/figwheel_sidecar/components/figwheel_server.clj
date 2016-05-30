@@ -4,7 +4,9 @@
    [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.build-utils :as butils]
 
+   [clojure.string :as string]
    [clojure.java.io :as io]
+   [clojure.java.shell :as shell]
    [clojure.edn :as edn]
    
    [clojure.core.async :refer [go-loop <!! <! timeout]]
@@ -22,11 +24,18 @@
   (-connection-data [this])
   (-actual [this]))
 
-(defn get-open-file-command [{:keys [open-file-command]} {:keys [file-name file-line]}]
+
+
+(defn get-open-file-command [open-file-command {:keys [file-name file-line file-column]}]
   (when open-file-command
     (if (= open-file-command "emacsclient")
-      ["emacsclient" "-n" (str "+" file-line) file-name] ;; we are emacs aware
-      [open-file-command file-name file-line])))
+      (cond-> ["emacsclient" "-n"]
+        (not (nil? file-line))
+        (conj  (str "+" file-line
+                    (when (not (nil? file-column))
+                      (str ":" file-column))))
+        true (conj file-name))
+      [open-file-command file-name file-line file-column])))
 
 (defn read-msg [data]
   (try
@@ -36,19 +45,43 @@
       (println "Figwheel: message from client couldn't be read!")
       {})))
 
+(defn validate-file-selected-msg [{:keys [file-name file-line file-column] :as msg}]
+  (and file-name (.exists (io/file file-name))
+       (cond-> msg
+         file-line   (assoc :file-line (java.lang.Integer/parseInt file-line))
+         file-column (assoc :file-column (java.lang.Integer/parseInt file-column)))))
+
+(defn exec-open-file-command [{:keys [open-file-command] :as server-state} msg]
+  (when-let [msg (#'validate-file-selected-msg msg)]
+    (let [command (get-open-file-command open-file-command msg)]
+      (try
+        (let [result (apply shell/sh command)]
+          (if (zero? (:exit result))
+            (println "Successful open file command: " (pr-str command))
+            (println "Failed to call open file command: " (pr-str command)))
+          (when-not (string/blank? (:out result))
+            (println "OUT:")
+            (println (:out result)))
+          (when-not (string/blank? (:err result))
+            (println "ERR:")
+            (println (:err result)))
+          (flush))
+        (catch Exception e
+          (println "Figwheel: there was a problem running the open file command - "
+                   command)
+          (println (.getMessage e)))))))
+
 ;; should make this extendable with multi-method
-(defn handle-client-msg [{:keys [browser-callbacks] :as server-state} data]
+(defn handle-client-msg [{:keys [browser-callbacks log-writer] :as server-state} data]
   (when data
     (let [msg (read-msg data)]
-      (if (= "callback" (:figwheel-event msg))
-        (when-let [cb (get @browser-callbacks (:callback-name msg))]
-          (cb (:content msg)))
-        (when-let [command (and (= "file-selected" (:figwheel-event msg))
-                                (get-open-file-command server-state msg))]
-          (try
-            (.exec (Runtime/getRuntime) (into-array String command))
-            (catch Exception e
-              (println "Figwheel: there was a problem running the open file command - " command))))))))
+      (binding [*out* log-writer
+                *err* log-writer]
+        (if (= "callback" (:figwheel-event msg))
+          (when-let [cb (get @browser-callbacks (:callback-name msg))]
+            (cb (:content msg)))
+          (when (= "file-selected" (:figwheel-event msg))
+            (exec-open-file-command server-state msg)))))))
 
 (defn update-connection-count [connection-count build-id f]
   (swap! connection-count update-in [build-id] (fnil f 0)))
@@ -84,7 +117,8 @@
                 #_(println "Figwheel: client disconnected " status)))
     
     (on-receive wschannel
-                (fn [data] (handle-client-msg server-state data)))
+                (fn [data] (#'handle-client-msg server-state data
+                            )))
 
     ;; Keep alive!!
     ;; 
