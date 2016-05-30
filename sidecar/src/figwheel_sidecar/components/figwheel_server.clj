@@ -8,7 +8,7 @@
    [clojure.java.io :as io]
    [clojure.java.shell :as shell]
    [clojure.edn :as edn]
-   
+   [clojure.stacktrace :as stack]
    [clojure.core.async :refer [go-loop <!! <! timeout]]
 
    [compojure.route :as route]
@@ -134,10 +134,29 @@
     (with-channel request channel
       (setup-file-change-sender server-state (:params request) channel))))
 
+(defn log-output-to-figwheel-server-log [handler log-writer]
+  (fn [request]
+    (if log-writer
+      (binding [*out* log-writer
+                *err* log-writer]
+        (try
+          (handler request)
+          (catch Throwable e
+            (let [message (.getMessage e)
+                  trace (with-out-str (stack/print-cause-trace e))]
+                          (println message)
+                          (println trace)
+                          {:status 400
+                           :body (str "<h1>" message "</h1>"
+                                      "<pre>"
+                                      trace
+                                      "</pre>")}))))
+      (handler request))))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
-  [{:keys [server-port server-ip http-server-root resolved-ring-handler] :as server-state}]
+  [{:keys [server-port server-ip http-server-root resolved-ring-handler log-writer] :as server-state}]
   (try
     (-> (routes
          (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
@@ -151,6 +170,7 @@
         (cors/wrap-cors
          :access-control-allow-origin #".*"
          :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+        (log-output-to-figwheel-server-log log-writer)
         (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
                       (if server-ip
                         (assoc config :ip server-ip)
