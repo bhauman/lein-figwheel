@@ -187,7 +187,8 @@
            :nrepl-host        string?
            :hawk-options      (ref-schema 'HawkOptionsMap)
            :nrepl-middleware  [(ref-schema 'Named)]
-           :validate-config   (ref-schema 'Boolean)})
+           :validate-config   (ref-schema 'Boolean)
+           :load-all-builds   (ref-schema 'Boolean)})
          (get-docs ['FigwheelOptions])))))
 
 (def build-options-rules

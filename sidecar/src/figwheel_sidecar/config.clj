@@ -5,6 +5,7 @@
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.walk :as walk]
+   [clojure.set :refer [intersection]]
    [figwheel-sidecar.config-check.validate-config :as vc]
    [figwheel-sidecar.config-check.ansi :refer [color-text with-color]]))
 
@@ -470,6 +471,16 @@
    :post [(figwheel-internal-config-data? figwheel-internal-data)]}
   (update-in figwheel-internal-data [:data :all-builds] prep-builds*))
 
+;; this implements the load all builds functionality
+;; where if :load-all-builds is false we limit the classpath and the
+;; available builds
+(defn limit-builds-to-build-ids [{:keys [figwheel-options all-builds build-ids] :as figwheel-internal}]
+  (->> (if (-> figwheel-options :load-all-builds false?)
+         (filter #((set build-ids) (:id %))
+                 all-builds)
+         all-builds)
+      (assoc figwheel-internal :all-builds)))
+
 ;; FigwheelConfigData -> FigwheelConfigData
 (defn populate-build-ids
   ([figwheel-internal-data]
@@ -479,14 +490,15 @@
     figwheel-internal-data
     [:data]
     (fn [{:keys [figwheel-options all-builds build-ids] :as figwheel-internal}]
-      (->> figwheel-options
-           :builds-to-start
-           (map name)
-           (or (not-empty build-ids))
-           not-empty
-           (narrow-builds* all-builds)
-           (mapv :id)
-           (assoc figwheel-internal :build-ids)))))
+      (-> (->> figwheel-options
+               :builds-to-start
+               (or (not-empty build-ids))
+               (map name)
+               not-empty
+               (narrow-builds* all-builds)
+               (mapv :id)
+               (assoc figwheel-internal :build-ids))
+          limit-builds-to-build-ids))))
   ([figwheel-internal-data build-ids]
    (populate-build-ids
     (assoc-in figwheel-internal-data [:data :build-ids] (not-empty (vec build-ids))))))
