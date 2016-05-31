@@ -164,8 +164,8 @@
                    " ")) res)
       res)))
 
-(defn fetch-code-lines [{:keys [file root-source-info environment current-ns] :as ex}]
-  (let [source-data (-> root-source-info :source-form meta)]
+(defn fetch-code-lines [{:keys [file root-source-info source-form environment current-ns] :as ex}]
+  (let [source-data (or source-form (-> root-source-info :source-form meta))]
     (cond
       (and source-data (not (string/blank? (:source source-data))))
       (string/split (extract-and-format-source
