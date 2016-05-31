@@ -14,7 +14,8 @@
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
    [figwheel-sidecar.components.figwheel-server :as server]
    
-   [figwheel-sidecar.config :as config])
+   [figwheel-sidecar.config :as config]
+   [clojure.pprint :as pp])
   (:import [clojure.lang IExceptionInfo]))
 
 ;; slow but works
@@ -83,6 +84,14 @@
         {:host host :port (Integer/parseInt port)})
       {})))
 
+(defn clean-stacktrace [stack-trace]
+    (map #(update-in % [:file]
+                   (fn [x]
+                     (when (string? x)
+                       (first (string/split x #"\?")))
+                     ))
+       stack-trace))
+
 (defrecord FigwheelEnv [figwheel-server]
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
@@ -107,8 +116,12 @@
   cljs.repl/IPrintStacktrace
   (-print-stacktrace [repl-env stacktrace error build-options]
     (doseq [{:keys [function file url line column] :as line-tr}
-            (filter valid-stack-line? (cljs.repl/mapped-stacktrace stacktrace build-options))]
-      (repl-println "\t" (str function " (" (str (or url file)) ":" line ":" column ")")))))
+            (filter valid-stack-line?
+                    (cljs.repl/mapped-stacktrace (clean-stacktrace stacktrace)
+                                                 build-options))]
+      
+      (println "  " (str function " (" (str (or url file)) ":" line ":" column ")")))
+    (flush)))
 
 (defn repl-env
   ([figwheel-server {:keys [id build-options] :as build}]
@@ -203,20 +216,11 @@
 
 (defn warning-handler [form opts]
   (fn [warning-type env extra]
-    (when (warning-type cljs.analyzer/*cljs-warnings*)
-      (when-let [s (cljs.analyzer/error-message warning-type extra)]
-        (let [warning-data {:line   (:line env)
-                            :column (:column env)
-                            :ns     (-> env :ns :name)
-                            :file (if (= (-> env :ns :name) 'cljs.core)
-                                    "cljs/core.cljs"
-                                    ana/*cljs-file*)
-                            :source-form   form
-                            :message s
-                            :extra   extra}
-              parsed-warning (cljs-ex/parse-warning warning-data)]
-          (debug-prn (with-color
-                       (cljs-ex/format-warning warning-data))))))))
+    (when-let [warning-data (cljs-ex/extract-warning-data warning-type env extra)]
+      (debug-prn (with-color
+                   (cljs-ex/format-warning (assoc warning-data
+                                                  :source-form form
+                                                  :environment :repl)))))))
 
 (defn catch-warnings-and-exceptions-eval-cljs
   ([repl-env env form]
