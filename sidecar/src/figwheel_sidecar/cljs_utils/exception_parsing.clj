@@ -1,5 +1,6 @@
 (ns figwheel-sidecar.cljs-utils.exception-parsing
   (:require
+   [cljs.analyzer :as ana]
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.stacktrace :as stack]
@@ -109,14 +110,12 @@
     (assoc ex :message (first (string/split message #"in file")) )
     ex))
 
-(defn breaker-message [message]
-  (if message message "error starts here"))
-
 (defn breaker-line [previous-line message column]
   (let [previous-line-start-pos (count (take-while #(= % \space) previous-line))]
     (cond
       column  (str (apply str (repeat (dec column)
-                                      \space)) "^--- " (if message message "error starts here"))
+                                      \space)) "^--- "
+                   (if message message ""))
       :else (str (apply str (repeat previous-line-start-pos \space)) (if message message "^^^^ error originates on line above ^^^^")))))
 
 
@@ -165,7 +164,7 @@
       res)))
 
 (defn fetch-code-lines [{:keys [file root-source-info source-form environment current-ns] :as ex}]
-  (let [source-data (or source-form (-> root-source-info :source-form meta))]
+  (let [source-data (meta (or source-form (-> root-source-info :source-form)))]
     (cond
       (and source-data (not (string/blank? (:source source-data))))
       (string/split (extract-and-format-source
@@ -194,7 +193,7 @@
                [[:error-in-code line (nth lines (dec line))]]
                [[:error-message nil
                  (breaker-line (nth lines (dec line))
-                               message
+                               (when-not (= environment :repl) message) 
                                (if (= line 1)
                                  (+ (repl-prompt-indent
                                      environment
@@ -241,6 +240,18 @@
 ;; parse warnings
 
 ;;; --- WARNINGS
+
+(defn extract-warning-data [warning-type env extra]
+  (when (warning-type cljs.analyzer/*cljs-warnings*)
+    (when-let [s (cljs.analyzer/error-message warning-type extra)]
+      {:line   (:line env)
+       :column (:column env)
+       :ns     (-> env :ns :name)
+       :file (if (= (-> env :ns :name) 'cljs.core)
+               "cljs/core.cljs"
+               ana/*cljs-file*)
+       :message s
+       :extra   extra})))
 
 (defn parse-warning [{:keys [message warning-type
                              line column ns file message extra] :as warning}]
@@ -339,8 +350,18 @@
     (map #(update-in % [1]
                      (partial left-pad-string max-line-number-length)) inline-error)))
 
+(defn min-lead-whitespace [lines]
+  (reduce min (map (fn [[_ _ line]] (count (take-while #(re-matches #"\s" (str %)) line))) lines)))
+
+(defn truncate-leading-space [lines]
+  (let [subtract-space (min-lead-whitespace lines)]
+    (mapv (fn [[a b line]]
+            [a b (apply str (drop subtract-space line))])
+          lines)))
+
 (defn format-error-inline [context-code-lines]
-  (let [lines (pad-line-numbers context-code-lines)]
+  (let [lines (pad-line-numbers context-code-lines)
+        lines (truncate-leading-space lines)]
     (string/join "\n" (map format-error-line lines))))
 
 ;; needs to know the length of the current namespace
@@ -371,7 +392,9 @@
       (if (= 1 (count messages))
         (str "  "
              (color-text (-> messages first :message)
-                         :bold))
+                         (if (= environment :repl)
+                           :yellow
+                           :bold)))
         (string/join "\n"
                      (map
                       (fn [{:keys [class message]}]
