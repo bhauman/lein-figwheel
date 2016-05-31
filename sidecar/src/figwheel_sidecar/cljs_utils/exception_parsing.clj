@@ -15,7 +15,7 @@
     ;; just in case we get a URL or some such let's change it to a string first
     (.toURI (io/file (str path))))))
 
-;; TODO this should append before sending across the wire
+;; TODO this should only happen before sending across the wire
 (defn data-serialize [k o]
   (cond
     (= k :root-source-info) o
@@ -25,7 +25,7 @@
         (symbol? o)
         (keyword? o)) o
     :else (str o)))
- 
+
 (defn inspect-exception [ex]
   (-> 
    {:class (type ex)
