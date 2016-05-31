@@ -6,7 +6,7 @@
    [cljs.stacktrace]
    [cljs.analyzer :as ana]   
    [cljs.env :as env]
-
+   [cljs.util :refer [debug-prn]]
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
@@ -155,14 +155,84 @@
 (defn in-nrepl-env? []
   (thread-bound? #'nrepl-eval/*msg*))
 
-(defn catch-exception [e repl-env opts]
-  (if (and (instance? IExceptionInfo e)
-           (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
-    (cljs.repl/repl-caught e repl-env opts)
-    ;; color is going to have to be configurable
-    (with-color
-        (cljs-ex/print-exception e {:environment :repl
-                                    :current-ns ana/*cljs-ns*}))))
+(defn catch-exception
+  ([e repl-env opts form env]
+   (if (and (instance? IExceptionInfo e)
+            (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
+     (cljs.repl/repl-caught e repl-env opts)
+     ;; color is going to have to be configurable
+     (with-color
+       (cljs-ex/print-exception e (cond-> {:environment :repl
+                                           :current-ns ana/*cljs-ns*}
+                                    form (assoc :source-form form)
+                                    env  (assoc :compile-env env))))))
+  ([e repl-env opts]
+   (catch-exception e repl-env opts nil nil)))
+
+;; this is copied because its private
+(defn wrap-fn [form]
+  (cond
+    (and (seq? form) (= 'ns (first form))) identity
+    ('#{*1 *2 *3 *e} form) (fn [x] `(cljs.core.pr-str ~x))
+    :else
+    (fn [x]
+      `(try
+         (cljs.core.pr-str
+           (let [ret# ~x]
+             (set! *3 *2)
+             (set! *2 *1)
+             (set! *1 ret#)
+             ret#))
+         (catch :default e#
+           (set! *e e#)
+           (throw e#))))))
+
+;; this is copied because it's private
+(defn eval-cljs
+  ([repl-env env form]
+    (eval-cljs repl-env env form cljs.repl/*repl-opts*))
+  ([repl-env env form opts]
+   (cljs.repl/evaluate-form repl-env
+     (assoc env :ns (ana/get-namespace ana/*cljs-ns*))
+     "<cljs repl>"
+     form
+     ;; the pluggability of :wrap is needed for older JS runtimes like Rhino
+     ;; where catching the error will swallow the original trace
+     ((or (:wrap opts) wrap-fn) form)
+     opts)))
+
+(defn warning-handler [form opts]
+  (fn [warning-type env extra]
+    (when (warning-type cljs.analyzer/*cljs-warnings*)
+      (when-let [s (cljs.analyzer/error-message warning-type extra)]
+        (let [warning-data {:line   (:line env)
+                            :column (:column env)
+                            :ns     (-> env :ns :name)
+                            :file (if (= (-> env :ns :name) 'cljs.core)
+                                    "cljs/core.cljs"
+                                    ana/*cljs-file*)
+                            :source-form   form
+                            :message s
+                            :extra   extra}
+              parsed-warning (cljs-ex/parse-warning warning-data)]
+          (debug-prn (with-color
+                       (cljs-ex/format-warning warning-data))))))))
+
+(defn catch-warnings-and-exceptions-eval-cljs
+  ([repl-env env form]
+   (catch-warnings-and-exceptions-eval-cljs
+    repl-env env form cljs.repl/*repl-opts*))
+  ([repl-env env form opts]
+   (try
+     (binding [cljs.analyzer/*cljs-warning-handlers*
+               [(warning-handler form opts)]]
+       (eval-cljs repl-env env form opts))
+     (catch Throwable e
+       (catch-exception e repl-env opts form env)
+       ;; when we are in an nREPL environment lets re-throw with a friendlier
+       ;; message maybe
+       #_(when (in-nrepl-env?)
+           (throw (ex-info "Hey" {})))))))
 
 (defn repl
   ([build figwheel-server]
@@ -170,7 +240,7 @@
   ([build figwheel-server opts]
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
                             :warn-on-undeclared true
-                            :caught #'catch-exception
+                            :eval #'catch-warnings-and-exceptions-eval-cljs
                             )
                      opts)
          figwheel-repl-env (repl-env figwheel-server build)
