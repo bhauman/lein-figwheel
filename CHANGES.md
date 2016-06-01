@@ -1,3 +1,23 @@
+## 0.5.4-SNAPSHOT Error messages and way more!
+
+* redirected :ring-handler exceptions and general printing output to the
+  figwheel-server.log
+* figwheel now provides :open-file-command a third argument that is the column
+  position of the problem
+* beefed up logging around :open-file-command so that one can debug it more easily  
+* added code context to compile errors in heads up display, figwheel_server.log and REPL output
+* added code context to compile warnings as well
+* huge configuration refactor so that (start-figwheel!) now validates configuration
+  and throws very useful exceptions if a configuration problem is found
+* fixed a problem where window.location was being called in a node environment
+* if you want to limit the classpath to only use the paths from the specified builds
+  (i.e. builds supplied on the command line) you can set :figwheel > :load-all-builds to false
+* fixed printing in the REPL, before you couldn't call (println "hi") and see the output in
+  the REPL.  This works for nREPL as well as a direct cljs.repl.
+* fixed REPL js runtime stacktraces, these must have been broken for a while, well they are fixed now
+* fail fast if figwheel server doesn't start because of a port bind error
+* disable ansi colored output with :figwheel > :ansi-color-output false
+
 ## 0.5.3-2 Fix regression for initial build errors
 
 * cleaned up initial compile failure experience. There are horrendous errors
