@@ -5,7 +5,7 @@
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
-   [figwheel-sidecar.config-check.ansi :refer [with-color]]
+   [figwheel-sidecar.config-check.ansi :refer [with-color with-color-when color-text]]
    
       ;; build hooks
    [figwheel-sidecar.build-middleware.injection :as injection]
@@ -28,43 +28,33 @@
    (:build-options build-config)
    (:compiler-env build-config)))
 
-;; TODO use ansi color lib here
-(let [reset-color "\u001b[0m"
-      foreground-red "\u001b[31m"
-      foreground-green "\u001b[32m"      
-      
-      elapsed
-      (fn [started-at]
-        (let [elapsed-us (- (System/currentTimeMillis) started-at)]
-          (with-precision 2
-            (str (/ (double elapsed-us) 1000) " seconds"))))]
-  (defn figwheel-start-and-end-messages [build-fn]
-    (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
-      (let [started-at (System/currentTimeMillis)
-            {:keys [build-options source-paths]} build-config
-            {:keys [output-to]} build-options]
-        ;; print start message
-        (println (str reset-color "Compiling \""
-                      output-to
-                      "\" from " (pr-str source-paths) "..."))
-        (flush)
-        (try
-          ; build
-          (build-fn build-state)
-          ; print end message
-          (println (str foreground-green
-                        "Successfully compiled \""
-                        output-to
-                        "\" in " (elapsed started-at) "." reset-color))
-          (flush)
-          (catch Throwable e
-            (println (str foreground-red
-                          "Failed to compile \""
-                          output-to
-                          "\" in " (elapsed started-at) "." reset-color))
-            (flush)
-            (throw e)))))))
+(defn time-elapsed [started-at]
+  (let [elapsed-us (- (System/currentTimeMillis) started-at)]
+    (with-precision 2
+      (str (/ (double elapsed-us) 1000) " seconds"))))
 
+(defn figwheel-start-and-end-messages [build-fn]
+  (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
+    (let [started-at (System/currentTimeMillis)
+          {:keys [build-options source-paths]} build-config
+            {:keys [output-to]} build-options]
+      ;; print start message
+      (println (color-text (str "Compiling \"" output-to
+                       "\" from " (pr-str source-paths) "...")
+                :none))
+      (try
+        (build-fn build-state)
+        (println (color-text (str "Successfully compiled \"" output-to
+                               "\" in " (time-elapsed started-at) ".")
+                              :green))
+        (catch Throwable e
+          (println (color-text (str 
+                                "Failed to compile \""
+                                output-to
+                                "\" in " (time-elapsed started-at) ".")
+                               :red))
+          (throw e))
+        (finally (flush))))))
 
 (defn handle-notify-command [build-state s]
   (when-let [notify-command (-> build-state :build-config :notify-command)]
@@ -81,6 +71,11 @@
                                                 (name (-> build-state :build-config :id))))
         (throw e)))))
 
+(defn color-output [build-fn]
+  (fn [{:keys [figwheel-server] :as build-state}]
+    (with-color-when (-> figwheel-server :ansi-color-output)
+      (build-fn build-state))))
+
 (def figwheel-build
   (-> cljs-build
       injection/hook
@@ -88,7 +83,8 @@
       clj-reloading/hook
       javascript-reloading/hook
       figwheel-start-and-end-messages
-      notifications/hook))
+      notifications/hook
+      color-output))
 
 (def figwheel-build-without-javascript-reloading
   (-> cljs-build
@@ -96,7 +92,8 @@
       notify-command-hook      
       clj-reloading/hook
       figwheel-start-and-end-messages
-      notifications/hook))
+      notifications/hook
+      color-output))
 
 (def figwheel-build-without-clj-reloading
   (-> cljs-build
@@ -104,7 +101,8 @@
       notify-command-hook      
       javascript-reloading/hook
       figwheel-start-and-end-messages
-      notifications/hook))
+      notifications/hook
+      color-output))
 
 (defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
   (let [{:keys [libs foreign-libs]} build-options]
@@ -122,8 +120,7 @@
       (build-fn build-state)
       (catch Throwable e
         #_(prn (ex-data (.getCause e)))
-        (with-color
-          (cljs-ex/print-exception e))
+        (cljs-ex/print-exception e)
         ;; this only applies if :output-to doesn't exist
         (flush)
         (let [output-to-filepath
@@ -195,7 +192,8 @@
                  injection/hook
                  notify-command-hook
                  figwheel-start-and-end-messages
-                 catch-print-hook)
+                 catch-print-hook
+                 color-output)
              cljs-build-fn) this)
           (assoc this
                  ;; for simple introspection

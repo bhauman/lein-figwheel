@@ -141,4 +141,6 @@
              ;; you can choose to only load the builds specified
              ;; on the command line
              ;;:load-all-builds false ; default is true
+
+             ;;:ansi-color-output false
              })

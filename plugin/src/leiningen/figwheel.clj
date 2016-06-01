@@ -83,7 +83,7 @@
 (defn validate-figwheel-conf [project]
   (if-let [valid-config-data (->> (config-sources project)
                                   (map fc/->config-data)
-                                  fc/color-validate-loop)]
+                                  fc/validate-loop)]
     (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
         valid-config-data)
     (do (println "Figwheel: Configuration validation failed. Exiting ...")

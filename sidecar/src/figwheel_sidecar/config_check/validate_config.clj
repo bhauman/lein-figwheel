@@ -188,7 +188,8 @@
            :hawk-options      (ref-schema 'HawkOptionsMap)
            :nrepl-middleware  [(ref-schema 'Named)]
            :validate-config   (ref-schema 'Boolean)
-           :load-all-builds   (ref-schema 'Boolean)})
+           :load-all-builds   (ref-schema 'Boolean)
+           :ansi-color-output (ref-schema 'Boolean)})
          (get-docs ['FigwheelOptions])))))
 
 (def build-options-rules

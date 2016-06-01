@@ -108,9 +108,8 @@
                        (:build-id figwheel-server)
                        {:msg-name :compile-failed
                         :exception-data (cljs-ex/parse-exception exception)})
-  (with-color
-    (cljs-ex/print-exception exception))
-    (flush))
+  (cljs-ex/print-exception exception)
+  (flush))
 
 (defn notify-compile-error [server-state build-config {:keys [exception]}]
   (compile-error-occured
@@ -155,8 +154,7 @@
                             :message s
                             :extra   extra}
               parsed-warning (cljs-ex/parse-warning warning-data)]
-          (debug-prn (with-color
-                       (cljs-ex/format-warning warning-data)))
+          (debug-prn (cljs-ex/format-warning warning-data))
           (callback parsed-warning))))))
 
 (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]

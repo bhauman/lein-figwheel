@@ -203,7 +203,7 @@
                                     resolved-ring-handler
                                     open-file-command
                                     compile-wait-time
-
+                                    ansi-color-output
                                     ] :as opts}]
       (merge
        opts ;; allow other options to flow through
@@ -223,11 +223,12 @@
         :compile-wait-time (or compile-wait-time 10)
         
         :file-md5-atom (atom {})
-        
+
+        :ansi-color-output (if (false? ansi-color-output) false true)
         :file-change-atom (atom (list))
         :browser-callbacks (atom {})
         :connection-count (atom {})
-     }))
+        }))
 
 (defn start-server
   ([] (start-server {}))

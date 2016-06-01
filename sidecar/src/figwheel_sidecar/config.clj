@@ -7,7 +7,7 @@
    [clojure.walk :as walk]
    [clojure.set :refer [intersection]]
    [figwheel-sidecar.config-check.validate-config :as vc]
-   [figwheel-sidecar.config-check.ansi :refer [color-text with-color]]))
+   [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]))
 
 ;; trying to keep this whole file clojure 1.5.1 compatible because
 ;; it is required by the leiningen process in the plugin
@@ -550,45 +550,49 @@
             (get-choice choices))
           ch)))))
 
+(defn use-color? [config-data]
+  (if-let [fig-opt (and (config-data? config-data) (figwheel-options config-data))]
+    (if (false? (:ansi-color-output fig-opt)) false true)
+    true))
+
 (defn validate-loop [lazy-config-data-list]
-  (let [{:keys [file]} (first lazy-config-data-list)]
-    (if-not (.exists (io/file file))
-      (do
-        (println "Configuration file" (str file) "was not found")
-        (System/exit 1))
-      (let [file (io/file file)]
-        (println "Figwheel: Validating the configuration found in" (str file))
-        (loop [fix false
-               lazy-config-data-list lazy-config-data-list]
-          (let [config-data (first lazy-config-data-list)]
-            (if (print-validate-config-data config-data)
-              config-data
-              (do
-                (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
-                (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
-                (let [choice (or (and fix "f")
-                                 (do
-                                   (println "Figwheel: Would you like to:")
-                                   (println "(f)ix the error live while Figwheel watches for config changes?")
-                                   (println "(q)uit and fix your configuration?")
-                                   (println "(s)tart Figwheel anyway?")
+  (let [{:keys [file] :as first-config-data} (first lazy-config-data-list)]
+    (with-color-when (use-color? first-config-data)
+      (if-not (.exists (io/file file))
+        (do
+          (println "Configuration file" (str file) "was not found")
+          (System/exit 1))
+        (let [file (io/file file)]
+          (println "Figwheel: Validating the configuration found in" (str file))
+          (loop [fix false
+                 lazy-config-data-list lazy-config-data-list]
+            (let [config-data (first lazy-config-data-list)]
+              (if (print-validate-config-data config-data)
+                config-data
+                (do
+                  (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
+                  (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
+                  (let [choice (or (and fix "f")
+                                   (do
+                                     (println "Figwheel: Would you like to:")
+                                     (println "(f)ix the error live while Figwheel watches for config changes?")
+                                     (println "(q)uit and fix your configuration?")
+                                     (println "(s)tart Figwheel anyway?")
                                    (print "Please choose f, q or s and then hit Enter [f]: ")
                                    (flush)
                                    (get-choice ["f" "q" "s"])))]
-                  (condp = choice
-                    nil false
-                    "q" false
-                    "s" config-data
-                    "f" (if file
-                          (do
-                            (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
-                            (file-change-wait file (* 120 1000))
-                            (recur true (rest lazy-config-data-list)))
-                          (do ;; this branch shouldn't be taken
-                            (Thread/sleep 1000)
-                            (recur true (rest lazy-config-data-list))))))))
-            ))))))
-
-(defn color-validate-loop [lazy-config-list]
-  (with-color
-    (validate-loop lazy-config-list)))
+                    (condp = choice
+                      nil false
+                      "q" false
+                      "s" config-data
+                      "f" (if file
+                            (do
+                              (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
+                              (file-change-wait file (* 120 1000))
+                              (recur true (rest lazy-config-data-list)))
+                            (do ;; this branch shouldn't be taken
+                              (Thread/sleep 1000)
+                              (recur true (rest lazy-config-data-list))))))))
+              ))))
+      )
+    ))

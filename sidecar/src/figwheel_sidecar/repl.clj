@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.repl
   (:require
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
-   [figwheel-sidecar.config-check.ansi :refer [with-color]]
+   [figwheel-sidecar.config-check.ansi :refer [with-color-when]]
    [cljs.repl]
    [cljs.stacktrace]
    [cljs.analyzer :as ana]   
@@ -180,7 +180,7 @@
             (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
      (cljs.repl/repl-caught e repl-env opts)
      ;; color is going to have to be configurable
-     (with-color
+     (with-color-when (-> repl-env :figwheel-server :ansi-color-output)
        (cljs-ex/print-exception e (cond-> {:environment :repl
                                            :current-ns ana/*cljs-ns*}
                                     form (assoc :source-form form)
@@ -220,12 +220,13 @@
      ((or (:wrap opts) wrap-fn) form)
      opts)))
 
-(defn warning-handler [form opts]
+(defn warning-handler [repl-env form opts]
   (fn [warning-type env extra]
     (when-let [warning-data (cljs-ex/extract-warning-data warning-type env extra)]
-      (debug-prn (with-color
+      (debug-prn (with-color-when (-> repl-env :figwheel-server :ansi-color-output)
                    (cljs-ex/format-warning (assoc warning-data
                                                   :source-form form
+                                                  :current-ns ana/*cljs-ns*
                                                   :environment :repl)))))))
 
 (defn catch-warnings-and-exceptions-eval-cljs
@@ -235,7 +236,7 @@
   ([repl-env env form opts]
    (try
      (binding [cljs.analyzer/*cljs-warning-handlers*
-               [(warning-handler form opts)]]
+               [(warning-handler repl-env form opts)]]
        (eval-cljs repl-env env form opts))
      (catch Throwable e
        (catch-exception e repl-env opts form env)

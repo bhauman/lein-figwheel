@@ -69,6 +69,11 @@
   `(binding [*enable-color* true]
      ~@body))
 
+(defmacro with-color-when [b & body]
+  `(if ~b
+     (with-color ~@body)
+     (do ~@body)))
+
 (defn color [text & codes]
   (if *enable-color*
     [:span [:pass (esc codes)] text [:pass (escape :none)]]
