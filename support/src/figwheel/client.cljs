@@ -16,11 +16,37 @@
 
 ;; exception formatting
 
-(defn figwheel-repl-print [args]
-  (socket/send! {:figwheel-event "callback"
-                 :callback-name "figwheel-repl-print"
-                 :content args})
-  args)
+(defn figwheel-repl-print
+  ([stream args]
+   (socket/send! {:figwheel-event "callback"
+                  :callback-name "figwheel-repl-print"
+                  :content {:stream stream
+                            :args args}})
+   nil)
+  ([args]
+   (figwheel-repl-print :out args)))
+
+(defn console-out-print [args]
+  (.apply (.-log js/console) js/console (into-array args)))
+
+(defn console-err-print [args]
+  (.apply (.-error js/console) js/console (into-array args)))
+
+(defn repl-out-print-fn [& args]
+  (console-out-print args)
+  (figwheel-repl-print :out args)
+  nil)
+
+(defn repl-err-print-fn [& args]
+  (console-err-print args)
+  (figwheel-repl-print :err args)
+  nil)
+
+(defn enable-repl-print! []
+  (set! *print-newline* false)
+  (set-print-fn! repl-out-print-fn)
+  (set-print-err-fn! repl-err-print-fn)  
+  nil)
 
 (def autoload?
   (if (utils/html-env?)
@@ -45,20 +71,6 @@
       (catch js/Error e
         (utils/log :info
                    (str "Unable to access localStorage"))))))
-
-(defn console-print [args]
-  (.apply (.-log js/console) js/console (into-array args))
-  args)
-
-(defn repl-print-fn [& args]
-  (-> args
-      console-print
-      figwheel-repl-print)
-  nil)
-
-(defn enable-repl-print! []
-  (set! *print-newline* false)
-  (set! *print-fn* repl-print-fn))
 
 (defn get-essential-messages [ed]
   (when ed
@@ -149,12 +161,12 @@
 (let [base-path (utils/base-url-path)]
   (defn eval-javascript** [code opts result-handler]
     (try
-      (binding [*print-fn* repl-print-fn
-                *print-newline* false]
+      (enable-repl-print!)
+      (let [result-value (utils/eval-helper code opts)]
         (result-handler
          {:status :success,
           :ua-product (get-ua-product)
-          :value (utils/eval-helper code opts)}))
+          :value result-value}))
       (catch js/Error e
         (result-handler
          {:status :exception
@@ -167,7 +179,12 @@
          {:status :exception
           :ua-product (get-ua-product)          
           :value (pr-str e)
-          :stacktrace "No stacktrace available."})))))
+          :stacktrace "No stacktrace available."}))
+      (finally
+        ;; should we let people shoot themselves in the foot?
+        ;; you can theoretically disable repl printing in the repl
+        ;; but for now I'm going to prevent it
+        (enable-repl-print!)))))
 
 (defn ensure-cljs-user
   "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
@@ -378,7 +395,7 @@
                             plugins'
                             (merge (base-plugins system-options) merge-plugins))]
              (set! utils/*print-debug* (:debug opts))
-             #_(enable-repl-print!)         
+             (enable-repl-print!)         
              (add-plugins plugins system-options)
              (reloading/patch-goog-base)
              (socket/open system-options))))))

@@ -30,6 +30,17 @@
 
               #_(defn)
 
+
+(defn error-test2 []
+  (js* "a"))
+
+(defn error-test1 []
+  (error-test2))
+
+(defn error-test []
+  (error-test1))
+
+
 (prn (testmac "hey there"))
 
 (prn (tabby/hello))

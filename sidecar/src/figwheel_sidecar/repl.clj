@@ -18,16 +18,6 @@
    [clojure.pprint :as pp])
   (:import [clojure.lang IExceptionInfo]))
 
-;; slow but works
-;; TODO simplify in the future
-(defn resolve-repl-println []
-  (let [opts (resolve 'cljs.repl/*repl-opts*)]
-    (or (and opts (:print @opts))
-        println)))
-
-(defn repl-println [& args]
-  (apply (resolve-repl-println) args))
-
 (defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
   (let [out (chan)
         callback (fn [result]
@@ -63,9 +53,11 @@
         (Thread/sleep 500)
         (recur)))))
 
-(defn add-repl-print-callback! [{:keys [browser-callbacks]}]
+(defn add-repl-print-callback! [{:keys [browser-callbacks repl-print-chan]}]
+  ;; relying on the fact that we are running one repl at a time, not so good
+  ;; we could create a better id here, we can add the build id at least
   (swap! browser-callbacks assoc "figwheel-repl-print"
-         (fn [args] (apply repl-println args))))
+         (fn [print-message] (put! repl-print-chan print-message))))
 
 (defn valid-stack-line? [{:keys [function file url line column]}]
   (and (not (nil? function))
@@ -88,13 +80,26 @@
     (map #(update-in % [:file]
                    (fn [x]
                      (when (string? x)
-                       (first (string/split x #"\?")))
-                     ))
+                       (first (string/split x #"\?")))))
        stack-trace))
 
 (defrecord FigwheelEnv [figwheel-server]
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
+    ;; we need to print in the same thread as
+    ;; the that the repl process was created in
+    ;; thank goodness for the go loop!!
+    (go-loop []
+      (when-let [{:keys [stream args]}
+                 (<! (:repl-print-chan figwheel-server))]
+        (if (= stream :err)
+          (binding [*out* *err*]
+            (apply println args)
+            (flush))
+          (do
+            (apply println args)
+            (flush)))
+        (recur)))
     (add-repl-print-callback! figwheel-server)
     (wait-for-connection figwheel-server)
     (Thread/sleep 500)) ;; just to help with setup latencies
@@ -105,7 +110,9 @@
   (-load [this ns url]
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server (slurp url)))
-  (-tear-down [_] true)
+  (-tear-down [_]
+    (close! (:repl-print-chan figwheel-server))
+    true)
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [repl-env stacktrace error build-options]
     (cljs.stacktrace/parse-stacktrace (merge repl-env
@@ -119,7 +126,6 @@
             (filter valid-stack-line?
                     (cljs.repl/mapped-stacktrace (clean-stacktrace stacktrace)
                                                  build-options))]
-      
       (println "  " (str function " (" (str (or url file)) ":" line ":" column ")")))
     (flush)))
 
@@ -247,6 +253,8 @@
                             :eval #'catch-warnings-and-exceptions-eval-cljs
                             )
                      opts)
+         figwheel-server (assoc figwheel-server
+                                :repl-print-chan (chan))
          figwheel-repl-env (repl-env figwheel-server build)
          repl-opts (assoc opts :compiler-env (:compiler-env build))
          protocol (if (in-nrepl-env?)

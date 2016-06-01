@@ -3,7 +3,7 @@
    [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.config :as config]
-   [figwheel-sidecar.repl :refer [repl-println] :as frepl]   
+   [figwheel-sidecar.repl :as frepl]   
 
    [figwheel-sidecar.components.nrepl-server    :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
@@ -268,7 +268,7 @@
 (defn stop-autobuild
   "Stops autobuilding the specific ids or all currently running autobuilds"
   [system ids]
-  (repl-println "Figwheel: Stoping autobuild")
+  (println "Figwheel: Stoping autobuild")
   (component/stop-system system (ids-or-all-build-keys system ids)))
 
 (defn switch-to-build
@@ -283,7 +283,7 @@
   "Either starts all the current autobuilds or adds the supplied build
   and starts autobuilding it."
   [system ids]
-  (repl-println "Figwheel: Starting autobuild")
+  (println "Figwheel: Starting autobuild")
   (let [current-ids (set (mapv key->id (all-build-keys system)))
         total-ids   (union current-ids (set ids))]
     (switch-to-build system total-ids)))
@@ -297,7 +297,7 @@
   (if-let [build-options 
            (get-in system [:figwheel-server :builds (name id) :build-options])]
     (do
-      (repl-println "Figwheel: Cleaning build -" id)
+      (println "Figwheel: Cleaning build -" id)
       (utils/clean-cljs-build* build-options)
       (clear-compiler-env-for-build-id system id))
     system))
@@ -334,7 +334,7 @@
   (if-let [build-config
              (id->build-config system (name id))]
     (do
-      (repl-println "Figwheel: Building once -" (name id))
+      (println "Figwheel: Building once -" (name id))
       ;; we are allwing build to be overridden at the system level
       ((or
         (:cljs-build-fn system)
@@ -343,7 +343,7 @@
        (assoc system :build-config build-config))
       system)
     (do
-      (repl-println (str "Build config for " id " not found.")))))
+      (println (str "Build config for " id " not found.")))))
 
 ;; doesn't alter the system
 (defn build-once
@@ -374,13 +374,13 @@
     (stop-and-start-watchers
      system ids
      (fn [system]
-       (repl-println "Figwheel: Reloading build config information")
+       (println "Figwheel: Reloading build config information")
        (if-let [new-builds (not-empty (get-project-builds))]
          (assoc-in (doall (reduce clean-build system ids))
                    [:figwheel-server :builds]
                    new-builds)
          (do
-           (repl-println "No reload config found in project.clj")
+           (println "No reload config found in project.clj")
            system))))))
 
 (defn print-config
@@ -398,16 +398,16 @@
   [system]
     (let [connection-count (server/connection-data (:figwheel-server system))
           watched-builds   (mapv key->id (watchers-running system))]
-     (repl-println "Figwheel System Status")
-     (repl-println "----------------------------------------------------")
+     (println "Figwheel System Status")
+     (println "----------------------------------------------------")
      (when (not-empty watched-builds)
-       (repl-println "Watching builds:" watched-builds))
-     (repl-println "Client Connections")
+       (println "Watching builds:" watched-builds))
+     (println "Client Connections")
      (when connection-count
        (doseq [[id v] connection-count]
-         (repl-println "\t" (str (if (nil? id) "any-build" id) ":")
+         (println "\t" (str (if (nil? id) "any-build" id) ":")
                   v (str "connection" (if (= 1 v) "" "s")))))
-     (repl-println "----------------------------------------------------"))
+     (println "----------------------------------------------------"))
     system)
 
 ;; end System Control Functions
