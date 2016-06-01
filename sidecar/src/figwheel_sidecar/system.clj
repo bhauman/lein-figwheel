@@ -598,7 +598,7 @@
                              (ex-data orig-exception))]
         (if escape
           (do (println (.getMessage orig-exception))
-              (when-not (= reason :initial-cljs-build-exception)
+              (when-not (#{:initial-cljs-build-exception :unable-to-bind-port} reason)
                 (throw (.getCause orig-exception))))
           (throw e))))))
 

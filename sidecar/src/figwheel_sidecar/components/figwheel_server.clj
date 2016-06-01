@@ -176,7 +176,9 @@
                         (assoc config :ip server-ip)
                         config))))
     (catch java.net.BindException e
-      (println "Port" server-port "is already being used. Are you running another Figwheel instance? If you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj"))))
+      (throw (ex-info (str "Port " server-port " is already being used. \nAre you running another Figwheel instance? \nIf you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
+                      {:escape-system-exceptions true
+                       :reason :unable-to-bind-port})))))
 
 (defn append-msg [q msg] (conj (take 30 q) msg))
 
