@@ -264,10 +264,10 @@ side configuration parameters:
 
    ;; To be able to open files in your editor from the heads up display
    ;; you will need to put a script on your path.
-   ;; that script will have to take a file path and a line number
+   ;; that script will have to take a file path, a line number and a column
    ;; ie. in  ~/bin/myfile-opener
    ;; #! /bin/sh
-   ;; emacsclient -n +$2 $1
+   ;; emacsclient -n +$2:$3 $1 
    ;;
    :open-file-command "myfile-opener"
 
