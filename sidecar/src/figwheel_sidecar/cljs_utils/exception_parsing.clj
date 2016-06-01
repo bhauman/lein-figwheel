@@ -309,7 +309,8 @@
      
      }))
 
-(defn warning-data->display-data [{:keys [file line column message error-inline ns] :as exception}]
+(defn warning-data->display-data [{:keys [file line column message
+                                          error-inline ns environment current-ns] :as exception}]
   (let [direct-form (#{"<cljs repl>" "NO_SOURCE_FILE"} file)
         file         (if direct-form "<cljs form>" file)
         last-message (cond
@@ -323,6 +324,8 @@
      :messages [{:message message}]
      :error-inline error-inline
      :last-message last-message
+     :environment environment
+     :current-ns current-ns
      :file file
      :line line
      :column column}))
@@ -342,7 +345,7 @@
   (condp = code
     :error-in-code (format-code-line :yellow :bold line-number line)
     :error-message (format-code-line :none :yellow line-number line)
-    (format-code-line :none :none line-number line)))
+    (format-code-line :cyan :cyan line-number line)))
 
 (defn pad-line-numbers [inline-error]
   (let [max-line-number-length (count (str (reduce max (keep second
