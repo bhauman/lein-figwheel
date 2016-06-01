@@ -105,7 +105,7 @@
                     
                     :source-paths ["src" "dev"]
                     :repl-options {:init (set! *print-length* 50)}
-                    :plugins [[cider/cider-nrepl "0.12.0"]]}}
+                    :plugins [[cider/cider-nrepl "0.11.0"]]}}
   
   ; :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
@@ -140,5 +140,5 @@
              ;; if your project.clj contains conflicting builds,
              ;; you can choose to only load the builds specified
              ;; on the command line
-             ;; :load-all-builds false ; default is true
+             ;;:load-all-builds false ; default is true
              })
