@@ -283,16 +283,22 @@
 
 (def default-on-jsload identity)
 
+(defn file-line-column [{:keys [file line column]}]
+  (cond-> ""
+    file (str "file " file)
+    line (str " at line " line)
+    (and line column) (str ", column " column)))
+
 (defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
   (utils/log :debug "Figwheel: Compile Exception")
   (doseq [msg (format-messages exception-data)]
     (utils/log :info msg))
   (if cause
-    (utils/log :info (str "Error on file " (:file cause) ", line " (:line cause) ", column " (:column cause))))
+    (utils/log :info (str "Error on " (file-line-column ed))))
   ed)
 
 (defn default-on-compile-warning [{:keys [message] :as w}]
-  (utils/log :warn (str "Figwheel: Compile Warning - " message))
+  (utils/log :warn (str "Figwheel: Compile Warning - " (:message message) " in " (file-line-column message)))
   w)
 
 (defn default-before-load [files]
@@ -318,8 +324,8 @@
 
    :on-cssload default-on-cssload
    
-   :on-compile-fail default-on-compile-fail
-   :on-compile-warning default-on-compile-warning
+   :on-compile-fail #'default-on-compile-fail
+   :on-compile-warning #'default-on-compile-warning
 
    :reload-dependents true
    
