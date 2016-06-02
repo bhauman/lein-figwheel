@@ -19,7 +19,7 @@
    [compojure "1.4.0" :exclusions [org.clojure/clojure]]
    [clj-stacktrace "0.2.8"]
    [digest "1.4.4" :exclusions [org.clojure/clojure]]
-   #_[figwheel "0.5.4-SNAPSHOT"
+   [figwheel "0.5.4-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.9" :exclusions [org.clojure/clojure]]
 
@@ -33,23 +33,26 @@
                                    [org.clojure/tools.nrepl "0.2.12"]]
                     :source-paths ["cljs-src" "../support/src"]
                     :repl-options {:init (set! *print-length* 50)}
-                    :plugins [[cider/cider-nrepl "0.11.0"]]}}
+                    :plugins [[cider/cider-nrepl "0.11.0"]
+                              [lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}}
 
-  :figwheel {
+  :cljsbuild {
              :builds
-             [{:id "dev"
-               :source-paths ["cljs_src" "../support/src"]
-               :compiler {:main figwheel-helper.core
-                          :asset-path "js/out"
-                          :output-to  "dev-resources/public/js/figwheel-helper.js"
-                          :output-dir "dev-resources/public/js/out"}
-               }
-              {:id "deploy"
-               :source-paths ["cljs_src" "../support/src"]
-               :compiler {:main figwheel-helper.core
-                          :asset-path "js/out"
-                          :output-to  "dev-resources/public/js/figwheel-helper.js"
-                          :output-dir "target/deploy/out"
-                          :optimizations :simple}
-               }]}
+              [{:id "dev"
+                :source-paths ["cljs_src"]
+                :compiler {:main figwheel-helper.core
+                           :asset-path "js/out"
+                           :output-to  "dev-resources/public/js/figwheel-helper.js"
+                           :output-dir "dev-resources/public/js/out"}
+                }
+               {:id "deploy"
+                :source-paths ["cljs_src"]
+                :compiler {:main figwheel-helper.core
+                           :asset-path "js/out"
+                           :output-to  "dev-resources/public/js/figwheel-helper-deploy.js"
+                           :output-dir "target/deploy/out"
+                           :optimizations :simple}
+               }]
+              }
+  
   )

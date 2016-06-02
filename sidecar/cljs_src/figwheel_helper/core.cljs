@@ -131,30 +131,37 @@
                                                 :autoload false
                                                 :initial-messages initial-messages}))
 
+
+
 (defn fetch-data-from-env []
   (try
     (read-string js/window.FIGWHEEL_CLIENT_CONFIGURATION)
     (catch js/Error e
       (cljs.core/*print-err-fn* "Unable to load FIGWHEEL_CLIENT_CONFIGURATION from the environment")
       {:autoload false})))
-   #_(defn)
+
 (def console-intro-message
 "Figwheel has compiled a temporary helper application to your :output-file.
 
-The code in currently in your configured output file does not represent the code that you are trying
-to compile.  
+The code in currently in your configured output file does not
+represent the code that you are trying to compile.
 
-This temporary application is intended to help you continue to get feedback
-from Figwheel until the build you are working on compiles correctly.
+This temporary application is intended to help you continue to get
+feedback from Figwheel until the build you are working on compiles
+correctly.
 
 When your ClojureScript source code compiles correctly this helper
 application will auto-reload and pick up your freshly compiled
 CLojureScript program.")
 
+
+#_(defn)
 (defn initialize-bad-helper-app []
   (let [config (fetch-data-from-env)]
     (println console-intro-message)
     (bad-compile-screen)
+    #_(set! (.. js/goog -inHtmlDocument_) (fn [] true))
+    (set! js/goog.dependencies_ true)
     (client/start config)
     (client/add-message-watch
      :listen-for-successful-compile
