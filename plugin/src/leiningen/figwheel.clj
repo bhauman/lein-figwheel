@@ -64,7 +64,7 @@
    '(require 'figwheel-sidecar.repl-api)
    `(do
       (figwheel-sidecar.repl-api/system-asserts)
-      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~figwheel-internal-config-data))))
+      (figwheel-sidecar.repl-api/start-figwheel-from-lein '~(into {} figwheel-internal-config-data)))))
 
 ;; validation help
 

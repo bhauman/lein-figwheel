@@ -119,6 +119,10 @@ the first default id)."
   []
   (app-trans fs/fig-status))
 
+(defn remove-system []
+  (stop-figwheel!)
+  (alter-var-root #'*repl-api-system* (fn [_] nil)))
+
 (defn api-help
   "Print out help for the Figwheel REPL api"
   []
@@ -135,9 +139,10 @@ the first default id)."
 
 (defn start-figwheel-from-lein [{:keys [figwheel-options]
                                  :as figwheel-internal-config-data}]
-  {:pre [(config/figwheel-internal-config-data? figwheel-internal-config-data)]}
-  (when-let [system (fs/start-figwheel! (vary-meta figwheel-internal-config-data
-                                                   assoc :validate-config false))]
+  (when-let [system (-> figwheel-internal-config-data
+                        config/map->FigwheelInternalConfigData
+                        (vary-meta assoc :validate-config false)
+                        fs/start-figwheel!)]
     (alter-var-root #'*repl-api-system* (fn [_] system))
     (if (false? (:repl figwheel-options))
       (loop [] (Thread/sleep 30000) (recur))
