@@ -404,6 +404,8 @@
              (enable-repl-print!)         
              (add-plugins plugins system-options)
              (reloading/patch-goog-base)
+             (doseq [msg (:initial-messages system-options)]
+               (socket/handle-incoming-message msg))
              (socket/open system-options))))))
   ([] (start {})))
 
