@@ -2,6 +2,7 @@
 *.iml
 .repl
 out/
+sidecar/dev-resources/public/js
 example/resources/public/js/compiled
 example/resources/public/js/out
 example/resources/public/js/example.js
