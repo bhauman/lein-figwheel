@@ -26,4 +26,23 @@
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
    [clj-fuzzy "0.3.1"]
-   [fipp "0.6.4"]])
+   [fipp "0.6.4"]]
+
+  :profiles { :dev {:dependencies [[com.cemerick/piggieback "0.2.1"]
+                                   [org.clojure/tools.namespace "0.2.11"]
+                                   [org.clojure/tools.nrepl "0.2.12"]]
+                    :source-paths ["cljs-src"]
+                    :repl-options {:init (set! *print-length* 50)}
+                    :plugins [[cider/cider-nrepl "0.11.0"]]}}
+
+  :figwheel {
+             :builds
+             [{:id "dev"
+               :source-paths ["cljs_src" "../support/src"]
+               ; :figwheel true
+               :compiler {:main figwheel-helper.core
+                          :asset-path "js/out"
+                          :output-to  "dev-resources/public/js/figwheel-helper.js"
+                          :output-dir "dev-resources/public/js/out"}
+               }]}
+  )
