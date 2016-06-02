@@ -7,7 +7,7 @@
 
 (def ^:dynamic *print-debug* false)
 
-(defn html-env? [] (goog/inHtmlDocument_))
+(defn html-env? [] (not (nil? goog/global.document)))
 
 (defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
 
