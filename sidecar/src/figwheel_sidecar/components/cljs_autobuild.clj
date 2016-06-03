@@ -158,6 +158,7 @@
             ;; must be a fighweel build
             ;; and not a node build
             (if (and (:figwheel build-config)
+                     (:main build-config)
                      (not (= :nodejs (:target build-config))))
               (create-deadman-app-js build-config output-to-filepath e)
               (throw
