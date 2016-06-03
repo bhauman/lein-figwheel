@@ -32,9 +32,9 @@
                                     "dev-resources/public/js"
                                     "target"]
   
-  :profiles { :dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
-                    :source-paths ["cljs_src" "src"]
-                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
+  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
+                   :source-paths ["cljs_src" "src"]
+                   :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
                     :source-paths ["cljs_src" "src"]
                     :resource-paths ["resources" "dev-resources"]
