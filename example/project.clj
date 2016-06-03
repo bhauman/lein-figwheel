@@ -48,7 +48,8 @@
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      example.core/fig-reload
                                     
-                                     :on-message     example.core/on-message
+                                    :on-message     example.core/on-message
+                                    :open-urls ["http://localhost:3449/index.html"]
                                     ; :debug true
                                     }
                          :compiler { :main example.core

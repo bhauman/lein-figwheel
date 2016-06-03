@@ -17,7 +17,8 @@
    [cljs.closure]
    [cljs.build.api :as bapi]
    [clojure.java.io :as io]
-   [clojure.java.shell :refer [sh]]))
+   [clojure.java.shell :refer [sh]]
+   [clojure.java.browse]))
 
 ;; TODO can I run this without a figwheel server??
 ;; that would make this component much more useful
@@ -127,6 +128,9 @@
  */")
 
 (defn create-deadman-app-js [build-config output-to-filepath exception]
+  (println (color-text (str "Figwheel: inital compile failed - outputing temporary helper application to "
+                            output-to-filepath)
+                       :magenta))
   (let [data (pr-str (pr-str (extract-data-for-deadman-app build-config exception)))]
     (spit (io/file output-to-filepath)
           (str
@@ -136,6 +140,20 @@
            ";\n"
            (slurp #_(io/file (str "../sidecar/resources/compiled-utils/figwheel-helper-deploy.js"))
                   (io/resource "compiled-utils/figwheel-helper-deploy.js"))))))
+
+(defn open-urls [build-state]
+  (when-let [urls (not-empty
+                (-> build-state
+                    :build-config
+                    :figwheel
+                    :open-urls))]
+    (doseq [url urls]
+      (clojure.java.browse/browse-url url))))
+
+(defn open-urls-hook [build-fn]
+  (fn [build-state]
+    (build-fn build-state)
+    (open-urls build-state)))
 
 ;; this is just used for the initial build
 (defn catch-print-hook
@@ -147,7 +165,6 @@
       (catch Throwable e
         (cljs-ex/print-exception e)
         (flush)
-
         (let [build-config (:build-config build-state)
               output-to-filepath (get-in build-config [:build-options :output-to])]
           ;; I am assuming for now that if the output file exists
@@ -158,7 +175,7 @@
             ;; must be a fighweel build
             ;; and not a node build
             (if (and (:figwheel build-config)
-                     (:main build-config)
+                     (-> build-config :build-options :main)
                      (not (= :nodejs (:target build-config))))
               (create-deadman-app-js build-config output-to-filepath e)
               (throw
@@ -227,6 +244,7 @@
                  notify-command-hook
                  figwheel-start-and-end-messages
                  catch-print-hook
+                 open-urls-hook
                  color-output)
              cljs-build-fn) this)
           (assoc this

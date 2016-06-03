@@ -53,3 +53,16 @@ small shell script wrapper.
 Default: nil (disabled)
 
   :notify-command ["growlnotify" "-m"]
+
+:open-urls
+
+A Vector of URLs that you would like to have opened at the end of the
+initial compile. These URLs must be Strings.
+
+This is great for opening the host page for the target build and other
+helpful websites like http://cljs.info
+
+These urls will be opened with clojure.java.browse/browse-url.
+Default: nil (disabled)
+
+  :open-urls ["http://localhost:3449/index.html"]

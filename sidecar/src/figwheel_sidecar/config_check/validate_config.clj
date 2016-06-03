@@ -215,7 +215,8 @@
                :load-warninged-code (ref-schema 'Boolean)
                :retry-count         integer?
                :devcards            (ref-schema 'Boolean)
-               :eval-fn             (ref-schema 'Named)})
+               :eval-fn             (ref-schema 'Named)
+               :open-urls           [string?]})
      (spec 'BuildOptionsMap
            {:id              (ref-schema 'Named)
             :source-paths    [string?]
