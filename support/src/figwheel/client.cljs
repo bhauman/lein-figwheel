@@ -2,6 +2,8 @@
   (:require
    [goog.Uri :as guri]
    [goog.userAgent.product :as product]
+   [goog.object :as gobj]
+   [cljs.reader :refer [read-string]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
    [figwheel.client.utils :as utils]   
@@ -413,3 +415,45 @@
 (def watch-and-reload-with-opts start)
 (defn watch-and-reload [& {:keys [] :as opts}] (start opts))
 
+
+;; --- Bad Initial Compilation Helper Application ---
+;;
+;; this is only used to replace a missing compile target
+;; when the initial compile fails due an exception
+;; this is intended to be compiled seperately
+
+(defn fetch-data-from-env []
+  (try
+    (read-string (gobj/get js/window "FIGWHEEL_CLIENT_CONFIGURATION"))
+    (catch js/Error e
+      (cljs.core/*print-err-fn*
+       "Unable to load FIGWHEEL_CLIENT_CONFIGURATION from the environment")
+      {:autoload false})))
+
+(def console-intro-message
+"Figwheel has compiled a temporary helper application to your :output-file.
+
+The code currently in your configured output file does not
+represent the code that you are trying to compile.
+
+This temporary application is intended to help you continue to get
+feedback from Figwheel until the build you are working on compiles
+correctly.
+
+When your ClojureScript source code compiles correctly this helper
+application will auto-reload and pick up your freshly compiled
+ClojureScript program.")
+
+(defn bad-compile-helper-app []
+  (enable-console-print!)
+  (let [config (fetch-data-from-env)]
+    (println console-intro-message)
+    (heads-up/bad-compile-screen)
+    (when-not js/goog.dependencies_
+      (set! js/goog.dependencies_ true))
+    (start config)
+    (add-message-watch
+     :listen-for-successful-compile
+     (fn [{:keys [msg-name]}]
+       (when (= msg-name :files-changed)
+         (set! js/location.href js/location.href))))))

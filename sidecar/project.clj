@@ -28,13 +28,16 @@
    [clj-fuzzy "0.3.1"]
    [fipp "0.6.4"]]
 
+  :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
+  
   :profiles { :dev {:dependencies [[com.cemerick/piggieback "0.2.1"]
-                                   [org.clojure/tools.namespace "0.2.11"]
                                    [org.clojure/tools.nrepl "0.2.12"]]
-                    :source-paths ["cljs-src" "../support/src"]
-                    :repl-options {:init (set! *print-length* 50)}
-                    :plugins [[cider/cider-nrepl "0.11.0"]
-                              [lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}}
+                    :source-paths ["cljs_src" "src"]
+                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
+             :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
+                    :source-paths ["cljs_src" "src"]
+                    :resource-paths ["resources" "dev-resources"]
+                    :repl-options {:init-ns figwheel-sidecar.repl-api}}}
 
   :cljsbuild {
              :builds
@@ -51,6 +54,14 @@
                            :asset-path "js/out"
                            :output-to  "dev-resources/public/js/figwheel-helper-deploy.js"
                            :output-dir "target/deploy/out"
+                           :optimizations :simple}
+                }
+               {:id "deploy-prod"
+                :source-paths ["cljs_src"]
+                :compiler {:main figwheel-helper.core
+                           :asset-path "js/out"
+                           :output-to  "resources/compiled-utils/figwheel-helper-deploy.js"
+                           :output-dir "target/deploy-prod/out"
                            :optimizations :simple}
                }]
               }

@@ -352,3 +352,51 @@
 <path fill='#5F7FBF' stroke='#5F7FBF' stroke-width='6' stroke-miterlimit='10' d='M229,16.1v20.1c91.2,8.1,163,85,163,178.3
   s-71.8,170.2-163,178.3v20.1c102.3-8.2,183-94,183-198.4S331.3,24.3,229,16.1z'/>
 </svg>")
+
+;; ---- bad compile helper ui ----
+
+(defn close-bad-compile-screen []
+  (when-let [el (js/document.getElementById "figwheelFailScreen")]
+    (dom/removeNode el)))
+
+(defn bad-compile-screen []
+  (let [body (-> (dom/getElementsByTagNameAndClass "body")
+                 (aget 0))]
+    (close-bad-compile-screen)
+    #_(dom/removeChildren body)
+    (dom/append body
+              (dom/createDom
+               "div"
+               #js {:id "figwheelFailScreen"
+                    :style (str "background-color: rgba(24, 26, 38, 0.95);"
+                                "position: absolute;"
+                                "width: 100vw;"
+                                "height: 100vh;"
+                                "top: 0px; left: 0px;"
+                                "font-family: monospace")}
+               (dom/createDom
+                "div"
+                #js {:class "message"
+                     :style (str 
+                                 "color: #FFF5DB;"
+                                 "width: 100vw;"
+                                 "margin: auto;"
+                                 "margin-top: 10px;"
+                                 "text-align: center; "
+                                 "padding: 2px 0px;"
+                                 "font-size: 13px;"
+                                 "position: relative")}
+                (dom/createDom
+                 "a"
+                 #js {:onclick (fn [e]
+                                 (.preventDefault e)
+                                 (close-bad-compile-screen))
+                      :href "javascript:"
+                      :style "position: absolute; right: 10px; top: 10px; color: #666"}
+                 "X")
+                (dom/createDom "h2" #js {:style "color: #FFF5DB"}
+                             "Figwheel Says: Your code didn't compile.")
+                (dom/createDom "div" #js {:style "font-size: 12px"}
+                             (dom/createDom "p" #js { :style "color: #D07D7D;"}
+                                          "Keep trying. This page will auto-refresh when your code compiles successfully.")
+                             ))))))
