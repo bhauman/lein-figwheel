@@ -111,6 +111,31 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
+(defn extract-data-for-deadman-app [build-config e]
+  (-> build-config
+      :figwheel
+      (select-keys [:websocket-host :websocket-url :build-id])
+      (assoc
+       :autoload false
+       :initial-messages [{:msg-name :compile-failed
+                           :exception-data (cljs-ex/parse-exception e)}])))
+
+(defn deadman-header-comment []
+  "/* NOT YOUR COMPILED CLOJURESCRIPT - TEMPORARY FIGHWEEL GENERATED PROGRAM 
+ * This is only created in the case where compile fails and you don't have a 
+ * generated output-to file.
+ */")
+
+(defn create-deadman-app-js [build-config output-to-filepath exception]
+  (let [data (pr-str (pr-str (extract-data-for-deadman-app build-config exception)))]
+    (spit (io/file output-to-filepath)
+          (str
+           (deadman-header-comment)
+           "FIGWHEEL_CLIENT_CONFIGURATION="
+           data
+           ";\n"
+           (slurp (io/file (str "../sidecar/resources/compiled-utils/figwheel-helper-deploy.js")))))))
+
 ;; this is just used for the initial build
 (defn catch-print-hook
   "Build middleware hook that catches and prints errors."
@@ -119,20 +144,27 @@
     (try
       (build-fn build-state)
       (catch Throwable e
-        #_(prn (ex-data (.getCause e)))
         (cljs-ex/print-exception e)
-        ;; this only applies if :output-to doesn't exist
         (flush)
-        (let [output-to-filepath
-              (get-in build-state [:build-config :build-options :output-to])]
+
+        (let [build-config (:build-config build-state)
+              output-to-filepath (get-in build-config [:build-options :output-to])]
           ;; I am assuming for now that if the output file exists
           ;; the user is in an interactive development environment
           ;; if not we need to stop and let them know
+          ;; this only applies if :output-to doesn't exist
           (when-not (.exists (io/file output-to-filepath))
-            (throw (ex-info "---- Initial Figwheel ClojureScript Compilation Failed ---- \nWe need a successful initial build for Figwheel to connect correctly.\n"
+            ;; must be a fighweel build
+            ;; and not a node build
+            (if (and (:figwheel build-config)
+                     (not (= :nodejs (:target build-config))))
+              (create-deadman-app-js build-config output-to-filepath e)
+              (throw
+               (ex-info (str "---- Initial Figwheel ClojureScript Compilation Failed ---- \n"
+                             "We need a successful initial build for Figwheel to connect correctly.\n")
                         {:reason :initial-cljs-build-exception
                          :escape-system-exceptions true}
-                        e))))))))
+                        e)))))))))
 
 (defn extract-cljs-build-fn
   [{:keys [figwheel-server] :as cljs-autobuild}]
