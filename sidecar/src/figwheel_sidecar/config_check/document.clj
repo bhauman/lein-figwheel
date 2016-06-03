@@ -64,7 +64,7 @@
 
 (defn docs-for-type [typ]
   (when-let [doc-resource
-             (io/resource (str "conf-fig-docs" java.io.File/separator typ ".txt"))]
+             (io/resource (str "conf-fig-docs" "/" typ ".txt"))]
     (-> doc-resource
         slurp
         string/split-lines
