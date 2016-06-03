@@ -9,20 +9,26 @@
    [figwheel-sidecar.config-check.validate-config :as vc]
    [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]))
 
+(def _figwheel-version_ "0.5.4-SNAPSHOT")
+
 ;; trying to keep this whole file clojure 1.5.1 compatible because
 ;; it is required by the leiningen process in the plugin
 ;; this should be a temporary situation
 
 ;; test this by loading the file into a 1.5.1 process
 
-(defn friendly-assert [v message]
-  (when-not v
-    (do
-      (print "System Assertion: ")
-      (println message)
-      ;; don't bail just in case there is some strange system problem
-      #_(System/exit 1)
-      )))
+(defmacro friendly-assert [v message]
+  `(try
+     (assert ~v ~message)
+     true
+     (catch Throwable e#
+       (-> (.getMessage e#)
+           (color-text :red)
+           println))))
+
+(defmacro system-exit-assert [v msg]
+  `(when-not (friendly-assert ~v ~msg)
+    (java.lang.System/exit 1)))
 
 (defn system-asserts []
   (let [java-version (System/getProperty "java.version")]

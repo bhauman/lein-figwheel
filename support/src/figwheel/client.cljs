@@ -16,6 +16,8 @@
    [cljs.core.async.macros :refer [go go-loop]])
   (:import [goog]))
 
+(def _figwheel-version_ "0.5.4-SNAPSHOT")
+
 ;; exception formatting
 
 (defn figwheel-repl-print
@@ -270,8 +272,27 @@
       (when (:heads-up-display opts)
         (go
          (<! (timeout 3000))
-         (heads-up/display-system-warning "Connection from different project"
-                                          "Shutting connection down!!!!!"))))))
+         (heads-up/display-system-warning
+          "Connection from different project"
+          "Shutting connection down!!!!!"))))))
+
+(defn enforce-figwheel-version-plugin [opts]
+  (fn [msg-hist]
+    (when-let [figwheel-version (-> msg-hist first :figwheel-version)]
+      (when (not= figwheel-version _figwheel-version_)
+        (socket/close!)
+        (.error js/console "Figwheel: message received from different version of Figwheel.")
+        (when (:heads-up-display opts)
+          (go
+            (<! (timeout 2000))
+            (heads-up/display-system-warning
+             "Figwheel Client and Server have different versions!!"
+             (str "Figwheel Client Version \"" _figwheel-version_ "\" is not equal to "
+                  "Figwheel Sidecar Version \"" figwheel-version "\""
+                  ".  Shutting down Websocket Connection!"))))
+        ))))
+
+#_((enforce-figwheel-version-plugin {:heads-up-display true}) [{:figwheel-version "yeah"}])
 
 ;; defaults and configuration
 
@@ -358,6 +379,7 @@
 
 (defn base-plugins [system-options]
   (let [base {:enforce-project-plugin enforce-project-plugin
+              :enforce-figwheel-version-plugin enforce-figwheel-version-plugin
               :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin

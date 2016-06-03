@@ -5,7 +5,10 @@
    [leiningen.core.eval :as leval]
    [leiningen.core.project :as lproj]
    [clojure.java.io :as io]
-   [figwheel-sidecar.config :as fc]))
+   [figwheel-sidecar.config :as fc]
+   [figwheel-sidecar.config-check.ansi :refer [color-text with-color]]))
+
+(def _figwheel-version_ "0.5.4-SNAPSHOT")
 
 (defn make-subproject [project builds]
   (with-meta
@@ -24,28 +27,11 @@
                        (mapcat :source-paths builds))})
     (meta project)))
 
-(defn get-lib-version [proj-name]
-  (let [[_ coords version]
-        (-> (io/resource (str "META-INF/leiningen/" proj-name "/" proj-name "/project.clj"))
-            slurp
-            read-string)]
-    (assert (= coords (symbol proj-name))
-            (str "Something very wrong, could not find " proj-name "'s project.clj, actually found: "
-                 coords))
-    (assert (string? version)
-            (str "Something went wrong, version of " proj-name " is not a string: "
-                 version))
-    version))
-
-(def figwheel-sidecar-version (get-lib-version "figwheel-sidecar"))
-
-(def figwheel-version (get-lib-version "figwheel"))
-
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project builds requires form]
   (let [project' (-> project
-                   (update-in [:dependencies] conj ['figwheel-sidecar figwheel-sidecar-version])
-                   (update-in [:dependencies] conj ['figwheel figwheel-version])
+                   (update-in [:dependencies] conj ['figwheel-sidecar fc/_figwheel-version_])
+                   (update-in [:dependencies] conj ['figwheel fc/_figwheel-version_])
                    (make-subproject builds))]
     (leval/eval-in-project project'
      `(try
@@ -88,6 +74,19 @@
         valid-config-data)
     (do (println "Figwheel: Configuration validation failed. Exiting ...")
         false)))
+
+(with-color
+  (fc/system-exit-assert
+   (= _figwheel-version_ figwheel-sidecar.config/_figwheel-version_)
+   (str "Figwheel version mismatch!!\n"
+        "You are using the lein-figwheel plugin with version: " _figwheel-version_ "\n"
+        "With a figwheel-sidecar library with version:        " fc/_figwheel-version_ "\n"
+        "\n"
+        "These versions need to be the same.\n"
+        "\n"
+        "Please look at your project.clj :dependencies to see what is causing this.\n"
+        "You may need to run \"lein clean\" \n"
+        "Running \"lein deps :tree\" can help you see your dependency tree.")))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."

@@ -244,14 +244,15 @@
 
 (defn prep-message [{:keys [unique-id] :as this} channel-id msg-data callback]
   (-> msg-data
-        (assoc
-               :project-id (:unique-id unique-id)
-               :build-id channel-id
-               :callback callback)
-        (->>
-         (filter (comp not nil? second))
-         (into {})
-         (setup-callback this))))
+      (assoc
+       :project-id (:unique-id unique-id)
+       :figwheel-version config/_figwheel-version_
+       :build-id channel-id
+       :callback callback)
+      (->>
+       (filter (comp not nil? second))
+       (into {})
+       (setup-callback this))))
 
 ;; external api
 
