@@ -28,10 +28,11 @@
    [clj-fuzzy "0.3.1"]
    [fipp "0.6.4"]]
 
-  :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
+  :clean-targets ^{:protect false} ["resources/compiled-utils/figwheel-helper-deploy.js"
+                                    "dev-resources/public/js"
+                                    "target"]
   
-  :profiles { :dev {:dependencies [[com.cemerick/piggieback "0.2.1"]
-                                   [org.clojure/tools.nrepl "0.2.12"]]
+  :profiles { :dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
                     :source-paths ["cljs_src" "src"]
                     :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
