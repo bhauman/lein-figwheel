@@ -20,10 +20,50 @@
    [clj-stacktrace "0.2.8"]
    [digest "1.4.4" :exclusions [org.clojure/clojure]]
    [figwheel "0.5.4-SNAPSHOT"
-    :exclusions [org.clojure/tools.reader]]
+      :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.9" :exclusions [org.clojure/clojure]]
 
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
    [clj-fuzzy "0.3.1"]
-   [fipp "0.6.4"]])
+   [fipp "0.6.4"]]
+
+  :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
+  
+  :profiles { :dev {:dependencies [[com.cemerick/piggieback "0.2.1"]
+                                   [org.clojure/tools.nrepl "0.2.12"]]
+                    :source-paths ["cljs_src" "src"]
+                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
+             :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
+                    :source-paths ["cljs_src" "src"]
+                    :resource-paths ["resources" "dev-resources"]
+                    :repl-options {:init-ns figwheel-sidecar.repl-api}}}
+
+  :cljsbuild {
+             :builds
+              [{:id "dev"
+                :source-paths ["cljs_src"]
+                :compiler {:main figwheel-helper.core
+                           :asset-path "js/out"
+                           :output-to  "dev-resources/public/js/figwheel-helper.js"
+                           :output-dir "dev-resources/public/js/out"}
+                }
+               {:id "deploy"
+                :source-paths ["cljs_src"]
+                :compiler {:main figwheel-helper.core
+                           :asset-path "js/out"
+                           :output-to  "dev-resources/public/js/figwheel-helper-deploy.js"
+                           :output-dir "target/deploy/out"
+                           :optimizations :simple}
+                }
+               {:id "deploy-prod"
+                :source-paths ["cljs_src"]
+                :compiler {:main figwheel-helper.core
+                           :asset-path "js/out"
+                           :output-to  "resources/compiled-utils/figwheel-helper-deploy.js"
+                           :output-dir "target/deploy-prod/out"
+                           :optimizations :simple}
+               }]
+              }
+  
+  )

@@ -10,7 +10,7 @@
    [cljs-time.core]
    [cljs.core.async :refer [<!]]
    [example.sss]
-   
+   [figwheel.client.heads-up :as hu]
    ;; reload js oh yeah
    [example.fun-tester]
    [tabby]
@@ -29,7 +29,7 @@
     #_(d d d d d d d d d d d d d d d d d d d d d d d)
 
               #_(defn)
-
+#_(hu/bad-compile-screen)
 
 (defn error-test2 []
   (js* "a"))

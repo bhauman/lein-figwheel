@@ -122,7 +122,7 @@
 
 (defn deadman-header-comment []
   "/* NOT YOUR COMPILED CLOJURESCRIPT - TEMPORARY FIGHWEEL GENERATED PROGRAM 
- * This is only created in the case where compile fails and you don't have a 
+ * This is only created in the case where the compile fails and you don't have a 
  * generated output-to file.
  */")
 
@@ -134,7 +134,8 @@
            "FIGWHEEL_CLIENT_CONFIGURATION="
            data
            ";\n"
-           (slurp (io/file (str "../sidecar/resources/compiled-utils/figwheel-helper-deploy.js")))))))
+           (slurp #_(io/file (str "../sidecar/resources/compiled-utils/figwheel-helper-deploy.js"))
+                  (io/resource "compiled-utils/figwheel-helper-deploy.js"))))))
 
 ;; this is just used for the initial build
 (defn catch-print-hook
