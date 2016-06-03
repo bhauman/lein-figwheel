@@ -24,8 +24,6 @@
   (-connection-data [this])
   (-actual [this]))
 
-
-
 (defn get-open-file-command [open-file-command {:keys [file-name file-line file-column]}]
   (when open-file-command
     (if (= open-file-command "emacsclient")
@@ -53,7 +51,7 @@
 
 (defn exec-open-file-command [{:keys [open-file-command] :as server-state} msg]
   (when-let [msg (#'validate-file-selected-msg msg)]
-    (let [command (get-open-file-command open-file-command msg)]
+    (if-let [command (get-open-file-command open-file-command msg)]
       (try
         (let [result (apply shell/sh command)]
           (if (zero? (:exit result))
@@ -69,7 +67,9 @@
         (catch Exception e
           (println "Figwheel: there was a problem running the open file command - "
                    command)
-          (println (.getMessage e)))))))
+          (println (.getMessage e))))
+      (println "Figwheel: Can't open " (pr-str (vals (select-keys msg [:file-name :file-line :file-column]))) 
+               "No :open-file-command supplied in the config."))))
 
 ;; should make this extendable with multi-method
 (defn handle-client-msg [{:keys [browser-callbacks log-writer] :as server-state} data]
