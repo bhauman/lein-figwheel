@@ -1,4 +1,4 @@
-## 0.5.4-SNAPSHOT Error messages and way more!
+## 0.5.4-SNAPSHOT Error messages and way more! 
 
 #### Code context in Errors and Warnings
 
@@ -9,17 +9,17 @@ simple errors that I've become accustomed to, the new errors tend to
 beam the information in much more quickly.
 
 The code pointers are rough at times and no code context information
-displayed if Figwheel doesn't get any line and column information from
-the compiler.
+will displayed if Figwheel doesn't get any line and column information
+from the compiler.
 
-The dsiplay of these errors can still be improved futher, and I plan
+The display of these errors can still be improved further, and I plan
 to do so.  I just wanted to get the bits hooked up and a decent
 display out the door first.
 
 * added code context to compile errors in heads up display, figwheel_server.log and REPL output
 * added code context to compile warnings as well
 
-#### Improved Build correctnesss
+#### Improved Build correctness
 
 There have been several things that have dogged Figwheel for a while.
 
@@ -36,7 +36,6 @@ There have been several things that have dogged Figwheel for a while.
   change and clean out the build assets before compiling. If you have
   a simple classpath that points to a directory of jars this wont
   help you, but I think this will help a great majority of users.
-  (I can hear the boot users chanting ...)
   
 
 #### DOA helper application
@@ -45,19 +44,19 @@ This is a user experience improvement experiment.  There has been a
 problem when the initial compile fails and you open the browser and
 nothing happens and your REPL doesn't work.
 
-Inspired by Elm I am now emmiting a small application that announces
+Inspired by Elm, I am now emitting a small application that announces
 the problem when you load it in the browser. This application is a
 figwheel client so that it will respond to and display compilation
 messages and has a functioning repl.
 
 It won't load compiled files but as soon as a compilation succeeds it
-will auto-refresh running your now compiled code.
+will auto-refresh and thus pick up your now compiled application.
 
 It's still early but I'm thinking that this is could be a good thing.
 
 #### Lots more
 
-* huge configuration refactor so that (start-figwheel!) now validates configuration
+* huge configuration re-factor so that (start-figwheel!) now validates configuration
   and throws useful exceptions if a configuration problem is found
 * fixed printing in the REPL, before you couldn't call (println "hi")
   and see the output in the REPL.  This works for nREPL as well as a
@@ -65,18 +64,20 @@ It's still early but I'm thinking that this is could be a good thing.
 * made printing much more robust, executing `(js/setInterval #(println "hi") 1000)`
   in the REPL works sending output to the REPL
 * fixed REPL js runtime stacktraces, these must have been broken for a
-  while, well they are fixed now
-* a new `:open-urls` option in the per build :figwheel configuration
-  which is a vector of URLs that you would like to open the first time
-  a build completes.  These are opened with clojure.java.browse/browse-url
+  while, sorry about that
+* a new `:open-urls` option in the per build :figwheel configuration.
+  This is a vector of URLs that figwheel will open the first time a
+  build completes.  These are opened with clojure.java.browse/browse-url
 
 * fail fast if figwheel server doesn't start because of a port bind error
 * disable ansi colored output with :figwheel > :ansi-color-output false
 * figwheel now provides :open-file-command a third argument that is the column
-  position of the problem
+  position of the problem. Yes this means that heads up display errors will pop
+  you to the line and *column* if you click on them.
 * beefed up logging around :open-file-command so that one can debug it more easily  
 * redirected :ring-handler exceptions and general printing output to the
   figwheel-server.log
+* ring exceptions and stack traces are displayed in the response HTML as well  
 * fixed a problem where window.location was being called in a node environment
 * if you want to limit the classpath to only use the paths from the specified builds
   (i.e. builds supplied on the command line) you can set :figwheel > :load-all-builds to false
