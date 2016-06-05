@@ -370,6 +370,7 @@
                #js {:id "figwheelFailScreen"
                     :style (str "background-color: rgba(24, 26, 38, 0.95);"
                                 "position: absolute;"
+                                "z-index: 9000;"
                                 "width: 100vw;"
                                 "height: 100vh;"
                                 "top: 0px; left: 0px;"
