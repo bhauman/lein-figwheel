@@ -16,7 +16,6 @@
    [clj-stacktrace.repl :refer [pst-on]]
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [digest]
    ;; dev
    #_[clojure.pprint :refer [pprint]]
    ))
@@ -49,13 +48,13 @@
       (println "notifying browser that file changed: " (:file f)))))
 
 (defn file-changed?
-  "Standard md5 check to see if a file actually changed."
+  "Standard checksum to see if a file actually changed."
   [{:keys [file-md5-atom]} filepath]  
   (when-let [file (io/file filepath)]
     (when (.exists file)
       (let [contents (slurp file)]
         (when (.contains contents "addDependency")
-          (let [check-sum (digest/md5 contents)
+          (let [check-sum (.hashCode contents)
                 changed? (not= (get @file-md5-atom filepath)
                                check-sum)]
             (swap! file-md5-atom assoc filepath check-sum)
