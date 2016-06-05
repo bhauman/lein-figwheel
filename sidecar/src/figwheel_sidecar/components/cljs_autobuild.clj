@@ -113,6 +113,23 @@
      libs
      (not-empty (mapv :file foreign-libs)))))
 
+;; open url build middleware
+
+(def open-url-once (memoize clojure.java.browse/browse-url))
+
+(defn open-urls [build-state]
+  (when-let [urls (not-empty
+                (-> build-state
+                    :build-config
+                    :figwheel
+                    :open-urls))]
+    (doseq [url urls] (open-url-once url))))
+
+(defn open-urls-hook [build-fn]
+  (fn [build-state]
+    (build-fn build-state)
+    (open-urls build-state)))
+
 (defn extract-data-for-deadman-app [build-config e]
   (-> build-config
       :figwheel
@@ -123,7 +140,8 @@
                            :exception-data (cljs-ex/parse-exception e)}])))
 
 (defn deadman-header-comment []
-  "/* NOT YOUR COMPILED CLOJURESCRIPT - TEMPORARY FIGHWEEL GENERATED PROGRAM 
+  "/* FIGWHEEL BAD COMPILE RECOVERY APPLICATION */
+/* NOT YOUR COMPILED CLOJURESCRIPT - TEMPORARY FIGWHEEL GENERATED PROGRAM 
  * This is only created in the case where the compile fails and you don't have a 
  * generated output-to file.
  */")
@@ -142,19 +160,10 @@
            (slurp #_(io/file (str "../sidecar/resources/compiled-utils/figwheel-helper-deploy.js"))
                   (io/resource "compiled-utils/figwheel-helper-deploy.js"))))))
 
-(defn open-urls [build-state]
-  (when-let [urls (not-empty
-                (-> build-state
-                    :build-config
-                    :figwheel
-                    :open-urls))]
-    (doseq [url urls]
-      (clojure.java.browse/browse-url url))))
-
-(defn open-urls-hook [build-fn]
-  (fn [build-state]
-    (build-fn build-state)
-    (open-urls build-state)))
+(defn deadman-output-to-file? [output-to-file]
+  (when (.exists (io/file output-to-file))
+    (when-let [first-line (first (line-seq (io/reader output-to-file)))]
+      (re-matches #".*FIGWHEEL BAD COMPILE.*"  (str first-line)))))
 
 ;; this is just used for the initial build
 (defn catch-print-hook
@@ -172,7 +181,8 @@
           ;; the user is in an interactive development environment
           ;; if not we need to stop and let them know
           ;; this only applies if :output-to doesn't exist
-          (when-not (.exists (io/file output-to-filepath))
+          (when (or (not (.exists (io/file output-to-filepath)))
+                    (deadman-output-to-file? output-to-filepath))
             ;; must be a fighweel build
             ;; and not a node build
             (if (and (:figwheel build-config)
