@@ -12,26 +12,27 @@
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.2.374"
     :exclusions [org.clojure/tools.reader]]
-   [com.stuartsierra/component "0.3.0"]
+   [com.stuartsierra/component "0.3.1"]
    [http-kit "2.1.19"]
-   [ring-cors "0.1.7"
+   [ring-cors "0.1.8"
     :exclusions [ring/ring-core org.clojure/clojure]]
-   [compojure "1.4.0" :exclusions [org.clojure/clojure]]
+   [compojure "1.5.0" :exclusions [org.clojure/clojure]]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.4-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]
-   [hawk "0.2.9" :exclusions [org.clojure/clojure]]
+   [hawk "0.2.10" :exclusions [org.clojure/clojure]]
 
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
    [clj-fuzzy "0.3.1"]
-   [fipp "0.6.4"]]
+   [fipp "0.6.5"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
   
   :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
                    :source-paths ["cljs_src" "src"]
-                   :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
+                   :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
+                             [lein-ancient "0.6.10"]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
                     :source-paths ["cljs_src" "src"]
                     :resource-paths ["resources" "dev-resources"]
