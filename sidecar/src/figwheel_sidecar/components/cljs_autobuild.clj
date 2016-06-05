@@ -12,7 +12,8 @@
    [figwheel-sidecar.build-middleware.notifications :as notifications]
    [figwheel-sidecar.build-middleware.clj-reloading :as clj-reloading]
    [figwheel-sidecar.build-middleware.javascript-reloading :as javascript-reloading]
-
+   [figwheel-sidecar.build-middleware.stamp-and-clean :as stamp-and-clean]
+   
    [com.stuartsierra.component :as component]
    [cljs.closure]
    [cljs.build.api :as bapi]
@@ -245,6 +246,7 @@
                  figwheel-start-and-end-messages
                  catch-print-hook
                  open-urls-hook
+                 stamp-and-clean/hook                 
                  color-output)
              cljs-build-fn) this)
           (assoc this
