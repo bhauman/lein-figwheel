@@ -1,6 +1,7 @@
 (ns figwheel-tasks.core
   (:require [clojure.java.io :as io]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clojure.java.shell :as shell]))
 
 (defn internal-version [version line]
   (if (.contains line "def _figwheel-version_")
@@ -45,8 +46,14 @@
                  "../support/src/figwheel/client.cljs"]]
     (chg-file-version internal-version version file)))
 
+(defn install-all []
+  (doseq [dir ["../support" "../sidecar" "./"]]
+    (-> (shell/sh "lein" "install" :dir dir) :out println)
+    (flush)))
+
 #_(change-version "AAAAAAAAAAAAA")
 
 (defn -main [command & args]
   (condp = command
-    :change-version (change-version (first args))))
+    ":change-version" (change-version (first args))
+    ":install-all" (install-all)))
