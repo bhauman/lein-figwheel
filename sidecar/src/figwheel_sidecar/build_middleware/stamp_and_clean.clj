@@ -23,6 +23,7 @@
            ".figwheel-compile-stamp"))
 
 ;; this provides a simple map and stable order for hashing
+;; TODO this should return a seq of map entries
 (defn options-that-affect-build-cache [build-config]
   (-> build-config
       (select-keys [:static-fns :optimize-constants
@@ -49,8 +50,8 @@
     (spit sfile
           (current-stamp-signature build-config))))
 
-(defn stamp-value [build-state]
-  (let [sf (stamp-file build-state)]
+(defn stamp-value [build-config]
+  (let [sf (stamp-file build-config)]
     (when (.exists sf) (slurp sf))))
 
 (defn stamp-matches? [build-config]
