@@ -221,28 +221,18 @@
            {:id              (ref-schema 'Named)
             :source-paths    [string?]
             :figwheel        (ref-schema 'FigwheelClientOptions)
-            ;:compiler        (ref-schema 'CompilerOptions)
+            :compiler        (ref-schema 'CompilerOptions)
             :notify-command  [string?]
             :jar             (ref-schema 'Boolean)
             :incremental     (ref-schema 'Boolean)
             :assert          (ref-schema 'Boolean)
             :warning-handlers [anything?]})
      (assert-not-empty 'BuildOptionsMap :source-paths)
-     (requires-keys 'BuildOptionsMap :source-paths #_:compiler)
+     (requires-keys 'BuildOptionsMap :source-paths :compiler)
      (get-docs ['CompilerOptions
                 'FigwheelClientOptions
                 'BuildOptionsMap
                 'ReloadCljFiles])))))
-
-;; this is not good I'm having to inject rules for build-options
-;; versus compiler 
-(defn build-options-map-compiler-options [key]
-  {:pre [(keyword? key)]
-   :post [(sequence %)]}  
-  (distinct
-   (concat
-    (spec 'BuildOptionsMap {key (ref-schema 'CompilerOptions)})
-    (requires-keys 'BuildOptionsMap key))))
 
 (def common-validation-rules-base
   (doall
@@ -288,7 +278,6 @@
    (distinct
     (concat
      common-validation-rules-base
-     (build-options-map-compiler-options :build-options)     
      (spec 'Builds [(ref-schema 'BuildOptionsMap)])
      (spec 'ApiRootMap
            {:all-builds (ref-schema 'Builds)
@@ -341,15 +330,13 @@
    (let [builds (get-in config [:figwheel :builds])]
      (when (tc/sequence-like? builds)
        (requires-keys 'BuildOptionsMap :id)))
-   figwheel-cljsbuild-rules
-   (build-options-map-compiler-options :compiler)))
+   figwheel-cljsbuild-rules))
 
 #_(validate-only-figwheel-rules {:figwheel {:builds []}})
 
 (defn validate-regular-rules [config]
   (index-spec
    schema-rules-base
-   (build-options-map-compiler-options :compiler)   
    (requires-keys 'CljsbuildOptions :builds)
    (assert-not-empty 'CljsbuildOptions :builds)
    (requires-keys 'RootMap :cljsbuild)
@@ -360,7 +347,6 @@
 (defn validate-figwheel-edn-rules [config]
   (index-spec
    figwheel-cljsbuild-rules
-   (build-options-map-compiler-options :compiler)   
    (spec 'FigwheelOptions {:builds   (ref-schema 'CljsBuilds)})
    (requires-keys 'FigwheelOptions :builds)
    (assert-not-empty 'FigwheelOptions :builds)   
@@ -378,16 +364,34 @@
                                                          [cljb-k cljb-v]]))]
         (raise-one-error (validate-regular-rules conf) 'RootMap (assoc config-data :data conf))))))
 
-#_ (with-color
+#_(with-color
      (validate-project-config-data
       {:file (io/file "project.clj")
        :type :lein-project
        :data
        {:cljsbuild
-        {:builds { :source-paths ["src" ]
-                  :fighweel true
-                  :compiler {}}}
+        {:builds [{:id "dev" :source-paths ["src" ]
+                   :figwheel true
+                   :compiler {}}]}
         :figwheel {}}}))
+
+#_(validate-figwheel-config-data {:file (io/file "project.clj")
+                                  :data
+                                  {:figwheel-options {}
+                                   :all-builds [{:id "dev" :source-paths ["src" ]
+                                                 :figwheel true
+                                                 :build-options {}}]}})
+
+#_(validate-figwheel-config-data {:file (io/file "project.clj")
+                                  :data
+                                  {:figwheel-options {}
+                                   :all-builds [{:id "dev" :source-paths ["src" ]
+                                                 :figwheel true
+                                                 :build-options
+                                                 {:output-dir "out"
+                                                  :main 'eamplse.core
+                                                  :asset-path "js/out"}}]}})
+
 
 (defn validate-figwheel-edn-config-data [{:keys [data] :as config-data}]
   (raise-one-error (validate-figwheel-edn-rules data)

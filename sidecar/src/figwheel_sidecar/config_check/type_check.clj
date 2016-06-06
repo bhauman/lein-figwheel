@@ -686,7 +686,8 @@
 
 (defn group-and-sort-first-pass-errors [errors]
   (let [res-groups (group-by :Error-type errors)
-        order  [:wrong-position-for-value
+        order  [:deprecated-key
+                :wrong-position-for-value
                 :misspelled-key
                 :misplaced-key 
                 :misspelled-misplaced-key
@@ -699,21 +700,31 @@
     (sort-by (fn [[k v]] (let [pos (.indexOf order k)]
                           (if (neg? pos) 100 pos))) res-groups)))
 
+;; I don't have deprecate functionality and I'm probably going to
+;; be moving to clojure.spec soon so let's just punt on this one
+(defn deprecate [errors]
+  (let [missing-compiler      (first (filter #(and (= (:Error-type %) :missing-required-key)
+                                                   (= (:key %) :compiler)) errors))
+        unknown-build-options (first (filter #(and (= (:Error-type %) :unknown-key)
+                                                   (= (:key %) :build-options)) errors))]
+    (if (and missing-compiler unknown-build-options)
+      [(assoc unknown-build-options
+                :Error-type :deprecated-key
+                :corrections [(:key missing-compiler)])]
+      errors)))
+
 (defn type-check-one-error [root-type value]
   (when-let [results (not-empty (type-checker root-type value {}))]
     (when-let [[[typ errors] & xs] (not-empty (->> results
                                                    (map #(assoc % :orig-config value))
+                                                   deprecate
                                                    group-and-sort-first-pass-errors))]
       (let [errors (take 1 errors)]
-        (if-let [error
-                 (and (#{:unknown-key :missing-required-key} (:Error-type (first errors)))
-                      (analyze-for-type-misplacement root-type (first errors)))]
-          error
-          (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
-            (when-let [[[typ errors] & xs] (not-empty (->> errors
-                                                           (map #(assoc % :orig-config value))
-                                                           group-and-sort-first-pass-errors))]
-              (first errors))))))))
+        (when-let [errors (not-empty (doall (handle-type-error-groupp root-type [typ errors])))]
+          (when-let [[[typ errors] & xs] (not-empty (->> errors
+                                                         (map #(assoc % :orig-config value))
+                                                         group-and-sort-first-pass-errors))]
+            (first errors)))))))
 
 #_(with-schema
   (index-spec
@@ -1030,6 +1041,15 @@
      [:span "It should probably be " (color (pr-str (first corrections)) :green)]
      [:span "It could be one of: " (cons :span (interpose ", " (mapv #(color (pr-str %) :green) corrections)))])])
 
+(defmethod error-help-message :deprecated-key [{:keys [key corrections]}]
+  [:group
+   "The key "
+   (color (pr-str key) :bold)
+   " is deprecated and no longer valid. "
+   (if (= 1 (count corrections))
+     [:span "Please use " (color (pr-str (first corrections)) :green)]
+     [:span "It could be one of: " (cons :span (interpose ", " (mapv #(color (pr-str %) :green) corrections)))])])
+
 (defmethod error-help-message :misplaced-key [{:keys [key correct-paths]}]
   [:group
    "The key "
@@ -1332,6 +1352,7 @@
                                        "")
                      {:width 40})))
 
+
 (comment
   (print-one-error  (index-spec (spec 'RootMap {:wowza (ref-schema 'Nah)})
                                 (spec 'Nah {:a 3})
@@ -1609,6 +1630,19 @@
                                          (format-key key :red)
                                          (format-value value)
                                          (str "^ key " (pr-str key) " is spelled wrong")))
+                                       (document-all (first type-sig) corrections))
+                     {:width 40})))
+
+(defmethod print-error :deprecated-key [{:keys [key corrections orig-error value orig-config type-sig path] :as error}]
+  (let [parent-path (-> path rest reverse)]
+    (pprint-document (print-path-error (error-help-message error)
+                                       parent-path
+                                       ((if (not-empty parent-path) format-map identity)
+                                        (format-key-value
+                                         key
+                                         (format-key key :red)
+                                         (format-value value)
+                                         (str "^ key " (pr-str key) " should be " (pr-str (first corrections)))))
                                        (document-all (first type-sig) corrections))
                      {:width 40})))
 
