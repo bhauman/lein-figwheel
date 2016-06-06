@@ -11,5 +11,9 @@
          :url "https://github.com/bhauman/lein-figwheel"
          :dir ".."}
 
+  :profiles {:dev {:dependencies [[leiningen-core "2.6.1"]]
+                   :source-paths ["dev"]
+                   :aliases {"change-version" ["run" "-m" "figwheel-tasks.core" ":change-version"]
+                             "install-all"    ["run" "-m" "figwheel-tasks.core" ":install-all"]}}}
+  
   :eval-in-leiningen true)
- 
