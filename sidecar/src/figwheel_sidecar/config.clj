@@ -17,6 +17,15 @@
 
 ;; test this by loading the file into a 1.5.1 process
 
+;; file stamping pattern
+
+(defn on-stamp-change [{:keys [file signature]} f]
+  {:pre [(string? signature) (= (type file) java.io.File)]}
+  (let [old-val (when (.exists file) (slurp file))]
+    (when-not (= signature old-val) (f))
+    (.mkdirs (.getParentFile (io/file (.getAbsolutePath file))))
+    (spit file signature)))
+
 (defmacro friendly-assert [v message]
   `(try
      (assert ~v ~message)

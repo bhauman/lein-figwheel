@@ -1,6 +1,7 @@
 (ns figwheel-sidecar.build-middleware.stamp-and-clean
   (:require
    [figwheel-sidecar.utils :as utils]
+   [figwheel-sidecar.config :refer [on-stamp-change]]
    [clojure.java.io :as io]))
 
 ;; Minimal protection against corrupt builds
@@ -41,32 +42,18 @@
        (.hashCode)
        str))
 
-(defn stamp! [build-config]
-  #_(println "Stamping!")
-  #_(println "Stamp file" (stamp-file build-config))
-  #_(println "Stamp" (current-stamp-signature build-config))
-  (let [sfile (stamp-file build-config)]
-    (.mkdirs (.getParentFile sfile))
-    (spit sfile
-          (current-stamp-signature build-config))))
-
-(defn stamp-value [build-config]
-  (let [sf (stamp-file build-config)]
-    (when (.exists sf) (slurp sf))))
-
-(defn stamp-matches? [build-config]
-  #_(println "Current Stamp " (current-stamp-signature build-config))
-  #_(println "Previous Stamp" (stamp-value build-config))
-  (= (current-stamp-signature build-config)
-     (stamp-value build-config)))
+(defn create-deps-stamp [build-config]
+  {:file      (stamp-file build-config)
+   :signature (current-stamp-signature build-config)})
 
 #_(stamp! {:id "howw" :cow 3 :build-options {}})
 #_(stamp-matches? {:id "howw" :cow 2 :build-options {}})
 
 (defn hook [build-fn]
   (fn [{:keys [build-config] :as build-state}]
-    (when-not (stamp-matches? build-config)
-      (println "Figwheel: Cleaning build -" (:id build-config))
-      (utils/clean-cljs-build* build-config))
-    (stamp! build-config)
+    (on-stamp-change
+     (create-deps-stamp build-config)
+     #(do
+        (println "Figwheel: Cleaning build -" (:id build-config))
+        (utils/clean-cljs-build* build-config)))
     (build-fn build-state)))
