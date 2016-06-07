@@ -11,7 +11,7 @@
                  [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
-                 [datascript "0.9.0"]
+                 #_[datascript "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.3.11"]
                  [cljs-http "0.1.35"]]
   
@@ -49,7 +49,7 @@
                                      :on-jsload      example.core/fig-reload
                                     
                                     :on-message     example.core/on-message
-                                    :open-urls ["http://localhost:3449/index.html"]
+                                    ; :open-urls ["http://localhost:3449/index.html"]
                                     ; :debug true
                                     }
                          :compiler { :main example.core
@@ -102,7 +102,7 @@
                                     [figwheel-sidecar "0.5.4-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
-                                    [leiningen-core "2.5.2"]]
+                                    [leiningen-core "2.6.1"]]
                     
                     :source-paths ["src" "dev"]
                     :repl-options {:init (set! *print-length* 50)}
