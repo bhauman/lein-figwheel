@@ -5,6 +5,7 @@
    [leiningen.core.eval :as leval]
    [leiningen.core.project :as lproj]
    [leiningen.core.utils :as lutils]
+   [leiningen.clean :as clean]
    [clojure.java.io :as io]
    [figwheel-sidecar.config :as fc]
    [figwheel-sidecar.config-check.ansi :refer [with-color]]))
@@ -95,11 +96,24 @@
             "You may need to run \"lein clean\" \n"
             "Running \"lein deps :tree\" can help you see your dependency tree.")))))
 
+(defn clean-on-dependency-change [{:keys [target-path dependencies] :as project}]
+  (when (and target-path dependencies)
+    (fc/on-stamp-change
+     {:file (io/file
+             target-path
+             "stale"
+             "leiningen.figwheel.clean-on-dependency-change")
+      :signature (pr-str (sort-by str dependencies))}
+     #(do
+        (println "Figwheel: Cleaning because dependencies changed")
+        (clean/clean project)))))
+
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
   (check-version-match)
   (fc/system-asserts)
+  (clean-on-dependency-change project)
   (when-let [config-data (validate-figwheel-conf project)]
     (let [{:keys [data] :as figwheel-internal-data}
           (-> config-data
