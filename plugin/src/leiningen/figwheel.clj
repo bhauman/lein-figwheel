@@ -5,6 +5,7 @@
    [leiningen.core.eval :as leval]
    [leiningen.core.project :as lproj]
    [leiningen.core.utils :as lutils]
+   [leiningen.core.main :as lmain]
    [leiningen.clean :as clean]
    [clojure.java.io :as io]
    [figwheel-sidecar.config :as fc]
@@ -15,6 +16,23 @@
 (defn figwheel-sidecar-version []
   (when-let [version-var (resolve 'figwheel-sidecar.config/_figwheel-version_)]
      @version-var))
+
+(try
+  (assert
+   (= _figwheel-version_ (figwheel-sidecar-version))
+   (str "Figwheel version mismatch!!\n"
+        "You are using the lein-figwheel plugin with version: "
+        (pr-str _figwheel-version_) "\n"
+        "With a figwheel-sidecar library with version:        "
+        (pr-str (figwheel-sidecar-version)) "\n"
+        "\n"
+        "These versions need to be the same.\n"
+        "\n"
+        "Please look at your project.clj :dependencies to see what is causing this.\n"
+        "You may need to run \"lein clean\" \n"
+        "Running \"lein deps :tree\" can help you see your dependency tree."))
+  (catch Throwable e
+    (lmain/abort (.getMessage e))))
 
 (defn make-subproject [project builds]
   (with-meta
@@ -81,21 +99,6 @@
     (do (println "Figwheel: Configuration validation failed. Exiting ...")
         false)))
 
-(defn check-version-match []
-  (with-color
-    (let [sidecar-version (figwheel-sidecar-version)]
-      (fc/system-exit-assert
-       (= _figwheel-version_ sidecar-version)
-       (str "Figwheel version mismatch!!\n"
-            "You are using the lein-figwheel plugin with version: " (pr-str _figwheel-version_) "\n"
-            "With a figwheel-sidecar library with version:        " (pr-str sidecar-version) "\n"
-            "\n"
-            "These versions need to be the same.\n"
-            "\n"
-            "Please look at your project.clj :dependencies to see what is causing this.\n"
-            "You may need to run \"lein clean\" \n"
-            "Running \"lein deps :tree\" can help you see your dependency tree.")))))
-
 (defn clean-on-dependency-change [{:keys [target-path dependencies] :as project}]
   (when (and target-path dependencies)
     (fc/on-stamp-change
@@ -111,7 +114,6 @@
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
-  (check-version-match)
   (fc/system-asserts)
   (clean-on-dependency-change project)
   (when-let [config-data (validate-figwheel-conf project)]
