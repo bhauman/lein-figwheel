@@ -140,22 +140,29 @@
         opts? (and (not (nil? build-options))
                    (optimizations-none? build'))]
     (map
-     #(str "Figwheel Config Error (in project.clj) - " %)
+     #(str "Figwheel Config Error (in project.clj) build "
+           (pr-str (:id build'))
+           " - \n  " %)
      (filter identity
              (list
               (when-not opts?
-                "you have build :optimizations set to something other than :none")
+                "the build :optimizations key is set to something other than :none")
               (when-not (:output-dir build-options)
-                "you have not configured an :output-dir in your build"))))))
+                "the build does not have an :output-dir key"))))))
 
 (defn check-config [figwheel-options builds & {:keys [print-warning]}]
   (if (empty? builds)
     (list
-     (str "Figwheel: "
-          "No cljsbuild specified. You may have mistyped the build "
-          "id on the command line or failed to specify a build in "
-          "the :cljsbuild section of your project.clj. You need to have "
-          "at least one build with :optimizations set to :none."))
+     (string/join "\n"
+                  ["Figwheel Config Error : Failed to specify build to start"
+                   "You may have mistyped the id of the build on the command line."
+                   ""
+                   "OR you may NOT have a default build configuration in the"
+                   ":cljsbuild section of your project.clj."
+                   ""
+                   "Figwheel needs at least one build with :optimizations "
+                   "set to :none or nil. "
+                   ]))
     (mapcat (partial check-for-valid-options figwheel-options print-warning)
             builds)))
 

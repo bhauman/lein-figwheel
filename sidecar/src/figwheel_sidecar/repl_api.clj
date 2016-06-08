@@ -1,6 +1,8 @@
 (ns figwheel-sidecar.repl-api
   (:require
+   [clojure.java.io :as io]
    [clojure.repl :refer [doc]]
+   [clojure.pprint :as pp]
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.config :as config]
    #_[figwheel-sidecar.build-utils :as butils]
@@ -148,3 +150,52 @@ the first default id)."
       (loop [] (Thread/sleep 30000) (recur))
       ;; really should get the given initial build id here
       (fs/cljs-repl (:figwheel-system system)))))
+
+;; new start from lein code here
+
+(defn config-source [project]
+  (if (config/figwheel-edn-exists?)
+    (config/->figwheel-config-source)
+    (config/->lein-project-config-source project)))
+
+(defn validate-figwheel-conf [project]
+  (let [{:keys [file] :as config-data}
+        (config/->config-data (config-source project))]
+    (if-not (.exists (io/file file))
+      (println "Configuration file" (str file) "was not found")
+      (do
+        (println "Figwheel: Validating the configuration found in" file)
+        (if (config/print-validate-config-data config-data)
+          (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
+              config-data)
+          (do (println "Figwheel: Configuration validation failed. Exiting ...")
+              false))))))
+
+(defn launch-from-lein [narrowed-project build-ids]
+  (when-let [config-data (validate-figwheel-conf narrowed-project)]
+    (let [{:keys [data] :as figwheel-internal-data}
+          (-> config-data
+              config/config-data->figwheel-internal-config-data
+              config/prep-builds)
+          {:keys [figwheel-options all-builds]} data
+          ;; TODO this is really outdated
+          errors (config/check-config figwheel-options
+                                      (config/narrow-builds*
+                                       all-builds
+                                       build-ids))
+          figwheel-internal-final (config/populate-build-ids figwheel-internal-data build-ids)]
+      #_(pp/pprint figwheel-internal-final)
+      (if (empty? errors)
+        (start-figwheel-from-lein figwheel-internal-final)
+        (do (mapv println errors) false)))))
+
+(comment
+  (def proj (config/->config-data (config/->lein-project-config-source)))
+  (def error-proj (assoc-in (:data proj) [:figwheel :server-port]
+                            "ASDFASDF"))
+  
+  (launch-from-lein (:data proj) ["asdf"])
+
+  (launch-from-lein (:data proj) ["example-prod"])
+  
+  )
