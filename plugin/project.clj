@@ -4,9 +4,7 @@
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[figwheel-sidecar "0.5.4-SNAPSHOT"]
-                 [figwheel "0.5.4-SNAPSHOT"]
-                 [clj-fuzzy "0.3.1"]]
+  :dependencies [[clj-fuzzy "0.3.1"]]
 
   :scm { :name "git"
          :url "https://github.com/bhauman/lein-figwheel"
