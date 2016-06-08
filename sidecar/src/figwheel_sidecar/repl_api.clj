@@ -5,6 +5,7 @@
    [clojure.pprint :as pp]
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.config :as config]
+   [figwheel-sidecar.config-check.ansi :refer [with-color-when]]
    #_[figwheel-sidecar.build-utils :as butils]
    [com.stuartsierra.component :as component]))
 
@@ -161,15 +162,16 @@ the first default id)."
 (defn validate-figwheel-conf [project]
   (let [{:keys [file] :as config-data}
         (config/->config-data (config-source project))]
-    (if-not (.exists (io/file file))
-      (println "Configuration file" (str file) "was not found")
-      (do
-        (println "Figwheel: Validating the configuration found in" file)
-        (if (config/print-validate-config-data config-data)
-          (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
-              config-data)
-          (do (println "Figwheel: Configuration validation failed. Exiting ...")
-              false))))))
+    (with-color-when (config/use-color? config-data)
+      (if-not (.exists (io/file file))
+        (println "Configuration file" (str file) "was not found")
+        (do
+          (println "Figwheel: Validating the configuration found in" file)
+          (if (config/print-validate-config-data config-data)
+            (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
+                config-data)
+            (do (println "Figwheel: Configuration validation failed. Exiting ...")
+                false)))))))
 
 (defn launch-from-lein [narrowed-project build-ids]
   (when-let [config-data (validate-figwheel-conf narrowed-project)]

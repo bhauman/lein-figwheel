@@ -27,7 +27,6 @@
                       paths-to-add)})
     (meta project)))
 
-
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project paths-to-add requires form]
   (let [project' (-> project
@@ -50,7 +49,7 @@
          (when-let [version-var#
                     (resolve 'figwheel-sidecar.config/_figwheel-version_)]
            @version-var#)]
-     (if (not= ~_figwheel-version_ 1 figwheel-sidecar-version#)
+     (if (not= ~_figwheel-version_ figwheel-sidecar-version#)
        (println
         (str "Figwheel version mismatch!!\n"
              "You are using the lein-figwheel plugin with version: "
@@ -71,8 +70,8 @@
    '(require 'figwheel-sidecar.repl-api)
    (figwheel-exec-body
     `(do
-      (figwheel-sidecar.repl-api/system-asserts)
-      (figwheel-sidecar.repl-api/launch-from-lein '~config-source-data '~build-ids)))))
+       (figwheel-sidecar.repl-api/system-asserts)
+       (figwheel-sidecar.repl-api/launch-from-lein '~config-source-data '~build-ids)))))
 
 ;; validation help
 
@@ -229,7 +228,7 @@
               :builds-to-start ["asdf"]
               :load-all-builds false
               }})
-
+  
   (source-paths-for-classpath (normalize-data test-project ["example"]))
   (figwheel-exec-body `())
   
