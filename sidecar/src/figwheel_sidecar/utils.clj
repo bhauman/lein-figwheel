@@ -32,6 +32,13 @@
       (.printStackTrace e)
       false)))
 
+(defn silent-fail-require! [symbol]
+  (try
+    (require symbol)
+    true
+    (catch Exception e
+      false)))
+
 (defn require-resolve-handler [handler]
   (when handler
     (if (fn? handler)
