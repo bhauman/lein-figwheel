@@ -265,4 +265,4 @@
 
 ;; deprecated 
 (defn get-project-cljs-builds []
-  (:all-builds (config/fetch-config)))
+  (-> (config/fetch-config) :data :all-builds))

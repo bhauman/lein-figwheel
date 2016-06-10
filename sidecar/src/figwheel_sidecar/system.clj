@@ -162,14 +162,17 @@
              (html-reloader {:watch-paths [\"resources/public\"]})
              [:figwheel-system])
            :web-server (my-webserver-component)))"
-  [{:keys [figwheel-options all-builds build-ids]
-    :as options}]
-  (-> (component/system-map
-       :figwheel-system (figwheel-system options))
-      (add-css-watcher  (:css-dirs figwheel-options))
-      (add-nrepl-server (select-keys figwheel-options [:nrepl-port
-                                                       :nrepl-host
-                                                       :nrepl-middleware]))))
+  [config-data]
+  (let [{:keys [figwheel-options all-builds build-ids] :as options}
+        (if (config/figwheel-internal-config-data? config-data)
+          (:data config-data)
+          config-data)]
+    (-> (component/system-map
+         :figwheel-system (figwheel-system options))
+        (add-css-watcher  (:css-dirs figwheel-options))
+        (add-nrepl-server (select-keys figwheel-options [:nrepl-port
+                                                         :nrepl-host
+                                                         :nrepl-middleware])))))
 
 ;; figwheel system
 
@@ -359,13 +362,23 @@
   [system]
   (clean-builds system nil))
 
+(defn fetch-config-print-errors []
+  (try
+    (fetch-config)
+    (catch Throwable e
+      (if (-> e ex-data :reason (= :figwheel-configuration-validation-error))
+        (do
+          (println (.getMessage e))
+          {})
+        (throw e)))))
+  
 (defn get-project-builds []
   (into (array-map)
         (map
          (fn [x]
            [(:id x)
             (butils/add-compiler-env x)])
-         (:all-builds (fetch-config)))))
+         (-> (fetch-config-print-errors) :data :all-builds))))
 
 (defn reload-config
   "Resets the system and reloads the the confgiguration as best it can."
