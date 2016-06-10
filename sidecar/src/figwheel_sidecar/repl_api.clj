@@ -140,17 +140,16 @@ the first default id)."
   (doc reload-config)
   (doc api-help))
 
-(defn start-figwheel-from-lein [{:keys [figwheel-options]
-                                 :as figwheel-internal-config-data}]
-  (when-let [system (-> figwheel-internal-config-data
+(defn start-figwheel-from-lein [figwheel-internal-config-data]
+  (let [config-data (-> figwheel-internal-config-data
                         config/map->FigwheelInternalConfigData
-                        (vary-meta assoc :validate-config false)
-                        fs/start-figwheel!)]
-    (alter-var-root #'*repl-api-system* (fn [_] system))
-    (if (false? (:repl figwheel-options))
-      (loop [] (Thread/sleep 30000) (recur))
-      ;; really should get the given initial build id here
-      (fs/cljs-repl (:figwheel-system system)))))
+                        (vary-meta assoc :validate-config false))]
+    (when-let [system (fs/start-figwheel! config-data)]
+      (alter-var-root #'*repl-api-system* (fn [_] system))
+      (if (false? (:repl (config/figwheel-options config-data)))
+        (loop [] (Thread/sleep 30000) (recur))
+        ;; really should get the given initial build id here
+        (fs/cljs-repl (:figwheel-system system))))))
 
 ;; new start from lein code here
 
