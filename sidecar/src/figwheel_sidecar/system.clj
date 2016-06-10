@@ -11,7 +11,7 @@
    [figwheel-sidecar.components.figwheel-server :as server]
 
    [figwheel-sidecar.config-check.validate-config :as vc]
-   
+   [figwheel-sidecar.config-check.ansi :refer [with-color-when color-text]]
    [com.stuartsierra.component :as component]
 
    [cljs.env :as env]
@@ -263,6 +263,9 @@
         (patch-system-builds (mapv key->id build-keys))
         (component/start-system running-build-keys))))
 
+(defn use-color? [system]
+  (-> system :figwheel-server :ansi-color-output))
+
 ;; start System Control Functions
 ;; These commands are intended to be run from a Clojure REPL or to be
 ;; integrated as special functions in the CLJS REPL
@@ -383,18 +386,19 @@
 (defn reload-config
   "Resets the system and reloads the the confgiguration as best it can."
   [system]
-  (let [ids (mapv key->id (all-build-keys system))]
-    (stop-and-start-watchers
-     system ids
-     (fn [system]
-       (println "Figwheel: Reloading build config information")
-       (if-let [new-builds (not-empty (get-project-builds))]
-         (assoc-in (doall (reduce clean-build system ids))
-                   [:figwheel-server :builds]
-                   new-builds)
-         (do
-           (println "No reload config found in project.clj")
-           system))))))
+  (with-color-when (use-color? system)
+    (let [ids (mapv key->id (all-build-keys system))]
+      (stop-and-start-watchers
+       system ids
+       (fn [system]
+         (println "Figwheel: Reloading build config information")
+         (if-let [new-builds (not-empty (get-project-builds))]
+           (assoc-in (doall (reduce clean-build system ids))
+                     [:figwheel-server :builds]
+                     new-builds)
+           (do
+             (println "No reload config found in project.clj")
+             system)))))))
 
 (defn print-config
   "Prints out the build config for the given ids or all the build configs"
@@ -409,19 +413,19 @@
 (defn fig-status
   "Prints out the status of the running figwheel system"
   [system]
-    (let [connection-count (server/connection-data (:figwheel-server system))
-          watched-builds   (mapv key->id (watchers-running system))]
-     (println "Figwheel System Status")
-     (println "----------------------------------------------------")
-     (when (not-empty watched-builds)
-       (println "Watching builds:" watched-builds))
-     (println "Client Connections")
-     (when connection-count
-       (doseq [[id v] connection-count]
-         (println "\t" (str (if (nil? id) "any-build" id) ":")
-                  v (str "connection" (if (= 1 v) "" "s")))))
-     (println "----------------------------------------------------"))
-    system)
+  (let [connection-count (server/connection-data (:figwheel-server system))
+        watched-builds   (mapv key->id (watchers-running system))]
+    (println "Figwheel System Status")
+    (println "----------------------------------------------------")
+    (when (not-empty watched-builds)
+      (println "Watching builds:" watched-builds))
+    (println "Client Connections")
+    (when connection-count
+      (doseq [[id v] connection-count]
+        (println "\t" (str (if (nil? id) "any-build" id) ":")
+                 v (str "connection" (if (= 1 v) "" "s")))))
+    (println "----------------------------------------------------"))
+  system)
 
 ;; end System Control Functions
 
