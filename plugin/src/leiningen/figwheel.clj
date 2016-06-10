@@ -6,7 +6,8 @@
    [leiningen.clean :as clean]
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
-   [clj-fuzzy.metrics :as metrics]))
+   [clj-fuzzy.metrics :as metrics]
+   [simple-lein-profile-merge.core :as lm]))
 
 (def _figwheel-version_ "0.5.4-SNAPSHOT")
 
@@ -27,22 +28,26 @@
                       paths-to-add)})
     (meta project)))
 
+(defn eval-and-catch [project requires form]
+  (leval/eval-in-project
+   project
+   `(try
+      (do
+        ~form
+        (System/exit 0))
+      (catch Exception e#
+        (do
+          (.printStackTrace e#)
+          (System/exit 1))))
+   requires))
+
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project paths-to-add requires form]
   (let [project' (-> project
                    (update-in [:dependencies] conj ['figwheel-sidecar _figwheel-version_])
                    (update-in [:dependencies] conj ['figwheel _figwheel-version_])
                    (make-subproject paths-to-add))]
-    (leval/eval-in-project project'
-     `(try
-        (do
-          ~form
-          (System/exit 0))
-        (catch Exception e#
-          (do
-            (.printStackTrace e#)
-            (System/exit 1))))
-     requires)))
+    (eval-and-catch project' requires form)))
 
 (defn figwheel-exec-body [body]
   `(let [figwheel-sidecar-version#
@@ -63,22 +68,6 @@
              "You may need to run \"lein clean\" \n"
              "Running \"lein deps :tree\" can help you see your dependency tree."))
        ~body)))
-
-(defn run-figwheel [project config-source-data paths-to-add build-ids]
-  (run-local-project
-   project paths-to-add
-   '(require 'figwheel-sidecar.repl-api)
-   (figwheel-exec-body
-    `(do
-       (figwheel-sidecar.repl-api/system-asserts)
-       (figwheel-sidecar.repl-api/launch-from-lein '~config-source-data '~build-ids)))))
-
-;; validation help
-
-#_(defn read-project-with-profiles [project]
-  (lproj/set-profiles (lproj/read)
-                      (:included-profiles (meta project))
-                      (:excluded-profiles (meta project))))
 
 ;; get keys that are similar to the keys we need in the project
 ;; to allow figwheel validation to detect and report misspellings
@@ -105,9 +94,107 @@
 (defn fuzzy-select-keys-and-fix [m kys]
   (into {} (map #(let [[_ v] (get-keylike % m)] [% v]) kys)))
 
-#_(fuzzy-select-keys-and-fix {:cljsbuid {} :figwhe {} :figwhee {:a 1} }
-                     [:cljsbuild :figwheel]
-                     )
+
+;; discover if the figwheel subprocess needs to wory about leiningen profile-merging
+;; or if simple profile merging will do it
+
+(defn simple-apply-lein-profiles [project]
+  (let [{:keys [without-profiles included-profiles excluded-profiles]}
+        (meta project)]
+    (lm/apply-lein-profiles
+     without-profiles
+     (lm/subtract-profiles included-profiles
+                           excluded-profiles))))
+
+(defn profile-merging?
+  ([project] (profile-merging? project identity))
+  ([project f]
+   (boolean
+    (or
+     (not= (f project)
+           (f (:without-profiles (meta project))))
+     (some (some-fn
+            #(similar-key :figwheel %)
+            #(similar-key :cljsbuild %))
+           (lm/profile-top-level-keys project))))))
+
+(defn simple-merge-works?
+  ([project] (simple-merge-works? project identity))
+  ([project f]
+   (try
+     (= (f project)
+        (f (simple-apply-lein-profiles project)))
+     (catch Throwable e
+       false))))
+
+(defn fuzzy-config-from-project [project]
+  (fuzzy-select-keys project [:cljsbuild :figwheel]))
+
+
+(comment
+  
+  (def r (leiningen.core.project/read))
+  #_(meta (raw-project-with-profile-meta r))
+  (not=   (fuzzy-config-from-project (:without-profiles (meta r)))
+          (fuzzy-config-from-project r))
+
+  (= (fuzzy-config-from-project r)
+     (fuzzy-config-from-project
+      (simple-apply-lein-profiles r))
+     )
+  
+  (profile-merging? r fuzzy-config-from-project)
+  (simple-merge-works? r fuzzy-config-from-project)
+
+  (config-data-from-project (apply-simple-lein-merge r))
+  (config-data-from-project r)
+  
+  
+  (simple-apply-lein-profiles
+   (with-meta {}
+     {:without-profiles  {:figwheel {:once [2]
+                                     :sets #{2}}
+                          :profiles {:dev {:figwheel {:once [1]
+                                                      :sets ^:replace #{1}}}}}
+      :excluded-profiles []
+      :included-profiles [:dev :user]}))
+  
+  )
+
+(defn create-config-source [project config-source-data]
+  (let [profile-merging (profile-merging? project fuzzy-config-from-project)]
+    {:data config-source-data
+     :file "project.clj"
+     :profile-merging    profile-merging
+     :simple-merge-works  (or (false? profile-merging)
+                              (simple-merge-works? project fuzzy-config-from-project))
+     :included-profiles (or (-> project meta :included-profiles) [])
+     :excluded-profiles (or (-> project meta :excluded-profiles) [])}))
+
+(defn run-figwheel [project config-source-data paths-to-add build-ids]
+  (let [profile-merging (profile-merging? project)]
+    (run-local-project
+     project paths-to-add
+     '(require 'figwheel-sidecar.repl-api)
+     (figwheel-exec-body
+      `(do
+         (figwheel-sidecar.repl-api/system-asserts)
+         (figwheel-sidecar.repl-api/launch-from-lein
+          '~(create-config-source project config-source-data)
+        '~build-ids))))))
+
+(defn run-config-check [project config-source-data options]
+  (let [profile-merging (profile-merging? project)]
+    (run-local-project
+     (update-in project [:dependencies] conj '[leiningen-core "2.6.1"])
+     []
+     '(require 'figwheel-sidecar.repl-api 'leiningen.core.project)
+     (figwheel-exec-body
+      `(do
+         (figwheel-sidecar.repl-api/system-asserts)
+         (figwheel-sidecar.repl-api/validate-figwheel-conf
+          '~(create-config-source project config-source-data)
+          '~options))))))
 
 ;; clean the project if there has been a dependency change
 
@@ -132,8 +219,15 @@
 
 ;; configuration validation and management is internal to figwheel BUT ...
 
+
+
 ;; we need to be able to introspect the config because we need to add the
-;; right source paths to the classpath 
+;; right cljs build source paths to the classpath
+;; this is only needed because of :all-builds config option
+
+;; this duplicates functionality in figwheel-sidcar.config but we
+;; can't pull that code in soooo ...
+
 
 (defn map-to-vec-builds
   [builds]
@@ -142,7 +236,7 @@
     builds))
 
 (defn figwheel-edn-exists? []
-  (.exists (io/file "figwheel.edn-XXXX")))
+  (.exists (io/file "figwheel.edn")))
 
 (defn figwheel-edn []
   (and (figwheel-edn-exists?)
@@ -231,8 +325,16 @@
   
   (source-paths-for-classpath (normalize-data test-project ["example"]))
   (figwheel-exec-body `())
-  
+
   )
+
+;; task
+(defn check-config [project & options]
+  (clean-on-dependency-change project)
+  (run-config-check
+   project
+   (fuzzy-select-keys project [:cljsbuild :figwheel])
+   {:no-start-option true}))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
@@ -241,5 +343,6 @@
   (run-figwheel
    project
    (fuzzy-select-keys project [:cljsbuild :figwheel])
-   (source-paths-for-classpath (normalize-data project build-ids))
+   (source-paths-for-classpath
+    (normalize-data project build-ids))
    (vec build-ids)))

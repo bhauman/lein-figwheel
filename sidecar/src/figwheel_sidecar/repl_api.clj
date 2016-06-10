@@ -154,27 +154,19 @@ the first default id)."
 
 ;; new start from lein code here
 
-(defn config-source [project]
+(defn config-source [project-config-source]
   (if (config/figwheel-edn-exists?)
     (config/->figwheel-config-source)
-    (config/->lein-project-config-source project)))
+    (config/map->LeinProjectConfigSource project-config-source)))
 
-(defn validate-figwheel-conf [project]
+(defn validate-figwheel-conf [project-config-source options]
   (let [{:keys [file] :as config-data}
-        (config/->config-data (config-source project))]
-    (with-color-when (config/use-color? config-data)
-      (if-not (.exists (io/file file))
-        (println "Configuration file" (str file) "was not found")
-        (do
-          (println "Figwheel: Validating the configuration found in" file)
-          (if (config/print-validate-config-data config-data)
-            (do (println "Figwheel: Configuration Valid. Starting Figwheel ...")
-                config-data)
-            (do (println "Figwheel: Configuration validation failed. Exiting ...")
-                false)))))))
+        (config/->config-data (config-source project-config-source))]
+    #_(pp/pprint config-data)
+    (config/interactive-validate config-data options)))
 
 (defn launch-from-lein [narrowed-project build-ids]
-  (when-let [config-data (validate-figwheel-conf narrowed-project)]
+  (when-let [config-data (validate-figwheel-conf narrowed-project {})]
     (let [{:keys [data] :as figwheel-internal-data}
           (-> config-data
               config/config-data->figwheel-internal-config-data
@@ -185,7 +177,8 @@ the first default id)."
                                       (config/narrow-builds*
                                        all-builds
                                        build-ids))
-          figwheel-internal-final (config/populate-build-ids figwheel-internal-data build-ids)]
+          figwheel-internal-final
+          (config/populate-build-ids figwheel-internal-data build-ids)]
       #_(pp/pprint figwheel-internal-final)
       (if (empty? errors)
         (start-figwheel-from-lein figwheel-internal-final)

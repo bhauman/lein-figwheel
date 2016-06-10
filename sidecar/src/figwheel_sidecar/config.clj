@@ -1,13 +1,16 @@
 (ns figwheel-sidecar.config
   (:require
-   [clojure.pprint :as p]
+   [clojure.pprint :as pp]
    [clojure.edn :as edn]
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.walk :as walk]
    [clojure.set :refer [intersection]]
+   [simple-lein-profile-merge.core :as lm]
    [figwheel-sidecar.config-check.validate-config :as vc]
-   [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]))
+   [figwheel-sidecar.config-check.type-check :as tc]
+   [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]
+   [figwheel-sidecar.utils :as utils]))
 
 (def _figwheel-version_ "0.5.4-SNAPSHOT")
 
@@ -330,33 +333,63 @@
    { :id "hey" :figwheel {:on-jsload 'heyhey.there :hey 5 :devcards true} :build-options {:fun false}})
  )
 
-
-
 ;; high level configuration helpers
 
 (defn read-edn-file [file-name]
   (let [file (io/file file-name)]
-    (when-let [body (and (.exists file) (slurp file))]
-      (read-string body))))
+    (when-let [body (and (.exists file)
+                         (slurp file))]
+      (try
+        (read-string body)
+        (catch Throwable e
+          (println
+           (str "Failed to read file " (pr-str (str file))
+                " : "
+                (.getMessage ^Exception e))))))))
 
-(defn get-project-config
-  "This loads the project map form project.clj without merging profiles."
-  ([] (get-project-config "project.clj"))
-  ([file]
-  (if (.exists (io/file file))
-    (->> (str "[" (slurp file) "]")
-         read-string
-         (filter #(= 'defproject (first %)))
-         first
-         (drop 3)
-         (partition 2)
-         (map vec)
-         (into {}))
-    {})))
+(def get-project-config lm/read-raw-project)
+
+(defn needs-to-merge-profiles? [project]
+  (some (some-fn
+         #(tc/similar-key 0 :figwheel %)
+         #(tc/similar-key 0 :cljsbuild %))
+        (lm/profile-top-level-keys project)))
+
+#_(needs-to-merge-profiles? (lm/read-raw-project))
+
+(defn merge-profiles? [project {:keys [simple-merge-works profile-merging]}]
+  (let [needs-to-merge? (needs-to-merge-profiles? project)]
+    (cond
+      (and (some? profile-merging)
+           (some? simple-merge-works))
+      (and profile-merging simple-merge-works)
+      (some? profile-merging)
+      profile-merging
+      (some? simple-merge-works)
+      (and simple-merge-works needs-to-merge?)
+      :else needs-to-merge?)))
+
+(defn project-with-merged-profiles
+  ([] (project-with-merged-profiles {}))
+  ([{:keys [included-profiles excluded-profiles] :as config-data}]
+   #_(prn (select-keys config-data [:profile-merging :simple-merge-works]))
+   (let [project (lm/read-raw-project)]
+     (if (merge-profiles? project config-data)
+       (do #_(println "::::::: Merging profiles !!!!!!")
+           #_(prn "included" included-profiles)
+           #_(prn "excluded" excluded-profiles)
+           #_(prn (select-keys config-data [:profile-merging :simple-merge-works]))
+           (lm/safe-apply-lein-profiles project
+                                        (lm/subtract-profiles
+                                         (or (not-empty included-profiles)
+                                             lm/default-profiles)
+                                         (or excluded-profiles []))))
+       project))))
+
+#_(project-with-merged-profiles #_{:profile-merging true :simple-merge-works true})
 
 (defn figwheel-edn-exists? []
   (.exists (io/file "figwheel.edn")))
-
 
 ;; configuration
 
@@ -397,15 +430,21 @@
 (defprotocol ConfigSource
   (-config-data [_]))
 
-(defrecord LeinProjectConfigSource [data]
+(defrecord LeinProjectConfigSource [data file]
   ConfigSource
-  (-config-data [_]
-    (->LeinProjectConfigData (or data (get-project-config)) "project.clj")))
+  (-config-data [self]
+    (map->LeinProjectConfigData
+     (assoc self
+            :data (or data (project-with-merged-profiles self))
+            :file (or file "project.clj")))))
 
 (defrecord FigwheelConfigSource [data file]
   ConfigSource
-  (-config-data [_]
-    (->FigwheelConfigData (or data (read-edn-file file)) file)))
+  (-config-data [self]
+    (map->FigwheelConfigData
+     (assoc self
+            :data (or data (read-edn-file file))
+            :file file))))
 
 (defrecord FigwheelInternalConfigSource [data file]
   ConfigSource
@@ -420,7 +459,12 @@
 (defn ->config-data [config-source]
   (cond
     (config-data? config-source) config-source
-    (config-source? config-source) (-config-data config-source)))
+    (config-source? config-source)
+    (try
+      (-config-data config-source)
+      (catch Throwable e
+        (println "Error reading Configuration")
+        (-config-data (assoc config-source :data {} :read-exception e))))))
 
 ;; config source constructors
 (defn ->figwheel-internal-config-source
@@ -435,7 +479,7 @@
 (defn ->lein-project-config-source
   ([] (->lein-project-config-source nil))
   ([project-data]
-   (->LeinProjectConfigSource project-data)))
+   (->LeinProjectConfigSource project-data "project.clj")))
 
 (defn initial-config-source
   ([] (initial-config-source nil))
@@ -457,7 +501,7 @@
   {:pre [(config-data? config-data)]
    :post [(config-data? %)]}
   (if (validate-config-data? config-data)
-    (do
+    (let [config-data (if (:data config-data) config-data (assoc config-data :data {}))]
       #_(println "VALIDATING!!!!")
       (-validate config-data) config-data)
     config-data))
@@ -568,7 +612,8 @@
         (if-not ((set (map string/lower-case choices)) (string/lower-case (str ch)))
           (do
             (print (str "Amazingly, you chose '" ch  "', which uh ... wasn't one of the choices.\n"
-                          "Please choose one of the following ("(string/join ", " choices) "):"))
+                        "Please choose one of the following ("(string/join ", " choices) "): "))
+            (flush)
             (get-choice choices))
           ch)))))
 
@@ -577,44 +622,100 @@
     (if (false? (:ansi-color-output fig-opt)) false true)
     true))
 
-(defn validate-loop [lazy-config-data-list]
+;; well now we can use hawk so this should be rethought
+(defn validate-loop
+  ([lazy-config-data-list]
+   (validate-loop lazy-config-data-list {}))
+  ([lazy-config-data-list opts]
   (let [{:keys [file] :as first-config-data} (first lazy-config-data-list)]
-    (with-color-when (use-color? first-config-data)
-      (if-not (.exists (io/file file))
-        (do
-          (println "Configuration file" (str file) "was not found")
-          (System/exit 1))
-        (let [file (io/file file)]
-          (println "Figwheel: Validating the configuration found in" (str file))
-          (loop [fix false
-                 lazy-config-data-list lazy-config-data-list]
-            (let [config-data (first lazy-config-data-list)]
-              (if (print-validate-config-data config-data)
-                config-data
-                (do
-                  (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
-                  (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
-                  (let [choice (or (and fix "f")
-                                   (do
-                                     (println "Figwheel: Would you like to:")
-                                     (println "(f)ix the error live while Figwheel watches for config changes?")
-                                     (println "(q)uit and fix your configuration?")
-                                     (println "(s)tart Figwheel anyway?")
-                                   (print "Please choose f, q or s and then hit Enter [f]: ")
-                                   (flush)
-                                   (get-choice ["f" "q" "s"])))]
-                    (condp = choice
-                      nil false
-                      "q" false
-                      "s" config-data
-                      "f" (if file
-                            (do
-                              (println "Figwheel: Waiting for you to edit and save your" (str file) "file ...")
-                              (file-change-wait file (* 120 1000))
-                              (recur true (rest lazy-config-data-list)))
-                            (do ;; this branch shouldn't be taken
-                              (Thread/sleep 1000)
-                              (recur true (rest lazy-config-data-list))))))))
-              ))))
-      )
-    ))
+    (if-not (validate-config-data? first-config-data)
+      first-config-data
+      (with-color-when (use-color? first-config-data)
+        (if-not (.exists (io/file file))
+          (do
+            (println "Configuration file" (str file) "was not found")
+            (System/exit 1))
+          (let [file (io/file file)]
+            (println "Figwheel: Validating the configuration found in" (str file))
+            (loop [fix (or (:fix-loop opts) false)
+                   lazy-config-data-list lazy-config-data-list]
+              (when-let [config-data (first lazy-config-data-list)]
+                (if (and (not (:read-exception config-data))
+                         (print-validate-config-data config-data))
+                  (do
+                    (println "Figwheel: Configuration Valid :)")
+                    config-data)
+                  (do
+                    (when (:read-exception config-data)
+                      (println "Could not read your configuraton file - "
+                               (:file config-data))
+                      (println (.getMessage (:read-exception config-data))))
+                    (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
+                    (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
+                    (let [choice (or (and (:once opts) "q")
+                                     (and fix "f")
+                                     (do
+                                       (println "Figwheel: Would you like to ...")
+                                       (println "(f)ix the error live while Figwheel watches for config changes?")
+                                       (println "(q)uit and fix your configuration?")
+                                       (if (:no-start-option opts)
+                                         (print "Please choose f, or q and then hit Enter [f]: ")
+                                         (do
+                                           (println "(s)tart Figwheel anyway?")
+                                           (print "Please choose f, q or s and then hit Enter [f]: ")))
+                                       (flush)
+                                       (get-choice ["f" "q" "s"])))]
+                      (if (:return-first-command opts)
+                        [:validate-loop-command ({"q" 0 "s" 10 "f" 11} choice)]
+                        (condp = choice
+                          nil false
+                          "q" false
+                          "s" config-data
+                          "f" (if file
+                                (do
+                                  (println "Figwheel: Waiting for you to edit and save your" (str file) "file")
+                                  (println (color-text "Hit Ctrl-C to quit ..." :cyan))
+                                  (file-change-wait file (* 120 1000))
+                                  (println (color-text (str "File change detected - validating ...") :magenta))
+                                  (recur true (rest lazy-config-data-list)))
+                                (do ;; this branch shouldn't be taken
+                                  (Thread/sleep 1000)
+                                  (recur true (rest lazy-config-data-list))))))
+                      )))
+                )))))))))
+
+(defn validate-lein-project-loop [project-config-data options]
+  #_(pp/pprint (select-keys project-config-data [:included-profiles :excluded-profiles
+                                                 :profile-merging :simple-merge-works]))
+  (if (or
+       (false? (:profile-merging project-config-data))
+       (true?  (:simple-merge-works project-config-data)))
+    (validate-loop
+     (cons project-config-data
+           (repeatedly #(->config-data (map->LeinProjectConfigSource
+                                        (select-keys
+                                         project-config-data
+                                         [:included-profiles :excluded-profiles
+                                          :profile-merging :simple-merge-works])))))
+     options)
+    (validate-loop [project-config-data] {:once true})))
+
+#_(->config-data (map->LeinProjectConfigSource
+                  (select-keys
+                   {}
+                   [:included-profiles :excluded-profiles
+                    :profile-merging :simple-merge-works])))
+
+(defn validate-loop-command? [x]
+  (and (vector? x)
+       (= :validate-loop-command (first x))))
+
+(defn interactive-validate [config-data options]
+  (condp = (type config-data)
+    LeinProjectConfigData
+    (validate-lein-project-loop config-data options)
+    FigwheelConfigData
+    (validate-loop
+     (repeatedly #(->config-data
+                   (->figwheel-config-source))))
+    :else (validate-loop [config-data] {:once true})))
