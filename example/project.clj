@@ -47,7 +47,6 @@
                          :notify-command ["notify"]
                          :figwheel { :websocket-host "localhost"
                                      :on-jsload      example.core/fig-reload
-                                    
                                     :on-message     example.core/on-message
                                     ; :open-urls ["http://localhost:3449/index.html"]
                                     ; :debug true
@@ -103,10 +102,14 @@
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
                                     [leiningen-core "2.6.1"]]
-                    
+                    ;; this is testing profile merging
+                    #_:figwheel #_{
+                                   :recompile-dependents false
+                                   }
                     :source-paths ["src" "dev"]
                     :repl-options {:init (set! *print-length* 50)}
                     :plugins [[cider/cider-nrepl "0.11.0"]]}}
+
   
   ; :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
 
@@ -120,8 +123,7 @@
              
              ;; Start an nREPL server into the running fighweel
              ;; process
-
-             
+            
              ;; :nrepl-port 7888
 
              :nrepl-middleware ["cider.nrepl/cider-middleware"
@@ -141,7 +143,12 @@
              ;; if your project.clj contains conflicting builds,
              ;; you can choose to only load the builds specified
              ;; on the command line
-             ;;:load-all-builds false ; default is true
+             
+             ;; :load-all-builds false ; default is true
 
-             ;;:ansi-color-output false
+             ;; :ansi-color-output false
+
+             ;; this doesn't belong here its here for testing config errors
+             ;; :recompile-dependents false
+
              })
