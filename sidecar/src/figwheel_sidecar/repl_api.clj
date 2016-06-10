@@ -153,18 +153,18 @@ the first default id)."
 
 ;; new start from lein code here
 
-(defn config-source [project-config-source]
+(defn dispatch-config-source [project-config-source]
   (if (config/figwheel-edn-exists?)
     (config/->figwheel-config-source)
     (config/map->LeinProjectConfigSource project-config-source)))
 
 (defn validate-figwheel-conf [project-config-source options]
   (let [{:keys [file] :as config-data}
-        (config/->config-data (config-source project-config-source))]
+        (config/->config-data (dispatch-config-source project-config-source))]
     #_(pp/pprint config-data)
     (config/interactive-validate config-data options)))
 
-(defn launch-from-lein [narrowed-project build-ids]
+(defn validate-and-return-final-config-data [narrowed-project build-ids]
   (when-let [config-data (validate-figwheel-conf narrowed-project {})]
     (let [{:keys [data] :as figwheel-internal-data}
           (-> config-data
@@ -180,8 +180,13 @@ the first default id)."
           (config/populate-build-ids figwheel-internal-data build-ids)]
       #_(pp/pprint figwheel-internal-final)
       (if (empty? errors)
-        (start-figwheel-from-lein figwheel-internal-final)
+        figwheel-internal-final
         (do (mapv println errors) false)))))
+
+(defn launch-from-lein [narrowed-project build-ids]
+  (when-let [figwheel-internal-final
+             (validate-and-return-final-config-data narrowed-project build-ids)]
+    (start-figwheel-from-lein figwheel-internal-final)))
 
 (comment
   (def proj (config/->config-data (config/->lein-project-config-source)))

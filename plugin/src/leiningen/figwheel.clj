@@ -186,9 +186,9 @@
 (defn run-config-check [project config-source-data options]
   (let [profile-merging (profile-merging? project)]
     (run-local-project
-     (update-in project [:dependencies] conj '[leiningen-core "2.6.1"])
+     project
      []
-     '(require 'figwheel-sidecar.repl-api 'leiningen.core.project)
+     '(require 'figwheel-sidecar.repl-api)
      (figwheel-exec-body
       `(do
          (figwheel-sidecar.repl-api/system-asserts)
@@ -329,20 +329,31 @@
   )
 
 ;; task
-(defn check-config [project & options]
+(defn check-config [project]
   (clean-on-dependency-change project)
   (run-config-check
    project
    (fuzzy-select-keys project [:cljsbuild :figwheel])
    {:no-start-option true}))
 
-(defn figwheel
-  "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
-  [project & build-ids]
-  (clean-on-dependency-change project)
+(defn figwheel-main [project build-ids]
   (run-figwheel
    project
    (fuzzy-select-keys project [:cljsbuild :figwheel])
    (source-paths-for-classpath
     (normalize-data project build-ids))
    (vec build-ids)))
+
+(defmulti fig-dispatch (fn [project args] (first args)))
+
+(defmethod fig-dispatch :default [project build-ids]
+  (figwheel-main project build-ids))
+
+(defmethod fig-dispatch ":check-config" [project args]
+  (check-config project))
+
+(defn figwheel
+  "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
+  [project & build-ids]
+  (clean-on-dependency-change project)
+  (fig-dispatch project build-ids))
