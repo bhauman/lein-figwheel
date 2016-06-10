@@ -650,7 +650,6 @@
                       (println "Could not read your configuraton file - "
                                (:file config-data))
                       (println (.getMessage (:read-exception config-data))))
-                    (try (.beep (java.awt.Toolkit/getDefaultToolkit)) (catch Exception e))
                     (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
                     (let [choice (or (and (:once opts) "q")
                                      (and fix "f")
