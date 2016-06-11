@@ -25,7 +25,6 @@
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
    [simple-lein-profile-merge "0.1.0"]
-   [clj-fuzzy "0.3.1"]
    [fipp "0.6.5"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]

@@ -7,7 +7,7 @@
    [fipp.engine :refer [pprint-document]]
 
    [figwheel-sidecar.config-check.ansi :refer [color]]
-   [clj-fuzzy.metrics :as metrics]
+   [figwheel-sidecar.fuzzy :as metrics]
    [clojure.walk :as walk]
    [clojure.string :as string]
    [clojure.set :refer [difference]]))
@@ -353,8 +353,6 @@
           0.51)))
 
 (comment
-
-  (metrics/dice "GSF" "GFS")
   
   (metrics/levenshtein "GSFD" "GFSD")
   
