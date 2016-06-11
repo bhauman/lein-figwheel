@@ -86,6 +86,8 @@
     (swap! env-atom #(vary-meta % assoc :type ::compiler-env))
     env-atom))
 
-
-
+(defmacro slow-output [body]
+  `(doseq [line# (string/split (with-out-str (do ~body)) #"\n")]
+     (println line#)
+     (Thread/sleep 15)))
 

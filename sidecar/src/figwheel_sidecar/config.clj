@@ -641,7 +641,8 @@
                    lazy-config-data-list lazy-config-data-list]
               (when-let [config-data (first lazy-config-data-list)]
                 (if (and (not (:read-exception config-data))
-                         (print-validate-config-data config-data))
+                         (utils/slow-output
+                          (print-validate-config-data config-data)))
                   (do
                     (println "Figwheel: Configuration Valid :)")
                     config-data)
