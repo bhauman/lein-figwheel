@@ -175,29 +175,27 @@
      :excluded-profiles (or (-> project meta :excluded-profiles) [])}))
 
 (defn run-figwheel [project config-source-data paths-to-add build-ids]
-  (let [profile-merging (profile-merging? project)]
-    (run-local-project
-     project paths-to-add
-     '(require 'figwheel-sidecar.repl-api)
-     (figwheel-exec-body
-      `(do
-         (figwheel-sidecar.repl-api/system-asserts)
-         (figwheel-sidecar.repl-api/launch-from-lein
-          '~(create-config-source project config-source-data)
-        '~(vec build-ids)))))))
+  (run-local-project
+   project paths-to-add
+   '(require 'figwheel-sidecar.repl-api)
+   (figwheel-exec-body
+    `(do
+       (figwheel-sidecar.repl-api/system-asserts)
+       (figwheel-sidecar.repl-api/launch-from-lein
+        '~(create-config-source project config-source-data)
+        '~(vec build-ids))))))
 
 (defn run-config-check [project config-source-data options]
-  (let [profile-merging (profile-merging? project)]
-    (run-local-project
-     project
-     []
-     '(require 'figwheel-sidecar.repl-api)
-     (figwheel-exec-body
-      `(do
-         (figwheel-sidecar.repl-api/system-asserts)
-         (figwheel-sidecar.repl-api/validate-figwheel-conf
-          '~(create-config-source project config-source-data)
-          '~options))))))
+  (run-local-project
+   project
+   []
+   '(require 'figwheel-sidecar.repl-api)
+   (figwheel-exec-body
+    `(do
+       (figwheel-sidecar.repl-api/system-asserts)
+       (figwheel-sidecar.repl-api/validate-figwheel-conf
+        '~(create-config-source project config-source-data)
+        '~options)))))
 
 (defn run-build-once [project config-source-data paths-to-add build-ids]
   (run-local-project
