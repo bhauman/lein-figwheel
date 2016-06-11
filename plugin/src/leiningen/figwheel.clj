@@ -7,7 +7,7 @@
    [leiningen.core.main :as main]   
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
-   [clj-fuzzy.metrics :as metrics]
+   [leiningen.figwheel.fuzzy :as metrics]
    [simple-lein-profile-merge.core :as lm]))
 
 (def _figwheel-version_ "0.5.4-SNAPSHOT")

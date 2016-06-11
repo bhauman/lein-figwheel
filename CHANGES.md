@@ -23,12 +23,40 @@ display out the door first.
 
 There have been several things that have dogged Figwheel for a while.
 
+The most important change here is that I have made all code that runs
+in the plugin and only depend on libs that are either natively
+available in Clojure or are included with Leiningen.  This should rid
+us of the many ways that Figwheel was incompatible with other plugins
+and environments. I really had to learn the hard way that this is the
+only way to develop leiningen plugins and it makes sense.
+
+A downside of this is that Figwheel "appears" to start slower. But all
+my tests have shown that it is starting slightly faster.  And .... as
+a bonus lein trampoline works very well with Figwheel now.
+
+If you are not already familiar the following command will cache the
+startup args the first time it is run and will only launch one JVM on
+startup.
+
+```
+LIEN_FAST_TRAMPOLINE=y lein trampoline figwheel
+```
+
+In my setup I have the script in on my path. Using it shaves 5 seconds
+off of my startup time
+
+```
+#!/bin/bash
+
+LEIN_FAST_TRAMPOLINE=y rlwrap lein trampoline figwheel "$@"
+```
+
+
 * I have added startup and runtime checks to ensure that the various
   Figwheel library versions match. This will hopefully eliminate many of the
   mysterious dependency problems that occur on upgrades.
 * I added a check to the client that will warn you if you are getting messages
   from a server that is a different version than the client.
-  
 * Automatically clean a build if the classpath changes or if the
   build `:source-paths` change or if certain ClojureScript compiler
   options change. This means that if you add a dependency in your
@@ -53,6 +81,41 @@ It won't load compiled files but as soon as a compilation succeeds it
 will auto-refresh and thus pick up your now compiled application.
 
 It's still early but I'm thinking that this is could be a good thing.
+
+#### Basic Leiningen profile merging
+
+Folks who have been using `(figwheel-start!)` from the REPL have
+suffered from Fighweel not being able to merge in the default
+Leiningen profiles.
+
+Figwheel now does this.
+
+This behavior is new and not comprehensive but will probably work fine
+for the majority of cases where someone has a little profile merging
+in their project.clj
+
+#### Added commands
+
+Figwheel has added commands and better command-line feedback for bad args.
+
+The new commands are
+
+`lein figwheel :once build-ids ...`
+
+Which will do what cljsbuild once does, with figwheel error messages
+
+`lein figwheel :check-config`
+
+Which will run validation on your configuration.
+
+`lein figwheel :help`
+
+I which prints out the same help information as `lein help figwheel`
+
+You should take a moment and read this help information.
+
+Expect `:watch` in the next release....
+
 
 #### Lots more
 
