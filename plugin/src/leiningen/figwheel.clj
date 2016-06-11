@@ -7,7 +7,6 @@
    [leiningen.core.main :as main]   
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
-   [clojure.pprint :as pp]
    [clj-fuzzy.metrics :as metrics]
    [simple-lein-profile-merge.core :as lm]))
 
