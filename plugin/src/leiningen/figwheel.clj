@@ -468,8 +468,8 @@ Commands:
   processes for all the build-ids supplied on the command line
 
   The build-id supplied must exist in your configuration. If no
-  build-ids are supplied Figwheel will pick the first build in your
-  config with optimizations set to nil or :none.
+  build-ids are supplied, Figwheel will pick the first build in your
+  config with :optimizations set to nil or :none.
 
   You can customize witch builds are started by default, by setting
   the :builds-to-start key n your config to a vector of the builds you
@@ -509,7 +509,7 @@ Configuration:
   present any Figwheel configuration found in the project.clj will be
   ignored.
 
-  To learn more about how to configure Figwheel please see the README
+  To learn more about configuring Figwheel please see the README at
   https://github.com/bhauman/lein-figwheel
 "
   [project & command-and-or-build-ids]
