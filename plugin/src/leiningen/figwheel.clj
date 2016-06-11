@@ -181,7 +181,7 @@
          (figwheel-sidecar.repl-api/system-asserts)
          (figwheel-sidecar.repl-api/launch-from-lein
           '~(create-config-source project config-source-data)
-        '~build-ids))))))
+        '~(vec build-ids)))))))
 
 (defn run-config-check [project config-source-data options]
   (let [profile-merging (profile-merging? project)]
@@ -195,6 +195,18 @@
          (figwheel-sidecar.repl-api/validate-figwheel-conf
           '~(create-config-source project config-source-data)
           '~options))))))
+
+(defn run-build-once [project config-source-data paths-to-add build-ids]
+  (run-local-project
+   project
+   paths-to-add
+   '(require 'figwheel-sidecar.repl-api)
+   (figwheel-exec-body
+    `(do
+       (figwheel-sidecar.repl-api/system-asserts)
+       (figwheel-sidecar.repl-api/build-once-from-lein
+        '~(create-config-source project config-source-data)
+        '~(vec build-ids))))))
 
 ;; clean the project if there has been a dependency change
 
@@ -336,6 +348,14 @@
    (fuzzy-select-keys project [:cljsbuild :figwheel])
    {:no-start-option true}))
 
+(defn build-once [project build-ids]
+  (run-build-once
+   project
+   (fuzzy-select-keys project [:cljsbuild :figwheel])
+   (source-paths-for-classpath
+    (normalize-data project build-ids))
+   (vec build-ids)))
+
 (defn figwheel-main [project build-ids]
   (run-figwheel
    project
@@ -351,6 +371,9 @@
 
 (defmethod fig-dispatch ":check-config" [project args]
   (check-config project))
+
+(defmethod fig-dispatch ":once" [project build-ids]
+  (build-once project (rest build-ids)))
 
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."

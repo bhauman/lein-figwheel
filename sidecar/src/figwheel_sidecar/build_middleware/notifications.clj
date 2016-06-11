@@ -159,6 +159,16 @@
 (defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
   (notify-compile-error figwheel-server build {:exception exception}))
 
+(defn print-hook [build-fn]
+  (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
+    (binding [cljs.analyzer/*cljs-warning-handlers*
+              [(#'warning-message-handler identity)]]
+      (try
+        (build-fn build-state)
+        (catch Throwable e
+          (cljs-ex/print-exception e)
+          (flush))))))
+
 ;; ware in all figwheel notifications
 (defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]

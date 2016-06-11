@@ -3,9 +3,13 @@
    [clojure.java.io :as io]
    [clojure.repl :refer [doc]]
    [clojure.pprint :as pp]
+   [clojure.set :as set]
+   [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.config-check.ansi :refer [with-color-when]]
+   [figwheel-sidecar.build-middleware.notifications :as notify]
+   [figwheel-sidecar.components.cljs-autobuild :as cljs-auto]
    #_[figwheel-sidecar.build-utils :as butils]
    [com.stuartsierra.component :as component]))
 
@@ -187,6 +191,31 @@ the first default id)."
   (when-let [figwheel-internal-final
              (validate-and-return-final-config-data narrowed-project build-ids)]
     (start-figwheel-from-lein figwheel-internal-final)))
+
+(defn build-once-from-lein [narrowed-project build-ids]
+  (when-let [config-data (validate-figwheel-conf narrowed-project {})]
+    (let [figwheel-internal-final
+          (config/config-data->prepped-figwheel-internal config-data)
+          all-builds (config/all-builds figwheel-internal-final)
+          builds (if (not-empty build-ids)
+                   (filter #((set build-ids) (:id %)) all-builds)
+                   all-builds)
+          unknown-ids (set/difference
+                       (set build-ids)
+                       (set (map :id all-builds)))]
+      
+      (when (empty? builds)
+        (println "Figwheel: Didn't find any the supplied build ids in the configuration.")
+        (println "Unknown build ids: " (pr-str (vec unknown-ids)))
+        (println "The build names available in your config: " (pr-str (map :id all-builds))))
+      (doseq [build (map butils/add-compiler-env builds)]
+        ((-> cljs-auto/cljs-build
+             cljs-auto/figwheel-start-and-end-messages
+             notify/print-hook
+             cljs-auto/color-output)
+         {:figwheel-server
+          {:ansi-color-output (config/use-color? figwheel-internal-final)}
+          :build-config build})))))
 
 (comment
   (def proj (config/->config-data (config/->lein-project-config-source)))
