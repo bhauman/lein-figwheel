@@ -378,6 +378,8 @@
 (defn figwheel
 "Figwheel - a tool that helps you compile and reload ClojureScript.
 
+  Refer to the README at https://github.com/bhauman/lein-figwheel
+
 Figwheel commands usage:
 
   The common way of invoking Figwheel looks like this:
