@@ -376,8 +376,76 @@
   (build-once project (rest build-ids)))
 
 (defn figwheel
-  "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
-  [project & build-ids]
+"Figwheel - a tool that helps you compile and reload ClojureScript.
+
+Figwheel commands usage:
+
+  The common way of invoking Figwheel looks like this:
+
+    lein figwheel build-id build-id ...
+
+  The above will run the default Figwheel :reactor command. See below for
+  a description.
+
+    lein figwheel [command] build-id build-id ...
+
+  Will execute the given [command] on the build-ids supplied.
+  A [command] always starts with a \":\" and should be one of the
+  following.
+
+Commands:
+
+:reactor build-id ...
+
+  If no [command] is supplied then this command will be chosen by
+  default.
+
+  This command will start a Figwheel autobuild process, server and
+  repl based on the supplied configuration. It will start autobuild
+  processes for all the build-ids supplied on the command line
+
+  The build-id supplied must exist in your configuration. If no
+  build-ids are supplied Figwheel will pick the first build in your
+  config with optimizations set to nil or :none.
+
+  You can customize witch builds are started by default, by setting
+  the :builds-to-start key n your config to a vector of the builds you
+  want to start. Example:
+
+    :figwheel {
+      :builds-to-start [\"example\"]
+    }
+
+  The Figwheel system will watch your ClojureScript files for
+  changes. When your files change Figwheel will compile them and
+  attempt to notify a Figwheel client that these changes have occurred
+
+:check-config
+
+  This will run a validation check on your configuration.
+
+  All arguments supplied to this command will be ignored.
+
+:once build-id ..
+
+  This will build all the supplied builds once. No autobuilder or
+  watching process will be launched. If no build-ids are supplied this
+  command will build all the builds in your config.
+
+  The Figwheel ClojureScript will not be injected into any of these
+  builds.
+
+Configuration:
+  
+  Figwheel relies on a configuration that is found in the project.clj
+  or in a figwheel.edn file in your project root. If a figwheel.edn is
+  present any Figwheel configuration found in the project.clj will be
+  ignored.
+
+  To learn more about how to configure Figwheel please see the README
+  https://github.com/bhauman/lein-figwheel
+"
+  [project command & build-ids]
   (println "Figwheel: Cutting some fruit, just a sec ...")
   (clean-on-dependency-change project)
-  (fig-dispatch project build-ids))
+  (fig-dispatch project (cons command build-ids)))
