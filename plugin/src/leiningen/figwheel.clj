@@ -4,8 +4,10 @@
    #_[clojure.pprint :as pp]
    [leiningen.core.eval :as leval]
    [leiningen.clean :as clean]
+   [leiningen.core.main :as main]   
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
+   [clojure.pprint :as pp]
    [clj-fuzzy.metrics :as metrics]
    [simple-lein-profile-merge.core :as lm]))
 
@@ -72,10 +74,12 @@
 ;; get keys that are similar to the keys we need in the project
 ;; to allow figwheel validation to detect and report misspellings
 
-(defn similar-key [ky ky2]
+(defn similar-key* [thresh ky ky2]
   (let [dist (metrics/levenshtein (name ky) (name ky2))]
-    (when (<= dist 3)
+    (when (<= dist thresh)
       dist)))
+
+(def similar-key (partial similar-key* 3))
 
 (defn get-keylike [ky mp]
   (if-let [val (get mp ky)]
@@ -340,40 +344,100 @@
 
   )
 
-;; task
+(def known-commands #{":once" ":reactor" ":check-config" ":help"})
+
+(defn command-like? [command]
+  (and
+   (string? command)
+   (.startsWith command ":")))
+
+(def command? (every-pred command-like? known-commands))
+
+(defn suggest-like [thing things]
+  (->> things
+       (map (juxt #(similar-key* 3 thing %)
+                  identity))
+       (filter first)
+       (sort-by first)
+       first
+       second))
+
+(defn print-suggestion [thing things]
+  (when-let [suggest (suggest-like thing things)]
+    (println "  Perhaps you meant" (pr-str suggest))))
+
+(defn report-if-bad-command [command]
+  (when (and (command-like? command)
+             (not (known-commands command))) 
+    (println (str "Command Error: " (pr-str command)
+                  " is not a known Figwheel command."))
+    (println "  Known commands" (vec known-commands))
+    (println "  Run \"lein help figwheel\" for more info.")
+    (print-suggestion command known-commands)
+    true))
+
+(defn report-if-bad-build-id [known-build-ids build-id]
+  (when-not ((set known-build-ids) build-id)
+    (println (str "Build Id Error: " (pr-str build-id)
+                  " is not a build-id in your configuration."))
+    (println "  Known build ids" (pr-str (vec known-build-ids)))
+    (print-suggestion build-id known-build-ids)
+    true))
+
+(defn report-if-bad-build-ids* [known-build-ids build-ids]
+  (reduce #(or %1 %2) false (mapv (partial report-if-bad-build-id known-build-ids)
+                                build-ids)))
+
+(defn report-if-bad-build-ids [project build-ids]
+  (report-if-bad-build-ids* (clean-build-ids (cljs-builds project))
+                            build-ids))
+
+#_(report-if-bad-build-ids {:cljsbuild {:builds [{:id :asdf}]}} ["asd" "as"])
+
+
+;; tasks
 (defn check-config [project]
-  (clean-on-dependency-change project)
   (run-config-check
    project
    (fuzzy-select-keys project [:cljsbuild :figwheel])
    {:no-start-option true}))
 
 (defn build-once [project build-ids]
-  (run-build-once
-   project
-   (fuzzy-select-keys project [:cljsbuild :figwheel])
-   (source-paths-for-classpath
-    (normalize-data project build-ids))
-   (vec build-ids)))
+  (when-not (report-if-bad-build-ids project build-ids)
+    (run-build-once
+     project
+     (fuzzy-select-keys project [:cljsbuild :figwheel])
+     (source-paths-for-classpath
+      (normalize-data project build-ids))
+     (vec build-ids))))
 
 (defn figwheel-main [project build-ids]
-  (run-figwheel
-   project
-   (fuzzy-select-keys project [:cljsbuild :figwheel])
-   (source-paths-for-classpath
-    (normalize-data project build-ids))
-   (vec build-ids)))
+  (when-not (report-if-bad-build-ids project build-ids)
+    (run-figwheel
+     project
+     (fuzzy-select-keys project [:cljsbuild :figwheel])
+     (source-paths-for-classpath
+      (normalize-data project build-ids))
+     (vec build-ids))))
 
-(defmulti fig-dispatch (fn [project args] (first args)))
+(defmulti fig-dispatch (fn [command _ _] command))
 
-(defmethod fig-dispatch :default [project build-ids]
+(defmethod fig-dispatch :default [_ project build-ids]
   (figwheel-main project build-ids))
 
-(defmethod fig-dispatch ":check-config" [project args]
+(defmethod fig-dispatch ":reactor" [_ project build-ids]
+  (figwheel-main project build-ids))
+
+(defmethod fig-dispatch ":check-config" [_ project args]
   (check-config project))
 
-(defmethod fig-dispatch ":once" [project build-ids]
-  (build-once project (rest build-ids)))
+(defmethod fig-dispatch ":once" [_ project build-ids]
+  (build-once project build-ids))
+
+(declare figwheel)
+
+(defmethod fig-dispatch ":help" [_ project build-ids]
+  (println (:doc (meta #'figwheel))))
 
 (defn figwheel
 "Figwheel - a tool that helps you compile and reload ClojureScript.
@@ -437,6 +501,10 @@ Commands:
   The Figwheel ClojureScript will not be injected into any of these
   builds.
 
+:help
+  
+  Prints this documentation
+
 Configuration:
   
   Figwheel relies on a configuration that is found in the project.clj
@@ -447,7 +515,16 @@ Configuration:
   To learn more about how to configure Figwheel please see the README
   https://github.com/bhauman/lein-figwheel
 "
-  [project command & build-ids]
-  (println "Figwheel: Cutting some fruit, just a sec ...")
-  (clean-on-dependency-change project)
-  (fig-dispatch project (cons command build-ids)))
+  [project & command-and-or-build-ids]
+  (let [[command & build-ids] command-and-or-build-ids]
+    (when-not ((every-pred command-like? report-if-bad-command) command)
+      (let [[command build-ids] (if (command-like? command)
+                                  [command build-ids]
+                                  [nil (and command (cons command build-ids))])]
+        (clean-on-dependency-change project)
+        (println "Figwheel: Cutting some fruit, just a sec ...")
+        (fig-dispatch command project build-ids)))))
+
+#_(figwheel {:cljsbuilds {:builds [{:id :five}
+                                 {:id :six}]}}
+          )
