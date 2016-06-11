@@ -378,5 +378,6 @@
 (defn figwheel
   "Autocompile ClojureScript and serve the changes over a websocket (+ plus static file server)."
   [project & build-ids]
+  (println "Figwheel: Cutting some fruit, just a sec ...")
   (clean-on-dependency-change project)
   (fig-dispatch project build-ids))
