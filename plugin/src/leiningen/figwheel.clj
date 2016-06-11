@@ -372,7 +372,7 @@
     (println (str "Command Error: " (pr-str command)
                   " is not a known Figwheel command."))
     (println "  Known commands" (vec known-commands))
-    (println "  Run \"lein help figwheel\" for more info.")
+    (println "  Run \"lein figwheel :help\" for more info.")
     (print-suggestion command known-commands)
     true))
 
