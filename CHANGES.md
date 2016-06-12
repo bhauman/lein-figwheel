@@ -89,9 +89,10 @@ It's still early but I'm thinking that this is could be a good feature.
 
 Folks who have been using `(figwheel-start!)` from the REPL have
 suffered from Fighweel not being able to merge in the default
-Leiningen profiles.
+Leiningen profiles. This can be really confusing.
 
-Figwheel now does this.
+Figwheel will now merge Leiningen profiles without needing to load
+`leiningen-core`.
 
 This behavior is new and not comprehensive but will probably work fine
 for the majority of cases where someone has a little profile merging
@@ -105,7 +106,8 @@ The new commands are
 
 `lein figwheel :once build-ids ...`
 
-Which will do what cljsbuild once does, with figwheel error messages
+Which will do what cljsbuild once does, with figwheel error messages. This
+command won't injet the figwheel client code.
 
 `lein figwheel :check-config`
 
@@ -113,43 +115,44 @@ Which will run validation on your configuration.
 
 `lein figwheel :help`
 
-I which prints out the same help information as `lein help figwheel`
+Which prints out the same help information as `lein help figwheel`
 
 You should take a moment and read this help information.
 
-Expect `:watch` in the next release....
+Expect a `:watch` command in the next release....
 
 
 #### Lots more
 
-* huge configuration re-factor so that (start-figwheel!) now validates configuration
+* huge configuration re-factor so that `(start-figwheel!)` now validates the configuration
   and throws useful exceptions if a configuration problem is found
 * fixed printing in the REPL, before you couldn't call (println "hi")
   and see the output in the REPL.  This works for nREPL as well as a
-  direct cljs.repl.
+  direct `cljs.repl`.
 * made printing much more robust, executing `(js/setInterval #(println "hi") 1000)`
   in the REPL works sending output to the REPL
 * fixed REPL js runtime stacktraces, these must have been broken for a
   while, sorry about that
-* a new `:open-urls` option in the per build :figwheel configuration.
-  This is a vector of URLs that figwheel will open the first time a
-  build completes.  These are opened with clojure.java.browse/browse-url
-
+* a new `:open-urls` option in the per-build client `:figwheel` configuration.
+  This is a vector of URLs that Figwheel will open the first time a
+  build completes. These are opened with clojure.java.browse/browse-url
+  You could put `http://cljs.info/cheatsheet/` info in there :)
 * fail fast if figwheel server doesn't start because of a port bind error
-* disable ansi colored output with :figwheel > :ansi-color-output false
-* figwheel now provides :open-file-command a third argument that is the column
-  position of the problem. Yes this means that heads up display errors will pop
-  you to the line and *column* if you click on them.
-* beefed up logging around :open-file-command so that one can debug it more easily  
-* redirected :ring-handler exceptions and general printing output to the
+* disable ansi colored output with `:figwheel > :ansi-color-output false`
+* figwheel now provides the `:open-file-command` script a third
+  argument that is the column position of the problem. Yes this means
+  that heads up display errors can pop you to the line and *column*
+  if you click on them.
+* beefed up logging around `:open-file-command` so that one can debug it more easily  
+* redirected `:ring-handler` exceptions and general printing output to the
   figwheel-server.log
 * ring exceptions and stack traces are displayed in the response HTML as well  
-* fixed a problem where window.location was being called in a node environment
+* fixed a problem where `window.location` was being called in a node environment
 * if you want to limit the classpath to only use the paths from the specified builds
-  (i.e. builds supplied on the command line) you can set :figwheel > :load-all-builds to false
-* removed awt beep from source code to remove the annoying Java system icons  
+  (i.e. builds supplied on the command line) you can set `:figwheel > :load-all-builds false`
+* removed awt beep from source code to remove the annoying Java system icons
 * fixed `:repl false` configuration option
-* fixed and improved (reload-config) REPL command, reports config errors now
+* fixed and improved `(reload-config)` REPL command, reports config errors now
 
 
 
