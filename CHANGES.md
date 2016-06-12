@@ -106,8 +106,8 @@ The new commands are
 
 `lein figwheel :once build-ids ...`
 
-Which will do what cljsbuild once does, with figwheel error messages. This
-command won't inject the figwheel client code.
+Which will do what `lein cljsbuild once` does, with figwheel error
+messages. This command won't inject the figwheel client code.
 
 `lein figwheel :check-config`
 
@@ -121,6 +121,16 @@ You should take a moment and read this help information.
 
 Expect a `:watch` command in the next release....
 
+#### Getting rid of `:build-options` in favor of `:compiler`
+
+A younger, more idealistic version of myself, wanted to have a different
+key for compiler options.  So I used `:build-options` internally. As
+usual that younger version of myself had no idea what he was doing.
+
+If you are using `:build-options` you will get a validation error
+saying that it is deprecated and that you should use `:compiler`.
+`:build-options` is still being used internally but I am saving it as
+technical debt.
 
 #### Lots more
 
@@ -135,7 +145,7 @@ Expect a `:watch` command in the next release....
   while, sorry about that
 * a new `:open-urls` option in the per-build client `:figwheel` configuration.
   This is a vector of URLs that Figwheel will open the first time a
-  build completes. These are opened with clojure.java.browse/browse-url
+  build completes. These are opened with `clojure.java.browse/browse-url`.
   You could put `http://cljs.info/cheatsheet/` info in there :)
 * fail fast if figwheel server doesn't start because of a port bind error
 * disable ansi colored output with `:figwheel > :ansi-color-output false`
