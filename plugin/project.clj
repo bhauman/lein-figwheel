@@ -1,4 +1,4 @@
-(defproject lein-figwheel "0.5.4-SNAPSHOT"
+(defproject lein-figwheel "0.5.4"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser. This is the lein plugin."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"

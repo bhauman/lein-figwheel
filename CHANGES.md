@@ -1,4 +1,6 @@
-## 0.5.4-SNAPSHOT Error messages and way more! 
+## 0.5.4 Error messages and way more!
+
+This is the most solid release of Figwheel so far ... enjoy!!
 
 #### Code context in Errors and Warnings
 
