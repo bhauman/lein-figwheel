@@ -1,3 +1,7 @@
+## 0.5.4-2 Quick fix for failure due to composite lein profiles
+
+* my profile merging code was choking on composite lein profiles
+
 ## 0.5.4 Error messages and way more!
 
 This is the most solid release of Figwheel so far ... enjoy!!
