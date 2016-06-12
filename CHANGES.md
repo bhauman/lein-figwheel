@@ -16,7 +16,8 @@ The display of these errors can still be improved further, and I plan
 to do so.  I just wanted to get the bits hooked up and a decent
 display out the door first.
 
-* added code context to compile errors in heads up display, figwheel_server.log and REPL output
+* added code context to compile errors in heads up display,
+  figwheel_server.log and REPL output
 * added code context to compile warnings as well
 
 #### Improved Build correctness
@@ -39,12 +40,13 @@ startup args the first time it is run and will only launch one JVM on
 startup.
 
 ```
-LIEN_FAST_TRAMPOLINE=y lein trampoline figwheel
+LEIN_FAST_TRAMPOLINE=y lein trampoline figwheel
 ```
 
-In my setup I have the script in on my path. Using it shaves 5 seconds
+In my setup I have the script in on my path. Using it shaves seconds
 off of my startup time
 
+file::/User/bhauman/bin/figt
 ```
 #!/bin/bash
 
