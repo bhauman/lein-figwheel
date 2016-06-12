@@ -88,7 +88,7 @@ It's still early but I'm thinking that this is could be a good feature.
 #### Basic Leiningen profile merging
 
 Folks who have been using `(figwheel-start!)` from the REPL have
-suffered from Fighweel not being able to merge in the default
+suffered from Figwheel not being able to merge in the default
 Leiningen profiles. This can be really confusing.
 
 Figwheel will now merge Leiningen profiles without needing to load
@@ -107,7 +107,7 @@ The new commands are
 `lein figwheel :once build-ids ...`
 
 Which will do what cljsbuild once does, with figwheel error messages. This
-command won't injet the figwheel client code.
+command won't inject the figwheel client code.
 
 `lein figwheel :check-config`
 
