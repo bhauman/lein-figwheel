@@ -11,7 +11,7 @@ errors, that I've become accustomed to, the new errors tend to beam the
 information into my head much more quickly.
 
 The code pointers are rough at times and no code context information
-will displayed if Figwheel doesn't get any line and column information
+will be displayed if Figwheel doesn't get any line and column information
 from the compiler.
 
 The new error display can be improved further, and I plan to do so.  I
@@ -65,7 +65,7 @@ LEIN_FAST_TRAMPOLINE=y rlwrap lein trampoline figwheel "$@"
   options change. This means that if you add a dependency in your
   project.clj the next time you start figwheel it will detect that
   change and clean out the build assets before compiling. If you have
-  a simple classpath that points to a directory of jars this wont
+  a simple classpath that points to a directory of jars this won't
   help you, but I think this will help a great majority of users.
 
 #### DOA helper application
@@ -77,12 +77,12 @@ nothing happens and your REPL doesn't work.
 Inspired by Elm, I am now emitting a small application that announces
 the problem when you load it in the browser. This application is a
 figwheel client so that it will respond to and display compilation
-messages and will provide an REPL execution environment.
+messages and will provide a REPL execution environment.
 
 It won't load compiled files but as soon as a compilation succeeds it
 will auto-refresh and thus pick up your correctly compiled application.
 
-It's still early but I'm thinking that this is could be a good feature.
+It's still early but I'm thinking that this could be a good feature.
 
 #### Basic Leiningen profile merging
 
@@ -163,7 +163,7 @@ Expect a `:watch` command in the next release....
   #fixes 392
 * hopefully fixed CustomEvent dispatch in IE Edge made
 * :source-map-timestamp default to true unless specifically set to false.
-  This if for :figwheel builds only.
+  This is for :figwheel builds only.
 * fixed a problem with :js-client-host, it now uses the localhost.hostname + server-port
 * Added :websocket-url template tags, see the Readme.
 * When reading raw project.clj extract data only from first form that starts with 'defproject
