@@ -144,6 +144,11 @@ Expect `:watch` in the next release....
 * fixed a problem where window.location was being called in a node environment
 * if you want to limit the classpath to only use the paths from the specified builds
   (i.e. builds supplied on the command line) you can set :figwheel > :load-all-builds to false
+* removed awt beep from source code to remove the annoying Java system icons  
+* fixed `:repl false` configuration option
+* fixed and improved (reload-config) REPL command, reports config errors now
+
+
 
 ## 0.5.3-2 Fix regression for initial build errors
 
