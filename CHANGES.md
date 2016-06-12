@@ -7,16 +7,16 @@ This is the most solid release of Figwheel so far ... enjoy!!
 This means you will see the compile errors and warnings displayed
 along with the offending code and a pointer to the position of the
 failure. This is a big improvement. I've found that even for simple
-errors that I've become accustomed to, the new errors tend to beam the
+errors, that I've become accustomed to, the new errors tend to beam the
 information into my head much more quickly.
 
 The code pointers are rough at times and no code context information
 will displayed if Figwheel doesn't get any line and column information
 from the compiler.
 
-The display of these errors can still be improved further, and I plan
-to do so.  I just wanted to get the bits hooked up and a decent
-display out the door first.
+The new error display can be improved further, and I plan to do so.  I
+just wanted to get the bits hooked up and a decent display out the
+door first.
 
 * added code context to compile errors in heads up display,
   figwheel_server.log and REPL output
@@ -38,9 +38,9 @@ A downside of this is that Figwheel "appears" to start slower. But all
 my tests have shown that it is starting slightly faster.  And .... as
 a bonus `lein trampoline` works very well with Figwheel now.
 
-If you are not already familiar the following command will cache the
-startup args the first time it is run and will only launch one JVM on
-the next startup.
+If you are not already familiar with `lein trampoline`, the following
+command will cache the startup args the first time it is run, and will
+only launch one JVM on the next execution.
 
 ```
 LEIN_FAST_TRAMPOLINE=y lein trampoline figwheel
@@ -57,8 +57,7 @@ LEIN_FAST_TRAMPOLINE=y rlwrap lein trampoline figwheel "$@"
 ```
 
 * I have added startup and runtime checks to ensure that the various
-  Figwheel library versions match. This will hopefully eliminate many of the
-  mysterious dependency problems that occur on upgrades.
+  Figwheel library versions match.
 * I added a check to the client that will warn you if you are getting messages
   from a server that is a different version than the client.
 * Automatically clean a cljs build if the classpath changes or if the
@@ -87,9 +86,9 @@ It's still early but I'm thinking that this is could be a good feature.
 
 #### Basic Leiningen profile merging
 
-Folks who have been using `(figwheel-start!)` from the REPL have
-suffered from Figwheel not being able to merge in the default
-Leiningen profiles. This can be really confusing.
+Folks who have been using `(figwheel-start!)` from the REPL have been
+confused by Figwheel's inability to merge in the default Leiningen
+profiles.
 
 Figwheel will now merge Leiningen profiles without needing to load
 `leiningen-core`.
@@ -100,7 +99,8 @@ in their project.clj
 
 #### Added commands
 
-Figwheel has added commands and better command-line feedback for bad args.
+The Figwheel lein plugin has added commands and better command-line
+feedback for bad args.
 
 The new commands are
 
@@ -126,7 +126,7 @@ Expect a `:watch` command in the next release....
 
 * huge configuration re-factor so that `(start-figwheel!)` now validates the configuration
   and throws useful exceptions if a configuration problem is found
-* fixed printing in the REPL, before you couldn't call (println "hi")
+* fixed printing in the REPL, before you couldn't call `(println "hi")`
   and see the output in the REPL.  This works for nREPL as well as a
   direct `cljs.repl`.
 * made printing much more robust, executing `(js/setInterval #(println "hi") 1000)`
