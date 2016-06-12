@@ -6,9 +6,9 @@ This is the most solid release of Figwheel so far ... enjoy!!
 
 This means you will see the compile errors and warnings displayed
 along with the offending code and a pointer to the position of the
-failure. This is a fairly big improvement. I've found that even for
-simple errors that I've become accustomed to, the new errors tend to
-beam the information in much more quickly.
+failure. This is a big improvement. I've found that even for simple
+errors that I've become accustomed to, the new errors tend to beam the
+information into my head much more quickly.
 
 The code pointers are rough at times and no code context information
 will displayed if Figwheel doesn't get any line and column information
@@ -24,28 +24,29 @@ display out the door first.
 
 #### Improved Build correctness
 
-There have been several things that have dogged Figwheel for a while.
+There have been several correctness problems that have dogged Figwheel
+for a while.
 
 The most important change here is that I have made all code that runs
-in the plugin and only depend on libs that are either natively
-available in Clojure or are included with Leiningen.  This should rid
-us of the many ways that Figwheel was incompatible with other plugins
-and environments. I really had to learn the hard way that this is the
-only way to develop leiningen plugins and it makes sense.
+in the plugin only depend on libs that are either natively available
+in Clojure or are included with Leiningen. This should rid us of the
+many ways that Figwheel was incompatible with other plugins and
+environments. I really had to learn the hard way that this is the only
+way to develop Leiningen plugins, and in hindsight, it makes a lot of sense.
 
 A downside of this is that Figwheel "appears" to start slower. But all
 my tests have shown that it is starting slightly faster.  And .... as
-a bonus lein trampoline works very well with Figwheel now.
+a bonus `lein trampoline` works very well with Figwheel now.
 
 If you are not already familiar the following command will cache the
 startup args the first time it is run and will only launch one JVM on
-startup.
+the next startup.
 
 ```
 LEIN_FAST_TRAMPOLINE=y lein trampoline figwheel
 ```
 
-In my setup I have the script in on my path. Using it shaves seconds
+In my setup I have the following script in on my path. Using it shaves seconds
 off of my startup time
 
 file::/User/bhauman/bin/figt
@@ -55,20 +56,18 @@ file::/User/bhauman/bin/figt
 LEIN_FAST_TRAMPOLINE=y rlwrap lein trampoline figwheel "$@"
 ```
 
-
 * I have added startup and runtime checks to ensure that the various
   Figwheel library versions match. This will hopefully eliminate many of the
   mysterious dependency problems that occur on upgrades.
 * I added a check to the client that will warn you if you are getting messages
   from a server that is a different version than the client.
-* Automatically clean a build if the classpath changes or if the
+* Automatically clean a cljs build if the classpath changes or if the
   build `:source-paths` change or if certain ClojureScript compiler
   options change. This means that if you add a dependency in your
   project.clj the next time you start figwheel it will detect that
   change and clean out the build assets before compiling. If you have
   a simple classpath that points to a directory of jars this wont
   help you, but I think this will help a great majority of users.
-  
 
 #### DOA helper application
 
@@ -79,12 +78,12 @@ nothing happens and your REPL doesn't work.
 Inspired by Elm, I am now emitting a small application that announces
 the problem when you load it in the browser. This application is a
 figwheel client so that it will respond to and display compilation
-messages and has a functioning repl.
+messages and will provide an REPL execution environment.
 
 It won't load compiled files but as soon as a compilation succeeds it
-will auto-refresh and thus pick up your now compiled application.
+will auto-refresh and thus pick up your correctly compiled application.
 
-It's still early but I'm thinking that this is could be a good thing.
+It's still early but I'm thinking that this is could be a good feature.
 
 #### Basic Leiningen profile merging
 
