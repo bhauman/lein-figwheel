@@ -12,7 +12,7 @@
   (if-let [[_ project-name] (re-matches
                              #".*defproject\s+([\w\-]+).*"
                              line)]
-    (str "(defproject " (pr-str project-name) " "(pr-str version))
+    (str "(defproject " project-name " "(pr-str version))
     line))
 
 (let [reg #"(.*)\[(lein-figwheel|figwheel-sidecar|figwheel)\s+\"[\w\.\-\d]+\"(.*)"]
