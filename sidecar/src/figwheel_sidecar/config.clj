@@ -588,6 +588,12 @@
 
 (def fetch-config fetch-figwheel-config)
 
+(defn get-project-builds []
+  (-> (->lein-project-config-source)
+      ->config-data
+      all-builds
+      map-to-vec-builds))
+
 #_(fetch-config)
 
 ;;; looping and waiting to fix config
