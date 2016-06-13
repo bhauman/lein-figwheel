@@ -1,0 +1,6 @@
+#!/bin/bash
+
+pushd support ; lein install ; popd
+pushd sidecar ; lein install ; popd
+pushd plugin ; lein install ; popd
+
