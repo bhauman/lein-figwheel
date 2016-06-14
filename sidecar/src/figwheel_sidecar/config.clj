@@ -628,6 +628,45 @@
       ->config-data
       all-builds))
 
+;; detect and report bad build ids
+
+(defn suggest-like [thing things]
+  (->> things
+       (map name)
+       (map (juxt #(fuz/ky-distance (name thing) %)
+                  identity))
+       (filter first)
+       (sort-by first)
+       first
+       second))
+
+(defn suggestion [thing things]
+  (when-let [suggest (suggest-like thing things)]
+    (str "  Perhaps you meant " (pr-str suggest))))
+
+#_(suggestion :hey [:heyy])
+
+(defn report-if-bad-build-id [known-build-ids build-id]
+  (when-not ((set (map name known-build-ids)) (name build-id))
+    (throw (ex-info
+            (str "Build Id Error: " (pr-str build-id)
+                 "  is not a build-id in your configuration. \n"
+                 "  Known build ids: " (pr-str (vec known-build-ids)) "\n"
+                 (suggestion build-id known-build-ids) "\n")
+            {:reason :bad-build-id :build-id build-id :known-build-ids known-build-ids}))
+    true))
+
+(defn report-if-bad-build-ids [known-build-ids build-ids]
+  {:pre [(every? (some-fn string? symbol? keyword?) known-build-ids)
+         (every? (some-fn string? symbol? keyword?) build-ids)]}
+  (doseq [build-id build-ids]
+    (report-if-bad-build-id known-build-ids build-id)))
+
+
+#_(report-if-bad-build-ids #{:asdf :a} [:asf])
+
+
+
 ;; I'm doing a slight adjustment here to make up for the
 ;; :compiler / :build-options ambiguity
 ;; externally as far as start-figwheel! is concerned :compiler is
