@@ -13,7 +13,7 @@
    [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]
    [figwheel-sidecar.utils :as utils]))
 
-(def _figwheel-version_ "0.5.4-3-SNAPSHOT")
+(def _figwheel-version_ "0.5.4-3")
 
 ;; trying to keep this whole file clojure 1.5.1 compatible because
 ;; it is required by the leiningen process in the plugin

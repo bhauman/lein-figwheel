@@ -1,10 +1,10 @@
-(defproject lein-figwheel "0.5.4-3-SNAPSHOT"
+(defproject lein-figwheel "0.5.4-3"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser. This is the lein plugin."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[simple-lein-profile-merge "0.1.3-SNAPSHOT"]]
+  :dependencies [[simple-lein-profile-merge "0.1.3"]]
 
   :scm { :name "git"
          :url "https://github.com/bhauman/lein-figwheel"
