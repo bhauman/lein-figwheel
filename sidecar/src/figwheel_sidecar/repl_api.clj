@@ -21,14 +21,13 @@
   (config/system-asserts)
   #_(butils/assert-clojurescript-version))
 
-(defn start-figwheel!
-  "If you aren't connected to an env where fighweel is running already,
-  this method will start the figwheel server with the passed in build info."
-  [& args]
-  (when *repl-api-system*
-    (alter-var-root #'*repl-api-system* component/stop))
-  (alter-var-root #'*repl-api-system* (fn [_] (apply fs/start-figwheel! args)))
-  nil)
+(def ^{:doc (:doc (meta #'fs/start-figwheel!))}
+  start-figwheel!
+  (fn [& args]
+    (when *repl-api-system*
+      (alter-var-root #'*repl-api-system* component/stop))
+    (alter-var-root #'*repl-api-system* (fn [_] (apply fs/start-figwheel! args)))
+    nil))
 
 (defn stop-figwheel!
   "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."

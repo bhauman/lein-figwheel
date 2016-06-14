@@ -659,7 +659,48 @@
                                internal-config-data)]
     (start-figwheel-system internal-config-data)))
 
-(defn start-figwheel! [& args]
+(defn start-figwheel!
+  "This function will start the figwheel system.
+
+(start-figwheel!)
+
+  If called with no arguments it will load and validate the
+  configuration found in your project.clj or a figwheel.edn file in
+  the root of your project. If there is a figwheel.edn file any
+  configuration information found in the project.clj will be ignored.
+
+(start-figwheel! \"example\" \"example-admin\" ...)
+
+  You can also supply the build ids that you want figwheel to start
+  autobuilding.  If these ids aren't available in the builds specified
+  in the found configuration this function will throw an error.
+
+(start-figwheel! 
+  ;; using the configuration shape of figwheel.edn
+  {:server-port 5000
+   :builds [{:id ...}]}
+
+(start-figwheel! 
+  ;; using the configuration shape of figwheel.edn
+  {:server-port 5000
+   :builds (figwheel-sidecar.config/get-project-builds)
+   :builds-to-start [\"example\"]})
+
+(start-figwheel! 
+ ;; using the soon to be deprecated legacy configuration shape 
+ {:figwheel-options { :server-port 4000 }
+  :all-builds [{:id ...}]
+  :build-ids [\"example\"]})
+
+  As seen above you can also directly supply a configuration Map that
+  has the shape of a figwheel.edn file or the legacy format which will
+  be deprecated in the near future.
+
+(start-figwheel! (figwheel-sidecar.config/fetch-config) \"example\" \"example-admin\")
+
+  After supplying a configuration, you can also list the build-ids that
+  you would like to start."
+  [& args]
   (apply start-figwheel!* (parse-start-figwheel-args args)))
 
 (defn stop-figwheel! [system]
