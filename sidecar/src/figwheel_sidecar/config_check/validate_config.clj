@@ -1,5 +1,6 @@
 (ns figwheel-sidecar.config-check.validate-config
   (:require
+   [figwheel-sidecar.utils.fuzzy :as fuz]
    [figwheel-sidecar.config-check.document :refer [get-docs]]
    [figwheel-sidecar.config-check.ansi :refer [color color-text with-color]]
    [figwheel-sidecar.config-check.type-check
@@ -311,9 +312,9 @@
                      #(-> % first -)
                      (filter
                       #(first %)
-                      (map (fn [[k v]] [(and (tc/similar-key 0 k ky)
+                      (map (fn [[k v]] [(and (fuz/similar-key 0 k ky)
                                              (map? v)
-                                             (tc/ky-distance k ky))
+                                             (fuz/ky-distance k ky))
                                         [k v]]) mp))))]
       (-> res first second))))
 
@@ -416,7 +417,7 @@
         k2 (get-all-keys schema-rulest)
          :when (and
                 (not= k k2)
-                (tc/similar-key 0 k k2))]
+                (fuz/similar-key 0 k k2))]
     #{k k2}))
 
   )

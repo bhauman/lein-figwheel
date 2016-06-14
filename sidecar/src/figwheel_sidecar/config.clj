@@ -7,6 +7,7 @@
    [clojure.walk :as walk]
    [clojure.set :refer [intersection]]
    [simple-lein-profile-merge.core :as lm]
+   [figwheel-sidecar.utils.fuzzy :as fuz]
    [figwheel-sidecar.config-check.validate-config :as vc]
    [figwheel-sidecar.config-check.type-check :as tc]
    [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]
@@ -351,8 +352,8 @@
 
 (defn needs-to-merge-profiles? [project]
   (some (some-fn
-         #(tc/similar-key 0 :figwheel %)
-         #(tc/similar-key 0 :cljsbuild %))
+         #(fuz/similar-key 0 :figwheel %)
+         #(fuz/similar-key 0 :cljsbuild %))
         (lm/profile-top-level-keys project)))
 
 #_(needs-to-merge-profiles? (lm/read-raw-project))

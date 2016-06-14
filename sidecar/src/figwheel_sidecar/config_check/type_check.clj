@@ -7,7 +7,7 @@
    [fipp.engine :refer [pprint-document]]
 
    [figwheel-sidecar.config-check.ansi :refer [color]]
-   [figwheel-sidecar.fuzzy :as metrics]
+   [figwheel-sidecar.utils.fuzzy :as fuz]
    [clojure.walk :as walk]
    [clojure.string :as string]
    [clojure.set :refer [difference]]))
@@ -331,35 +331,7 @@
 
 (defn anything? [x] true)
 
-;; my take on the degreee of difference in config spelling errors 
-
-(defn step-log [thresh val]
-  (if (< thresh val)
-    (+ thresh (/ (- val thresh ) 2.0))
-    val))
-
-(defn ky-distance [ky ky1]
-  (let [l (metrics/levenshtein (name ky) (name ky1))]
-    (/ (float l)
-       (step-log 5
-                 (/ (float (+ (count (name ky))
-                              (count (name ky1))))
-                    2)))))
-
-(defn similar-key [thresh k other-key]
-  (and (and (named? k)
-            (named? other-key))
-       (< (ky-distance k other-key)
-          0.51)))
-
-(comment
-  
-  (metrics/levenshtein "GSFD" "GFSD")
-  
-  (ky-distance :GFSD :GSFD)
-  
-  (ky-distance :figwheel :figwheeler)
-  )
+;; 
 
 (defn ancester-key-rules
   "Returns all the key terminal ancester rules for a given type."
@@ -547,7 +519,7 @@
   (let [potential-types (for [[ky _ [pt _ val-typ]] (schema-rules :-)
                               :when (and
                                      (not= pt parent-typ)
-                                     (similar-key 0 bad-key ky))]
+                                     (fuz/similar-key 0 bad-key ky))]
                           {:parent-type pt :child-type  val-typ :new-key ky})
         correct-path-types
         (filter
@@ -808,7 +780,7 @@
                   ;; keys that are mispelled locals
                   (for [[k _ [pt _ val-typ]] (schema-rules :-)
                         :when (and (not= k ky)
-                                   (similar-key 0 k ky))
+                                   (fuz/similar-key 0 k ky))
                         parent-type (concrete-parent pt)
                         child-types (tc-with-parent val-typ vl)]
                     (concat [parent-type [:subst ky k]] child-types))
@@ -823,7 +795,7 @@
                     (for [[k _ [pt _ val-typ]] (schema-rules :-)
                           :when (and
                                  (not= k ky)
-                                 (not (similar-key 0 k ky)))
+                                 (not (fuz/similar-key 0 k ky)))
                           parent-type (concrete-parent pt)]
                       (let [child-type-paths (filter #(= (first %) val-typ)
                                                      (tc-with-parent val-typ vl))]

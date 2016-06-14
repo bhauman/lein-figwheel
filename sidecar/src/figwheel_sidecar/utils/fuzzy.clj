@@ -28,7 +28,11 @@
 ;;   Version: 0.1
 ;;   Source: https://gist.github.com/vishnuvyas/958488
 ;;
-(ns figwheel-sidecar.fuzzy)
+(ns figwheel-sidecar.utils.fuzzy)
+
+;; extract
+(defn named? [x]
+  (or (string? x) (instance? clojure.lang.Named x)))
 
 (defn- next-row
   [previous current other-seq]
@@ -49,4 +53,30 @@
             (map #(identity %2) (cons nil sequence2) (range))
             sequence1)))
 
+(defn step-log [thresh val]
+  (if (< thresh val)
+    (+ thresh (/ (- val thresh ) 2.0))
+    val))
 
+(defn ky-distance [ky ky1]
+  (let [l (levenshtein (name ky) (name ky1))]
+    (/ (float l)
+       (step-log 5
+                 (/ (float (+ (count (name ky))
+                              (count (name ky1))))
+                    2)))))
+
+(defn similar-key [thresh k other-key]
+  (and (and (named? k)
+            (named? other-key))
+       (< (ky-distance k other-key)
+          0.51)))
+
+(comment
+  
+  (metrics/levenshtein "GSFD" "GFSD")
+  
+  (ky-distance :GFSD :GSFD)
+  
+  (ky-distance :figwheel :figwheeler)
+  )
