@@ -1,3 +1,34 @@
+## 0.5.4-3 some improvements around starting figwheel from the REPL
+
+* I added back `figwheel-sidecar/get-project-builds` which was removed in 0.5.4
+  its now here to stay.
+
+#### Improved the expressiveness of (start-figwheel!)
+
+before `(start-figwheel!)` only optionally took a configuration. Now it
+takes optional build-ids as well.
+
+So you can do this:
+
+```
+(start-fighweel! "dev" "admin")
+```
+
+And it will pull in the config from the environment and start
+autobuilding the supplied build ids.
+
+Or you can supply a config and build ids ...
+
+```
+(start-fighweel!
+  {:figwheel-options {:server-port 4000}
+   :all-builds [{:id ...}]}
+   "dev" "admin")
+```
+
+I have also beefed up the error checking and feedback around this call.
+
+
 ## 0.5.4-2 Quick fix for failure due to composite lein profiles
 
 * my profile merging code was choking on composite lein profiles
