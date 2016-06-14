@@ -624,32 +624,15 @@
   (let [system (create-figwheel-system options)]
     (dispatch-system-component-errors #(component/start system))))
 
-;; this can be a lot smarter
-(defn normalize-start-figwheel-config-options [config-options]
-  (if (or (config/config-source? config-options)
-          (config/config-data? config-options))
-    config-options
-    (config/->figwheel-internal-config-source config-options)))
-
-;; I'm doing a slight adjustment here to make up for the
-;; :compiler / :build-options ambiguity
-;; externally as far as start-figwheel! is concerned :compiler is
-;; the appropriate option and :build-options is deprecated
-;; internally :build-options will still continue to operate
-;; I'm planning on cleaning this up in the near future
-(defn adjust-to-internal-configuration-representation [figwheel-internal-config]
-  (update-in figwheel-internal-config
-             [:all-builds] (partial map config/move-compiler-to-build-options)))
-
 (defn start-figwheel!
   ([] (start-figwheel! (config/fetch-config)))
   ([config-options]
   (let [internal-config-data
         (-> config-options
-            normalize-start-figwheel-config-options
+            config/->config-source
             config/config-source->prepped-figwheel-internal
-            :data
-            adjust-to-internal-configuration-representation)]
+            config/adjust-to-internal-configuration-representation            
+            :data)]
     (start-figwheel-system internal-config-data))))
 
 (defn stop-figwheel! [system]

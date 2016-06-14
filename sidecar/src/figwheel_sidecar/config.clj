@@ -628,6 +628,18 @@
       ->config-data
       all-builds))
 
+;; I'm doing a slight adjustment here to make up for the
+;; :compiler / :build-options ambiguity
+;; externally as far as start-figwheel! is concerned :compiler is
+;; the appropriate option and :build-options is deprecated
+;; internally :build-options will still continue to operate
+;; I'm planning on cleaning this up in the near future
+(defn adjust-to-internal-configuration-representation
+  [figwheel-internal-config]
+  {:pre [(figwheel-internal-config-data? figwheel-internal-config)]}
+  (update-in figwheel-internal-config
+             [:data :all-builds] (partial map move-compiler-to-build-options)))
+
 #_(fetch-config)
 
 ;;; looping and waiting to fix config
