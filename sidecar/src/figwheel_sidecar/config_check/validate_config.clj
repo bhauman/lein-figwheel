@@ -304,23 +304,6 @@
                    'ApiRootMap
                    config-data))
 
-(defn get-keylike [ky mp]
-  (if-let [val (get mp ky)]
-    [ky val]
-    (when-let [res (not-empty
-                    (sort-by
-                     #(-> % first -)
-                     (filter
-                      #(first %)
-                      (map (fn [[k v]] [(and (fuz/similar-key 0 k ky)
-                                             (map? v)
-                                             (fuz/ky-distance k ky))
-                                        [k v]]) mp))))]
-      (-> res first second))))
-
-#_(defn get-keyslike [kys mp]
-  (into {} (map #(get-keylike % mp) kys)))
-
 (defn validate-only-figwheel-rules [config]
   (index-spec
    (spec 'RootMap         {:figwheel (ref-schema 'FigwheelOptions)})
@@ -356,8 +339,8 @@
        (requires-keys 'BuildOptionsMap :id)))))
 
 (defn validate-project-config-data [{:keys [data] :as config-data}]
-  (let [[cljb-k cljb-v] (get-keylike :cljsbuild data)
-        [fig-k  fig-v]  (get-keylike :figwheel data)]
+  (let [[cljb-k cljb-v] (fuz/get-keylike :cljsbuild data)
+        [fig-k  fig-v]  (fuz/get-keylike :figwheel data)]
     (if (and fig-k (get fig-v :builds))
       (let [conf {fig-k fig-v}]
         (raise-one-error (validate-only-figwheel-rules conf) 'RootMap (assoc config-data :data conf)))

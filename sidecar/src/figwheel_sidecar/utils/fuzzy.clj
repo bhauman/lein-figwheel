@@ -72,6 +72,26 @@
        (< (ky-distance k other-key)
           0.51)))
 
+(defn get-keylike [ky mp]
+  (if-let [val (get mp ky)]
+    [ky val]
+    (when-let [res (not-empty
+                    (sort-by
+                     #(-> % first -)
+                     (filter
+                      #(first %)
+                      (map (fn [[k v]] [(and (similar-key 0 k ky)
+                                             (map? v)
+                                             (ky-distance k ky))
+                                        [k v]]) mp))))]
+      (-> res first second))))
+
+(defn fuzzy-select-keys [m kys]
+  (into {} (map #(get-keylike % m) kys)))
+
+(defn fuzzy-select-keys-and-fix [m kys]
+  (into {} (map #(let [[_ v] (get-keylike % m)] [% v]) kys)))
+
 (comment
   
   (metrics/levenshtein "GSFD" "GFSD")
