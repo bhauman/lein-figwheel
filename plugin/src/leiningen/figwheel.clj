@@ -7,7 +7,7 @@
    [leiningen.core.main :as main]   
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
-   [leiningen.figwheel.fuzzy :as metrics]
+   [leiningen.figwheel.fuzzy :as fuz]
    [simple-lein-profile-merge.core :as lm]))
 
 (def _figwheel-version_ "0.5.4-3-SNAPSHOT")
@@ -73,66 +73,43 @@
 ;; get keys that are similar to the keys we need in the project
 ;; to allow figwheel validation to detect and report misspellings
 
-(defn similar-key* [thresh ky ky2]
-  (let [dist (metrics/levenshtein (name ky) (name ky2))]
-    (when (<= dist thresh)
-      dist)))
-
-(def similar-key (partial similar-key* 3))
-
-(defn get-keylike [ky mp]
-  (if-let [val (get mp ky)]
-    [ky val]
-    (when-let [res (not-empty
-                    (sort-by
-                     first
-                     (keep (fn [[k v]]
-                             (when-let [dist (and (map? v) (similar-key k ky))]
-                               [dist [k v]])) mp)))]
-      (-> res first second))))
-
-(defn fuzzy-select-keys [m kys]
-  (into {} (map #(get-keylike % m) kys)))
-
-(defn fuzzy-select-keys-and-fix [m kys]
-  (into {} (map #(let [[_ v] (get-keylike % m)] [% v]) kys)))
-
 
 ;; discover if the figwheel subprocess needs to wory about leiningen profile-merging
 ;; or if simple profile merging will do it
 
 (defn simple-apply-lein-profiles [project]
-  (let [{:keys [without-profiles included-profiles excluded-profiles]}
-        (meta project)]
-    (lm/apply-lein-profiles
-     without-profiles
-     (lm/subtract-profiles included-profiles
-                           excluded-profiles))))
+  (let [{:keys [without-profiles active-profiles]} (meta project)]
+    (lm/apply-lein-profiles without-profiles active-profiles)))
 
-(defn profile-merging?
-  ([project] (profile-merging? project identity))
-  ([project f]
-   (boolean
-    (or
-     (not= (f project)
-           (f (:without-profiles (meta project))))
-     (some (some-fn
-            #(similar-key :figwheel %)
-            #(similar-key :cljsbuild %))
-           (lm/profile-top-level-keys project))))))
+(defn project-keys-affected-by-profile-mering [project]
+  (when-let [{:keys [profiles]} (meta project)]
+    (when (map? profiles)
+      (->> profiles 
+           vals
+           (filter map?)
+           (mapcat keys)
+           set))))
 
-(defn simple-merge-works?
-  ([project] (simple-merge-works? project identity))
-  ([project f]
-   (try
-     (= (f project)
-        (f (simple-apply-lein-profiles project)))
-     (catch Throwable e
-       false))))
+#_(project-keys-affected-by-profile-mering (leiningen.core.project/read))
+
+(defn needs-profile-merging? [project]
+  (boolean
+   (some (some-fn
+          #(fuz/similar-key :figwheel %)
+          #(fuz/similar-key :cljsbuild %))
+         (project-keys-affected-by-profile-mering project))))
+
+#_(needs-profile-merging? (leiningen.core.project/read))
 
 (defn fuzzy-config-from-project [project]
-  (fuzzy-select-keys project [:cljsbuild :figwheel]))
+  (fuz/fuzzy-select-keys project [:cljsbuild :figwheel]))
 
+(defn simple-merge-works? [project]
+  (try
+    (= (fuzzy-config-from-project project)
+       (fuzzy-config-from-project (simple-apply-lein-profiles project)))
+    (catch Throwable e
+      false)))
 
 (comment
   
@@ -145,34 +122,16 @@
      (fuzzy-config-from-project
       (simple-apply-lein-profiles r))
      )
-  
-  (profile-merging? r fuzzy-config-from-project)
-  (simple-merge-works? r fuzzy-config-from-project)
-
-  (config-data-from-project (apply-simple-lein-merge r))
-  (config-data-from-project r)
-  
-  
-  (simple-apply-lein-profiles
-   (with-meta {}
-     {:without-profiles  {:figwheel {:once [2]
-                                     :sets #{2}}
-                          :profiles {:dev {:figwheel {:once [1]
-                                                      :sets ^:replace #{1}}}}}
-      :excluded-profiles []
-      :included-profiles [:dev :user]}))
-  
   )
 
 (defn create-config-source [project config-source-data]
-  (let [profile-merging (profile-merging? project fuzzy-config-from-project)]
+  (let [profile-merging (needs-profile-merging? project)]
     {:data config-source-data
      :file "project.clj"
      :profile-merging    profile-merging
-     :simple-merge-works  (or (false? profile-merging)
-                              (simple-merge-works? project fuzzy-config-from-project))
-     :included-profiles (or (-> project meta :included-profiles) [])
-     :excluded-profiles (or (-> project meta :excluded-profiles) [])}))
+     :simple-merge-works (or (false? profile-merging)
+                             (simple-merge-works? project))
+     :active-profiles    (or (-> project meta :active-profiles) [])}))
 
 (defn run-figwheel [project config-source-data paths-to-add build-ids]
   (run-local-project
@@ -259,13 +218,13 @@
   (map-to-vec-builds
    (if-let [data (figwheel-edn)]
      (:builds data)
-     (get-in (fuzzy-select-keys-and-fix data [:cljsbuild])
+     (get-in (fuz/fuzzy-select-keys-and-fix data [:cljsbuild])
              [:cljsbuild :builds]))))
 
 (defn figwheel-options [data]
   (if-let [data (figwheel-edn)]
     data
-    (:figwheel (fuzzy-select-keys-and-fix data [:figwheel]))))
+    (:figwheel (fuz/fuzzy-select-keys-and-fix data [:figwheel]))))
 
 (defn normalize-data [data build-ids]
   {:figwheel-options (figwheel-options data)
@@ -352,7 +311,7 @@
 
 (defn suggest-like [thing things]
   (->> things
-       (map (juxt #(similar-key* 3 thing %)
+       (map (juxt #(fuz/similar-key thing %)
                   identity))
        (filter first)
        (sort-by first)
@@ -396,14 +355,14 @@
 (defn check-config [project]
   (run-config-check
    project
-   (fuzzy-select-keys project [:cljsbuild :figwheel])
+   (fuzzy-config-from-project project)
    {:no-start-option true}))
 
 (defn build-once [project build-ids]
   (when-not (report-if-bad-build-ids project build-ids)
     (run-build-once
      project
-     (fuzzy-select-keys project [:cljsbuild :figwheel])
+     (fuzzy-config-from-project project)
      (source-paths-for-classpath
       (normalize-data project build-ids))
      (vec build-ids))))
@@ -412,7 +371,7 @@
   (when-not (report-if-bad-build-ids project build-ids)
     (run-figwheel
      project
-     (fuzzy-select-keys project [:cljsbuild :figwheel])
+     (fuzzy-config-from-project project)
      (source-paths-for-classpath
       (normalize-data project build-ids))
      (vec build-ids))))

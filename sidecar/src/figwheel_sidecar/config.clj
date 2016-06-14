@@ -371,19 +371,15 @@
 
 (defn project-with-merged-profiles
   ([] (project-with-merged-profiles {}))
-  ([{:keys [included-profiles excluded-profiles] :as config-data}]
-   #_(prn (select-keys config-data [:profile-merging :simple-merge-works]))
+  ([{:keys [active-profiles] :as config-data}]
    (let [project (lm/read-raw-project)]
      (if (merge-profiles? project config-data)
        (do #_(println "::::::: Merging profiles !!!!!!")
-           #_(prn "included" included-profiles)
-           #_(prn "excluded" excluded-profiles)
+           #_(prn "active-profiles" active-profiles)
            #_(prn (select-keys config-data [:profile-merging :simple-merge-works]))
            (lm/safe-apply-lein-profiles project
-                                        (lm/subtract-profiles
-                                         (or (not-empty included-profiles)
-                                             lm/default-profiles)
-                                         (or excluded-profiles []))))
+                                        (or (not-empty active-profiles)
+                                            lm/default-profiles)))
        project))))
 
 #_(project-with-merged-profiles #_{:profile-merging true :simple-merge-works true})
@@ -691,8 +687,8 @@
                 )))))))))
 
 (defn validate-lein-project-loop [project-config-data options]
-  #_(pp/pprint (select-keys project-config-data [:included-profiles :excluded-profiles
-                                                 :profile-merging :simple-merge-works]))
+  #_(pp/pprint (select-keys project-config-data [:active-profiles
+                                               :profile-merging :simple-merge-works]))
   (if (or
        (false? (:profile-merging project-config-data))
        (true?  (:simple-merge-works project-config-data)))
@@ -701,8 +697,9 @@
            (repeatedly #(->config-data (map->LeinProjectConfigSource
                                         (select-keys
                                          project-config-data
-                                         [:included-profiles :excluded-profiles
-                                          :profile-merging :simple-merge-works])))))
+                                         [:active-profiles
+                                          :profile-merging
+                                          :simple-merge-works])))))
      options)
     (validate-loop [project-config-data] {:once true})))
 

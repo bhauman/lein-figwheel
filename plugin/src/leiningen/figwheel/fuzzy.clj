@@ -49,4 +49,32 @@
             (map #(identity %2) (cons nil sequence2) (range))
             sequence1)))
 
+(defn similar-key* [thresh ky ky2]
+  (and ((some-fn keyword? string? symbol?) ky)
+       ((some-fn keyword? string? symbol?) ky2)
+       (let [dist (levenshtein (name ky) (name ky2))]
+         (when (<= dist thresh)
+           dist))))
+
+(def similar-key (partial similar-key* 3))
+
+#_(similar-key :hey :heeey)
+
+(defn get-keylike [ky mp]
+  (if-let [val (get mp ky)]
+    [ky val]
+    (when-let [res (not-empty
+                    (sort-by
+                     first
+                     (keep (fn [[k v]]
+                             (when-let [dist (and (map? v) (similar-key k ky))]
+                               [dist [k v]])) mp)))]
+      (-> res first second))))
+
+(defn fuzzy-select-keys [m kys]
+  (into {} (map #(get-keylike % m) kys)))
+
+(defn fuzzy-select-keys-and-fix [m kys]
+  (into {} (map #(let [[_ v] (get-keylike % m)] [% v]) kys)))
+
 
