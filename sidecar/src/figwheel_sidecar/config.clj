@@ -479,6 +479,43 @@
   ([project-data]
    (->LeinProjectConfigSource project-data "project.clj")))
 
+(defn detect-convert->config-source [data]
+  (if (map? data)
+    (let [internal-keys [:figwheel-options :all-builds]
+          fig-edn-keys [:http-server-root
+                             :server-port
+                             :builds
+                             :css-dirs
+                             :ring-handler
+                             :builds-to-start]
+          internal-score
+          (count (fuz/fuzzy-select-keys data internal-keys))
+          fig-edn-score
+          (count (fuz/fuzzy-select-keys data fig-edn-keys))]
+      (cond
+        (and (>= internal-score fig-edn-score)
+             (> internal-score 0))
+        (->figwheel-internal-config-source data)
+        (and (>= fig-edn-score internal-score )
+             (> fig-edn-score 0))
+        (->figwheel-config-source data)
+        :else
+        (throw (ex-info
+                (str "The configuration Map provided does not resemble a configuration.\n"
+                     "It doesn't have any keys like: " (pr-str fig-edn-keys) "\n"
+                     "Or keys like: " (pr-str internal-keys))
+                    {:reason :not-a-configuration-map
+                     :config-data data}))))
+    (throw (ex-info "The configuration data provided is not a Map" 
+                    {:reason :configuration-not-a-map
+                     :config-data data})) ))
+
+(defn ->config-source [config-options]
+  (if (or (config-source? config-options)
+          (config-data? config-options))
+    config-options
+    (detect-convert->config-source config-options)))
+
 (defn initial-config-source
   ([] (initial-config-source nil))
   ([project]
