@@ -24,18 +24,11 @@
 (defn start-figwheel!
   "If you aren't connected to an env where fighweel is running already,
   this method will start the figwheel server with the passed in build info."
-  ([config-source]
-   (when *repl-api-system*
-     (alter-var-root #'*repl-api-system* component/stop))
-   (alter-var-root #'*repl-api-system* (fn [_] (fs/start-figwheel! config-source)))
-   nil)
-  ([]
-   (if *repl-api-system*
-     (do
-       (alter-var-root #'*repl-api-system* component/start)
-       nil)
-     ;; if no system exists try to read in a configuration
-     (start-figwheel! (config/fetch-config)))))
+  [& args]
+  (when *repl-api-system*
+    (alter-var-root #'*repl-api-system* component/stop))
+  (alter-var-root #'*repl-api-system* (fn [_] (apply fs/start-figwheel! args)))
+  nil)
 
 (defn stop-figwheel!
   "If a figwheel process is running, this will stop all the Figwheel autobuilders and stop the figwheel Websocket/HTTP server."

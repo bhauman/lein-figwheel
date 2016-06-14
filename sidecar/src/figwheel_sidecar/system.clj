@@ -624,16 +624,43 @@
   (let [system (create-figwheel-system options)]
     (dispatch-system-component-errors #(component/start system))))
 
-(defn start-figwheel!
-  ([] (start-figwheel! (config/fetch-config)))
-  ([config-options]
+(defn parse-start-figwheel-args [args]
+  (cond (empty? args)
+        [(config/fetch-config) nil]
+
+        (map? (first args))
+        [(first args) (not-empty (rest args))]
+        
+        ((some-fn string? symbol? keyword?) (first args))
+        [(config/fetch-config) args]
+        :else
+        (throw
+         (ex-info (str "Bad arguments passed to start-figwheel!\n"
+                       "  First argument should be a map? or named?\n"
+                       "  start-figwheel! is normally called with a configuration\n"
+                       "  plus a the build-ids to start."
+                       "  Or optionally just the build ids to start." )
+                  {:reason :bad-arguments-passed-to-start-figwheel
+                   :args args}))))
+
+(defn start-figwheel!* [config-options build-ids]
   (let [internal-config-data
         (-> config-options
             config/->config-source
             config/config-source->prepped-figwheel-internal
             config/adjust-to-internal-configuration-representation            
-            :data)]
-    (start-figwheel-system internal-config-data))))
+            :data)
+        internal-config-data (if (not-empty build-ids)
+                               (do
+                                 (config/report-if-bad-build-ids
+                                  (map :id (:all-builds internal-config-data))
+                                  build-ids)
+                                 (assoc internal-config-data :build-ids build-ids))
+                               internal-config-data)]
+    (start-figwheel-system internal-config-data)))
+
+(defn start-figwheel! [& args]
+  (apply start-figwheel!* (parse-start-figwheel-args args)))
 
 (defn stop-figwheel! [system]
   (component/stop system))
