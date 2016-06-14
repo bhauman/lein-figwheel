@@ -81,7 +81,6 @@
                      (filter
                       #(first %)
                       (map (fn [[k v]] [(and (similar-key 0 k ky)
-                                             (map? v)
                                              (ky-distance k ky))
                                         [k v]]) mp))))]
       (-> res first second))))
