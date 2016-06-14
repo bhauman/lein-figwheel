@@ -400,8 +400,9 @@
   (figwheel-options [_]
     (-> data :figwheel (dissoc :builds)))
   (all-builds [_]
-    (or (get-in data [:figwheel :builds])
-        (get-in data [:cljsbuild :builds])))
+    (map-to-vec-builds
+     (or (get-in data [:figwheel :builds])
+         (get-in data [:cljsbuild :builds]))))
   (build-ids [_]
     (get-in data [:figwheel :builds-to-start]))
   (-validate [self]
@@ -410,7 +411,7 @@
 (defrecord FigwheelConfigData [data file]
   ConfigData
   (figwheel-options [_] (dissoc data :builds))
-  (all-builds [_]       (:builds data))
+  (all-builds [_]       (map-to-vec-builds (:builds data)))
   (build-ids [_]        (:builds-to-start data))
   (-validate [self]
     (vc/validate-figwheel-edn-config-data self)))
@@ -418,7 +419,7 @@
 (defrecord FigwheelInternalConfigData [data file]
   ConfigData
   (figwheel-options [_] (:figwheel-options data))
-  (all-builds [_]       (:all-builds data))
+  (all-builds [_]       (map-to-vec-builds (:all-builds data)))
   (build-ids [_]        (:build-ids data))
   (-validate [self]
     (vc/validate-figwheel-config-data self)))
@@ -587,8 +588,7 @@
 (defn get-project-builds []
   (-> (->lein-project-config-source)
       ->config-data
-      all-builds
-      map-to-vec-builds))
+      all-builds))
 
 #_(fetch-config)
 
