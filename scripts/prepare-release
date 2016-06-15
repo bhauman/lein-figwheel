@@ -1,11 +1,12 @@
 #!/bin/bash
 
 pushd support ; lein install ; popd
-pushd sidecar ; lein install ; popd
-pushd plugin ; lein install ; popd
 
 pushd sidecar;
 rm resources/compiled-utils/figwheel-helper-deploy.js
 lein cljsbuild once deploy-prod
 lein install
 popd
+
+pushd sidecar ; lein install ; popd
+pushd plugin ; lein install ; popd
