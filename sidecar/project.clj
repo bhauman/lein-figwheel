@@ -16,7 +16,10 @@
    [http-kit "2.1.19"]
    [ring-cors "0.1.8"
     :exclusions [ring/ring-core org.clojure/clojure]]
-   [compojure "1.5.0" :exclusions [org.clojure/clojure]]
+   [ring/ring-core "1.5.0"
+    :exclusions
+    [org.clojure/tools.reader
+     org.clojure/clojure]]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.4-4-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]

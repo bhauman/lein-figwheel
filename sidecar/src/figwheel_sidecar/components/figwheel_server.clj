@@ -11,9 +11,8 @@
    [clojure.stacktrace :as stack]
    [clojure.core.async :refer [go-loop <!! <! timeout]]
 
-   [compojure.route :as route]
-   [compojure.core :refer [routes GET]]
-   [ring.util.response :refer [resource-response]]
+   [ring.util.response :refer [resource-response] :as response]
+   [ring.util.mime-type :as mime]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
    
@@ -153,30 +152,88 @@
                                       "</pre>")}))))
       (handler request))))
 
+(defn handle-index [handler root]
+  (fn [request]
+    (if (= [:get "/"] ((juxt :request-method :uri) request))
+      (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")})
+                            (response/content-type "text/html; charset=utf-8"))]
+        resp
+        (handler request))
+      (handler request))))
+
+(defn handle-static-resources [handler root]
+  (let [add-mime-type (fn [response path]
+                        (if-let [mime-type (mime/ext-mime-type path)]
+                          (response/content-type response mime-type)
+                          response))]
+    (fn [{:keys [request-method uri] :as request}]
+      (if (= :get request-method)
+        (if-let [resp (some-> (resource-response uri {:root (or root "public")})
+                              (add-mime-type uri))]
+          resp
+          (handler request))
+        (handler request)))))
+
+(defn parse-build-id [uri]
+  (let [[fig-ws build-id :as parts] (rest (string/split uri #"/"))]
+    (and (= (count parts) 2)
+         (= fig-ws "figwheel-ws")
+         (not (string/blank? build-id))
+         build-id)))
+
+(defn handle-figwheel-websocket [handler server-state]
+  (let [websocket-handler (reload-handler server-state)]
+    (fn [{:keys [request-method uri] :as request}]
+      (if (= :get request-method)
+        (cond
+          (= uri "/figwheel-ws")
+          (websocket-handler request)
+
+          (parse-build-id uri)
+          (websocket-handler
+           (assoc-in request [:params :desired-build-id] (parse-build-id uri)))
+
+          :else (handler request))
+        (handler request)))))
+
+(defn possible-endpoint [handler possible-fn]
+  (if possible-fn
+    #(possible-fn %)
+    #(handler %)))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
   [{:keys [server-port server-ip http-server-root resolved-ring-handler log-writer] :as server-state}]
   (try
-    (-> (routes
-         (GET "/figwheel-ws/:desired-build-id" {params :params} (reload-handler server-state))
-         (GET "/figwheel-ws" {params :params} (reload-handler server-state))       
-         (route/resources "/" {:root http-server-root})
-         (or resolved-ring-handler (fn [r] false))
-         (GET "/" [] (resource-response "index.html" {:root http-server-root}))
-         (route/not-found "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
-        ;; adding cors to support @font-face which has a strange cors error
-        ;; super promiscuous please don't uses figwheel as a production server :)
-        (cors/wrap-cors
-         :access-control-allow-origin #".*"
-         :access-control-allow-methods [:head :options :get :put :post :delete :patch])
-        (log-output-to-figwheel-server-log log-writer)
-        (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
-                      (if server-ip
-                        (assoc config :ip server-ip)
-                        config))))
+    (->
+     (fn [_]
+       (response/not-found
+        "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
+     
+     ;; users handler goes last
+     (possible-endpoint resolved-ring-handler)
+     
+     (handle-static-resources http-server-root)
+     (handle-index            http-server-root)
+     (handle-figwheel-websocket server-state)
+     
+     ;; adding cors to support @font-face which has a strange cors error
+     ;; super promiscuous please don't uses figwheel as a production server :)
+     (cors/wrap-cors
+      :access-control-allow-origin #".*"
+      :access-control-allow-methods [:head :options :get :put :post :delete :patch])
+     (log-output-to-figwheel-server-log log-writer)
+     (run-server (let [config {:port server-port :worker-name-prefix "figwh-httpkit-"}]
+                   (if server-ip
+                     (assoc config :ip server-ip)
+                     config))))
     (catch java.net.BindException e
-      (throw (ex-info (str "Port " server-port " is already being used. \nAre you running another Figwheel instance? \nIf you want to run two Figwheel instances add a new :server-port (i.e. :server-port 3450) to Figwheel's config options in your project.clj")
+      (throw (ex-info (str "Port " server-port " is already being used. \n"
+                           "Are you running another Figwheel instance? \n"
+                           "If you want to run two Figwheel instances add a "
+                           "new :server-port (i.e. :server-port 3450)\n"
+                           "to Figwheel's config options in your project.clj")
                       {:escape-system-exceptions true
                        :reason :unable-to-bind-port})))))
 
