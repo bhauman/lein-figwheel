@@ -172,9 +172,9 @@
 
 (defn on-stamp-change [{:keys [file signature]} f]
   {:pre [(string? signature) (= (type file) java.io.File)]}
-  (let [old-val (when (.exists file) (slurp file))]
+  (let [old-val (when (.exists ^java.io.File file) (slurp file))]
     (when-not (= signature old-val) (f))
-    (.mkdirs (.getParentFile (io/file (.getAbsolutePath file))))
+    (.mkdirs (.getParentFile (io/file (.getAbsolutePath ^java.io.File file))))
     (spit file signature)))
 
 (defn clean-on-dependency-change [{:keys [target-path dependencies] :as project}]
@@ -305,7 +305,7 @@
 (defn command-like? [command]
   (and
    (string? command)
-   (.startsWith command ":")))
+   (.startsWith ^String command ":")))
 
 (def command? (every-pred command-like? known-commands))
 
