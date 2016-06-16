@@ -722,7 +722,7 @@
     (if-not (validate-config-data? first-config-data)
       first-config-data
       (with-color-when (use-color? first-config-data)
-        (if-not (.exists (io/file file))
+        (if-not (and file (.exists (io/file file)))
           (do
             (println "Configuration file" (str file) "was not found")
             (System/exit 1))
