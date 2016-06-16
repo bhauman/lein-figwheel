@@ -212,7 +212,20 @@
 
 (defn figwheel-edn []
   (and (figwheel-edn-exists?)
-       (read-string (slurp (io/file "figwheel.edn")))))
+       (try
+         (read-string (slurp (io/file "figwheel.edn")))
+         (catch Throwable e
+           (main/abort
+            (str "---- Bad figwheel.edn File! ----\n"
+                 "You have a malformed figwheel.edn file at the root of your\n"
+                 "of your project directory.\n\n"
+                 
+                 "While reading this file we encountered the following error:\n"
+                 " --->  " (.getMessage e)
+                 "\n\n"
+                 "Either remove this file to revert to reading the Figwheel config\n"
+                 "from the project.clj or fix the reader errors in this file.\n"
+                 "---- Bad figwheel.edn File! ----\n"))))))
 
 (defn cljs-builds [data]
   (map-to-vec-builds
