@@ -14,6 +14,7 @@
   (f/stop-figwheel!))
 
 (defn reset []
-  (stop)
+  (println "Removing system")
+  (f/remove-system)
   (refresh :after 'user/start))
 
