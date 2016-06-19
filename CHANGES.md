@@ -11,7 +11,7 @@ takes optional build-ids as well.
 So you can do this:
 
 ```
-(start-fighweel! "dev" "admin")
+(start-figwheel! "dev" "admin")
 ```
 
 And it will pull in the config from the environment and start
