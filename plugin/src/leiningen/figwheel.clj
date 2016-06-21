@@ -291,10 +291,12 @@
         classpath-builds (filter #(class-path-build-ids
                                    (and (named? (:id %))
                                         (name (:id %))))
-                                 all-builds)]
+                                  (filter map? all-builds))]
     (vec
      (distinct
-      (mapcat :source-paths classpath-builds)))))
+      (apply
+       concat
+       (filter sequential? (map :source-paths classpath-builds)))))))
 
 (comment
   (def test-project
