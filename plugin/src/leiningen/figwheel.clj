@@ -229,15 +229,17 @@
 
 (defn cljs-builds [data]
   (map-to-vec-builds
-   (if-let [data (figwheel-edn)]
-     (:builds data)
-     (get-in (fuz/fuzzy-select-keys-and-fix data [:cljsbuild])
-             [:cljsbuild :builds]))))
+   (let [res (if-let [data (figwheel-edn)]
+               (:builds data)
+               (get-in (fuz/fuzzy-select-keys-and-fix data [:cljsbuild])
+                       [:cljsbuild :builds]))]
+     (if (sequential? res) res []))))
 
 (defn figwheel-options [data]
-  (if-let [data (figwheel-edn)]
-    data
-    (:figwheel (fuz/fuzzy-select-keys-and-fix data [:figwheel]))))
+  (let [res (if-let [data (figwheel-edn)]
+              data
+              (:figwheel (fuz/fuzzy-select-keys-and-fix data [:figwheel])))]
+    (if (map? res) res {})))
 
 (defn normalize-data [data build-ids]
   {:figwheel-options (figwheel-options data)
