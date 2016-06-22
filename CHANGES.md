@@ -4,7 +4,7 @@
 
 * ! removed compojure as a dependency
   Figwheel used compojure in its server to handle routing
-  this was overkill, it compilcated the routing and added an unneeded dependency.
+  this was overkill. It complicated the routing while adding an unneeded dependency.
   Strange things where happening when `wrap-reload` was being used in an
   embedded `:ring-handler`.  
   There is so little routing functionality in figwheel that I just created
