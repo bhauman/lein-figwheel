@@ -111,6 +111,8 @@ prior to your main namespace with the following compiler options:
 :preloads must be a sequence of symbols that map to existing
 namespaces discoverable on the classpath.
 
+  :preloads '[foo.dev]
+
 :verbose
 
 Emit details and measurements from compiler activity.
