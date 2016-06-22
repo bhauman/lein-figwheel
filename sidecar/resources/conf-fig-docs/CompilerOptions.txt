@@ -2,7 +2,7 @@
 
 A map of options to be sent to the ClojureScript compiler
 
-  :CompilerOptions [:CreateExampleMap :main :preloads :output-to :output-dir :optimizations :source-map :source-map-timestamp :recompile-dependents]
+  :CompilerOptions [:CreateExampleMap :main :output-to :output-dir :optimizations :source-map :source-map-timestamp :recompile-dependents]
 
 :output-to
 
@@ -105,13 +105,11 @@ Now you can configure your development build to load this side effect
 prior to your main namespace with the following compiler options:
 
   {:preloads [foo.dev]
-   :main 'foo.core
+   :main "foo.core"
    :output-dir "out}
 
 The :preloads config value must be a sequence of symbols that map to
 existing namespaces discoverable on the classpath.
-
-  :preloads [foo.dev]
 
 :verbose
 
