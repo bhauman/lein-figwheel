@@ -5,10 +5,13 @@
 * ! removed compojure as a dependency
   Figwheel used compojure in its server to handle routing
   this was overkill, it compilcated the routing and added an unneeded dependency.
-  There is so little functionality that I just created what was needed
-  with simple ring middleware. If the behavior of your :ring-handler changes
-  (routes not being resolved, bad headers etc.) please let me know.
-  For reference here is the commit: https://github.com/bhauman/lein-figwheel/commit/f027b10188ed9d1baa6ec04bbdd14e6a493f68b0
+  Strange things where happening when `wrap-reload` was being used in an
+  embedded `:ring-handler`.  
+  There is so little routing functionality in figwheel that I just created
+  what was needed with simple ring middleware. If the behavior of your
+  :ring-handler changes (routes not being resolved, bad headers etc.)
+  please let me know.  For reference here is the commit:
+  https://github.com/bhauman/lein-figwheel/commit/f027b10188ed9d1baa6ec04bbdd14e6a493f68b0
 * improved the resiliency of the plugin around bad initial config data
   the lein plugin uses config data from the project.clj before its
   has been validated, I added some extra safe guards to protect against
