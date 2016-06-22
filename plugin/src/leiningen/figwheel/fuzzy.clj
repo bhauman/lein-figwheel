@@ -61,15 +61,16 @@
 #_(similar-key :hey :heeey)
 
 (defn get-keylike [ky mp]
-  (if-let [val (get mp ky)]
-    [ky val]
-    (when-let [res (not-empty
-                    (sort-by
-                     first
-                     (keep (fn [[k v]]
-                             (when-let [dist (and (map? v) (similar-key k ky))]
-                               [dist [k v]])) mp)))]
-      (-> res first second))))
+  (when (map? mp)
+    (if-let [val (get mp ky)]
+      [ky val]
+      (when-let [res (not-empty
+                      (sort-by
+                       first
+                       (keep (fn [[k v]]
+                               (when-let [dist (and (map? v) (similar-key k ky))]
+                                 [dist [k v]])) mp)))]
+        (-> res first second)))))
 
 (defn fuzzy-select-keys [m kys]
   (into {} (map #(get-keylike % m) kys)))
