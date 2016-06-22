@@ -77,6 +77,7 @@
    (concat
     (spec 'CompilerOptions
          {:main                      (ref-schema 'SymbolOrString)
+          :preloads                  [symbol?]
           :asset-path                string?
           :output-to                 string?
           :output-dir                string?

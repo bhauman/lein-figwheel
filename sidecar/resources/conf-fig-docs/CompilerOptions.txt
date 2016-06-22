@@ -2,7 +2,7 @@
 
 A map of options to be sent to the ClojureScript compiler
 
-  :CompilerOptions [:CreateExampleMap :main :output-to :output-dir :optimizations :source-map :source-map-timestamp :recompile-dependents]
+  :CompilerOptions [:CreateExampleMap :main :preloads :output-to :output-dir :optimizations :source-map :source-map-timestamp :recompile-dependents]
 
 :output-to
 
@@ -88,6 +88,28 @@ Under :simple, :whitespace, or :advanced
 Under :none 
 
   :source-map true
+
+:preloads
+
+Developing ClojureScript commonly requires development time only side
+effects such as enabling printing, logging, spec instrumentation, and
+connecting REPLs. :preloads permits loading such side effect
+boilerplate right after cljs.core. For example you can make a
+development namespace for enabling printing in browsers:
+
+  (ns foo.dev)
+
+  (enable-console-print!)
+
+Now you can configure your development build to load this side effect
+prior to your main namespace with the following compiler options:
+
+  {:preloads '[foo.dev]
+   :main 'foo.core
+   :output-dir "out}
+
+:preloads must be a sequence of symbols that map to existing
+namespaces discoverable on the classpath.
 
 :verbose
 
