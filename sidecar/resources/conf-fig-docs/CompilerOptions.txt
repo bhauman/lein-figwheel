@@ -104,14 +104,14 @@ development namespace for enabling printing in browsers:
 Now you can configure your development build to load this side effect
 prior to your main namespace with the following compiler options:
 
-  {:preloads '[foo.dev]
+  {:preloads [foo.dev]
    :main 'foo.core
    :output-dir "out}
 
-:preloads must be a sequence of symbols that map to existing
-namespaces discoverable on the classpath.
+The :preloads config value must be a sequence of symbols that map to
+existing namespaces discoverable on the classpath.
 
-  :preloads '[foo.dev]
+  :preloads [foo.dev]
 
 :verbose
 
