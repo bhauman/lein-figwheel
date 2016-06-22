@@ -1,3 +1,19 @@
+## 0.5.4-4 added :preloads compiler option
+
+* added validation support for :preloads compiler option
+
+* ! removed compojure as a dependency
+  Figwheel used compojure in its server to handle routing
+  this was overkill, it compilcated the routing and added an unneeded dependency.
+  There is so little functionality that I just created what was needed
+  with simple ring middleware. If the behavior of your :ring-handler changes
+  (routes not being resolved, bad headers etc.) please let me know.
+  For reference here is the commit: https://github.com/bhauman/lein-figwheel/commit/f027b10188ed9d1baa6ec04bbdd14e6a493f68b0
+* improved the resiliency of the plugin around bad initial config data
+  the lein plugin uses config data from the project.clj before its
+  has been validated, I added some extra safe guards to protect against
+  stack dumps
+
 ## 0.5.4-3 some improvements around starting figwheel from the REPL
 
 * I added back `figwheel-sidecar/get-project-builds` which was removed in 0.5.4
