@@ -9,9 +9,9 @@ for the simple routing that Figwheel needs. This also made the routing
 a bit more complex for the downstream `:ring-handler`.
 
 Just recently a strange issue
-https://github.com/bhauman/lein-figwheel/issues/428 popped up when
-ring was updated.  Strange things where happening when `wrap-reload`
-was being used in an embedded `:ring-handler`.
+https://github.com/bhauman/lein-figwheel/issues/428 popped up. Strange
+things where happening when `wrap-reload` was being used in an
+embedded `:ring-handler`.
 
 There is so little routing functionality in Figwheel that I just
 replaced the Compojure routing with simple Ring middleware. This is much more
@@ -19,7 +19,7 @@ predictable and has the added advantage of removing another
 dependency from Figwheel.
 
 If the behavior of your `:ring-handler` changes (routes not being
-resolved, bad headers etc.)  please let me know.
+resolved, bad/missing HTTP headers etc.)  please let me know.
 
 For reference here is the commit:
 https://github.com/bhauman/lein-figwheel/commit/f027b10188ed9d1baa6ec04bbdd14e6a493f68b0
