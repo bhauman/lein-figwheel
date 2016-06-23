@@ -78,32 +78,36 @@
     (with-color-when (-> figwheel-server :ansi-color-output)
       (build-fn build-state))))
 
+;; !! assume nothing about the order of middleware !!
+;; if the order changes re-verify the function of each part
 (def figwheel-build
   (-> cljs-build
       injection/hook
       notify-command-hook
-      clj-reloading/hook
-      javascript-reloading/hook
       figwheel-start-and-end-messages
       notifications/hook
+      ;; the following two hooks have to be called before the notifications
+      ;; a they modify the message on the way down
+      clj-reloading/hook
+      javascript-reloading/hook      
       color-output))
 
 (def figwheel-build-without-javascript-reloading
   (-> cljs-build
       injection/hook
       notify-command-hook      
-      clj-reloading/hook
       figwheel-start-and-end-messages
       notifications/hook
+      clj-reloading/hook
       color-output))
 
 (def figwheel-build-without-clj-reloading
   (-> cljs-build
       injection/hook
       notify-command-hook      
-      javascript-reloading/hook
       figwheel-start-and-end-messages
       notifications/hook
+      javascript-reloading/hook
       color-output))
 
 (defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
