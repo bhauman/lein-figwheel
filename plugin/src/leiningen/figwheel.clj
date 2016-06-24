@@ -191,8 +191,6 @@
 
 ;; configuration validation and management is internal to figwheel BUT ...
 
-
-
 ;; we need to be able to introspect the config because we need to add the
 ;; right cljs build source paths to the classpath
 ;; this is only needed because of :all-builds config option
@@ -299,6 +297,18 @@
       (apply
        concat
        (filter sequential? (map :source-paths classpath-builds)))))))
+
+;; really not digging this
+
+(defn ensure-build-dirs [proj]
+  (when-let [builds (cljs-builds proj)]
+    (->> builds
+         (filter map?)
+         (keep (fn [x] (get-in x [:compiler :output-to])))
+         (filter string?)
+         (keep #(.getParentFile (io/file %)))         
+         distinct
+         (mapv #(.mkdirs %)))))
 
 (comment
   (def test-project
@@ -495,6 +505,7 @@ Configuration:
                                   [command build-ids]
                                   [nil (and command (cons command build-ids))])]
         (clean-on-dependency-change project)
+        (ensure-build-dirs project)
         (println "Figwheel: Cutting some fruit, just a sec ...")
         (fig-dispatch command project build-ids)))))
 
