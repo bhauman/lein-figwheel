@@ -127,7 +127,10 @@
                     :build-config
                     :figwheel
                     :open-urls))]
-    (doseq [url urls] (open-url-once url))))
+    ;; wait a tick for files to flush into directories
+    (Thread/sleep 400)
+    (doseq [url urls]
+      (open-url-once url))))
 
 (defn open-urls-hook [build-fn]
   (fn [build-state]
