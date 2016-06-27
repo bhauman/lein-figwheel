@@ -1,3 +1,7 @@
+## 0.5.4-5 quick fix
+
+* protecting against bad data broke Map style :builds declaration, fixed
+
 ## 0.5.4-4 added :preloads compiler option
 
 #### Removed compojure as a dependency
