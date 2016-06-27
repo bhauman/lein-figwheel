@@ -74,6 +74,12 @@
 ;; to allow figwheel validation to detect and report misspellings
 
 
+(defn named? [x]
+  (when x
+    (or
+     (string? x)
+     (instance? clojure.lang.Named x))))
+
 ;; discover if the figwheel subprocess needs to wory about leiningen profile-merging
 ;; or if simple profile merging will do it
 
@@ -198,12 +204,15 @@
 ;; this duplicates functionality in figwheel-sidcar.config but we
 ;; can't pull that code in soooo ...
 
-
 (defn map-to-vec-builds
   [builds]
-  (if (map? builds)
-    (mapv (fn [[k v]] (assoc v :id (name k))) builds)
-    builds))
+  (vec
+   (if (map? builds)
+     (keep (fn [[k v]]
+             (when (named? k)
+               (assoc v :id (name k))))
+           builds)
+     builds)))
 
 (defn figwheel-edn-exists? []
   (.exists (io/file "figwheel.edn")))
@@ -231,8 +240,7 @@
                (:builds data)
                (get-in (fuz/fuzzy-select-keys-and-fix data [:cljsbuild])
                        [:cljsbuild :builds]))]
-     (if (coll? res)
-       res []))))
+     (if (coll? res) res []))))
 
 (defn figwheel-options [data]
   (let [res (if-let [data (figwheel-edn)]
@@ -248,12 +256,6 @@
 (defn opt-none-build? [build]
   (let [optimizations (get-in build [:compiler :optimizations])]
     (or (nil? optimizations) (= optimizations :none))))
-
-(defn named? [x]
-  (when x
-    (or
-     (string? x)
-     (instance? clojure.lang.Named x))))
 
 (defn clean-id [id] (when (named? id) (name id)))
 
@@ -279,25 +281,27 @@
     (not-empty (apply intersection (map set args)))))
 
 (defn source-paths-for-classpath [{:keys [figwheel-options all-builds build-ids] :as data}]
-  (let [all-build-ids (clean-build-ids all-builds)
-        intersect     (partial intersect-not-empty all-build-ids)
-        class-path-build-ids
-        (if (false? (:load-all-builds figwheel-options))
-          (or
-           (intersect build-ids)
-           (intersect (builds-to-start-build-ids data))
-           (intersect (take 1 (opt-none-build-ids data)))
-           all-build-ids)
-          all-build-ids)
-        classpath-builds (filter #(class-path-build-ids
-                                   (and (named? (:id %))
-                                        (name (:id %))))
-                                  (filter map? all-builds))]
-    (vec
-     (distinct
-      (apply
-       concat
-       (filter sequential? (map :source-paths classpath-builds)))))))
+  (if-not (and all-builds (not-empty all-builds))
+    []
+    (let [all-build-ids (clean-build-ids all-builds)
+          intersect     (partial intersect-not-empty all-build-ids)
+          class-path-build-ids
+          (if (false? (:load-all-builds figwheel-options))
+            (or
+             (intersect build-ids)
+             (intersect (builds-to-start-build-ids data))
+             (intersect (take 1 (opt-none-build-ids data)))
+             all-build-ids)
+            all-build-ids)
+          classpath-builds (filter #(class-path-build-ids
+                                     (and (named? (:id %))
+                                          (name (:id %))))
+                                   (filter map? all-builds))]
+      (vec
+       (distinct
+        (apply
+         concat
+         (filter sequential? (map :source-paths classpath-builds))))))))
 
 ;; really not digging this
 

@@ -10,7 +10,8 @@
          :url "https://github.com/bhauman/lein-figwheel"
          :dir ".."}
 
-  :profiles {:dev {:dependencies [[leiningen "2.6.1"]]
+  :profiles {:dev {:dependencies [[leiningen "2.6.1"]
+                                  [org.clojure/test.check "0.9.0"]]
                    :source-paths ["dev" "src"]
                    :aliases {"change-version" ["run" "-m" "figwheel-tasks.core" ":change-version"]
                              "install-all"    ["run" "-m" "figwheel-tasks.core" ":install-all"]}}}
