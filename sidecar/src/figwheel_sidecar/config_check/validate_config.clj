@@ -124,7 +124,9 @@
           :ups-libs                  [string?]
           :ups-externs               [string?]
           :ups-foreign-libs          [(ref-schema 'ForeignLib)]
-          :closure-output-charset    string?})
+          :closure-output-charset    string?
+
+          :external-config           {keyword? map?}})
     (spec 'ForeignLib {:file string?
                        :provides [string?]
                        :file-min string?
