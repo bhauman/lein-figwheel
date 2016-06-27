@@ -231,7 +231,8 @@
                (:builds data)
                (get-in (fuz/fuzzy-select-keys-and-fix data [:cljsbuild])
                        [:cljsbuild :builds]))]
-     (if (sequential? res) res []))))
+     (if (coll? res)
+       res []))))
 
 (defn figwheel-options [data]
   (let [res (if-let [data (figwheel-edn)]
