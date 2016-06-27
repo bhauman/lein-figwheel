@@ -376,7 +376,9 @@
   (report-if-bad-build-ids* (clean-build-ids (cljs-builds project))
                             build-ids))
 
-#_(report-if-bad-build-ids {:cljsbuild {:builds [{:id :asdf}]}} ["asd" "as"])
+#_(report-if-bad-build-ids {:cljsbuild {:builds [{:id :asdf}]}} ["asdf" #_"as"])
+
+#_(report-if-bad-build-ids {:cljsbuild {:builds {:asdf {}}}} ["asdf" "as"])
 
 
 ;; tasks
