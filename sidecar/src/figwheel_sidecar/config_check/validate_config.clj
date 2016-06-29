@@ -146,7 +146,14 @@
    (or-spec 'ClosureDefineValue number? string? (ref-schema 'Boolean))
    (or-spec 'ClosureWarningValue :error :warning :off)
    (or-spec 'AnonFnNamingPolicy :off :unmapped :mapped)
-   (or-spec 'JavaScriptLanguage :ecmascript3 :ecmascript5 :ecmascript5-strict)
+   (or-spec 'JavaScriptLanguage
+            :ecmascript3
+            :ecmascript5
+            :ecmascript5-strict
+            :ecmascript6
+            :ecmascript6-typed
+            :ecmascript6-strict
+            :no-transpile)
    (or-spec 'ModuleType :commonjs :amd :es6)
    (or-spec 'CompilerOptimization :none :whitespace :simple :advanced)
    )))
