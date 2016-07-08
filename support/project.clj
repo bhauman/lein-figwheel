@@ -1,4 +1,4 @@
-(defproject figwheel "0.5.4-6-SNAPSHOT"
+(defproject figwheel "0.5.4-6"
   :description "This project contains the client side code for Figwheel."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"

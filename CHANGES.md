@@ -1,3 +1,8 @@
+## 0.5.4-6 update sidecar system apis to handle result of fetch-config
+
+* PR #447 change the validator to allow ES6 and :no-transpile 
+* #440 allow figwheel system to take the result of (config/fetch-config) 
+
 ## 0.5.4-5 quick fix
 
 * protecting against bad data broke Map style :builds declaration, fixed
