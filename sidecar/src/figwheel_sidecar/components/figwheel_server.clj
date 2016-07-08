@@ -32,7 +32,8 @@
                     (when (not (nil? file-column))
                       (str ":" file-column))))
         true (conj file-name))
-      [open-file-command file-name file-line file-column])))
+      ;; must pass arguments to clojure.java.shell/sh as strings, not numeric values
+      [open-file-command file-name (str file-line) (str file-column)])))
 
 (defn read-msg [data]
   (try
