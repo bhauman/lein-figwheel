@@ -135,8 +135,12 @@
     (server/-connection-data (:figwheel-server @system)))
   (-actual [this] (:figwheel-server @system)))
 
-(defn figwheel-system [{:keys [build-ids] :as options}]
-  (let [system
+(defn figwheel-system [config-data]
+  (let [{:keys [build-ids] :as options}
+        (if (config/figwheel-internal-config-data? config-data)
+          (:data config-data)
+          config-data)
+        system
         (atom
          (-> (component/system-map
               :figwheel-server (server/figwheel-server options))

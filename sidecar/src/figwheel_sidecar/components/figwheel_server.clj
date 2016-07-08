@@ -365,8 +365,12 @@
       (when-let [default-handler (resolve 'figwheel-sidecar.components.cljs-autobuild/figwheel-build)]
         @default-handler)))
 
-(defn figwheel-server [{:keys [figwheel-options all-builds] :as options}]
-  (let [all-builds (map butils/add-compiler-env (config/prep-builds* all-builds))
+(defn figwheel-server [config-data]
+  (let [{:keys [figwheel-options all-builds] :as options}
+        (if (config/figwheel-internal-config-data? config-data)
+          (:data config-data)
+          config-data)
+        all-builds (map butils/add-compiler-env (config/prep-builds* all-builds))
         all-builds (ensure-array-map all-builds)
         
         initial-state       (create-initial-state figwheel-options)

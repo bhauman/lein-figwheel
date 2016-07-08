@@ -24,17 +24,20 @@ file in the root directory of our project.
 }
 ```
 
+(You can also just add your configuration via the project.clj as usual)
+
+
 We'll use leiningen for dependency and classpath management and our
 `project.clj` should look like this:
 
 ```clojure
 (defproject example "0.1.0-SNAPSHOT"
   :description "Sidecar example"
-  :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.145"]]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.clojure/clojurescript "1.8.51"]]
   :profiles {
     :dev {
-      :dependencies [[figwheel-sidecar "0.5.0-SNAPSHOT"]]
+      :dependencies [[figwheel-sidecar "0.5.4-6"]]
     }
   }  
 )
@@ -56,22 +59,24 @@ nil
 => (require '[clojure.pprint :refer [pprint]])
 nil
 => (pprint (sys/fetch-config))
-{:figwheel-options
- {:http-server-root "public",
-  :server-port 3449,
-  :open-file-command "emacsclient"},
- :all-builds
- [{:id "example",
-   :source-paths ["src"],
-   :figwheel {:build-id "example"},
-   :build-options
-   {:main example.core,
-    :asset-path "js/out",
-    :output-to "resources/public/js/example.js",
-    :output-dir "resources/public/js/out",
-    :source-map-timestamp true,
-    :optimizations :none}}],
- :build-ids ["example"]}
+{:data
+ {:figwheel-options
+  {:http-server-root "public",
+   :server-port 3449,
+   :open-file-command "emacsclient"},
+  :all-builds
+  [{:id "example",
+    :source-paths ["src"],
+    :figwheel {:build-id "example"},
+    :build-options
+    {:main example.core,
+     :asset-path "js/out",
+     :output-to "resources/public/js/example.js",
+     :output-dir "resources/public/js/out",
+     :source-map-timestamp true,
+     :optimizations :none}}],
+  :build-ids ["example"]},
+ :file "figwheel.edn"} 
 ```
 
 `fetch-config` fetches the config from the `figwheel.edn` file and
@@ -80,12 +85,7 @@ prepares it for consumption by figwheel components.
 The call to `fetch-config` will attempt to get config first from
 `figwheel.edn` and if there is no `figwheel.edn` available, it will
 look for and read the `project.clj` file and attempt to get the
-configuration info from the `:figwheel` and `:cljsbuild` entries. When
-reading the `project.clj` directly **no leiningen profile merging will
-occur**.
-
-If you wish to load your configuration from a merged `project.clj` you
-can load `leiningen.core` and read the configuration.
+configuration info from the `:figwheel` and `:cljsbuild` entries.
 
 One can store and load the configuration however one wants to.
 `fetch-config` is merely a convenience.
@@ -165,7 +165,7 @@ java.util.concurrent.RejectedExecutionException:
 ## Adding the CSS Watcher component
 
 The figwheel-system doesn't include css watching but we can add the
-CSS watching as a seperate component.
+CSS watching as a separate component.
 
 and now let's define a system with a CSS Watcher:
 
@@ -228,7 +228,7 @@ repl doesn't offer us much.
 
 ## Creating a component that communicates with the Figwheel client
 
-Let's make a simple component that preiodically sends the current
+Let's make a simple component that periodically sends the current
 server side time to the client. This has no practical value but will
 just server as an example.
 
@@ -281,7 +281,7 @@ with the build id ("example" is build id from the config above).
 
 Now let's listen for this message on the client. You will need to add
 the following to your ClojureScript project source. You will probably
-want to create a developement build that includes the source directory
+want to create a development build that includes the source directory
 that contains a source file as follows.
 
 ```clojure
@@ -292,7 +292,7 @@ that contains a source file as follows.
   :time-pusher
   (fn [{:keys [msg-name] :as msg}]
     (when (= msg-name :time-push)
-      (println "Recieved time message:" (prn-str (:time msg))))))
+      (println "Received time message:" (prn-str (:time msg))))))
 ```
 
 This will add a listener and whenever you receive a `:time-push`
