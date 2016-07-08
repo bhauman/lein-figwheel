@@ -1,3 +1,7 @@
+## 0.5.4-7 fix :open-command
+
+* PR #449 Arguments to open-file-command must be strings, not numeric.
+
 ## 0.5.4-6 update sidecar system apis to handle result of fetch-config
 
 * PR #447 change the validator to allow ES6 and :no-transpile 
