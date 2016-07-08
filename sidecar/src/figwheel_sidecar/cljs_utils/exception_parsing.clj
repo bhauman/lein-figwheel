@@ -4,7 +4,7 @@
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.stacktrace :as stack]
-   [figwheel-sidecar.config-check.ansi :refer [with-color color-text]]
+   [figwheel-sidecar.config-check.ansi :refer [color-text]]
    #_[cljs.build.api :as bapi]
    [clojure.pprint :as pp]))
 

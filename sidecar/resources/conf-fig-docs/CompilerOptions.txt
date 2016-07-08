@@ -169,7 +169,9 @@ keys have these semantics:
               dialects (JSX, etc.). A defmethod for
               cljs.clojure/js-transforms must be provided that matches
               the supplied value in order to effect the desired code
-              transformation. :externs
+              transformation.
+
+:externs
 
 Configure externs files for external libraries.
 

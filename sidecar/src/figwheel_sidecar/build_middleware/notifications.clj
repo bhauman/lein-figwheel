@@ -2,7 +2,6 @@
   (:require
    [figwheel-sidecar.components.figwheel-server :as server]
    [figwheel-sidecar.utils :as utils]
-   [figwheel-sidecar.config-check.ansi :refer [with-color color-text]]   
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [cljs.env :as env]
    [cljs.util :refer [debug-prn]]
