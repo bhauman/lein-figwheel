@@ -1,9 +1,9 @@
 (ns figwheel-sidecar.schemas.config
   (:refer-clojure :exclude [boolean?])
   (:require
-   [clojure.spec :as s]
+   [strictly-specking-standalone.spec :as s]
    [figwheel-sidecar.schemas.cljs-options :as cljs-opt]
-   [strictly-specking.core :refer [strict-keys
+   [strictly-specking-standalone.core :refer [strict-keys
                                    def-key
                                    non-blank-string?]
     :as ssp]))

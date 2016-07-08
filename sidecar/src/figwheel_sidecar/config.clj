@@ -8,12 +8,12 @@
    [clojure.set :refer [intersection]]
    [simple-lein-profile-merge.core :as lm]
    [figwheel-sidecar.utils.fuzzy :as fuz]
-   [strictly-specking.ansi-util :refer [with-color-when color-text]]
+   [strictly-specking-standalone.ansi-util :refer [with-color-when color-text]]
       
    [figwheel-sidecar.utils :as utils]
-   [strictly-specking.core :as speck]
+   [strictly-specking-standalone.core :as speck]
    [figwheel-sidecar.schemas.config :as config-spec]
-   [clojure.spec :as s]))
+   [strictly-specking-standalone.spec :as s]))
 
 #_(remove-ns 'figwheel-sidecar.config)
 

@@ -1,9 +1,9 @@
 (ns figwheel-sidecar.schemas.cljs-options
   (:refer-clojure :exclude [boolean?])
   (:require
-   [clojure.spec :as s]
+   [strictly-specking-standalone.spec :as s]
    [clojure.string :as string]
-   [strictly-specking.core :refer [def-key
+   [strictly-specking-standalone.core :refer [def-key
                                    strict-keys
                                    attach-reason
                                    attach-warning
@@ -11,7 +11,7 @@
                                    reset-duplicate-keys]]
    [clojure.test :refer [deftest is testing]]))
 
-#_ (remove-ns 'strictly-specking.cljs-options-schema)
+#_ (remove-ns 'strictly-specking-standalone.cljs-options-schema)
 
 ;; !!! ADDING for 1.8 compat
 (defn boolean?

@@ -10,7 +10,7 @@
    [figwheel-sidecar.components.cljs-autobuild  :as autobuild]
    [figwheel-sidecar.components.figwheel-server :as server]
 
-   [strictly-specking.ansi-util :refer [with-color-when color-text]]
+   [strictly-specking-standalone.ansi-util :refer [with-color-when color-text]]
    [com.stuartsierra.component :as component]
 
    [cljs.env :as env]
