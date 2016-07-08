@@ -7,7 +7,6 @@
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.config :as config]
-   [figwheel-sidecar.config-check.ansi :refer [with-color-when]]
    [figwheel-sidecar.build-middleware.notifications :as notify]
    [figwheel-sidecar.components.cljs-autobuild :as cljs-auto]
    #_[figwheel-sidecar.build-utils :as butils]

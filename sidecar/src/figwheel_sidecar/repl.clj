@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.repl
   (:require
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
-   [figwheel-sidecar.config-check.ansi :refer [with-color-when]]
+   [strictly-specking.ansi-util :refer [with-color-when]]   
    [cljs.repl]
    [cljs.stacktrace]
    [cljs.analyzer :as ana]   

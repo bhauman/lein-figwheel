@@ -8,18 +8,16 @@
    [clojure.set :refer [intersection]]
    [simple-lein-profile-merge.core :as lm]
    [figwheel-sidecar.utils.fuzzy :as fuz]
-   [figwheel-sidecar.config-check.validate-config :as vc]
-   [figwheel-sidecar.config-check.type-check :as tc]
-   [figwheel-sidecar.config-check.ansi :refer [color-text with-color-when]]
-   [figwheel-sidecar.utils :as utils]))
+   [strictly-specking.ansi-util :refer [with-color-when color-text]]
+      
+   [figwheel-sidecar.utils :as utils]
+   [strictly-specking.core :as speck]
+   [figwheel-sidecar.schemas.config :as config-spec]
+   [clojure.spec :as s]))
+
+#_(remove-ns 'figwheel-sidecar.config)
 
 (def _figwheel-version_ "0.5.5-SNAPSHOT")
-
-;; trying to keep this whole file clojure 1.5.1 compatible because
-;; it is required by the leiningen process in the plugin
-;; this should be a temporary situation
-
-;; test this by loading the file into a 1.5.1 process
 
 ;; file stamping pattern
 
@@ -388,6 +386,80 @@
 (defn figwheel-edn-exists? []
   (.exists (io/file "figwheel.edn")))
 
+;; validation
+
+;; TODO add :validate-interactive option
+;; TODO add :validate-level option   
+
+;; TODO move to standalone
+
+;; TODO figure out fuzzy
+
+;; this expects the data to be narrowed to the relevant keys
+(defn raise-one-error [spec {:keys [data file type] :as config-data}]
+  (when-not (s/valid? spec data)
+    (let [first-error (-> (s/explain-data spec data)
+                          (speck/prepare-errors data file)
+                          first)
+          ;; TODO need to get ANSI right
+          ;; with-color-when here
+          message (-> first-error
+                      speck/error->display-data
+                      (speck/test-print "Figwheel Configuration Error")
+                      with-out-str)]
+      #_(println message)
+      (throw
+       (ex-info message
+                {:reason :figwheel-configuration-validation-error
+                 :validation-error first-error
+                 :config-data config-data}))
+      first-error)))
+
+(defn lein-project-spec [project]
+  ;; TODO this needs fuzzy key detection
+  (let [proj-fixed (fuz/fuzzy-select-keys-and-fix project [:cljsbuild :figwheel])]
+    (cond
+      (get-in proj-fixed [:figwheel :builds]) ::config-spec/lein-project-with-figwheel-builds
+      (not (get-in proj-fixed [:cljsbuild]))  ::config-spec/lein-project-only-figwheel
+      :else ::config-spec/lein-project-with-cljsbuild)))
+
+(defn validate-project-config-data [{:keys [data] :as config-data}]
+  (let [spec (lein-project-spec data)]
+    (->>
+     (fuz/fuzzy-select-keys data [:cljsbuild :figwheel])
+     (assoc config-data :data)
+     (raise-one-error spec))))
+
+(defn validate-figwheel-edn-config-data [config-data]
+  (raise-one-error ::config-spec/figwheel-edn config-data))
+
+(defn validate-figwheel-config-data [config-data]
+  (raise-one-error ::config-spec/figwheel-internal-config config-data))
+
+(comment
+
+  (def xxx (->config-data (->lein-project-config-source)))
+
+  (lein-project-spec (:data xxx))
+  
+  (all-builds xxx)
+  
+  (validate-project-config-data xxx)
+  (s/explain-data (lein-project-spec (:data xxx))
+                  (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel]))
+
+  (let [x (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel])
+        x (-> x (:cljsbuild x))]
+    (validate-figwheel-edn-config-data {:data x})
+
+    )
+
+  (validate-figwheel-config-data {:data {:all-builds (all-builds xxx)}})
+  )
+
+
+
+
 ;; configuration
 
 (defprotocol ConfigData
@@ -407,7 +479,7 @@
   (build-ids [_]
     (get-in data [:figwheel :builds-to-start]))
   (-validate [self]
-    (vc/validate-project-config-data self)))
+    (validate-project-config-data self)))
 
 (defrecord FigwheelConfigData [data file]
   ConfigData
@@ -415,7 +487,7 @@
   (all-builds [_]       (map-to-vec-builds (:builds data)))
   (build-ids [_]        (:builds-to-start data))
   (-validate [self]
-    (vc/validate-figwheel-edn-config-data self)))
+    (validate-figwheel-edn-config-data self)))
 
 (defrecord FigwheelInternalConfigData [data file]
   ConfigData
@@ -423,7 +495,7 @@
   (all-builds [_]       (map-to-vec-builds (:all-builds data)))
   (build-ids [_]        (:build-ids data))
   (-validate [self]
-    (vc/validate-figwheel-config-data self)))
+    (validate-figwheel-config-data self)))
 
 (defprotocol ConfigSource
   (-config-data [_]))
