@@ -4,8 +4,8 @@
    [strictly-specking-standalone.spec :as s]
    [figwheel-sidecar.schemas.cljs-options :as cljs-opt]
    [strictly-specking-standalone.core :refer [strict-keys
-                                   def-key
-                                   non-blank-string?]
+                                              def-key
+                                              non-blank-string?]
     :as ssp]))
 
 #_ (remove-ns 'figwheel-sidecar.schemas.config)
