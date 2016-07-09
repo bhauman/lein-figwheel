@@ -807,13 +807,14 @@
                          (utils/slow-output
                           (print-validate-config-data config-data)))
                   (do
-                    (println "Figwheel: Configuration Valid :)")
+                    (println (color-text "Figwheel: Configuration Valid :)" :green))
                     config-data)
                   (do
                     (when (:read-exception config-data)
-                      (println "Could not read your configuraton file - "
-                               (:file config-data))
-                      (println (.getMessage (:read-exception config-data))))
+                      (println (color-text "------------------ File Read Error ----------------" :cyan))
+                      (println (str "Could not read your configuraton file - " (:file config-data)))
+                      (println "--> " (color-text (.getMessage (:read-exception config-data)) :yellow ))
+                      (println (color-text "---------------------------------------------------" :cyan)))
                     (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
                     (let [choice (or (and (:once opts) "q")
                                      (and fix "f")
