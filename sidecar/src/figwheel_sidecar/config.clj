@@ -336,15 +336,8 @@
 
 (defn read-edn-file [file-name]
   (let [file (io/file file-name)]
-    (when-let [body (and (.exists file)
-                         (slurp file))]
-      (try
-        (read-string body)
-        (catch Throwable e
-          (println
-           (str "Failed to read file " (pr-str (str file))
-                " : "
-                (.getMessage ^Exception e))))))))
+    (when-let [body (slurp file)]
+      (read-string body))))
 
 (def get-project-config lm/read-raw-project)
 
@@ -545,6 +538,13 @@
   ([] (->figwheel-config-source nil "figwheel.edn"))
   ([data] (->figwheel-config-source data nil))
   ([data file] (->FigwheelConfigSource data file)))
+
+(comment
+  (->config-data (->lein-project-config-source))
+  (->config-data (->figwheel-config-source nil "/Users/bhauman/workspace/lein-figwheel/example/figwheel.edn"))
+  
+  )
+
 
 (defn ->lein-project-config-source
   ([] (->lein-project-config-source nil))
