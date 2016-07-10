@@ -734,54 +734,54 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
    map?
 
    (attach-warning ":asset-path has no effect without a :main"
-                   (fn [{:keys [main] :as comp}]
-                     (not (and (contains? comp :asset-path)
+                   (fn [{:keys [main] :as cmpl}]
+                     (not (and (contains? cmpl :asset-path)
                                (nil? main)))))
 
    (attach-warning ":pseudo-names has no effect when :optimizations is not :advanced"
-                   (fn [{:keys [optimizations] :as comp}]
-                     (not (and (contains? comp :pseudo-names)
+                   (fn [{:keys [optimizations] :as cmpl}]
+                     (not (and (contains? cmpl :pseudo-names)
                                (not= optimizations :advanced)))))
 
    ;; **** TODO add in the cljs.compiler unknown/similar-key warning here
 
    ;; these next warnings probably be elevated to an errors attach-reason
    (attach-warning ":preamble has no effect when :optimizations is not :none"
-                   (fn [{:keys [optimizations] :as comp}]
-                     (not (and (contains? comp :preamble)
+                   (fn [{:keys [optimizations] :as cmpl}]
+                     (not (and (contains? cmpl :preamble)
                                (not (opt-none? optimizations))))))
 
    (attach-warning ":hashbang has no effect when :target is not :nodejs"
-                   (fn [{:keys [target] :as comp}]
-                     (not (and (contains? comp :hashbang) (not= target :nodejs)))))
+                   (fn [{:keys [target] :as cmpl}]
+                     (not (and (contains? cmpl :hashbang) (not= target :nodejs)))))
 
    (attach-warning ":clojure-defines has no effect when :optimizations is :whitespace"
-                   (fn [{:keys [optimizations] :as comp}]
-                     (not (and (contains? comp :closure-defines)
+                   (fn [{:keys [optimizations] :as cmpl}]
+                     (not (and (contains? cmpl :closure-defines)
                                (= :whitespace optimizations)))))
 
    (attach-warning "missing an :output-to option - you probably will want this ..."
-                   (fn [comp] (contains? comp :output-to)))
+                   (fn [cmpl] (contains? cmpl :output-to)))
 
    (attach-reason  ":closure-defines requires a :main when :optimizations is :none"
-                   (fn [{:keys [optimizations main] :as comp}]
-                     (not (and (contains? comp :closure-defines)
+                   (fn [{:keys [optimizations main] :as cmpl}]
+                     (not (and (contains? cmpl :closure-defines)
                                (nil? main)
                                (opt-none? optimizations))))
                    :focus-key :closure-defines)
 
    (attach-reason  ":source-map must be a boolean when :optimizations is :none"
-                   (fn [{:keys [source-map optimizations] :as comp}]
+                   (fn [{:keys [source-map optimizations] :as cmpl}]
                      (not (and
-                           (contains? comp :source-map)
+                           (contains? cmpl :source-map)
                            (not (boolean? source-map))
                            (opt-none? optimizations))))
                    :focus-key :source-map)
 
    (attach-reason  ":source-map must be a string? when :optimizations is not :none"
-                   (fn [{:keys [source-map optimizations] :as cmp}]
+                   (fn [{:keys [source-map optimizations] :as cmpl}]
                      (not (and
-                           (contains? comp :source-map)                           
+                           (contains? cmpl :source-map)                           
                            (not (string? source-map))
                            (not (opt-none? optimizations)))))
                    :focus-key :source-map)
