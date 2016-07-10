@@ -5,6 +5,7 @@
    [figwheel-sidecar.schemas.cljs-options :as cljs-opt]
    [strictly-specking-standalone.core :refer [strict-keys
                                               def-key
+                                              attach-reason
                                               non-blank-string?]
     :as ssp]))
 
@@ -62,6 +63,7 @@
     ::load-all-builds
     ::ansi-color-output
     ::builds
+    ::reload-clj-files    
     ::hawk-options])
   "A Map of options that determine the behavior of the Figwheel system.
 
@@ -69,7 +71,7 @@
     :css-dirs [\"resources/public/css\"]
   }")
 
-(def-key ::http-server-root  string?
+(def-key ::http-server-root  non-blank-string?
 
   "Figwheel relies on the compojure.route/resources handler to serve
 static files. This serves resources on the classpath from a specific
@@ -91,7 +93,7 @@ Default: 3449
 
   :server-port 3000")
 
-(def-key ::server-ip         string?
+(def-key ::server-ip         non-blank-string?
   "The network interface that the figwheel server will listen on. This is
 useful if you don't want to use a public network interface.
 Default: \"localhost\"
@@ -118,7 +120,6 @@ Default: Off
 
   :ring-handler example.core/my-server-handler")
 
-;; co-dependency - needs to be in builds
 (def-key ::builds-to-start (s/every ::string-or-named
                                     :min-count 1
                                     :into []
@@ -129,9 +130,9 @@ when you invoke lein figwheel without arguments.
 
   :builds-to-start [\"dev\" \"test\"]")
 
-(def-key ::server-logfile    string?)
+(def-key ::server-logfile    non-blank-string?)
 
-(def-key ::open-file-command string?
+(def-key ::open-file-command non-blank-string?
   "A path to an executable shell script that will be passed a file and
 line information for a particular compilation error or warning.
 
@@ -159,7 +160,7 @@ Default: off
 
   :nrepl-port 7888")
 
-(def-key ::nrepl-host        string?
+(def-key ::nrepl-host        non-blank-string?
 
   "If the :nrepl-port is provided Figwheel will launch an nREPL server
 into the figwheel compilation process.  :nrepl-host is a string which
@@ -215,7 +216,7 @@ be useful for certain docker environments.
    :suffix-map
    (strict-keys
     :opt-un
-    [::clj ::cljs]))
+    [::clj ::cljc]))
 
   "Figwheel naively reloads clj and cljc files on the :source-paths.
 It doesn't reload clj dependent files like tools.namspace.
@@ -238,7 +239,7 @@ Or you can specify which suffixes will cause the reloading
 
 ;; the following are only for the :reload-clj-files Map
 (def-key ::clj  boolean?)
-(def-key ::cljs boolean?)
+(def-key ::cljc boolean?)
 
 ;; *** Build Configurations
 
@@ -288,11 +289,12 @@ Or you can specify which suffixes will cause the reloading
 ;; it also can be found at the top level of a figwheel.edn file
 
 (def-key ::builds
-  (s/or                               ;; wait until merge works
+  (s/or                
    :builds-vector (s/every ::build-config-require-id :min-count 1 :into [] :kind sequential?)
    :builds-map  (s/every-kv ::string-or-named ::build-config
                             :kind map?
                             :min-count 1))
+
   "A Vector or Map of ClojureScript Build Configurations.
 
   :builds [{:id \"dev\"
@@ -312,19 +314,37 @@ Or you can specify which suffixes will cause the reloading
                             :output-to \"resources/public/example.js\"
                             :output-dir \"resources/public/out\"}}}")
 
+(defn opt-none-build [x]
+  (and
+   (map? x)
+   (:compiler x)
+   (let [c (:compiler x)]
+     (or (not (contains? c :optimizations))
+         (nil? (:optimizations c))
+         (= (:optimizations c) :none)))))
+
 (def-key ::build-config
-  (strict-keys
-   :opt-un
-   [::id
-    ::notify-command
-    ::jar
-    ::incremental
-    ::assert
-    ::warning-handlers
-    ::figwheel]
-   :req-un
-   [::source-paths
-    ::compiler])
+  (s/and
+   ;; first so that it isn't conformed value
+   (attach-reason
+    "A Figwheel build must have :compiler > :optimizations default to nil or set to :none"
+    (fn [{:keys [figwheel] :as build-config}]
+      (if figwheel #_(second figwheel)
+        (opt-none-build build-config)
+        true))
+    :focus-key :figwheel)
+   (strict-keys
+    :opt-un
+    [::id
+     ::notify-command
+     ::jar
+     ::incremental
+     ::assert
+     ::warning-handlers
+     ::figwheel]
+    :req-un
+    [::source-paths
+     ::compiler]))
 
   "A Map of options that specifies a ClojureScript 'build'
 
@@ -336,12 +356,21 @@ Or you can specify which suffixes will cause the reloading
                :output-to \"resources/public/example.js\"
                :output-dir \"resources/public/out\"}}")
 
-;; When you use a vector to define your :builds you have to supply an :id
+ #_ (parse/find-key-path-without-ns ::build-config :optimizations)
 
+
+#_ (s/explain-data ::builds {:asdf
+                                 {:figwheel true
+                                  :source-paths ["src"]
+                                  :compiler {:output-to "main.js"
+                                             :optimizations :advanced}}})
+
+;; When you use a vector to define your :builds you have to supply an :id
 (def-key ::build-config-require-id
   (s/and
-   ::build-config
-   #(contains? % :id))
+   map?
+   #(contains? % :id)
+   ::build-config)
 
   "A Map of options that specifies a ClojureScript 'build'
 
@@ -589,10 +618,31 @@ Default: nil (disabled)
     (not (get-in project [:cljsbuild]))  ::lein-project-only-figwheel
     :else ::lein-project-with-cljsbuild))
 
+(defn builds-to-start-ids-must-be-in-builds [{:keys [cljsbuild figwheel]}]
+  (if (not-empty (:builds-to-start figwheel))
+    (let [v (or (:builds figwheel) (:builds cljsbuild))
+          build-ids  (set (if (map? v) (keys v) (keep :id v)))]
+      (every? build-ids (:builds-to-start figwheel)))
+    true))
+
 (def-key ::lein-project-with-cljsbuild
-  (strict-keys
-   :opt-un [:figwheel.lein-project/figwheel]
-   :req-un [:cljsbuild.lein-project.require-builds/cljsbuild]))
+  (s/and
+   map?
+   (attach-reason
+    "The ids in :builds-to-start must match the ids in the available build configs"
+    builds-to-start-ids-must-be-in-builds)
+   (strict-keys
+    :opt-un [:figwheel.lein-project/figwheel]
+    :req-un [:cljsbuild.lein-project.require-builds/cljsbuild])))
+
+#_(s/explain-data ::lein-project-with-cljsbuild
+                  {:cljsbuild {:builds {:asdf {
+                                               :source-paths ["src"]
+                                               :compiler {:output-to "main.js"}}}}
+                   :figwheel {:builds-to-start [:asdff]}})
+
+;; TODO should write a test like this for each key
+#_(parse/find-key-path-without-ns ::lein-project-with-cljsbuild :cljc)
 
 ;; if only figwheel is available
 
@@ -604,20 +654,44 @@ Default: nil (disabled)
 
 (def-key ::lein-project-with-figwheel-builds
   (strict-keys
-   :opt-un [:figwheel.lein-project/figwheel]
+   :opt-un [:figwheel.lein-project.require-builds/figwheel]
    ;; don't require builds in cljsbuild
    :req-un [:cljsbuild.lein-project/cljsbuild]))
 
+(defn must-have-one-opt-none-build [with-builds]
+  (if (or (map? (:builds with-builds))
+          (vector? (:builds with-builds)))
+    (let [v (:builds with-builds)]
+      (let [blds (if (map? v) (vals v) v)]
+        (some opt-none-build blds)))
+    true))
+
+(def must-have-one-opt-none-build-spec
+  (attach-reason "Figwheel needs at least one build with :optimizations set to :none or nil"
+                 must-have-one-opt-none-build
+                 :focus-key :builds))
+
+;; TODO this ordering is because and flows conformed values
 (def-key :cljsbuild.lein-project.require-builds/cljsbuild
   (s/and
-   :cljsbuild.lein-project/cljsbuild
-   #(contains? % :builds)))
+   map?
+   #(contains? % :builds)
+   must-have-one-opt-none-build-spec
+   :cljsbuild.lein-project/cljsbuild))
+
+#_(s/explain-data :cljsbuild.lein-project.require-builds/cljsbuild
+                  {:builds [{:id "asdf" :source-paths ["src"]
+                                            :compiler
+                                            {:output-to "main.js"
+                                             :optimizations :whitespace}}]})
 
 (def-key :figwheel.lein-project.require-builds/figwheel
   ;; wait for merge to not propogate conformed values
   (s/and
-   :figwheel.lein-project/figwheel
-   #(contains? % :builds)))
+   map?
+   #(contains? % :builds)   
+   must-have-one-opt-none-build-spec
+   :figwheel.lein-project/figwheel))
 
 ;; ** figwheel.edn
 
