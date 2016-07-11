@@ -28,7 +28,7 @@
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
    [simple-lein-profile-merge "0.1.3"]
-   [fipp "0.6.5"]]
+   [strictly-specking-standalone "0.1.0-SNAPSHOT"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
   
