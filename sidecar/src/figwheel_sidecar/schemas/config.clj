@@ -754,8 +754,13 @@ Default: nil (disabled)
    :req-un [:cljsbuild.lein-project/cljsbuild]))
 
 (defn must-have-one-opt-none-build [with-builds]
-  (if (or (map? (:builds with-builds))
-          (vector? (:builds with-builds)))
+  (if (and (or (map? (:builds with-builds))
+               (vector? (:builds with-builds)))
+           (pos? (count (:builds with-builds)))
+           (every? (if (map? (:builds with-builds))
+                     #{:compiler :source-paths}
+                     #{:compiler :source-paths :id})
+                   (:builds with-builds)))
     (let [v (:builds with-builds)]
       (let [blds (if (map? v) (vals v) v)]
         (some opt-none-build blds)))
