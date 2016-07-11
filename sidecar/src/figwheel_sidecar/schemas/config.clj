@@ -139,9 +139,19 @@ line information for a particular compilation error or warning.
 A script like this would work
 ie. in  ~/bin/myfile-opener
 #! /bin/sh
-emacsclient -n +$2 $1
+emacsclient -n +$2:$3 $1
 
-  :open-file-command \"myfile-opener\"")
+The add this script in your config:
+
+  :open-file-command \"myfile-opener\"
+
+But thats not the best example because Figwheel handles 'emacsclient'
+as a special case so as long as 'emacsclient' is on the shell path you can 
+simply do:
+
+  :open-file-command \"emacsclient\"
+
+and Figwheel will call emacsclient with the correct args.")
 
 (def-key ::repl              boolean?
 
@@ -661,10 +671,9 @@ Default: nil (disabled)
       (when-let [ky (first
                      (get-builds-to-start-not-in-build-ids proj))]
         (str
-         "The ids in "
-         " :builds-to-start must match the ids in the available build configs.\n"
-         "The id " (pr-str ky) " is not the id of a build config.\n"
-         "The only known build configs are " (pr-str (known-build-ids proj)))))
+         "The ids in :builds-to-start must identify optimizations :none build configs.\n"
+         "The id " (pr-str ky) " is not the id of a opt' :none build config.\n"
+         "The only known opt' :none build configs are " (pr-str (known-build-ids proj)))))
     builds-to-start-ids-must-be-in-builds
     :focus-path (fn [project]
                   (if-let [idx (when-let [ky 

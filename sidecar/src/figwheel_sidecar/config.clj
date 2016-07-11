@@ -412,10 +412,9 @@
 (defn lein-project-spec [project]
   ;; TODO this needs fuzzy key detection
   (let [proj-fixed (fuz/fuzzy-select-keys-and-fix project [:cljsbuild :figwheel])]
-    (cond
-      (get-in proj-fixed [:figwheel :builds]) ::config-spec/lein-project-with-figwheel-builds
-      (not (get-in proj-fixed [:cljsbuild]))  ::config-spec/lein-project-only-figwheel
-      :else ::config-spec/lein-project-with-cljsbuild)))
+    (if (get-in proj-fixed [:figwheel :builds])
+      ::config-spec/lein-project-with-figwheel-builds
+      ::config-spec/lein-project-with-cljsbuild)))
 
 (defn validate-project-config-data [{:keys [data] :as config-data}]
   (let [spec (lein-project-spec data)]
