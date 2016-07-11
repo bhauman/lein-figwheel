@@ -332,7 +332,7 @@ Or you can specify which suffixes will cause the reloading
       (if figwheel #_(second figwheel)
         (opt-none-build build-config)
         true))
-    :focus-key :figwheel)
+    :focus-path [:compiler :optimizations])
    (strict-keys
     :opt-un
     [::id
@@ -356,14 +356,33 @@ Or you can specify which suffixes will cause the reloading
                :output-to \"resources/public/example.js\"
                :output-dir \"resources/public/out\"}}")
 
- #_ (parse/find-key-path-without-ns ::build-config :optimizations)
 
+#_ (alias 'parse 'strictly-specking-standalone.parse-spec)
+#_ (parse/find-key-path-without-ns ::build-config :optimzations)
 
-#_ (s/explain-data ::builds {:asdf
-                                 {:figwheel true
-                                  :source-paths ["src"]
-                                  :compiler {:output-to "main.js"
-                                             :optimizations :advanced}}})
+#_ (ssp/explain ::builds {:asdf
+                          {:figwheel true
+                           :source-paths ["src"]
+                           :compiler {:output-to "main.js"
+                                      :optimizations :advanced}}})
+
+(comment
+
+  (alias 'ep 'strictly-specking-standalone.error-printing)
+
+  (let [x {:asdf
+           {:figwheel true
+            :source-paths ["src"]
+            :compiler {:output-to "main.js"
+                       :optimizations :advanced}}}
+        exd (s/explain-data ::builds x)
+        e (first (ssp/prepare-errors exd x nil))]
+    (ep/pprint-inline-message e)
+    (ssp/dev-print exd x nil)
+    
+    )
+
+)
 
 ;; When you use a vector to define your :builds you have to supply an :id
 (def-key ::build-config-require-id
@@ -618,28 +637,95 @@ Default: nil (disabled)
     (not (get-in project [:cljsbuild]))  ::lein-project-only-figwheel
     :else ::lein-project-with-cljsbuild))
 
-(defn builds-to-start-ids-must-be-in-builds [{:keys [cljsbuild figwheel]}]
+(defn known-build-ids [{:keys [cljsbuild figwheel]}]
+  (let [g (or (:builds figwheel) (:builds cljsbuild))
+        builds (if (map? g) (map (fn [[k v]] (assoc v :id k)) g) g)
+        v (filter opt-none-build builds)]
+    (set (if (map? v) (keys v) (keep :id v)))))
+
+(defn get-builds-to-start-not-in-build-ids [{:keys [cljsbuild figwheel] :as proj}]
+  (let [build-ids (known-build-ids proj)]
+    (filter (complement build-ids) (:builds-to-start figwheel))))
+
+(defn builds-to-start-ids-must-be-in-builds [{:keys [cljsbuild figwheel] :as proj}]
   (if (not-empty (:builds-to-start figwheel))
-    (let [v (or (:builds figwheel) (:builds cljsbuild))
-          build-ids  (set (if (map? v) (keys v) (keep :id v)))]
-      (every? build-ids (:builds-to-start figwheel)))
+    (empty? (get-builds-to-start-not-in-build-ids proj))
     true))
 
 (def-key ::lein-project-with-cljsbuild
   (s/and
    map?
+   ;; TODO once this works add it to other projects
    (attach-reason
-    "The ids in :builds-to-start must match the ids in the available build configs"
-    builds-to-start-ids-must-be-in-builds)
+    (fn [proj]
+      (when-let [ky (first
+                     (get-builds-to-start-not-in-build-ids proj))]
+        (str
+         "The ids in "
+         " :builds-to-start must match the ids in the available build configs.\n"
+         "The id " (pr-str ky) " is not the id of a build config.\n"
+         "The only known build configs are " (pr-str (known-build-ids proj)))))
+    builds-to-start-ids-must-be-in-builds
+    :focus-path (fn [project]
+                  (if-let [idx (when-let [ky 
+                                          (first
+                                           (get-builds-to-start-not-in-build-ids project))]
+                                 (.indexOf (vec (-> project :figwheel :builds-to-start))
+                                           ky))]
+                    [:figwheel :builds-to-start idx]
+                    [:figwheel :builds-to-start])))
    (strict-keys
     :opt-un [:figwheel.lein-project/figwheel]
     :req-un [:cljsbuild.lein-project.require-builds/cljsbuild])))
 
-#_(s/explain-data ::lein-project-with-cljsbuild
-                  {:cljsbuild {:builds {:asdf {
-                                               :source-paths ["src"]
-                                               :compiler {:output-to "main.js"}}}}
-                   :figwheel {:builds-to-start [:asdff]}})
+#_(ssp/explain ::lein-project-with-cljsbuild
+               {:cljsbuild {:builds {:asdfg {
+                                            :source-paths ["src"]
+                                             :compiler {:output-to "main.js"
+                                                        :optimizations :whitespace}}
+                                     :asdf {
+                                            :source-paths ["src"]
+                                            :compiler {:output-to "main.js"}}}}
+                :figwheel {:builds-to-start [:asdf :asdf :Asdff :Asdf]}})
+
+#_(defn find-doc-keyword [e]
+  (->> e ::ssp/error-path :in-path reverse (filter keyword?) first
+       ))
+
+#_(->
+ (ssp/explain-data ::lein-project-with-cljsbuild
+               {:cljsbuild {:builds {:asdfg {
+                                            :source-paths ["src"]
+                                             :compiler {:output-to "main.js"
+                                                        :optimizations :whitespace}}
+                                     :asdf {
+                                            :source-paths ["src"]
+                                            :compiler {:output-to "main.js"}}}}
+                :figwheel {:builds-to-start [:asdf :asdf :Asdff :Asdf]}})
+ ::s/problems
+ first
+ find-doc-keyword
+ #_ssp/keys-to-document
+ )
+
+(comment
+
+  (alias 'ep 'strictly-specking-standalone.error-printing)
+
+  ;; TODO consider putting all extra data in the meta of the err
+  (let [x {:cljsbuild {:builds {:asdf {
+                                       :source-paths ["src"]
+                                       :compiler {:output-to "main.js"}}}}
+                   :figwheel {:builds-to-start [:asdff]}}
+        exd (s/explain-data ::lein-project-with-cljsbuild x)
+        e (first (ssp/prepare-errors exd x nil))]
+    (ep/pprint-inline-message e)
+    (ssp/dev-print exd x nil)
+    
+    )
+
+)
+
 
 ;; TODO should write a test like this for each key
 #_(parse/find-key-path-without-ns ::lein-project-with-cljsbuild :cljc)
@@ -669,7 +755,7 @@ Default: nil (disabled)
 (def must-have-one-opt-none-build-spec
   (attach-reason "Figwheel needs at least one build with :optimizations set to :none or nil"
                  must-have-one-opt-none-build
-                 :focus-key :builds))
+                 :focus-path [:builds]))
 
 ;; TODO this ordering is because and flows conformed values
 (def-key :cljsbuild.lein-project.require-builds/cljsbuild
@@ -679,11 +765,11 @@ Default: nil (disabled)
    must-have-one-opt-none-build-spec
    :cljsbuild.lein-project/cljsbuild))
 
-#_(s/explain-data :cljsbuild.lein-project.require-builds/cljsbuild
-                  {:builds [{:id "asdf" :source-paths ["src"]
-                                            :compiler
-                                            {:output-to "main.js"
-                                             :optimizations :whitespace}}]})
+#_(ssp/explain :cljsbuild.lein-project.require-builds/cljsbuild
+               {:builds [{:id "asdf" :source-paths ["src"]
+                          :compiler
+                          {:output-to "main.js"
+                           :optimizations :whitespace}}]})
 
 (def-key :figwheel.lein-project.require-builds/figwheel
   ;; wait for merge to not propogate conformed values

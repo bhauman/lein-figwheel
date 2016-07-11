@@ -396,10 +396,11 @@
                           first)
           ;; TODO need to get ANSI right
           ;; with-color-when here
-          message (-> first-error
-                      speck/error->display-data
-                      (speck/test-print "Figwheel Configuration Error")
-                      with-out-str)]
+          message (binding [speck/*explain-header* "Figwheel Configuration Error"]
+                    (-> first-error
+                        speck/error->display-data
+                        speck/explain-out*
+                        with-out-str))]
       #_(println message)
       (throw
        (ex-info message
@@ -438,9 +439,9 @@
   (all-builds xxx)
   
   (validate-project-config-data xxx)
-  (s/explain-data (lein-project-spec (:data xxx))
-                  (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel]))
-
+  (speck/explain (lein-project-spec (:data xxx))
+                 (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel]))
+  
   (let [x (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel])
         x (-> x (:cljsbuild x))]
     (validate-figwheel-edn-config-data {:data x})

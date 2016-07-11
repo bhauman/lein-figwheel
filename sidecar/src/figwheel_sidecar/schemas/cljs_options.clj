@@ -768,7 +768,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
                      (not (and (contains? cmpl :closure-defines)
                                (nil? main)
                                (opt-none? optimizations))))
-                   :focus-key :closure-defines)
+                   :focus-path [:closure-defines])
 
    (attach-reason  ":source-map must be a boolean when :optimizations is :none"
                    (fn [{:keys [source-map optimizations] :as cmpl}]
@@ -776,7 +776,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
                            (contains? cmpl :source-map)
                            (not (boolean? source-map))
                            (opt-none? optimizations))))
-                   :focus-key :source-map)
+                   :focus-path [:source-map])
 
    (attach-reason  ":source-map must be a string? when :optimizations is not :none"
                    (fn [{:keys [source-map optimizations] :as cmpl}]
@@ -784,7 +784,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
                            (contains? cmpl :source-map)                           
                            (not (string? source-map))
                            (not (opt-none? optimizations)))))
-                   :focus-key :source-map)
+                   :focus-path [:source-map])
 
    
    (strict-keys
