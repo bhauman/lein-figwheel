@@ -249,7 +249,8 @@
 (defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
                     (str (close-link) (heading header)
-                         (format-line msg {}))))
+                         "<div>" msg "</div>"
+                         #_(format-line msg {}))))
 
 (defn display-warning [warning-data]
   (let [{:keys [head

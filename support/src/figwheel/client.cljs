@@ -287,10 +287,13 @@
             (<! (timeout 2000))
             (heads-up/display-system-warning
              "Figwheel Client and Server have different versions!!"
-             (str "Figwheel Client Version \"" _figwheel-version_ "\" is not equal to "
-                  "Figwheel Sidecar Version \"" figwheel-version "\""
-                  ".  Shutting down Websocket Connection!"))))
-        ))))
+             (str "Figwheel Client Version <strong>" _figwheel-version_ "</strong> is not equal to "
+                  "Figwheel Sidecar Version <strong>" figwheel-version "</strong>"
+                  ".  Shutting down Websocket Connection!"
+                  "<h4>To fix try:</h4>"
+                  "<ol><li>Reload this page and make sure you are not getting a cached version of the client.</li>"
+                  "<li>You may have to clean (delete compiled assets) and rebuild to make sure that the new client code is being used.</li>"                  
+                  "<li>Also, make sure you have consistent Figwheel dependencies.</li></ol>"))))))))
 
 #_((enforce-figwheel-version-plugin {:heads-up-display true}) [{:figwheel-version "yeah"}])
 
