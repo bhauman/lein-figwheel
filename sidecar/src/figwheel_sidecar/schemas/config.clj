@@ -192,6 +192,21 @@ Default: true
 
   :validate-config false")
 
+(def-key ::validate-interactive (some-fn boolean? #{:fix :quit})
+  "Because build startup time is significant Figwheel offers the
+opportunity for you to fix you configuration problems interactively.
+In some develeopment environments this is not desirable. In this case
+you can just set :validate-interactive to false
+
+Other options are:
+:fix   - don't ask if you want to watch and fix, just start watching
+:quit  - just quit on a validation error, same behavior as false
+:start - ignore any configuration errors and start figwheel anyway
+
+Default: true
+
+  :validate-interactive false" )
+
 (def-key ::load-all-builds   boolean?
 
   "A Boolean value that specifies wether or not to load all the

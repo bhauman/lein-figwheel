@@ -785,6 +785,17 @@
     (if (false? (:ansi-color-output fig-opt)) false true)
     true))
 
+(defn validate-loop-behavior [config-data]
+  (if-let [fig-opt (and (config-data? config-data) (figwheel-options config-data))]
+    (when (contains? fig-opt :validate-interactive)
+      (let [vi (:validate-interactive fig-opt)]
+        (cond
+          (false? vi)   "q"
+          (= :start vi) "s"
+          (= :fix vi)   "f"
+          (= :quit vi)  "q"
+          :else nil)))))
+
 ;; well now we can use hawk so this should be rethought
 (defn validate-loop
   ([lazy-config-data-list]
@@ -818,6 +829,7 @@
                     (println (color-text (str "Figwheel: There are errors in your configuration file - " (str file)) :red))
                     (let [choice (or (and (:once opts) "q")
                                      (and fix "f")
+                                     (validate-loop-behavior first-config-data)
                                      (do
                                        (println "Figwheel: Would you like to ...")
                                        (println "(f)ix the error live while Figwheel watches for config changes?")
