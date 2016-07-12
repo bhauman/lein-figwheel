@@ -60,6 +60,7 @@
     ::nrepl-host
     ::nrepl-middleware
     ::validate-config
+    ::validate-interactive    
     ::load-all-builds
     ::ansi-color-output
     ::builds
@@ -185,9 +186,16 @@ when nREPL launches.
 
   :nrepl-middleware [\"cider.nrepl/cider-middleware\" \"cemerick.piggieback/wrap-cljs-repl\"]")
 
-(def-key ::validate-config   boolean?
+(def-key ::validate-config   (some-fn boolean? #{:warn-unknown-keys :ignore-unknown-keys})
 
-  "Set this to false to skip the configuration validation.
+  "Change configuration validation behavior.
+
+The possible values are:
+
+true or false        - to turn config validation on or off.
+:warn-unknown-keys   - only print a warning when unknown keys are encountered
+:ignore-unknown-keys - do nothing when unknown keys are encountered
+
 Default: true
 
   :validate-config false")

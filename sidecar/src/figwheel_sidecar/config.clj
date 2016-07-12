@@ -13,7 +13,8 @@
    [figwheel-sidecar.utils :as utils]
    [strictly-specking-standalone.core :as speck]
    [figwheel-sidecar.schemas.config :as config-spec]
-   [strictly-specking-standalone.spec :as s]))
+   [strictly-specking-standalone.spec :as s]
+   [strictly-specking-standalone.strict-keys :as strictk]))
 
 #_(remove-ns 'figwheel-sidecar.config)
 
@@ -603,6 +604,16 @@
     (false? (-> config-data meta :validate-config))
     (false? (-> config-data figwheel-options :validate-config)))))
 
+;; ConfigData -> ValidationLevel
+(defn validate-config-level [config-data]
+  (let [opt (-> config-data figwheel-options :validate-config)]
+    (condp = opt
+      :warn-unknown-keys :warn
+      :ignore-unknown-keys :ignore
+      nil)))
+
+(declare use-color?)
+
 ;; ConfigData -> ConfigData ; raises runtime exception with on configuration error
 (defn validate-config-data [config-data]
   {:pre [(config-data? config-data)]
@@ -610,7 +621,12 @@
   (if (validate-config-data? config-data)
     (let [config-data (if (:data config-data) config-data (assoc config-data :data {}))]
       #_(println "VALIDATING!!!!")
-      (-validate config-data) config-data)
+      (with-color-when (use-color? config-data)
+        (if-let [level (validate-config-level config-data)]
+          (binding [strictk/*unknown-key-level* level]
+            (-validate config-data))
+          (-validate config-data)))
+      config-data)
     config-data))
 
 ;; ConfigData -> ConfigData | nil
