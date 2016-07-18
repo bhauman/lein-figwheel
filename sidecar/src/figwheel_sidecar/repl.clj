@@ -83,7 +83,10 @@
                        (first (string/split x #"\?")))))
        stack-trace))
 
-(defrecord FigwheelEnv [figwheel-server]
+(defrecord FigwheelEnv [figwheel-server repl-opts]
+  cljs.repl/IReplEnvOptions
+  (-repl-options [this]
+    repl-opts)
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
     ;; we need to print in the same thread as
@@ -130,13 +133,16 @@
     (flush)))
 
 (defn repl-env
-  ([figwheel-server {:keys [id build-options] :as build}]
+  ([figwheel-server {:keys [id build-options] :as build} repl-opts]
    (assoc (FigwheelEnv. (merge figwheel-server
                                (if id {:build-id id} {})
-                               (select-keys build-options [:output-dir :output-to])))
+                               (select-keys build-options [:output-dir :output-to]))
+                        repl-opts)
           :cljs.env/compiler (:compiler-env build)))
+  ([figwheel-server build]
+   (repl-env figwheel-server build nil))
   ([figwheel-server]
-   (FigwheelEnv. figwheel-server)))
+   (FigwheelEnv. figwheel-server nil)))
 
 ;; add some repl functions for reloading local clj code
 
@@ -262,6 +268,28 @@
                     :nrepl
                     :default)]
      (start-cljs-repl protocol figwheel-repl-env repl-opts))))
+
+(defn cljs-repl-env
+  ([build figwheel-server]
+   (cljs-repl-env build figwheel-server {}))
+  ([build figwheel-server opts]
+   (let [opts (merge (assoc (or (:compiler build) (:build-options build))
+                            :warn-on-undeclared true
+                            :eval #'catch-warnings-and-exceptions-eval-cljs
+                            )
+                     opts)
+         figwheel-server (assoc figwheel-server
+                                :repl-print-chan (chan))
+         figwheel-repl-env (repl-env figwheel-server build)
+         special-fns (or (:special-fns opts) cljs.repl/default-special-fns)
+         output-dir (or (:output-dir opts) "out")
+         repl-opts (assoc opts
+                          :compiler-env (:compiler-env build)
+                          :special-fns special-fns
+                          :output-dir output-dir)]
+     (assoc figwheel-repl-env
+            ;; these are merged to opts by cljs.repl/repl*
+            :repl-opts repl-opts))))
 
 ;; deprecated 
 (defn get-project-cljs-builds []
