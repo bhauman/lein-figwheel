@@ -479,7 +479,14 @@ example.core namespace, the source path to this file is \"src\"
 figwheel client. Supplying a true value or a map indicates that you
 want the figwheel client code to be injected into the build.
 
-  :figwheel true")
+  :figwheel true
+
+Or
+
+  :figwheel {
+    :on-jsload \"example.core/on-reload\" 
+  } 
+")
 
 (def-key ::compiler ::cljs-opt/compiler-options
   "The options to be forwarded to the ClojureScript Compiler
@@ -638,7 +645,7 @@ helpful websites like http://cljs.info
 These urls will be opened with clojure.java.browse/browse-url.
 Default: nil (disabled)
 
-  :open-urls")
+  :open-urls [\"http://localhost:3449/index.html\"] ")
 
 ;; TODO fill out the docs below
 
