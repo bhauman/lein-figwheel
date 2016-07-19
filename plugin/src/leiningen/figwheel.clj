@@ -178,10 +178,10 @@
 
 (defn on-stamp-change [{:keys [file signature]} f]
   {:pre [(string? signature) (= (type file) java.io.File)]}
-  (let [old-val (when (.exists ^java.io.File file) (slurp file))]
-    (when-not (= signature old-val) (f))
-    (.mkdirs (.getParentFile (io/file (.getAbsolutePath ^java.io.File file))))
-    (spit file signature)))
+  (when-let [old-val (when (.exists ^java.io.File file) (slurp file))]
+    (when-not (= signature old-val) (f)))
+  (.mkdirs (.getParentFile (io/file (.getAbsolutePath ^java.io.File file))))
+  (spit file signature))
 
 (defn clean-on-dependency-change [{:keys [target-path dependencies] :as project}]
   (when (and target-path dependencies)
