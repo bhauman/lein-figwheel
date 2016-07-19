@@ -152,4 +152,7 @@
              ;; this doesn't belong here its here for testing config errors
              ;; :recompile-dependents false
 
+             ;; :validate-config :warn-unknown-keys
+             ;; :validate-interactive true
+             
              })
