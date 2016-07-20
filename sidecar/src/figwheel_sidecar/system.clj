@@ -574,6 +574,24 @@
        (figwheel-cljs-repl* system build-id repl-options) 
        (build-switching-cljs-repl* system build-id repl-options)))))
 
+(defn repl-env*
+  ([system] (repl-env* system nil))
+  ([system start-build-id] (repl-env* system nil {}))
+  ([system start-build-id repl-options]
+   (let [build-id (or
+                   start-build-id
+                   (initial-repl-focus-build-id @system))
+         {:keys [figwheel-server]} @system]
+     ;; from figwheel-cljs-repl*
+     (when-let [build (choose-repl-build @system build-id)]
+       ;; always used in nrepl
+       ;; from start-figwheel-repl
+       (frepl/cljs-repl-env
+         build
+         figwheel-server
+         (update-in repl-options [:special-fns]
+                    merge (build-figwheel-special-fns system)))))))
+
 ;; takes a FigwheelSystem
 (defn figwheel-cljs-repl
   ([figwheel-system]
@@ -601,6 +619,17 @@
                 start-build-id
                 (initial-repl-focus-build-id @system))
                repl-options)))
+
+(defn repl-env
+  ([figwheel-system] (repl-env figwheel-system nil {}))
+  ([figwheel-system start-build-id]
+   (repl-env figwheel-system start-build-id {}))
+  ([{:keys [system]} start-build-id repl-options]
+   (repl-env* system
+              (or
+               start-build-id
+               (initial-repl-focus-build-id @system))
+              repl-options)))
 
 ;; figwheel starting and stopping helpers
 
