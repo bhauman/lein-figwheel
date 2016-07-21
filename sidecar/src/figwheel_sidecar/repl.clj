@@ -89,25 +89,30 @@
     ;; we need to print in the same thread as
     ;; the that the repl process was created in
     ;; thank goodness for the go loop!!
+    (reset! (::repl-writers figwheel-server) {:out *out* ::err *err*})
     (go-loop []
       (when-let [{:keys [stream args]}
                  (<! (:repl-print-chan figwheel-server))]
-        (if (= stream :err)
-          (binding [*out* *err*]
-            (apply println args)
-            (flush))
-          (do
-            (apply println args)
-            (flush)))
+        (binding [*out* (:out @(::repl-writers figwheel-server))
+                  *err* (:err @(::repl-writers figwheel-server))]
+          (if (= stream :err)
+            (binding [*out* *err*]
+              (apply println args)
+              (flush))
+            (do
+              (apply println args)
+              (flush))))
         (recur)))
     (add-repl-print-callback! figwheel-server)
     (wait-for-connection figwheel-server)
     (Thread/sleep 500)) ;; just to help with setup latencies
   (-evaluate [_ _ _ js]
+    (reset! (::repl-writers figwheel-server) {:out *out* ::err *err*})
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server js))
       ;; this is not used for figwheel
   (-load [this ns url]
+    (reset! (::repl-writers figwheel-server) {:out *out* ::err *err*})    
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server (slurp url)))
   (-tear-down [_]
@@ -133,6 +138,8 @@
   ([figwheel-server {:keys [id build-options] :as build}]
    (assoc (FigwheelEnv. (merge figwheel-server
                                (if id {:build-id id} {})
+                               {::repl-writers (atom {:out *out*
+                                                      :err *err*})}
                                (select-keys build-options [:output-dir :output-to])))
           :cljs.env/compiler (:compiler-env build)))
   ([figwheel-server]
