@@ -89,12 +89,11 @@
     ;; we need to print in the same thread as
     ;; the that the repl process was created in
     ;; thank goodness for the go loop!!
-    (reset! (::repl-writers figwheel-server) {:out *out* ::err *err*})
+    (reset! (::repl-writers figwheel-server) (get-thread-bindings))
     (go-loop []
       (when-let [{:keys [stream args]}
                  (<! (:repl-print-chan figwheel-server))]
-        (binding [*out* (:out @(::repl-writers figwheel-server))
-                  *err* (:err @(::repl-writers figwheel-server))]
+        (with-bindings @(::repl-writers figwheel-server)
           (if (= stream :err)
             (binding [*out* *err*]
               (apply println args)
@@ -107,12 +106,12 @@
     (wait-for-connection figwheel-server)
     (Thread/sleep 500)) ;; just to help with setup latencies
   (-evaluate [_ _ _ js]
-    (reset! (::repl-writers figwheel-server) {:out *out* ::err *err*})
+    (reset! (::repl-writers figwheel-server) (get-thread-bindings))
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server js))
       ;; this is not used for figwheel
   (-load [this ns url]
-    (reset! (::repl-writers figwheel-server) {:out *out* ::err *err*})    
+    (reset! (::repl-writers figwheel-server) (get-thread-bindings))
     (wait-for-connection figwheel-server)
     (eval-js figwheel-server (slurp url)))
   (-tear-down [_]
