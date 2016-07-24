@@ -15,7 +15,7 @@
           (if (not-empty watch-paths)
             (let [log-writer (or log-writer
                                  (:log-writer figwheel-server-options)
-                                 (io/writer "figwheel_server.log" :append true))]
+                                 #_(io/writer "figwheel_server.log" :append true))]
               (println "Figwheel: Starting" watcher-name "for paths " (pr-str watch-paths))
               (assoc this :file-system-watcher-quit
                      (watching/watch!
@@ -24,8 +24,9 @@
                       (fn [files]
                         (utils/sync-exec
                          (fn []
-                           (binding [*out* log-writer]
-                             (notification-handler this files))))))))
+                           (utils/bind-logging
+                            log-writer
+                            (notification-handler this files))))))))
             (do
               (println "Figwheel: No watch paths configured for" watcher-name)
               this)))

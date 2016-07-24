@@ -218,15 +218,15 @@
   [{:keys [figwheel-server] :as cljs-autobuild} files]
   (let [log-writer (or (:log-writer cljs-autobuild)
                        (:log-writer figwheel-server)
-                       (io/writer "figwheel_server.log" :append true))
+                       #_(io/writer "figwheel_server.log" :append true))
         cljs-build-fn (extract-cljs-build-fn cljs-autobuild)]
     (utils/sync-exec
      (fn []
-       (binding [*out* log-writer
-                 *err* log-writer]
-         (cljs-build-fn
-          (assoc cljs-autobuild
-                 :changed-files (map str files))))))))
+       (utils/bind-logging
+        log-writer
+        (cljs-build-fn
+         (assoc cljs-autobuild
+                :changed-files (map str files))))))))
 
 (defrecord CLJSAutobuild [build-config figwheel-server]
   component/Lifecycle

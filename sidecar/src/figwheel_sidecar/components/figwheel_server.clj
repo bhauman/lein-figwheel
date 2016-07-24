@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.components.figwheel-server
   (:require
    [figwheel-sidecar.config :as config]
-   [figwheel-sidecar.utils :as utils]
+   [figwheel-sidecar.utils :as utils :refer [bind-logging]]
    [figwheel-sidecar.build-utils :as butils]
 
    [clojure.string :as string]
@@ -75,8 +75,7 @@
 (defn handle-client-msg [{:keys [browser-callbacks log-writer] :as server-state} data]
   (when data
     (let [msg (read-msg data)]
-      (binding [*out* log-writer
-                *err* log-writer]
+      (bind-logging log-writer
         (if (= "callback" (:figwheel-event msg))
           (when-let [cb (get @browser-callbacks (:callback-name msg))]
             (cb (:content msg)))
@@ -136,22 +135,21 @@
 
 (defn log-output-to-figwheel-server-log [handler log-writer]
   (fn [request]
-    (if log-writer
-      (binding [*out* log-writer
-                *err* log-writer]
-        (try
-          (handler request)
-          (catch Throwable e
-            (let [message (.getMessage e)
-                  trace (with-out-str (stack/print-cause-trace e))]
-                          (println message)
-                          (println trace)
-                          {:status 400
-                           :body (str "<h1>" message "</h1>"
-                                      "<pre>"
-                                      trace
-                                      "</pre>")}))))
-      (handler request))))
+    (bind-logging
+     log-writer
+     (try
+       (handler request)
+       (catch Throwable e
+         (let [message (.getMessage e)
+               trace (with-out-str (stack/print-cause-trace e))]
+           (println message)
+           (println trace)
+           {:status 400
+            :headers {"Content-Type" "text/html"}
+            :body (str "<h1>" message "</h1>"
+                       "<pre>"
+                       trace
+                       "</pre>")}))))))
 
 (defn handle-index [handler root]
   (fn [request]
@@ -355,7 +353,7 @@
 (defn extract-log-writer [figwheel-options]
   (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")]
     (if (false? (:repl figwheel-options))
-      *out*
+      false
       (do
         (io/make-parents logfile-path)
         (io/writer logfile-path :append true)))))

@@ -23,6 +23,14 @@
                        (reverse (file-seq (io/file output-dir))))]
       (when (.exists file) (.delete file)))))
 
+(defmacro bind-logging [log-writer & body]
+  `(if ~log-writer
+     (binding [*out* ~log-writer
+               *err* ~log-writer]
+       ~@body)
+     (do
+       ~@body)))
+
 (defn require? [symbol]
   (try
     (require symbol)
