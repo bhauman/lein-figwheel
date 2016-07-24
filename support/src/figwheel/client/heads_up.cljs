@@ -207,6 +207,12 @@
      :line line
      :column column}))
 
+(defn auto-notify-source-file-line [{:keys [file line column]}]
+  (socket/send! {:figwheel-event "file-selected"
+                 :file-name (str file)
+                 :file-line (str line)
+                 :file-column (str column)}))
+
 (defn display-exception [exception-data]
   (let [{:keys [head
                 sub-head

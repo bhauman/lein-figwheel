@@ -470,6 +470,7 @@ example.core namespace, the source path to this file is \"src\"
      ::debug
      ::autoload
      ::heads-up-display
+     ::auto-jump-to-source-on-error
      ::load-warninged-code
      ::retry-count
      ::devcards
@@ -624,6 +625,17 @@ Default: Off
 Default: true
 
   :heads-up-display false")
+
+(def-key ::auto-jump-to-source-on-error boolean?
+  "When an error occurs immediately send an open file command message to the 
+:open-file-command script. This will immediately jump to the error in the file
+when a compile error of compile warning occurs.
+
+Normally, you would click on the heads up display to jump the error.
+
+Default: false
+  
+  :auto-jump-to-source-on-error true")
 
 (def-key ::load-warninged-code  boolean?
 

@@ -219,6 +219,10 @@
           :compile-failed  (on-compile-fail msg)
           nil)))
 
+(defn auto-jump-to-error [opts error]
+  (when (:auto-jump-to-source-on-error opts)
+    (heads-up/auto-notify-source-file-line error)))
+
 ;; this is seperate for live dev only
 (defn heads-up-plugin-msg-handler [opts msg-hist']
   (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
@@ -235,10 +239,13 @@
       (compile-refail-state? msg-names)
       (do
         (<! (heads-up/clear))
-        (<! (heads-up/display-exception (:exception-data msg))))
+        (<! (heads-up/display-exception (:exception-data msg)))
+        (auto-jump-to-error opts (:exception-data msg)))
       
       (compile-fail-state? msg-names)
-      (<! (heads-up/display-exception (:exception-data msg)))
+      (do
+        (<! (heads-up/display-exception (:exception-data msg)))
+        (auto-jump-to-error opts (:exception-data msg)))
       
       (warning-append-state? msg-names)
       (heads-up/append-warning-message (:message msg))
@@ -246,10 +253,13 @@
       (rewarning-state? msg-names)
       (do
         (<! (heads-up/clear))
-        (<! (heads-up/display-warning (:message msg))))
+        (<! (heads-up/display-warning (:message msg)))
+        (auto-jump-to-error opts (:message msg)))
       
       (warning-state? msg-names)
-      (<! (heads-up/display-warning (:message msg)))
+      (do
+        (<! (heads-up/display-warning (:message msg)))
+        (auto-jump-to-error opts (:message msg)))
       
       (css-loaded-state? msg-names)
       (<! (heads-up/flash-loaded))))))
@@ -342,7 +352,7 @@
                        (if (utils/html-env?) js/location.host "localhost:3449")
                        "/figwheel-ws")
    :load-warninged-code false
-
+   :auto-jump-to-source-on-error false
    ;; :on-message identity
    
    :on-jsload default-on-jsload
