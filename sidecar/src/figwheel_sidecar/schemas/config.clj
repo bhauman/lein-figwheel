@@ -639,18 +639,21 @@ Default: true
   :heads-up-display false")
 
 (def-key ::auto-jump-to-source-on-error boolean?
-  "When an error occurs immediately send an open file command message to the 
-:open-file-command script. This will immediately jump to the error in the file
-when a compile error of compile warning occurs.
+  "Normally, when the client receives a notification that a compile error
+occured you would have an opportunity to jump to the source location in an
+editor (this only works if :open-file-command is configured properly)
 
-Normally, you would click on the heads up display to jump the error.
+With this setting is set to true, when the client receives an error
+notification the client immediately sends an open file command message
+to the :open-file-command script. This will have the affect of
+immediately jumping to the error in the file when a compile error or
+compile warning occurs.
 
 Default: false
   
   :auto-jump-to-source-on-error true")
 
 (def-key ::load-warninged-code  boolean?
-
   "If there are warnings in your code emitted from the compiler, figwheel
 does not refresh. If you would like Figwheel to load code even if
 there are warnings generated set this to true.
@@ -659,7 +662,6 @@ Default: false
   :load-warninged-code true")
 
 (def-key ::open-urls   (s/every non-blank-string? :min-count 1 :into [] :kind sequential?)
-
   "A Vector of URLs that you would like to have opened at the end of the
 initial compile. These URLs must be Strings.
 
