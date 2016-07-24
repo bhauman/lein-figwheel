@@ -350,13 +350,13 @@
         (map (juxt :id identity)
              (if (map? all-builds) (vals all-builds) all-builds))))
 
-(defn extract-log-writer [figwheel-options]
-  (let [logfile-path (or (:server-logfile figwheel-options) "figwheel_server.log")]
-    (if (false? (:repl figwheel-options))
-      false
-      (do
-        (io/make-parents logfile-path)
-        (io/writer logfile-path :append true)))))
+(defn extract-log-writer [{:keys [repl server-logfile] :as figwheel-options}]
+  (if (or (false? repl)
+          (false? server-logfile))
+    false
+    (let [logfile-path (:server-logfile figwheel-options "figwheel_server.log")]
+      (io/make-parents logfile-path)
+      (io/writer logfile-path :append true))))
 
 (defn extract-cljs-build-fn [{:keys [cljs-build-fn]}]
   (or (utils/require-resolve-handler cljs-build-fn)

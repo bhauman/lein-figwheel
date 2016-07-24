@@ -131,7 +131,19 @@ when you invoke lein figwheel without arguments.
 
   :builds-to-start [\"dev\" \"test\"]")
 
-(def-key ::server-logfile    non-blank-string?)
+(def-key ::server-logfile    (some-fn non-blank-string? false?)
+  "The path to the file where Figwheel will log its system output.
+Set this to false if you want all the output to just go to standard out.
+
+People will often `tail -f` this file to watch its output during development.
+
+Default: \"figwheel_server.log\"
+
+  :server-logfile \"tmp/figwheel_server.log\"
+
+or 
+
+  :server-logfile false")
 
 (def-key ::open-file-command non-blank-string?
   "A path to an executable shell script that will be passed a file and
