@@ -281,9 +281,9 @@
           child-count (.-length (dom/getChildren content-area-el))]
       (if (< child-count 6)
         (do
-          (dom/append el (dom/htmlToDocumentFragment
-                          (format-line (format-warning-message warning-data)
-                                       warning-data)))
+          (set! (.-innerHTML el)
+                (format-line (format-warning-message warning-data)
+                             warning-data))
           (dom/append content-area-el el))
         (when-let [last-child (dom/getLastElementChild content-area-el)]
           (if-let [message-count (data/get last-child "figwheel_count")]
