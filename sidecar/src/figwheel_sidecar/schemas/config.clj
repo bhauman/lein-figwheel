@@ -692,6 +692,28 @@ Default: nil (disabled)
     (empty? (get-builds-to-start-not-in-build-ids proj))
     true))
 
+(defn duplicate-output-dir-build [{:keys [cljsbuild figwheel] :as proj}]
+  (let [g (or (:builds figwheel) (:builds cljsbuild))
+        builds (if (map? g) (map (fn [[k v]] (assoc v :id k)) g) g)
+        build-output-dirs (group-by #(get-in % [:compiler :output-dir]) builds)]
+    (first (filter #(> (count %) 1) (vals build-output-dirs)))))
+
+(defn path-to-build* [builds id]
+  (if (and (map? builds) (get builds id))
+    [id :compiler :output-dir]
+    (some-> (filter #(= (:id (second %)) id)
+                    (map-indexed vector builds))
+            first
+            first
+            (vector :compiler :output-dir))))
+
+(defn path-to-build [proj id]
+  (if (-> proj :figwheel :builds)
+    (concat [:figwheel :builds]
+            (path-to-build* (get-in proj [:figwheel :builds]) id))
+    (concat [:cljsbuild :builds]
+            (path-to-build* (get-in proj [:cljsbuild :builds]) id))))
+
 (def-key ::lein-project-with-cljsbuild
   (s/and
    map?
@@ -713,6 +735,12 @@ Default: nil (disabled)
                                            ky))]
                     [:figwheel :builds-to-start idx]
                     [:figwheel :builds-to-start])))
+   (attach-reason "All ClojureScript build config :output-dir parameters should be unique"
+                  (complement duplicate-output-dir-build)
+                  :focus-path
+                  (fn [proj]
+                    (when-let [build (last (duplicate-output-dir-build proj))]
+                      (path-to-build proj (:id build)))))
    (strict-keys
     :opt-un [:figwheel.lein-project/figwheel]
     :req-un [:cljsbuild.lein-project.require-builds/cljsbuild])))
@@ -726,6 +754,16 @@ Default: nil (disabled)
                                             :source-paths ["src"]
                                             :compiler {:output-to "main.js"}}}}
                 :figwheel {:builds-to-start [:asdf :asdf :Asdff :Asdf]}})
+
+#_(ssp/explain ::lein-project-with-cljsbuild
+               {:cljsbuild {:builds {:asdfg {
+                                            :source-paths ["src"]
+                                             :compiler {:output-to "main.js"
+                                                        :output-dir "outer"}}
+                                     :asdf {
+                                            :source-paths ["src"]
+                                            :compiler {:output-to "main.js"
+                                                       :output-dir "outer"}}}}})
 
 #_(defn find-doc-keyword [e]
   (->> e ::ssp/error-path :in-path reverse (filter keyword?) first
