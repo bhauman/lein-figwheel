@@ -17,6 +17,8 @@
                              ))
                          v)))
 
+(def name-like? (some-fn string? (partial instance? clojure.lang.Named)))
+
 (defn clean-cljs-build* [{:keys [output-to output-dir]}]
   (when (and output-to output-dir)
     (doseq [file (cons (io/file output-to)

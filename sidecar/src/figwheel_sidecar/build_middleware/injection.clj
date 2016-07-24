@@ -1,23 +1,13 @@
 (ns figwheel-sidecar.build-middleware.injection
   (:require
    [figwheel-sidecar.config :as config]
+   [figwheel-sidecar.utils :refer [name-like?]]
    [clojure.java.io :as io]
    [clojure.string :as string]
    [cljs.env :as env]   
    [cljs.analyzer.api :as ana-api]))
 
-(defn connect-script-temp-dir [build]
-  (assert (:id build) (str "Following build needs an id: " build))
-  (str "target/figwheel_temp/" (name (:id build))))
-
-(defn connect-script-path [build]
-  (str (connect-script-temp-dir build) "/figwheel/connect.cljs"))
-
-(defn delete-connect-scripts! [builds]
-  (doseq [b builds]
-    (when (config/figwheel-build? b)
-      (let [f (io/file (connect-script-path b))]
-        (when (.exists f) (.delete f))))))
+#_(remove-ns 'figwheel-sidecar.build-middleware.injection)
 
 (def figwheel-client-hook-keys [:on-jsload
                                 :before-jsload
@@ -41,8 +31,14 @@
                 names)]
     names))
 
+(defn figwheel-connect-ns-name [{:keys [id]}]
+  (cond-> "figwheel.connect"
+    (and id (name-like? id)) (str "." (name id))))
+
+#_(figwheel-connect-ns-name {})
+
 (defn extract-connection-script-required-ns [{:keys [figwheel] :as build}]
-  (list 'ns 'figwheel.connect
+  (list 'ns (symbol (figwheel-connect-ns-name build))
         (cons :require
               (extract-connection-requires build))))
 
@@ -70,36 +66,22 @@
   (when (:devcards figwheel)
       (list 'devcards.core/start-devcard-ui!)))
 
-(defn create-connect-script! [build]
-  ;;; consider doing this is the system temp dir
-  (let [temp-file (io/file (connect-script-path build))]
-    (.mkdirs (.getParentFile temp-file))
-    (.deleteOnExit temp-file)
-    (with-open [file (io/writer temp-file)]
-      (binding [*out* file]
-        (println
-         (apply str (mapcat
-                     prn-str
-                     (keep
-                      identity
-                      (list (extract-connection-script-required-ns build)
-                            (extract-connection-script-figwheel-start build)
-                            (extract-connection-devcards-start build))))))))
-    temp-file))
+(defn generate-connect-script [build]
+  (vec (keep
+        identity
+        (list (extract-connection-script-required-ns build)
+              (extract-connection-script-figwheel-start build)
+              (extract-connection-devcards-start build)))))
 
-(defn create-connect-script-if-needed! [build]
-  (when (config/figwheel-build? build)
-    (when-not (.exists (io/file (connect-script-path build)))
-      (create-connect-script! build))))
+#_(generate-connect-script {:id :asdf :build-options {:main 'example.core}})
 
 (defn add-connect-script! [figwheel-server build]
   (if (config/figwheel-build? build)
     (let [build (config/update-figwheel-connect-options figwheel-server build)
           devcards? (get-in build [:figwheel :devcards])]
-      (create-connect-script-if-needed! build)
       (-> build
           ;; might want to add in devcards jar path here :)
-          (update-in [:source-paths] (fn [sp] (let [res (cons (connect-script-temp-dir build) sp)]
+          (update-in [:source-paths] (fn [sp] (let [res (cons (generate-connect-script build) sp)]
                                                 (vec (if-let [devcards-src (and devcards?
                                                                                 (cljs.env/with-compiler-env (:compiler-env build)
                                                                                   (not (ana-api/find-ns 'devcards.core)))
@@ -112,17 +94,27 @@
                                                 bo)))))
     build))
 
+(defn esc-fmt [a & args]
+  (apply format a (map pr-str args)))
+
+(defn document-write-require-lib [munged-ns]
+  (esc-fmt "\ndocument.write(%s);"
+           (esc-fmt "<script>if (typeof goog != %s) { goog.require(%s); }</script>"
+                    "undefined" (name munged-ns))))
+
 (defn require-connection-script-js [build]
-  (let [node? (when-let [target (get-in build [:build-options :target])]
-                (= target :nodejs)) 
-        main? (get-in build [:build-options :main])
+  (let [node?     (when-let [target (get-in build [:build-options :target])]
+                    (= target :nodejs)) 
+        main?     (get-in build [:build-options :main])
         output-to (get-in build [:build-options :output-to])
+        connect-script-ns (figwheel-connect-ns-name build)
         line (if (and main? (not node?))
                (str
                 (when (get-in build [:figwheel :devcards])
-                  "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"devcards.core\\\"); }</script>\");")
-                "\ndocument.write(\"<script>if (typeof goog != \\\"undefined\\\") { goog.require(\\\"figwheel.connect\\\"); }</script>\");")
-               "\ngoog.require(\"figwheel.connect\");")]
+                  (document-write-require-lib 'devcards.core))
+                (document-write-require-lib connect-script-ns))
+               ;; else
+               (esc-fmt "\ngoog.require(%s);" connect-script-ns))]
     (when output-to
       (if (and main? (not node?))
         (let [lines (string/split (slurp output-to) #"\n")]

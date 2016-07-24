@@ -235,13 +235,6 @@
       (do
         (println "Figwheel: Watching build -" (:id build-config))
         (flush)
-        ;; setup
-        (injection/delete-connect-scripts! [build-config])
-        ;; TODO this should be conditional based on a flag
-        #_(clean-cljs-build* (:build-options build-config))
-        ;; initial build only needs the injection and the
-        ;; start and end messages
-
         (let [cljs-build-fn (extract-cljs-build-fn this)]
           ;; build once before watching
           ;; tiny experience tweak
