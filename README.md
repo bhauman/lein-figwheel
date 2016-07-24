@@ -159,13 +159,9 @@ amount of time.
 
 ## Getting Help
 
-You can get help at both the
+You can get help at both the [ClojureScript Google Group](https://groups.google.com/forum/#!forum/clojurescript)
 
-[ClojureScript Google Group](https://groups.google.com/forum/#!forum/clojurescript)
-
-and on the
-
-**#clojurescript**, **#lein-figwheel** and **#beginners** [Clojurians Slack Channels](http://clojurians.net)
+and on the **#clojurescript**, **#lein-figwheel** and **#beginners** [Clojurians Slack Channels](http://clojurians.net)
 
 ## Usage
 
