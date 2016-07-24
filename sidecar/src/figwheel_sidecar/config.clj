@@ -266,12 +266,17 @@
     :else                     (throw (Exception. (str "Unrecognized :websocket-host " host)))))
 
 (defn fill-websocket-url-template [server-port url]
-  (-> url
-      (string/replace "[[server-hostname]]" (.getHostName (java.net.InetAddress/getLocalHost)))
-      (string/replace "[[server-ip]]"       (.getHostAddress (java.net.InetAddress/getLocalHost)))
-      (string/replace "[[server-port]]"     (str server-port))))
+  (cond-> url
+    (.contains url "[[server-hostname]]")
+    (string/replace "[[server-hostname]]" (.getHostName (java.net.InetAddress/getLocalHost)))
+    
+    (.contains url "[[server-ip]]")
+    (string/replace "[[server-ip]]"       (.getHostAddress (java.net.InetAddress/getLocalHost)))
+    
+    (.contains url "[[server-port]]")
+    (string/replace "[[server-port]]"     (str server-port))))
 
-#_(fillin-websocket-url-template 1234 "ws://[[server-ip]]:[[server-port]]/figwheel-ws")
+#_(fill-websocket-url-template 1234 "ws://[[server-ip]]:[[server-port]]/figwheel-ws")
 
 (defn update-figwheel-connect-options [{:keys [server-port]} build]
   (if (figwheel-build? build)
