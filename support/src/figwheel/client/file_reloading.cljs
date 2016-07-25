@@ -27,6 +27,12 @@
 (defn before-jsload-custom-event [files]
   (utils/dispatch-custom-event "figwheel.before-js-reload" files))
 
+;; you can listen to this event easily like so:
+;; document.body.addEventListener("figwheel.css-reload", function (e) {console.log(e.detail);} );
+(defn on-cssload-custom-event [files]
+  (utils/dispatch-custom-event "figwheel.css-reload" files))
+
+
 #_(defn all? [pred coll]
   (reduce #(and %1 %2) true (map pred coll)))
 
@@ -493,7 +499,10 @@
     (add-link-to-doc link (clone-link link (.-href link)))
     #_(add-link-to-doc (create-link file))))
 
-(defn reload-css-files [{:keys [on-cssload] :as opts} files-msg]
+(defn reload-css-files [{:keys [on-cssload] :as opts} {:keys [files] :as files-msg}]
   (when (utils/html-env?)
-    (doseq [f (distictify :file (:files files-msg))] (reload-css-file f))
-    (js/setTimeout #(on-cssload (:files files-msg)) 100)))
+    (doseq [f (distictify :file files)] (reload-css-file f))
+    (js/setTimeout #(do
+                      (on-cssload-custom-event files)
+                      (on-cssload files))
+                   100)))
