@@ -200,6 +200,13 @@
     #(possible-fn %)
     #(handler %)))
 
+(defn wrap-no-cache [handler]
+  (fn [req]
+    (some-> (handler req)
+      (update :headers assoc
+              "Cache-Control" "no-cache"
+              "Expires" "-1"))))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
@@ -217,6 +224,7 @@
      (handle-index            http-server-root)
      (handle-figwheel-websocket server-state)
      
+     (wrap-no-cache)
      ;; adding cors to support @font-face which has a strange cors error
      ;; super promiscuous please don't uses figwheel as a production server :)
      (cors/wrap-cors
