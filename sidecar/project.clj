@@ -10,10 +10,10 @@
   [[org.clojure/clojure "1.8.0"]
    [org.clojure/clojurescript "1.8.51"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.2.374"
+   [org.clojure/core.async "0.2.385"
     :exclusions [org.clojure/tools.reader]]
    [com.stuartsierra/component "0.3.1"]
-   [http-kit "2.1.19"]
+   [http-kit "2.2.0"]
    [ring-cors "0.1.8"
     :exclusions [ring/ring-core org.clojure/clojure]]
    [ring/ring-core "1.5.0"
@@ -27,8 +27,8 @@
 
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
-   [simple-lein-profile-merge "0.1.3"]
-   [strictly-specking-standalone "0.1.0-SNAPSHOT"]]
+   [simple-lein-profile-merge "0.1.4"]
+   [strictly-specking-standalone "0.1.0"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
   

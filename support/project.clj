@@ -10,5 +10,5 @@
   [[org.clojure/clojure "1.8.0"]
    [org.clojure/clojurescript "1.8.51"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.2.374"
+   [org.clojure/core.async "0.2.385"
     :exclusions [org.clojure/tools.reader]]])
