@@ -1,3 +1,25 @@
+## 0.5.5 Config Validation with code context
+
+* added configuration validation based on clojure.spec
+* set :validate-interactive to false to prevent figwheel from entering 
+  validation correction loop
+* new options for :vaidate-config - besides the boolean option you can
+  specify :warn-unknown-keys and :ignore-unknown-keys
+* new client option :auto-jump-to-source-on-error if set to true
+  will cause the client to call the open-file-command script
+  as soon as the heads up display displays an error or warning
+* setting :server-logfile to false will redirect all output to *out*
+* included a fix for vim-fireplace
+* heads-up error code context is now scrollable
+* make sure all output flows to *out* when :repl is false
+* ensure that all build :output-dir paramaters are unique
+* only make system calls for websocket-url format if they are required
+* the fighweel/connect.cljs is no longer output to disk but is 
+  passed to the compiler in memory
+* the generated connect code has a unique namespace depending on the build id
+* fixed google closure removal of dom/htmlToDocumentFragment
+* added on-cssload custom event
+
 ## 0.5.4-7 fix :open-command
 
 * PR #449 Arguments to open-file-command must be strings, not numeric.
