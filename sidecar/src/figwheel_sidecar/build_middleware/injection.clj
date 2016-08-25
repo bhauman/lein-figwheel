@@ -4,7 +4,8 @@
    [figwheel-sidecar.utils :refer [name-like?]]
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [cljs.env :as env]   
+   [cljs.env :as env]
+   [cljs.compiler :as compiler]
    [cljs.analyzer.api :as ana-api]))
 
 #_(remove-ns 'figwheel-sidecar.build-middleware.injection)
@@ -107,14 +108,14 @@
                     (= target :nodejs)) 
         main?     (get-in build [:build-options :main])
         output-to (get-in build [:build-options :output-to])
-        connect-script-ns (figwheel-connect-ns-name build)
+        munged-connect-script-ns (compiler/munge (figwheel-connect-ns-name build)) 
         line (if (and main? (not node?))
                (str
                 (when (get-in build [:figwheel :devcards])
                   (document-write-require-lib 'devcards.core))
-                (document-write-require-lib connect-script-ns))
+                (document-write-require-lib munged-connect-script-ns))
                ;; else
-               (esc-fmt "\ngoog.require(%s);" connect-script-ns))]
+               (esc-fmt "\ngoog.require(%s);" munged-connect-script-ns))]
     (when output-to
       (if (and main? (not node?))
         (let [lines (string/split (slurp output-to) #"\n")]
