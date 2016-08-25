@@ -1,10 +1,7 @@
 (ns example-admin.core
   (:require
-   [example.core]
-   [figwheel.client :as fw]))
+   [example.core]))
 
-(fw/start { :build-id "example-admin"
-            :debug true})
 
 
 
