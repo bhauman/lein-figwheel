@@ -1,23 +1,24 @@
-(defproject figwheel-example "0.2.2-SNAPSHOT"
+(defproject figwheel-example "0.2.2"
   :description "Just an example of using the lein-figwheel plugin"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
                  [org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.8.40"]
+                 [org.clojure/clojurescript "1.9.89"]
                  [org.clojure/core.async "0.2.374"
                   :exclusions [org.clojure/tools.reader]]
                  [sablono "0.3.5"]
                  [org.omcljs/om "0.8.8"]
                  [ankha "0.1.4"]
+                 [binaryage/devtools "0.7.2"]
                  #_[datascript "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.3.11"]
                  [cljs-http "0.1.35"]]
 
   :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
-            [lein-figwheel "0.5.5-SNAPSHOT"]
+            [lein-figwheel "0.5.6"]
             #_[lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -41,6 +42,7 @@
 
   :resource-paths ["resources" "other_resources"]
 
+  
   :cljsbuild {
               :builds {
                        :example {
@@ -49,10 +51,13 @@
                                  :figwheel {:websocket-host "localhost"
                                             :on-jsload      example.core/fig-reload
                                             :on-message     example.core/on-message
+                                            :auto-jump-to-source-on-error true
                                         ; :open-urls ["http://localhost:3449/index.html"]
                                         ; :debug true
                                             }
-                                 :compiler { :main example.core
+                                 :compiler {
+                                            :main example.core
+
                                             :asset-path "js/out"
                                             :output-to "resources/public/js/example.js"
                                             :output-dir "resources/public/js/out"
@@ -62,6 +67,10 @@
                                                             :provides ["wowzacore"]}]
                                             ;; :recompile-dependents true
                                             :optimizations :none}}
+
+                       
+
+                       
                        :example-prod {
                                       :source-paths ["src"]
                                       :compiler { :main example.core
@@ -80,8 +89,12 @@
                                            :target :nodejs
                                            :source-map true}}
                        :example-admin {
+                         :figwheel true              
                          :source-paths ["other_src" "src" #_"../support/src"]
-                                       :compiler { :output-to "resources/public/js/compiled/example_admin.js"
+                                       :compiler {
+                                                  :main "example-admin.core"
+                                                  :asset-path "js/compiled/admin"
+                                                  :output-to "resources/public/js/compiled/example_admin.js"
                                                   :output-dir "resources/public/js/compiled/admin"
                                                   :libs ["libs_src" "libs_sscr/tweaky.js"]
                                                   ;; :externs ["foreign/wowza-externs.js"]
@@ -99,7 +112,7 @@
                                                        }}}}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [figwheel-sidecar "0.5.5-SNAPSHOT"]
+                                    [figwheel-sidecar "0.5.6"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
                                     [leiningen-core "2.6.1"]]
@@ -119,7 +132,10 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
+             
+             ;; :ring-handler example.server/handler
 
+             ;; :repl false
              ;; :reload-clj-files {:clj true :cljc true}
 
              ;; Start an nREPL server into the running fighweel
@@ -134,6 +150,7 @@
              ;; to disable to launched repl
              ;; :repl false
              ;; to specify a server logfile
+            ;  :server-logfile false
              ;; :server-logfile "tmp/logs/test-server-logfile.log"
              ;; if you want to embed a server in figwheel do it like so:
              ;; :ring-handler example.server/handler

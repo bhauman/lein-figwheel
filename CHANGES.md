@@ -1,3 +1,8 @@
+## 0.5.6 Small fix release
+
+* fixes issue #468 where hyphenated builds are failing to connect
+* fixes issue #467 where validation runs into an unparsable project.clj path
+
 ## 0.5.5 Config Validation with code context
 
 * added configuration validation based on clojure.spec
