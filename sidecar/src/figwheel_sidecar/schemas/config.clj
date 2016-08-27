@@ -212,7 +212,7 @@ Default: true
 
   :validate-config false")
 
-(def-key ::validate-interactive (some-fn boolean? #{:fix :quit})
+(def-key ::validate-interactive (some-fn boolean? #{:fix :quit :start})
   "Because build startup time is significant Figwheel offers the
 opportunity for you to fix you configuration problems interactively.
 In some develeopment environments this is not desirable. In this case
