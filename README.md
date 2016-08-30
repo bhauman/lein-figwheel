@@ -428,7 +428,7 @@ The following configuration options are available:
 ### More Figwheel Configuration Information
 
 All Figwheel configuration options are fully specified in 
-[sidecar/src/figwheel_sidecar/schemas/config.clj](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/schemas/config.clj]). 
+[sidecar/src/figwheel_sidecar/schemas/config.clj](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/schemas/config.clj). 
 
 This is currently the ultimate configuration reference. (I'm planning on generating 
 an official config reference from this file.)
