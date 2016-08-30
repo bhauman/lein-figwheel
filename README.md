@@ -54,18 +54,19 @@ editor!
 #### Descriptive Errors with Code Context
 
 Figwheel provides descriptive compiler errors that point to where
-there error is in your code.  These errors appear in the REPL as well
+the error is in your code.  These errors appear in the REPL as well
 as the heads up display.
 
 #### First Class Configuration Error Reporting
 
-When you are configuring a tool for the first time, it can be quite
-daunting. Figwheel currently offers best-of-class configuration error
-reporting that will help you if you happen to misconfigure something.
+It can be quite daunting, when you are configuring a tool for the
+first time.  Figwheel currently offers best-of-class configuration
+error reporting that will help you if you happen to misconfigure
+something.
 
 #### Built-in ClojureScript REPL
 
-When you launch figwheel it not only starts a live building/reloading
+When you launch Figwheel it not only starts a live building/reloading
 process but it also optionally launches a CLJS REPL into your running
 application. This REPL shares compilation information with the
 figwheel builder, so as you change your code the REPL is also aware of
