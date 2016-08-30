@@ -424,8 +424,6 @@ The following configuration options are available:
 ;; [[client-port]]
 ```
 
-To see all the client side config options [look here](https://github.com/bhauman/lein-figwheel/blob/47cadd7982ffd005ea21ba86139d5ea8dd20e8ed/support/src/figwheel/client.cljs#L290-L316).
-
 ### More Figwheel Configuration Information
 
 All Figwheel configuration options are fully specified in 
