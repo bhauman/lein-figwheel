@@ -51,6 +51,18 @@ on how well your project is compiling. By writing a shell script you
 can click on files in the heads up display and they will open in your
 editor!
 
+#### Descriptive Errors with Code Context
+
+Figwheel provides descriptive compiler errors that point to where
+there error is in your code.  These errors appear in the REPL as well
+as the heads up display.
+
+#### First Class Configuration Error Reporting
+
+When you are configuring a tool for the first time, it can be quite
+daunting. Figwheel currently offers best-of-class configuration error
+reporting that will help you if you happen to misconfigure something.
+
 #### Built-in ClojureScript REPL
 
 When you launch figwheel it not only starts a live building/reloading
@@ -320,6 +332,18 @@ you can create this `resources/public/index.html` file:
 </html>
 ```
 
+## CSS Precompilers 
+
+Using SASS or LESS and still want to have the benefits of live CSS reloading?
+
+Simply run your sass or less watcher/compiler on the command line and
+make sure the final output CSS files land in one of the directories
+that you have listed in your `:css-dirs` configuration option (mentioned above).
+
+See [lein-cooper](https://github.com/kouphax/lein-cooper) for a
+familiar way to launch processes from lein.
+
+
 ## Client side configuration options 
 
 Instead of setting `:figwheel true` in your cljsbuild configuration
@@ -401,6 +425,14 @@ The following configuration options are available:
 ```
 
 To see all the client side config options [look here](https://github.com/bhauman/lein-figwheel/blob/47cadd7982ffd005ea21ba86139d5ea8dd20e8ed/support/src/figwheel/client.cljs#L290-L316).
+
+### More Figwheel Configuration Information
+
+All Figwheel configuration options are fully specified in 
+[sidecar/src/figwheel_sidecar/schemas/config.clj](https://github.com/bhauman/lein-figwheel/blob/master/sidecar/src/figwheel_sidecar/schemas/config.clj]). 
+
+This is currently the ultimate configuration reference. (I'm planning on generating 
+an official config reference from this file.)
 
 ### Preventing and forcing file reloads
 
