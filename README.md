@@ -240,9 +240,10 @@ Start the figwheel server. (This will get the first `:optimizations`
 
     $ lein figwheel
 
-or optionally give the name of the build
+You also have the option to specify one or more builds
 
     $ lein figwheel example
+    $ lein fighweel example example-devcards
 
 This will start a server at `http://localhost:3449` with your
 resources being served via the compojure `resources` ring handler.
