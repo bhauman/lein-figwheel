@@ -236,7 +236,7 @@ Defaults to the empty vector [].
 (def-key ::modules (s/map-of
                     keyword?
                     (strict-keys
-                     :req-un [:cljs.options-schema.modules/output-dir
+                     :req-un [:cljs.options-schema.modules/output-to
                               ::entries]
                      :opt-un [::depends-on]))
 
@@ -288,8 +288,8 @@ single source map to name.")
 ;; ** TODO name collision don't want docs to collide
 ;; this is the only name collision in this
 (def-key :cljs.options-schema.modules/output-dir    non-blank-string?)
-(def-key ::entries       (s/every non-blank-string? :min-count 1 :into [] :kind sequential?))
-(def-key ::depends-on    (s/every ::string-or-named :min-count 1 :into [] :kind sequential?))
+(def-key ::entries       (s/every ::string-or-symbol :min-count 1 :into [] :kind  (some-fn sequential? set?)))
+(def-key ::depends-on    (s/every ::string-or-named :min-count 1 :into [] :kind (some-fn sequential? set?)))
 
 (def-key ::source-map-path            string?
 
