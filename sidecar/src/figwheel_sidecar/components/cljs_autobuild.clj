@@ -119,18 +119,22 @@
 
 ;; open url build middleware
 
-(def open-url-once (memoize clojure.java.browse/browse-url))
+(def open-urls-once
+  (memoize
+   (fn [urls]
+     (future
+       (Thread/sleep 1000)
+       (doseq [url urls]
+         (clojure.java.browse/browse-url url))))))
 
 (defn open-urls [build-state]
   (when-let [urls (not-empty
-                (-> build-state
-                    :build-config
-                    :figwheel
-                    :open-urls))]
-    ;; wait a tick for files to flush into directories
-    (Thread/sleep 400)
-    (doseq [url urls]
-      (open-url-once url))))
+                   (-> build-state
+                       :build-config
+                       :figwheel
+                       :open-urls
+                       set))]
+    (open-urls-once urls)))
 
 (defn open-urls-hook [build-fn]
   (fn [build-state]
