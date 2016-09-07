@@ -6,12 +6,22 @@
    [com.stuartsierra.component :as component]
    [clojure.java.io :as io]))
 
+;; watch-paths are created if they don't exist
+;; This could easily cause problems if people put file names in the
+;; list of watch paths
+;; But file names are not supposed to be in the watch paths
+(defn ensure-watch-paths [watch-paths]
+  (doseq [watch-path watch-paths]
+    (when-not (.exists (io/file watch-path))
+      (.mkdirs (io/file watch-path)))))
+
 (defrecord FileSystemWatcher [watcher-name watch-paths notification-handler figwheel-server log-writer]
   component/Lifecycle
   (start [this]
     (let [figwheel-server-options (config-options figwheel-server)]
       (if (not (:file-system-watcher-quit this))
         (do
+          (ensure-watch-paths watch-paths)
           (if (not-empty watch-paths)
             (let [log-writer (or log-writer
                                  (:log-writer figwheel-server-options)
