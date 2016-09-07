@@ -1,3 +1,9 @@
+## 0.5.7 More small fixes
+
+* add :start to the :validate-interactive options
+* fix the cljs options modules spec
+* made the :open-urls feature work better
+
 ## 0.5.6 Small fix release
 
 * fixes issue #468 where hyphenated builds are failing to connect
