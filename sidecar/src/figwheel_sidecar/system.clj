@@ -492,6 +492,12 @@
     Exit: Control+C or :cljs/quit
  Results: Stored in vars *1, *2, *3, *e holds last exception object")
 
+(defn figwheel-repl-options
+  [repl-options system]
+  (update-in repl-options [:special-fns]
+             merge
+             (build-figwheel-special-fns system)))
+
 (defn start-figwheel-repl [system build repl-options]
   (let [{:keys [figwheel-server build-ids]} @system]
     ;; TODO should I add this this be conditional on not running?
@@ -504,9 +510,7 @@
     (frepl/repl
      build
      figwheel-server
-     (update-in repl-options [:special-fns]
-                merge
-                (build-figwheel-special-fns system)))))
+     (figwheel-repl-options repl-options system))))
 
 ;; choosing which build for the repl to focus on is a bit tricky
 ;; and we are not considering which builds are connected
@@ -544,6 +548,27 @@
                     build)))
         (get builds (choose-repl-build-id system)))))
 
+(defn initial-repl-focus-build-id [system]
+  (when-let [build-key (first (all-build-keys system))]
+    (key->id build-key)))
+
+(defn repl-env*
+  ([system] (repl-env* system nil))
+  ([system start-build-id] (repl-env* system nil {}))
+  ([system start-build-id repl-options]
+   (let [build-id (or
+                   start-build-id
+                   (initial-repl-focus-build-id @system))
+         {:keys [figwheel-server]} @system]
+     ;; from figwheel-cljs-repl*
+     (when-let [build (choose-repl-build @system build-id)]
+       ;; always used in nrepl
+       ;; from start-figwheel-repl
+       (frepl/cljs-repl-env
+         build
+         figwheel-server
+         (figwheel-repl-options repl-options system))))))
+
 (defn figwheel-cljs-repl* [system build-id repl-options]
   (when-let [build (choose-repl-build @system build-id)]
      (start-figwheel-repl system build repl-options)))
@@ -558,10 +583,6 @@
                    (get-build-choice
                     (keep :id (filter config/optimizations-none? (vals builds))))]
           (recur chosen-build-id))))))
-
-(defn initial-repl-focus-build-id [system]
-  (when-let [build-key (first (all-build-keys system))]
-    (key->id build-key)))
 
 (defn cljs-repl*
   ([system] (cljs-repl* system nil))
@@ -591,16 +612,25 @@
   ([{:keys [system]} start-build-id repl-options]
    (build-switching-cljs-repl* system start-build-id repl-options)))
 
+(defn start-repl
+  ([start-fn figwheel-system]
+   (start-repl start-fn figwheel-system nil {}))
+  ([start-fn figwheel-system start-build-id]
+   (start-repl start-fn figwheel-system start-build-id {}))
+  ([start-fn {:keys [system]} start-build-id repl-options]
+   (start-fn system
+             (or
+               start-build-id
+               (initial-repl-focus-build-id @system))
+             repl-options)))
+
 (defn cljs-repl
-  ([figwheel-system] (cljs-repl figwheel-system nil {}))
-  ([figwheel-system start-build-id]
-   (cljs-repl figwheel-system start-build-id {}))
-  ([{:keys [system]} start-build-id repl-options]
-   (cljs-repl* system 
-               (or
-                start-build-id
-                (initial-repl-focus-build-id @system))
-               repl-options)))
+  [& args]
+  (apply start-repl cljs-repl* args))
+
+(defn repl-env
+  [& args]
+  (apply start-repl repl-env* args))
 
 ;; figwheel starting and stopping helpers
 

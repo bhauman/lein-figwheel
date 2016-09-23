@@ -83,7 +83,10 @@
                        (first (string/split x #"\?")))))
        stack-trace))
 
-(defrecord FigwheelEnv [figwheel-server]
+(defrecord FigwheelEnv [figwheel-server repl-opts]
+  cljs.repl/IReplEnvOptions
+  (-repl-options [this]
+    repl-opts)
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
     ;; we need to print in the same thread as
@@ -134,31 +137,30 @@
     (flush)))
 
 (defn repl-env
-  ([figwheel-server {:keys [id build-options] :as build}]
+  ([figwheel-server {:keys [id build-options] :as build} repl-opts]
    (assoc (FigwheelEnv. (merge figwheel-server
                                (if id {:build-id id} {})
                                {::repl-writers (atom {:out *out*
                                                       :err *err*})}
-                               (select-keys build-options [:output-dir :output-to])))
+                               (select-keys build-options [:output-dir :output-to]))
+                        repl-opts)
           :cljs.env/compiler (:compiler-env build)))
+  ([figwheel-server build]
+   (repl-env figwheel-server build nil))
   ([figwheel-server]
-   (FigwheelEnv. figwheel-server)))
+   (FigwheelEnv. figwheel-server nil)))
 
 ;; add some repl functions for reloading local clj code
 
-(defmulti start-cljs-repl (fn [protocol figwheel-env opts]
+(defmulti start-cljs-repl (fn [protocol figwheel-env]
                             protocol))
 
 (defmethod start-cljs-repl :nrepl
-  [_ figwheel-env opts]
+  [_ figwheel-env]
   (try
     (require 'cemerick.piggieback)
     (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
-          special-fns (or (:special-fns opts) cljs.repl/default-special-fns)
-          output-dir (or (:output-dir opts) "out")
-          opts' (assoc opts
-                       :special-fns special-fns
-                       :output-dir output-dir)]
+          opts' (:repl-opts figwheel-env)]
       (try
         ;; Piggieback version 0.2+
         (apply cljs-repl figwheel-env (apply concat opts'))
@@ -174,8 +176,8 @@
         (throw (Exception. message))))))
 
 (defmethod start-cljs-repl :default
-  [_ figwheel-env opts]
-  (cljs.repl/repl* figwheel-env opts))
+  [_ figwheel-env]
+  (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))
 
 (defn in-nrepl-env? []
   (thread-bound? #'nrepl-eval/*msg*))
@@ -251,23 +253,33 @@
        #_(when (in-nrepl-env?)
            (throw (ex-info "Hey" {})))))))
 
-(defn repl
+(defn cljs-repl-env
   ([build figwheel-server]
-   (repl build figwheel-server {}))
+   (cljs-repl-env build figwheel-server {}))
   ([build figwheel-server opts]
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
                             :warn-on-undeclared true
-                            :eval #'catch-warnings-and-exceptions-eval-cljs
-                            )
+                            :eval #'catch-warnings-and-exceptions-eval-cljs)
                      opts)
          figwheel-server (assoc figwheel-server
                                 :repl-print-chan (chan))
          figwheel-repl-env (repl-env figwheel-server build)
-         repl-opts (assoc opts :compiler-env (:compiler-env build))
-         protocol (if (in-nrepl-env?)
-                    :nrepl
-                    :default)]
-     (start-cljs-repl protocol figwheel-repl-env repl-opts))))
+         repl-opts (merge
+                     {:compiler-env (:compiler-env build)
+                      :special-fns cljs.repl/default-special-fns
+                      :output-dir "out"}
+                     opts)]
+     (assoc figwheel-repl-env
+            ;; these are merged to opts by cljs.repl/repl*
+            :repl-opts repl-opts))))
+
+(defn repl
+  [& args]
+  (start-cljs-repl
+    (if (in-nrepl-env?)
+      :nrepl
+      :default)
+    (apply cljs-repl-env args)))
 
 ;; deprecated 
 (defn get-project-cljs-builds []
