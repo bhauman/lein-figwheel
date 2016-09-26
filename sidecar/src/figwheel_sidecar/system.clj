@@ -13,8 +13,6 @@
    [strictly-specking-standalone.ansi-util :refer [with-color-when color-text]]
    [com.stuartsierra.component :as component]
 
-   [cljs.env :as env]
-
    [clojure.pprint :as p]   
    [clojure.java.io :as io]
    [clojure.set :refer [difference union intersection]]
