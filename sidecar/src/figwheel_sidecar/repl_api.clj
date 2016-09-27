@@ -112,6 +112,14 @@ the first default id)."
    (when (figwheel-running?)
      (fs/cljs-repl (:figwheel-system *repl-api-system*) id))))
 
+(defn repl-env
+  "Returns repl-env for use in editors with Piggieback support."
+  ([]
+   (repl-env nil))
+  ([id]
+   (when (figwheel-running?)
+     (fs/repl-env (:figwheel-system *repl-api-system*) id))))
+
 (defn fig-status
   "Display the current status of the running Figwheel system."
   []
