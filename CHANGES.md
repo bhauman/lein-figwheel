@@ -1,3 +1,9 @@
+## 0.5.8 Fix for Clojure 1.9.0-alpha12
+
+* small fix for recent Clojure alpha
+* vim-fireplace fix: merged https://github.com/bhauman/lein-figwheel/pull/476 from 
+  Juho Teperi and Dominic Monroe
+
 ## 0.5.7 More small fixes
 
 * add :start to the :validate-interactive options
