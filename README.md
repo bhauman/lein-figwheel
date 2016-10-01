@@ -11,9 +11,6 @@ Read the [introductory blog post](http://rigsomelight.com/2014/05/01/interactive
 
 ## Support Figwheel
 
-Figwheel has apparently made programming ClojureScript both productive
-and fun for many.
-
 If Figwheel has fundamentally redefined the way you perceive and do
 front end work please take a moment and support the work that brought
 it to life in the first place:
