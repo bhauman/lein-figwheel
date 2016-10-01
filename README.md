@@ -9,7 +9,20 @@ Learn even more by watching a 45 minute [talk on Figwheel](https://www.youtube.c
 
 Read the [introductory blog post](http://rigsomelight.com/2014/05/01/interactive-programming-flappy-bird-clojurescript.html).
 
-####Current version:
+## Support Figwheel
+
+Figwheel has apparently made programming ClojureScript both productive
+and fun for many.
+
+If Figwheel has fundamentally redefined the way you perceive and do
+front end work please take a moment and support the work that brought
+it to life in the first place:
+
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=B8B3LKTXKV69C">
+<img src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png" width="200">
+</a>
+
+#### Current version:
 [![Clojars Project](https://clojars.org/lein-figwheel/latest-version.svg)](https://clojars.org/lein-figwheel)
 
 ![Figwheel heads up example](https://s3.amazonaws.com/bhauman-blog-images/figwheel_image.png)
