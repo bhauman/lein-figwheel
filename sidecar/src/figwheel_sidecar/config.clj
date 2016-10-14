@@ -149,7 +149,10 @@
      (filter identity
              (list
               (when-not opts?
-                "the build :optimizations key is set to something other than :none")
+                (string/join "\n"
+                  ["the build :optimizations key is set to something other than :none"
+                   "  probably you are trying to run figwheel with the production build"
+                   (str "  try to run `lein cljsbuild once " (pr-str (:id build')) "` instead")]))
               (when-not (:output-dir build-options)
                 "the build does not have an :output-dir key"))))))
 
