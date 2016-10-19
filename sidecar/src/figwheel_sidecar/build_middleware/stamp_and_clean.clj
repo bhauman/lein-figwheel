@@ -18,10 +18,13 @@
 (def classpath-hash (.hashCode (System/getProperty "java.class.path")))
 
 (defn stamp-file [build-config]
-  (io/file (or (System/getProperty "user.dir")
-               (io/file "."))
-           (or (-> build-config :build-options :output-dir) "out")
-           ".figwheel-compile-stamp"))
+  (let [output-dir (io/file (or (-> build-config :build-options :output-dir) "out"))]
+    (if (.isAbsolute output-dir)
+      (io/file (.getCanonicalPath output-dir) ".figwheel-compile-stamp")
+      (io/file (or (System/getProperty "user.dir")
+                   (io/file "."))
+               output-dir
+               ".figwheel-compile-stamp"))))
 
 ;; this provides a simple map and stable order for hashing
 ;; TODO this should return a seq of map entries
