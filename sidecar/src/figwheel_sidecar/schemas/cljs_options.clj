@@ -794,6 +794,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::asset-path
      ::output-to
      ::output-dir
+     ::closure-warnings
      ::optimizations
      ::source-map
      ::verbose
