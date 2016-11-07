@@ -161,18 +161,11 @@
     (require 'cemerick.piggieback)
     (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
           opts' (:repl-opts figwheel-env)]
-      (try
-        ;; Piggieback version 0.2+
-        (apply cljs-repl figwheel-env (apply concat opts'))
-        (catch Exception e
-          ;; Piggieback version 0.1.5
-          (apply cljs-repl
-                 (apply concat
-                        (assoc opts'
-                               :repl-env figwheel-env))))))
+      (apply cljs-repl figwheel-env (apply concat opts')))
     (catch Exception e
-      (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.\nPlease install https://github.com/cemerick/piggieback"]
-        (println message)
+      (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.
+This is commonly caused by not including the piggieback nREPL middleware.
+Please install https://github.com/cemerick/piggieback"]
         (throw (Exception. message))))))
 
 (defmethod start-cljs-repl :default
