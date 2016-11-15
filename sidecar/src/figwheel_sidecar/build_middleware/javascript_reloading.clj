@@ -2,7 +2,8 @@
   (:require
    [clojure.java.io :as io]
    [cljs.build.api :as bapi]
-   [cljs.closure]))
+   [figwheel-sidecar.utils :as utils]
+   [clojure.pprint :as pp]))
 
 ;; live javascript reloading
 
@@ -14,49 +15,46 @@
                           (.getCanonicalPath file)))
                      foreign-libs)))))
 
-(defn js-file->namespaces [{:keys [foreign-libs] :as state} js-file-path]
-  (if-let [foreign (get-foreign-lib state js-file-path)]
-    (:provides foreign)
-    (:provides (bapi/parse-js-ns js-file-path))))
-
+;; extremely tenuous relationship, this could break easily
+;; file-path is a string and it is an absolute path
 (defn cljs-target-file-from-foreign [output-dir file-path]
-  (io/file (str output-dir java.io.File/separator (.getName (io/file file-path)))))
+  (first (filter #(.exists %)
+                 ;; try the projected location
+                 [(io/file output-dir (utils/relativize-local file-path))
+                  (io/file output-dir (.getName (io/file file-path)))])))
 
 (defn closure-lib-target-file-for-ns [output-dir namesp]
   (let [path (cljs.closure/lib-rel-path {:provides [namesp]})]
     (io/file output-dir path)))
 
-(defn get-js-copies [{:keys [output-dir] :as state} changed-js]
-  (keep
-   (fn [f]
-     (if-let [foreign (get-foreign-lib state f)]
-       {:output-file (cljs-target-file-from-foreign output-dir f)
-        :file f}
-       (when-let [namesp (first (js-file->namespaces state f))]
-         {:output-file (closure-lib-target-file-for-ns output-dir namesp)
-          :file f})))
-   changed-js))
+(defn safe-js->ns [file-path]
+  (:provides
+   (try (bapi/parse-js-ns file-path)
+        (catch Throwable e
+          ;; couldn't parse js for namespace
+          {}))))
 
-(defn make-copies [copies]
-  (doseq [{:keys [file output-file]} copies]
-    (spit output-file (slurp file))))
+(defn best-try-js-ns [state js-file-path]
+  (let [provs (and (.exists (io/file js-file-path))
+                   (safe-js->ns js-file-path))]
+    (if-not (empty? provs)
+      provs
+      (let [out-file (cljs-target-file-from-foreign (:output-dir state) js-file-path)]
+        (and (.exists out-file)
+             (safe-js->ns out-file))))))
 
-(defn copy-changed-js [state changed-js]
-  ;; TODO there is an easy way to do this built into the clojurescript
-  ;; compiler source
-  ;; the idea here is we are only copying files that make sense to
-  ;; copy i.e. they have a provide
-  (when-not (empty? changed-js)
-    (make-copies (get-js-copies state changed-js))))
+(defn js-file->namespaces [{:keys [foreign-libs output-dir] :as state} js-file-path]
+  (if-let [foreign (get-foreign-lib state js-file-path)]
+    (best-try-js-ns state js-file-path)
+    (safe-js->ns js-file-path)))
 
 (defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (if-let [changed-js-files (filter #(.endsWith % ".js") changed-files)]
       (let [build-options (or (:build-options build-config) (:compiler build-config))
-            additional-changed-ns   ;; add in js namespaces
+            additional-changed-ns ;; add in js namespaces
             (mapcat (partial js-file->namespaces build-options)
                     changed-js-files)]
-        (copy-changed-js build-options changed-js-files)
         (build-fn (update-in
                    build-state [:additional-changed-ns] concat additional-changed-ns)))
       (build-fn build-state))))
