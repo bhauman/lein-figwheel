@@ -6,14 +6,7 @@
    [clojure.stacktrace :as stack]
    [strictly-specking-standalone.ansi-util :refer [color-text]]   
    #_[cljs.build.api :as bapi]
-   [clojure.pprint :as pp]))
-
-(defn relativize-local [path]
-  (.getPath
-   (.relativize
-    (.toURI (io/file (.getCanonicalPath (io/file "."))))
-    ;; just in case we get a URL or some such let's change it to a string first
-    (.toURI (io/file (str path))))))
+   [figwheel-sidecar.utils :as utils]))
 
 ;; TODO this should only happen before sending across the wire
 (defn data-serialize [k o]
@@ -211,7 +204,7 @@
 
 (defn relativize-file-to-project-root [{:keys [file] :as ex}]
   (if file
-    (update-in ex [:file] relativize-local)
+    (update-in ex [:file] utils/relativize-local)
     ex))
 
 ;; parse exceptions

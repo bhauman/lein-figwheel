@@ -86,6 +86,13 @@
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))
 
+(defn relativize-local [path]
+  (.getPath
+   (.relativize
+    (.toURI (io/file (.getCanonicalPath (io/file "."))))
+    ;; just in case we get a URL or some such let's change it to a string first
+    (.toURI (io/file (str path))))))
+
 (defmethod print-method ::compiler-env [o ^java.io.Writer w]
    (.write w "#CompilerEnv{}"))
 
