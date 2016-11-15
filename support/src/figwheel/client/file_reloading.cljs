@@ -347,7 +347,9 @@
 
 (defn expand-files [files]
   (let [deps (get-all-dependents (map :namespace files))]
-    (filter (comp not #{"figwheel.connect"} :namespace)
+    (filter (comp not
+                  (partial re-matches #"figwheel\.connect.*")
+                  :namespace)
             (map
              (fn [n]
                (if-let [file-msg (first (filter #(= (:namespace %) n) files))]
