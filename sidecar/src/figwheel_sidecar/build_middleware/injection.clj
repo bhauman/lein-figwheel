@@ -17,6 +17,47 @@
                                 :on-compile-fail
                                 :on-compile-warning])
 
+(defn figwheel-connect-ns-parts [{:keys [id]}]
+  (cond-> ["figwheel" "connect"]
+    (and id (name-like? id)) (conj (name id))))
+
+(defn underscore [cljs-path-name]
+  (string/replace cljs-path-name "-" "_"))
+
+(defn un-underscore [cljs-path-name]
+  (string/replace cljs-path-name "_" "-"))
+
+(defn apply-last [f parts]
+  (if (= (count parts) 3)
+    (update-in parts [2] f)
+    parts))
+
+(def figwheel-connect-ns-name
+  (comp (partial string/join ".")
+        (partial apply-last un-underscore)
+        figwheel-connect-ns-parts))
+
+(def figwheel-connect-ns-path
+  (comp #(str % ".cljs")
+        (partial string/join "/")
+        (partial apply-last underscore)
+        figwheel-connect-ns-parts))
+
+#_(figwheel-connect-ns-path {:id :build-it})
+
+(defn connect-script-temp-dir [build]
+  (assert (:id build) (str "Following build needs an id: " build))
+  (str "target/figwheel_temp/" (underscore (name (:id build)))))
+
+(defn connect-script-path [build]
+  (io/file (connect-script-temp-dir build) (figwheel-connect-ns-path build)))
+
+(defn delete-connect-scripts! [builds]
+  (doseq [b builds]
+    (when (config/figwheel-build? b)
+      (let [f (connect-script-path b)]
+        (when (.exists f) (.delete f))))))
+
 (defn extract-connection-requires [{:keys [figwheel] :as build}]
   (let [names (set
                (map #(symbol (namespace (symbol %)))
@@ -32,11 +73,7 @@
                 names)]
     names))
 
-(defn figwheel-connect-ns-name [{:keys [id]}]
-  (cond-> "figwheel.connect"
-    (and id (name-like? id)) (str "." (name id))))
-
-#_(figwheel-connect-ns-name {})
+#_(figwheel-connect-ns-name {:id :asdf-asdf})
 
 (defn extract-connection-script-required-ns [{:keys [figwheel] :as build}]
   (list 'ns (symbol (figwheel-connect-ns-name build))
@@ -76,14 +113,41 @@
 
 #_(generate-connect-script {:id :asdf :build-options {:main 'example.core}})
 
+(defn create-connect-script! [build]
+  ;;; consider doing this is the system temp dir
+  (let [temp-file (connect-script-path build)]
+    (.mkdirs (.getParentFile temp-file))
+    (.deleteOnExit temp-file)
+    (with-open [file (io/writer temp-file)]
+      (binding [*out* file]
+        (println
+         (apply str (mapcat
+                     prn-str
+                     (generate-connect-script build))))))
+    temp-file))
+
+(defn create-connect-script-if-needed! [build]
+  (when (config/figwheel-build? build)
+    (when-not (.exists (connect-script-path build))
+      (create-connect-script! build))))
+
 (defn add-connect-script! [figwheel-server build]
   (if (config/figwheel-build? build)
     (let [build (config/update-figwheel-connect-options figwheel-server build)
           devcards? (get-in build [:figwheel :devcards])]
+      (create-connect-script-if-needed! build)
       (-> build
           ;; might want to add in devcards jar path here :)
           (update-in [:compile-paths]
-                     (fn [sp] (let [res (cons (generate-connect-script build) sp)]
+                     ;; using the connect script instead of inline code because of two prominent
+                     ;; CLJS bugs
+                     ;; - another where the connection script isn't generated in a node env                     
+                     ;; https://github.com/bhauman/lein-figwheel/issues/474
+                     ;; - one where analysis cache is invlidated
+                     ;; https://github.com/bhauman/lein-figwheel/issues/489
+                     (fn [sp] (let [res (cons (connect-script-temp-dir build)
+                                              #_(generate-connect-script build)
+                                              sp)]
                                 (vec (if-let [devcards-src (and devcards?
                                                                 (cljs.env/with-compiler-env (:compiler-env build)
                                                                   (not (ana-api/find-ns 'devcards.core)))
