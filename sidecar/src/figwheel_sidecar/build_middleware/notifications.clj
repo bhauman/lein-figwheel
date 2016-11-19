@@ -79,7 +79,7 @@
   "Formats a namespace into a map that is ready to be sent to the client."
   [st nm]
   (let [n (-> nm name utils/underscore)] ;; TODO I don't think this is needed
-    { :file (str (build-api/target-file-for-cljs-ns nm))
+    { :file (str (build-api/target-file-for-cljs-ns nm (:output-dir st)))
       :namespace (cljs.compiler/munge n)
       :type :namespace}))
 
