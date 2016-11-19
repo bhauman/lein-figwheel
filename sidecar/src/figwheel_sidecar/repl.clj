@@ -189,38 +189,6 @@ Please install https://github.com/cemerick/piggieback"]
   ([e repl-env opts]
    (catch-exception e repl-env opts nil nil)))
 
-;; this is copied because its private
-(defn wrap-fn [form]
-  (cond
-    (and (seq? form) (= 'ns (first form))) identity
-    ('#{*1 *2 *3 *e} form) (fn [x] `(cljs.core.pr-str ~x))
-    :else
-    (fn [x]
-      `(try
-         (cljs.core.pr-str
-           (let [ret# ~x]
-             (set! *3 *2)
-             (set! *2 *1)
-             (set! *1 ret#)
-             ret#))
-         (catch :default e#
-           (set! *e e#)
-           (throw e#))))))
-
-;; this is copied because it's private
-(defn eval-cljs
-  ([repl-env env form]
-    (eval-cljs repl-env env form cljs.repl/*repl-opts*))
-  ([repl-env env form opts]
-   (cljs.repl/evaluate-form repl-env
-     (assoc env :ns (ana/get-namespace ana/*cljs-ns*))
-     "<cljs repl>"
-     form
-     ;; the pluggability of :wrap is needed for older JS runtimes like Rhino
-     ;; where catching the error will swallow the original trace
-     ((or (:wrap opts) wrap-fn) form)
-     opts)))
-
 (defn warning-handler [repl-env form opts]
   (fn [warning-type env extra]
     (when-let [warning-data (cljs-ex/extract-warning-data warning-type env extra)]
@@ -238,7 +206,7 @@ Please install https://github.com/cemerick/piggieback"]
    (try
      (binding [cljs.analyzer/*cljs-warning-handlers*
                [(warning-handler repl-env form opts)]]
-       (eval-cljs repl-env env form opts))
+       (#'cljs.repl/eval-cljs repl-env env form opts))
      (catch Throwable e
        (catch-exception e repl-env opts form env)
        ;; when we are in an nREPL environment lets re-throw with a friendlier
