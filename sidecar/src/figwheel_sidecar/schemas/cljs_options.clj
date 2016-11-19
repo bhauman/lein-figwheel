@@ -542,30 +542,33 @@ Only available for cljs.build.api/watch
 ;; ** ClojureScript Compiler Warnings
 
 (def-key ::warnings
-  (strict-keys
-   :opt-un
-   [::undeclared-ns-form
-    ::protocol-deprecated
-    ::undeclared-protocol-symbol
-    ::fn-var
-    ::invalid-arithmetic
-    ::preamble-missing
-    ::undeclared-var
-    ::protocol-invalid-method
-    ::variadic-max-arity
-    ::multiple-variadic-overloads
-    ::fn-deprecated
-    ::redef
-    ::fn-arity
-    ::invalid-protocol-symbol
-    ::dynamic
-    ::undeclared-ns
-    ::overload-arity
-    ::extending-base-js-type
-    ::single-segment-namespace
-    ::protocol-duped-method
-    ::protocol-multiple-impls
-    ::invoke-ctor])
+  (s/or
+   :bool boolean?
+   :warnings-map-options
+   (strict-keys
+    :opt-un
+      [::undeclared-ns-form
+       ::protocol-deprecated
+       ::undeclared-protocol-symbol
+       ::fn-var
+       ::invalid-arithmetic
+       ::preamble-missing
+       ::undeclared-var
+       ::protocol-invalid-method
+       ::variadic-max-arity
+       ::multiple-variadic-overloads
+       ::fn-deprecated
+       ::redef
+       ::fn-arity
+       ::invalid-protocol-symbol
+       ::dynamic
+       ::undeclared-ns
+       ::overload-arity
+       ::extending-base-js-type
+       ::single-segment-namespace
+       ::protocol-duped-method
+       ::protocol-multiple-impls
+       ::invoke-ctor]))
 
   "This flag will turn on/off compiler warnings for references to
 undeclared vars, wrong function call arities, etc. Can be a boolean
@@ -833,7 +836,8 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::ups-foreign-libs
      ::closure-output-charset
      ::external-config
-     ::watch-fn])
+     ::watch-fn
+     ::warnings])
 
 
    ))
