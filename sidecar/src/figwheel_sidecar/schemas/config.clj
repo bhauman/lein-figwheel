@@ -97,9 +97,9 @@ Default: 3449
 (def-key ::server-ip         non-blank-string?
   "The network interface that the figwheel server will listen on. This is
 useful if you don't want to use a public network interface.
-Default: \"localhost\"
+Default: \"0.0.0.0\"
 
-  :server-ip \"0.0.0.0\"")
+  :server-ip \"127.0.0.1\"")
 
 (def-key ::css-dirs  (s/every non-blank-string?
                               :min-count 1
