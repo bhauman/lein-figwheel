@@ -53,6 +53,7 @@
     ::css-dirs
     ::ring-handler
     ::builds-to-start
+    ::auto-clean
     ::server-logfile
     ::open-file-command
     ::repl
@@ -131,9 +132,19 @@ when you invoke lein figwheel without arguments.
 
   :builds-to-start [\"dev\" \"test\"]")
 
+(def-key ::auto-clean boolean?
+  "Figwheel detects whether dependencies have changed and
+automatically deletes compiled assets to prevent compilation
+inconsistencies.  
+
+You can set :auto-clean flase to disable this behavior.
+Default: true
+
+  :auto-clean false")
+
 (def-key ::server-logfile    (some-fn non-blank-string? false?)
   "The path to the file where Figwheel will log its system output.
-Set this to false if you want all the output to just go to standard out.
+Set this to false if you want all the output to go to standard out.
 
 People will often `tail -f` this file to watch its output during development.
 

@@ -183,8 +183,11 @@
   (.mkdirs (.getParentFile (io/file (.getAbsolutePath ^java.io.File file))))
   (spit file signature))
 
+(defn auto-clean? [project]
+  (not (false? (get-in project [:figwheel :auto-clean]))))
+
 (defn clean-on-dependency-change [{:keys [target-path dependencies] :as project}]
-  (when (and target-path dependencies)
+  (when (and target-path dependencies (auto-clean? project))
     (on-stamp-change
      {:file (io/file
              target-path

@@ -52,11 +52,15 @@
 #_(stamp! {:id "howw" :cow 3 :build-options {}})
 #_(stamp-matches? {:id "howw" :cow 2 :build-options {}})
 
+(defn auto-clean? [build-state]
+  (not (false? (get-in build-state [:figwheel-server :auto-clean]))))
+
 (defn hook [build-fn]
   (fn [{:keys [build-config] :as build-state}]
-    (on-stamp-change
-     (create-deps-stamp build-config)
-     #(do
-        (println "Figwheel: Cleaning build -" (:id build-config))
-        (utils/clean-cljs-build* build-config)))
+    (when (auto-clean? build-state)
+      (on-stamp-change
+       (create-deps-stamp build-config)
+       #(do
+          (println "Figwheel: Cleaning build -" (:id build-config))
+          (utils/clean-cljs-build* build-config))))
     (build-fn build-state)))
