@@ -223,6 +223,11 @@
       (assoc :build-options (get-build-options build))
       (dissoc :compiler)))
 
+(defn propagate-source-paths-to-compile-and-watch-paths [{:keys [source-paths] :as build}]
+  (cond-> build
+    (not (contains? build :watch-paths))   (assoc :watch-paths source-paths)
+    (not (contains? build :compile-paths)) (assoc :compile-paths source-paths)))
+
 ; idempotent
 (defn ensure-id
   "Converts given build :id to a string and if no :id exists generate and id."
@@ -235,6 +240,7 @@
 (defn prep-build [build]
   (-> build
       ensure-id
+      propagate-source-paths-to-compile-and-watch-paths
       move-compiler-to-build-options
       (update-in [:build-options] fix-build-options)
       forward-to-figwheel-build-id

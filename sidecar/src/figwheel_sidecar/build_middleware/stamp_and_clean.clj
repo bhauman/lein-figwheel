@@ -31,11 +31,11 @@
 (defn options-that-affect-build-cache [build-config]
   (-> build-config
       (select-keys [:static-fns :optimize-constants
-                    :elide-asserts :target])
+                    :elide-asserts :target
+                    :source-paths :compile-paths])
       (assoc
-       :build-id     (:id build-config)
-       :source-paths (:source-paths build-config)
-       :classpath    classpath-hash)))
+       :build-id  (:id build-config)
+       :classpath classpath-hash)))
 
 (defn current-stamp-signature [build-config]
   (->> build-config

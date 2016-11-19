@@ -386,7 +386,9 @@ Or you can specify which suffixes will cause the reloading
      ::incremental
      ::assert
      ::warning-handlers
-     ::figwheel]
+     ::figwheel
+     ::watch-paths
+     ::compile-paths]
     :req-un
     [::source-paths
      ::compiler]))
@@ -455,11 +457,58 @@ Or you can specify which suffixes will cause the reloading
   :id \"dev\"")
 
 (def-key ::source-paths (s/every non-blank-string? :min-count 1 :into [] :kind sequential?)
-
   "A vector of paths to your cljs source files. These paths should be
 relative from the root of the project to the root the namespace.
 For example, if you have an src/example/core.cljs file that contains a
 example.core namespace, the source path to this file is \"src\"
+
+  :source-paths [\"src\"]
+
+Advanced: 
+
+This value represents three concrete things:
+
+Classpaths - The ClojureScript compiler uses the classpath to find
+source files. When booting up figwheel from lein the figwheel plugin
+add's this :source-paths vector to the root :source-paths vector of
+your project.clj. If you are not using lein it's important to add the
+correct paths to your classpath.
+
+Compile Paths - The :source-paths vector of paths is passed to the
+compiler and tells it to compile these directories.  The ClojureScript
+compiler then interates through the CLJS sources in these directories
+and compiles them. You can override :source-paths and specify which
+paths are sent to the compiler with :compile-paths.
+
+Watch Paths - Figwheel uses the :source-paths vector of paths to start
+a watcher on these paths which will notfiy figwheel when a files has
+changed an possibly trigger a compile.  You can
+override :source-paths and specify which paths are watched
+with :compile-paths.
+")
+
+(def-key ::watch-paths (s/every non-blank-string? :into [] :kind sequential?)
+  "A vector of paths to directories that you want figwheel to watch
+for changes. 
+
+The default value is the contents of :source-paths
+
+These paths should be relative from the root of the project to the
+root the namespace.  For example, if you have an src/example/core.cljs
+file that contains a example.core namespace, the source path to this
+file is \"src\"
+
+  :watch-paths [\"src\"]")
+
+(def-key ::compile-paths (s/every non-blank-string? :into [] :kind sequential?)
+  "A vector of paths to the directories of source files that you want compiled. 
+
+The default value is the contents of :source-paths
+
+These paths should be relative from the root of the project to the
+root the namespace.  For example, if you have an src/example/core.cljs
+file that contains a example.core namespace, the source path to this
+file is \"src\"
 
   :source-paths [\"src\"]")
 

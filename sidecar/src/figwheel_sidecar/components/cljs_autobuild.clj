@@ -26,7 +26,7 @@
 
 (defn cljs-build [{:keys [build-config]}]
   (bapi/build
-   (apply bapi/inputs (:source-paths build-config))
+   (apply bapi/inputs (:compile-paths build-config))
    (:build-options build-config)
    (:compiler-env build-config)))
 
@@ -38,11 +38,11 @@
 (defn figwheel-start-and-end-messages [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (let [started-at (System/currentTimeMillis)
-          {:keys [build-options source-paths]} build-config
+          {:keys [build-options compile-paths]} build-config
             {:keys [output-to]} build-options]
       ;; print start message
       (println (color-text (str "Compiling \"" output-to
-                       "\" from " (pr-str source-paths) "...")
+                       "\" from " (pr-str compile-paths) "...")
                 :none))
       (try
         (build-fn build-state)
@@ -110,10 +110,10 @@
       javascript-reloading/hook
       color-output))
 
-(defn source-paths-that-affect-build [{:keys [build-options source-paths]}]
+(defn source-paths-that-affect-build [{:keys [build-options watch-paths]}]
   (let [{:keys [libs foreign-libs]} build-options]
     (concat
-     source-paths
+     watch-paths
      libs
      (not-empty (mapv :file foreign-libs)))))
 

@@ -82,17 +82,18 @@
           devcards? (get-in build [:figwheel :devcards])]
       (-> build
           ;; might want to add in devcards jar path here :)
-          (update-in [:source-paths] (fn [sp] (let [res (cons (generate-connect-script build) sp)]
-                                                (vec (if-let [devcards-src (and devcards?
-                                                                                (cljs.env/with-compiler-env (:compiler-env build)
-                                                                                  (not (ana-api/find-ns 'devcards.core)))
-                                                                                (io/resource "devcards/core.cljs"))]
-                                                       (cons devcards-src res)
-                                                       res)))))
-        ;; this needs to be in the (:options (:compiler-env build))
-        #_(update-in [:build-options] (fn [bo] (if devcards?
-                                                (assoc bo :devcards true)
-                                                bo)))))
+          (update-in [:compile-paths]
+                     (fn [sp] (let [res (cons (generate-connect-script build) sp)]
+                                (vec (if-let [devcards-src (and devcards?
+                                                                (cljs.env/with-compiler-env (:compiler-env build)
+                                                                  (not (ana-api/find-ns 'devcards.core)))
+                                                                (io/resource "devcards/core.cljs"))]
+                                       (cons devcards-src res)
+                                       res)))))
+          ;; this needs to be in the (:options (:compiler-env build))
+          #_(update-in [:build-options] (fn [bo] (if devcards?
+                                                   (assoc bo :devcards true)
+                                                   bo)))))
     build))
 
 (defn esc-fmt [a & args]
