@@ -164,8 +164,20 @@
       (apply cljs-repl figwheel-env (apply concat opts')))
     (catch Exception e
       (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.
-This is commonly caused by not including the piggieback nREPL middleware.
-Please install https://github.com/cemerick/piggieback"]
+This is commonly caused by 
+ A) not providing piggieback as a dependency and/or 
+ B) not adding piggieback middleware into your nrepl middleware chain.
+
+example profile.clj code:
+-----
+:profiles {:dev {:dependencies [[com.cemerick/piggieback <current-version>]
+                                [org.clojure/tools.nrepl  <current-version>]]
+                 :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}}}
+-----
+Please see the documentation for piggieback here https://github.com/cemerick/piggieback#installation
+
+Note: Cider will inject this config into your project.clj.
+This can cause confusion when your are not using Cider."]
         (throw (Exception. message))))))
 
 (defmethod start-cljs-repl :default
