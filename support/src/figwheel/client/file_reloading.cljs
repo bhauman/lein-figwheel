@@ -295,11 +295,15 @@
     ;; we are forcing reload here
     (figwheel-require (name namespace) true)))
 
+(defn figwheel-no-load? [{:keys [namespace] :as file-msg}]
+  (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
+    (:figwheel-no-load meta-pragmas)))
+
 (defn reload-file? [{:keys [namespace] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
   (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
     (and
-     (not (:figwheel-no-load meta-pragmas))
+     (not (figwheel-no-load? file-msg))
      (or
       (:figwheel-always meta-pragmas)
       (:figwheel-load meta-pragmas)
@@ -385,7 +389,8 @@
           (eval-body eval-body-file opts))))
     (reset! dependencies-loaded (list))
     (let [all-files (filter #(and (:namespace %)
-                                  (not (:eval-body %)))
+                                  (not (:eval-body %))
+                                  (not (figwheel-no-load? %)))
                             files)
           ;; add in figwheel always
           all-files (concat all-files (get-figwheel-always))
