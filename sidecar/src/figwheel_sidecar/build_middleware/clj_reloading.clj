@@ -41,12 +41,6 @@
     changed-clj-files
     (filter :macro-file? changed-clj-files)))
 
-(defn relevant-macro-files [clj-files-fn changed-clj-files]
-  (let [non-macro-clj? (first (filter #(not (:macro-file? %)) changed-clj-files))]
-    (filter :macro-file?
-            (if non-macro-clj? (clj-files-fn)
-                changed-clj-files))))
-
 (defn clj-files-in-dirs [dirs]
   (let [all-files (mapcat file-seq (filter #(and (.exists %)
                                                  (.isDirectory %))
@@ -74,10 +68,9 @@
         ;; this could be a problem if the file isn't in the require
         ;; chain
         ;; it will be loaded anyway
+        ;; TODO send load time error notifications to server
         (load-file (.getCanonicalPath (:source-file clj-file))))
-      (let [rel-files (relevant-macro-files
-                       (fn [] (map annotate-macro-file (clj-files-in-dirs source-paths)))
-                       changed-clj-files)]
+      (let [rel-files (filter :macro-file? changed-clj-files)]
         (env/with-compiler-env compiler-env
           (mark-known-dependants-for-recompile! build-options rel-files))))))
 
