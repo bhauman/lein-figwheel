@@ -9,6 +9,7 @@
     (utils/node-env?) (try (js/require "ws")
                            (catch js/Error e
                              nil))
+    (utils/worker-env?) (aget js/self "WebSocket")
     :else nil))
 
 ;; messages have the following formats
