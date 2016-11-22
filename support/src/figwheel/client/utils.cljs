@@ -11,7 +11,13 @@
 
 (defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
 
-(defn host-env? [] (if (node-env?) :node :html))
+(defn worker-env? [] (and
+                      (nil? goog/global.document)
+                      (not (nil? (.-importScripts js/self)))))
+
+(defn host-env? [] (cond (node-env?)   :node
+                         (html-env?)   :html
+                         (worker-env?) :worker))
 
 (defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" "$1"))
 
