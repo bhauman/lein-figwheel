@@ -247,7 +247,7 @@
     :worker (fn [request-url callback]
               (dev-assert (string? request-url) (not (nil? callback)))
               (callback (try
-                          (do (.importScripts js/self request-url)
+                          (do (.importScripts js/self (add-cache-buster request-url))
                               true)
                           (catch js/Error e
                             (utils/log :error (str  "Figwheel: Error loading file " request-url))
