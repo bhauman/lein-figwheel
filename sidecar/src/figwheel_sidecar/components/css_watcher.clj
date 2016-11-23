@@ -21,7 +21,7 @@
           sendable-files (map #(make-css-file %) changed-css-files)]
       (send-css-files figwheel-server sendable-files)
       (doseq [f sendable-files]
-        (println "Notifyng browser that CSS file changed:" (:file f))))))
+        (println "Notifying browser that CSS file changed:" (:file f))))))
 
 (defn css-watcher [{:keys [watch-paths] :as options}]
   (fsw/file-system-watcher
