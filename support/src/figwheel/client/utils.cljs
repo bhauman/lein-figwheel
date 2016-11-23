@@ -1,7 +1,8 @@
 (ns ^:figwheel-no-load figwheel.client.utils
   (:require [clojure.string :as string]
             [goog.userAgent.product :as product])
-    (:import [goog]))
+  (:import [goog]
+           [goog.async Deferred]))
 
 ;; don't auto reload this file it will mess up the debug printing
 
@@ -55,3 +56,33 @@
   (if eval-fn
     (eval-fn code opts)
     (js* "eval(~{code})")))
+
+
+;; Deferred helpers that focus on guaranteed successful side effects
+;; not very monadic but it meets our needs
+
+(defn liftContD
+  "chains an async action on to a deferred
+  Must provide a goog.async.Deferred and action function that
+  takes an initial value and a continuation fn to call with the result"
+  [deferred f]
+  (.then deferred (fn [val]
+                   (let [new-def (Deferred.)]
+                     (f val #(.callback new-def %))
+                     new-def))))
+
+(defn mapConcatD
+  "maps an async action across a collection and chains the results
+  onto a deferred"
+  [deferred f coll]
+  (let [results (atom [])]
+    (.then
+     (reduce (fn [defr v]
+               (liftContD defr
+                          (fn [_ fin]
+                            (f v (fn [v]
+                                   (swap! results conj v)
+                                   (fin v))))))
+             deferred coll)
+     (fn [_] (.succeed Deferred @results)))))
+

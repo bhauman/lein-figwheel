@@ -11,7 +11,8 @@
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]])
-  (:import [goog]))
+  (:import [goog]
+           [goog.async Deferred]))
 
 (declare queued-file-reload)
 
@@ -487,41 +488,42 @@
     (set! (.-href link)     (add-cache-buster url))
     link))
 
-(defn add-link-to-doc [orig-link klone]
-  (go
-    (let [parent (.-parentNode orig-link)]
-      (if (= orig-link (.-lastChild parent))
-        (.appendChild parent klone)
-        (.insertBefore parent klone (.-nextSibling orig-link)))
-      ;; prevent css removal flash
-      (<! (timeout 300))
-      (.removeChild parent orig-link))))
-
 (defn distinctify [key seqq]
   (vals (reduce #(assoc %1 (get %2 key) %2) {} seqq)))
 
-(defn reload-css-files* [f-datas]
-  (go-loop [[f & fs] f-datas]
-    (when f
-      (when-let [link (get-correct-link f)]
-        (<! (add-link-to-doc link (clone-link link (.-href link)))))
-      (recur fs))))
+(defn add-link-to-document [orig-link klone finished-fn]
+  (let [parent (.-parentNode orig-link)]
+    (if (= orig-link (.-lastChild parent))
+      (.appendChild parent klone)
+      (.insertBefore parent klone (.-nextSibling orig-link)))
+    ;; prevent css removal flash
+    (js/setTimeout #(do
+                      (.removeChild parent orig-link)
+                      (finished-fn))
+                   300)))
 
-(defonce reload-css-chan
-  (let [in (chan)]
-    (go-loop []
-      (when-let [{:keys [f-data-seq callback]} (<! in)]
-        (<! (reload-css-files* f-data-seq))
-        (callback))
-      (recur))
-    in))
+(defonce reload-css-deferred-chain (atom (.succeed Deferred)))
 
-(defn reload-css-files [{:keys [on-cssload] :as opts} {:keys [files] :as files-msg}]
+(defn reload-css-file [f-data fin]
+  (if-let [link (get-correct-link f-data)]
+    (add-link-to-document link (clone-link link (.-href link)) #(fin f-data))
+    (fin f-data)))
+
+(defn reload-css-files* [deferred f-datas on-cssload]
+  (-> deferred
+      (utils/mapConcatD reload-css-file f-datas)
+      (utils/liftContD (fn [f-datas' fin]
+                         (on-cssload-custom-event f-datas')
+                         (when (fn? on-cssload)
+                           (on-cssload f-datas'))
+                         (fin)))))
+
+(defn reload-css-files [{:keys [on-cssload]} {:keys [files] :as files-msg}]
   (when (utils/html-env?)
-    (when-let [files' (not-empty (distinctify :file files))]
-      (put! reload-css-chan
-            {:f-data-seq files'
-             :callback
-             #(do
-                (on-cssload-custom-event files')
-                (on-cssload files'))}))))
+    (when-let [f-datas (not-empty (distinctify :file files))]
+      (swap! reload-css-deferred-chain reload-css-files* f-datas on-cssload))))
+
+
+
+
+
