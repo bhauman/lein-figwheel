@@ -23,7 +23,7 @@
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.9-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]
-   [hawk "0.2.10" :exclusions [org.clojure/clojure]]
+   [hawk "0.2.11" :exclusions [org.clojure/clojure]]
 
    [org.clojure/tools.nrepl "0.2.12"]
    ;; for config validation
