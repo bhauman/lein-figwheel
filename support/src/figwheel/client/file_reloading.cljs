@@ -506,16 +506,18 @@
 
 (defn reload-css-file [f-data fin]
   (if-let [link (get-correct-link f-data)]
-    (add-link-to-document link (clone-link link (.-href link)) #(fin f-data))
+    (add-link-to-document link (clone-link link (.-href link))
+                          #(fin (assoc f-data :loaded true)))
     (fin f-data)))
 
 (defn reload-css-files* [deferred f-datas on-cssload]
   (-> deferred
       (utils/mapConcatD reload-css-file f-datas)
       (utils/liftContD (fn [f-datas' fin]
-                         (on-cssload-custom-event f-datas')
-                         (when (fn? on-cssload)
-                           (on-cssload f-datas'))
+                         (let [loaded-f-datas (filter :loaded f-datas')]
+                             (on-cssload-custom-event loaded-f-datas)
+                             (when (fn? on-cssload)
+                               (on-cssload loaded-f-datas)))
                          (fin)))))
 
 (defn reload-css-files [{:keys [on-cssload]} {:keys [files] :as files-msg}]
