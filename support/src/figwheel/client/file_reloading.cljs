@@ -487,29 +487,41 @@
     (set! (.-href link)     (add-cache-buster url))
     link))
 
-(defn add-link-to-doc
-  ([new-link]
-     (.appendChild (aget (.getElementsByTagName js/document "head") 0)
-                   new-link))
-  ([orig-link klone]
-     (let [parent (.-parentNode orig-link)]
-       (if (= orig-link (.-lastChild parent))
-         (.appendChild parent klone)
-         (.insertBefore parent klone (.-nextSibling orig-link)))
-       (js/setTimeout #(.removeChild parent orig-link) 300))))
+(defn add-link-to-doc [orig-link klone]
+  (go
+    (let [parent (.-parentNode orig-link)]
+      (if (= orig-link (.-lastChild parent))
+        (.appendChild parent klone)
+        (.insertBefore parent klone (.-nextSibling orig-link)))
+      ;; prevent css removal flash
+      (<! (timeout 300))
+      (.removeChild parent orig-link))))
 
-(defn distictify [key seqq]
+(defn distinctify [key seqq]
   (vals (reduce #(assoc %1 (get %2 key) %2) {} seqq)))
 
-(defn reload-css-file [{:keys [file] :as f-data}]
-  (when-let [link (get-correct-link f-data)]
-    (add-link-to-doc link (clone-link link (.-href link)))
-    #_(add-link-to-doc (create-link file))))
+(defn reload-css-files* [f-datas]
+  (go-loop [[f & fs] f-datas]
+    (when f
+      (when-let [link (get-correct-link f)]
+        (<! (add-link-to-doc link (clone-link link (.-href link)))))
+      (recur fs))))
+
+(defonce reload-css-chan
+  (let [in (chan)]
+    (go-loop []
+      (when-let [{:keys [f-data-seq callback]} (<! in)]
+        (<! (reload-css-files* f-data-seq))
+        (callback))
+      (recur))
+    in))
 
 (defn reload-css-files [{:keys [on-cssload] :as opts} {:keys [files] :as files-msg}]
   (when (utils/html-env?)
-    (doseq [f (distictify :file files)] (reload-css-file f))
-    (js/setTimeout #(do
-                      (on-cssload-custom-event files)
-                      (on-cssload files))
-                   100)))
+    (when-let [files' (not-empty (distinctify :file files))]
+      (put! reload-css-chan
+            {:f-data-seq files'
+             :callback
+             #(do
+                (on-cssload-custom-event files')
+                (on-cssload files'))}))))
