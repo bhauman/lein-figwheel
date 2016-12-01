@@ -68,6 +68,7 @@
                                 "opacity: 0.0;"
                                 "box-sizing: border-box;"
                                 "z-index: 10000;"
+                                "text-align: left;"
                                 ) })]
         (set! (.-onclick el) heads-up-onclick-handler)
         (set! (.-innerHTML el) cljs-logo-svg)
