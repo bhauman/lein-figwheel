@@ -897,9 +897,9 @@ functions to be invoked on code reload.
    (.on ($ "div#app") "click" "a.button" (fn [e] (print "clicked button"))))
 
 (defn teardown []
-   (.off ($ "div#app") "click" "a.button")
+   (.off ($ "div#app") "click" "a.button"))
 
-;; define a reload hook in the
+;; define a :on-jsload hook in your :cljsbuild options
 (defn fig-reload-hook []
       (teardown)
       (setup))
