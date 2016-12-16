@@ -19,6 +19,7 @@
                             :eval-in
                             :jvm-opts
                             :local-repo
+                            :managed-dependencies
                             :dependencies
                             :repositories
                             :mirrors
