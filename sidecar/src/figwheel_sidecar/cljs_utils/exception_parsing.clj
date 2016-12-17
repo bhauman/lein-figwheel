@@ -40,6 +40,24 @@
 
 (defn exception-info? [ex] (= (:class ex) clojure.lang.ExceptionInfo))
 
+(defn parse-loaded-clojure-exception [{:keys [exception-data] :as ex}]
+  (let [exception (first exception-data)]
+    (if (= (:class exception) clojure.lang.Compiler$CompilerException)
+      (let [[_ file line column] (re-matches #".*\((.*)\:(\d+)\:(\d+)\)"
+                                             (:message exception))]
+        (cond-> (merge exception
+                       {:failed-loading-clj-file true
+                        :message (if file
+                                   (or (get-in exception [:cause :message])
+                                       (:message exception))
+                                   (:message exception))
+                        :class (if file (get-in exception [:cause :class])
+                                   (:class exception))})
+          file   (assoc :file file)
+          line   (assoc :line (Integer/parseInt line))
+          column (assoc :column (Integer/parseInt column))))
+      ex)))
+
 (defn parse-failed-compile [{:keys [exception-data] :as ex}]
   (let [exception (first exception-data)]
     (if (and
@@ -214,6 +232,7 @@
   ([inspected-exception opts]
    (-> {:exception-data (flatten-exception inspected-exception)}
        (merge opts)
+       parse-loaded-clojure-exception
        parse-failed-compile
        parse-analysis-error
        parse-reader-error

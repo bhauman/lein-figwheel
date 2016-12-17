@@ -178,18 +178,23 @@
          (string/join "\n" lines)
          "</pre>")))
 
-(defn exception->display-data [{:keys [failed-compiling reader-exception analysis-exception
-                                       class file line column message error-inline] :as exception}]
+(defn exception->display-data [{:keys [failed-loading-clj-file
+                                       failed-compiling
+                                       reader-exception
+                                       analysis-exception
+                                       class file line column message
+                                       error-inline] :as exception}]
   (let [last-message (cond
                        (and file line)
                        (str "Please see line " line " of file " file )
                        file (str "Please see " file)
                        :else nil)]
     {:head (cond
-                analysis-exception "Could not Analyze"
-                reader-exception   "Could not Read"
-                failed-compiling   "Could not Compile"
-                :else "Compile Exception")
+             failed-loading-clj-file "Couldn't load Clojure file"
+             analysis-exception "Could not Analyze"
+             reader-exception   "Could not Read"
+             failed-compiling   "Could not Compile"
+             :else "Compile Exception")
      :sub-head file
      :messages (concat
                 (map

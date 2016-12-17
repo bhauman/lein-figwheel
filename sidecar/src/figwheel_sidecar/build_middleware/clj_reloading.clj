@@ -1,9 +1,11 @@
 (ns figwheel-sidecar.build-middleware.clj-reloading
   (:require
-   [figwheel-sidecar.utils :as utils]
    [cljs.build.api :as bapi]
    [cljs.env :as env]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [figwheel-sidecar.build-middleware.notifications :as notify]
+   [figwheel-sidecar.components.figwheel-server :as server]
+   [figwheel-sidecar.utils :as utils]))
 
 ;; live relading clj macros is a tough problem and we should think
 ;; about either backing off or doing it more correctly say with
@@ -41,19 +43,7 @@
     changed-clj-files
     (filter :macro-file? changed-clj-files)))
 
-(defn clj-files-in-dirs [dirs]
-  (let [all-files (mapcat file-seq (filter #(and (.exists %)
-                                                 (.isDirectory %))
-                                           (map io/file dirs)))]
-    (map (fn [f] {:source-file f })
-         (filter #(let [name (.getName ^java.io.File %)]
-                    (and (or (.endsWith name ".clj")
-                             (.endsWith name ".cljc"))
-                         (not= \# (first name))
-                         (not= \. (first name))))
-                 all-files))))
-
-(defn handle-clj-source-reloading [{:keys [source-paths build-options compiler-env] :as build-config} changed-clj-files]
+(defn handle-clj-source-reloading [figwheel-server {:keys [source-paths build-options compiler-env] :as build-config} changed-clj-files]
   (let [build-options (or build-options (:compiler build-config))
         changed-clj-files (keep
                            (fn [f]
@@ -68,7 +58,6 @@
         ;; this could be a problem if the file isn't in the require
         ;; chain
         ;; it will be loaded anyway
-        ;; TODO send load time error notifications to server
         (load-file (.getCanonicalPath (:source-file clj-file))))
       (let [rel-files (filter :macro-file? changed-clj-files)]
         (env/with-compiler-env compiler-env
@@ -99,10 +88,24 @@
                                   (not-empty
                                    (filter (suffix-conditional reload-config)
                                            changed-files)))]
-        (let [additional-changed-ns' (handle-clj-source-reloading build-config changed-clj-files)]
-          (build-fn (update-in
-                     build-state
-                     [:additional-changed-ns]
-                     concat
-                     additional-changed-ns')))
+        (try
+          (let [additional-changed-ns'
+                (handle-clj-source-reloading figwheel-server build-config changed-clj-files)]
+            (build-fn (update-in
+                       build-state
+                       [:additional-changed-ns]
+                       concat
+                       additional-changed-ns'))
+            (let [first-file (first changed-clj-files)]
+              ;; only notify if there are no other successful
+              ;; notifications going to the client
+              (when (and (= 1 (count changed-clj-files))
+                         (.endsWith first-file ".clj"))
+                (server/send-message figwheel-server
+                                     (:id build-config)
+                                     { :msg-name :files-changed
+                                      :files [{:file first-file :type :file}]}))))
+          
+          (catch Throwable e
+            (notify/handle-exceptions figwheel-server (assoc build-config :exception e))))
         (build-fn build-state)))))
