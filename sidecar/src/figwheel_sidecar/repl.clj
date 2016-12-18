@@ -226,12 +226,26 @@ This can cause confusion when your are not using Cider."]
        #_(when (in-nrepl-env?)
            (throw (ex-info "Hey" {})))))))
 
+(defn connection-count [figwheel-server build-id]
+  (when-let [res (get (server/connection-data figwheel-server)
+                      build-id)]
+    res))
+
 (defn cljs-repl-env
   ([build figwheel-server]
    (cljs-repl-env build figwheel-server {}))
   ([build figwheel-server opts]
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
                             :warn-on-undeclared true
+                            :prompt (fn []
+                                      (let [c (connection-count figwheel-server
+                                                                (:id build))]
+                                        (print (str
+                                                (when (:id build) (str (:id build) ":"))
+                                                ana/*cljs-ns*
+                                                (when (and c (< 1 c))
+                                                  (str "!{:conn " c "}"))
+                                                "=> "))))
                             :eval #'catch-warnings-and-exceptions-eval-cljs)
                      opts)
          figwheel-server (assoc figwheel-server
