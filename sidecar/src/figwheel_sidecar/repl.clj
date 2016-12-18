@@ -1,21 +1,21 @@
 (ns figwheel-sidecar.repl
   (:require
-   [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
-   [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   
-   [cljs.repl]
-   [cljs.stacktrace]
    [cljs.analyzer :as ana]   
    [cljs.env :as env]
+   [cljs.repl]
+   [cljs.stacktrace]
    [cljs.util :refer [debug-prn]]
-   [clojure.java.io :as io]
-   [clojure.string :as string]
    [clojure.core.async :refer [chan <!! <! put! alts!! timeout close! go go-loop]]
-
+   [clojure.java.io :as io]
+   [clojure.pprint :as pp]
+   [clojure.string :as string]
    [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
+
+   [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [figwheel-sidecar.components.figwheel-server :as server]
    
    [figwheel-sidecar.config :as config]
-   [clojure.pprint :as pp])
+   [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   )
   (:import [clojure.lang IExceptionInfo]))
 
 (defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
