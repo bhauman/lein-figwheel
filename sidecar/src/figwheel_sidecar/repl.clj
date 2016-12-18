@@ -1,7 +1,7 @@
 (ns figwheel-sidecar.repl
   (:require
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
-   [strictly-specking-standalone.ansi-util :refer [with-color-when]]   
+   [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   
    [cljs.repl]
    [cljs.stacktrace]
    [cljs.analyzer :as ana]   
@@ -77,7 +77,7 @@
       {})))
 
 (defn clean-stacktrace [stack-trace]
-    (map #(update-in % [:file]
+  (map #(update-in % [:file]
                    (fn [x]
                      (when (string? x)
                        (first (string/split x #"\?")))))
@@ -163,6 +163,7 @@
           opts' (:repl-opts figwheel-env)]
       (apply cljs-repl figwheel-env (apply concat opts')))
     (catch Exception e
+      (println "!!!" (.getMessage e))
       (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.
 This is commonly caused by 
  A) not providing piggieback as a dependency and/or 
@@ -227,9 +228,24 @@ This can cause confusion when your are not using Cider."]
            (throw (ex-info "Hey" {})))))))
 
 (defn connection-count [figwheel-server build-id]
-  (when-let [res (get (server/connection-data figwheel-server)
-                      build-id)]
-    res))
+  (get (server/connection-data figwheel-server) build-id))
+
+(defn prompt-fn [figwheel-server build-id]
+  (if (in-nrepl-env?)
+    #(when-let [c (connection-count figwheel-server build-id)]
+       (when (> c 1)
+         (with-color-when (-> figwheel-server :ansi-color-output)
+           (println
+            (color
+             (str "v------- " build-id "!{:conn " c "} -------")
+             :magenta)))))
+    #(print
+      (str
+       (when build-id (str build-id ":"))
+       ana/*cljs-ns*
+       (when-let [c (connection-count figwheel-server build-id)]
+         (when (< 1 c) (str "!{:conn " c "}")))
+       "=> "))))
 
 (defn cljs-repl-env
   ([build figwheel-server]
@@ -237,15 +253,7 @@ This can cause confusion when your are not using Cider."]
   ([build figwheel-server opts]
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
                             :warn-on-undeclared true
-                            :prompt (fn []
-                                      (let [c (connection-count figwheel-server
-                                                                (:id build))]
-                                        (print (str
-                                                (when (:id build) (str (:id build) ":"))
-                                                ana/*cljs-ns*
-                                                (when (and c (< 1 c))
-                                                  (str "!{:conn " c "}"))
-                                                "=> "))))
+                            :prompt (prompt-fn figwheel-server (:id build))
                             :eval #'catch-warnings-and-exceptions-eval-cljs)
                      opts)
          figwheel-server (assoc figwheel-server
