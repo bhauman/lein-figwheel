@@ -211,6 +211,37 @@ This can cause confusion when your are not using Cider."]
                                                   :current-ns ana/*cljs-ns*
                                                   :environment :repl)))))))
 
+(defn- wrap-fn [form]
+  (cond
+    (and (seq? form)
+         (#{'ns 'require 'require-macros
+            'use 'use-macros 'import 'refer-clojure} (first form)))
+    identity
+
+    ('#{*1 *2 *3 *e} form)
+    (fn [x] `((if (and
+                   (cljs.core/exists? js/figwheel)
+                   (cljs.core/exists? js/figwheel.client.repl_result_pr_str))
+                js/figwheel.client.repl_result_pr_str
+                cljs.core.pr-str)
+              ~x))
+    :else
+    (fn [x]
+      `(try
+         ((if (and
+               (cljs.core/exists? js/figwheel)
+               (cljs.core/exists? js/figwheel.client.repl_result_pr_str))
+            js/figwheel.client.repl_result_pr_str
+            cljs.core.pr-str)
+          (let [ret# ~x]
+            (set! *3 *2)
+            (set! *2 *1)
+            (set! *1 ret#)
+            ret#))
+         (catch :default e#
+           (set! *e e#)
+           (throw e#))))))
+
 (defn catch-warnings-and-exceptions-eval-cljs
   ([repl-env env form]
    (catch-warnings-and-exceptions-eval-cljs
@@ -253,6 +284,7 @@ This can cause confusion when your are not using Cider."]
   ([build figwheel-server opts]
    (let [opts (merge (assoc (or (:compiler build) (:build-options build))
                             :warn-on-undeclared true
+                            :wrap  wrap-fn
                             :prompt (prompt-fn figwheel-server (:id build))
                             :eval #'catch-warnings-and-exceptions-eval-cljs)
                      opts)

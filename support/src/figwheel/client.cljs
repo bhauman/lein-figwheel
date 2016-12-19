@@ -52,29 +52,25 @@
   (set-print-err-fn! repl-err-print-fn)  
   nil)
 
-(def autoload?
-  (if (utils/html-env?)
-    (fn []
-      (condp = (or (try
-                     (when (js* "typeof localstorage !== 'undefined'")
-                       (.getItem js/localStorage "figwheel_autoload"))
-                     (catch js/Error e
-                       false))
-                   "true")
-        "true" true
-        "false" false))
-    (fn [] true)))
+(defn autoload? []
+  (utils/persistent-config-get :figwheel-autoload true))
 
 (defn ^:export toggle-autoload []
-  (when (utils/html-env?)
-    (try
-      (when (js* "typeof localstorage !== 'undefined'")
-        (.setItem js/localStorage "figwheel_autoload" (not (autoload?))))
-      (utils/log :info
-                 (str "Figwheel autoloading " (if (autoload?) "ON" "OFF")))
-      (catch js/Error e
-        (utils/log :info
-                   (str "Unable to access localStorage"))))))
+  (let [res (utils/persistent-config-toggle! :figwheel-autoload true)]
+    (utils/log :info
+               (str "Figwheel autoloading " (if (autoload?) "ON" "OFF")))
+    res))
+
+(defn ^:export repl-pprint []
+  (utils/persistent-config-get :figwheel-repl-pprint true))
+
+(defn ^:export toggle-repl-pprint []
+  (utils/persistent-config-toggle! :figwheel-repl-pprint true))
+
+(defn ^:export repl-result-pr-str [v]
+  (if (repl-pprint)
+    (utils/pprint-to-string v)
+    (pr-str v)))
 
 (defn get-essential-messages [ed]
   (when ed

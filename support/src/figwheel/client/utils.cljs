@@ -1,8 +1,12 @@
 (ns ^:figwheel-no-load figwheel.client.utils
   (:require [clojure.string :as string]
+            [goog.string :as gstring]
+            [cljs.reader :refer [read-string]]
+            [cljs.pprint :refer [pprint]]
             [goog.userAgent.product :as product])
   (:import [goog]
-           [goog.async Deferred]))
+           [goog.async Deferred]
+           [goog.string StringBuffer]))
 
 ;; don't auto reload this file it will mess up the debug printing
 
@@ -63,6 +67,11 @@
     (eval-fn code opts)
     (js* "eval(~{code})")))
 
+(defn pprint-to-string [x]
+  (let [sb (StringBuffer.)
+        sbw (StringBufferWriter. sb)]
+    (pprint x sbw)
+    (gstring/trimRight (str sb))))
 
 ;; Deferred helpers that focus on guaranteed successful side effects
 ;; not very monadic but it meets our needs
@@ -92,3 +101,42 @@
              deferred coll)
      (fn [_] (.succeed Deferred @results)))))
 
+
+;; persistent storage of live togglable configuration keys
+
+(defonce local-persistent-config
+  (let [a (atom {})]
+    (when (exists? js/localStorage)
+      (add-watch a :sync-local-storage
+                 (fn [_ _ _ n]
+                    (mapv (fn [[ky v]]
+                            (.setItem js/localStorage (name ky) (pr-str v)))
+                          n))))
+    a))
+
+(defn persistent-config-set!
+  "Set a local value on a key that in a browser will persist even when 
+the browser gets reloaded."
+  [ky v]
+  (swap! local-persistent-config assoc ky v))
+
+(defn persistent-config-get
+  ([ky not-found]
+   (cond
+     (contains? @local-persistent-config ky)
+     (get @local-persistent-config ky)
+     (and (exists? js/localStorage) (.getItem js/localStorage (name ky)))
+     (let [v (read-string (.getItem js/localStorage (name ky)))]
+       (persistent-config-set! ky v)
+       v)
+     :else not-found))
+  ([ky]
+   (persistent-config-get ky nil)))
+
+(defn persistent-config-swap! [ky f]
+  (swap! local-persistent-config #(update-in % [ky] f)))
+
+(defn persistent-config-toggle!
+  ([ky initial]
+   (persistent-config-swap! ky #((fnil not initial) %)))
+  ([ky] (persistent-config-toggle! ky false)))
