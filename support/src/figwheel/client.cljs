@@ -56,16 +56,41 @@
   (utils/persistent-config-get :figwheel-autoload true))
 
 (defn ^:export toggle-autoload []
-  (let [res (utils/persistent-config-toggle! :figwheel-autoload true)]
+  (let [res (utils/persistent-config-set! :figwheel-autoload (not (autoload?)))]
+    (utils/log :info
+               (str "Toggle autoload deprecated! Use (figwheel.client/set-autoload! false)"))
     (utils/log :info
                (str "Figwheel autoloading " (if (autoload?) "ON" "OFF")))
     res))
 
+(defn ^:export set-autoload
+  "Figwheel by default loads code changes as you work. Sometimes you
+  just want to work on your code without the ramifications of
+  autoloading and simply load your code piecemeal in the REPL. You can
+  turn autoloading on and of with this method. 
+
+  (figwheel.client/set-autoload false)
+
+  NOTE: This is a persistent setting, meaning that it will persist
+  through browser reloads."
+  [b]
+  (assert (or (true? b) (false? b)))
+  (utils/persistent-config-set! :figwheel-autoload b))
+
 (defn ^:export repl-pprint []
   (utils/persistent-config-get :figwheel-repl-pprint true))
 
-(defn ^:export toggle-repl-pprint []
-  (utils/persistent-config-toggle! :figwheel-repl-pprint true))
+(defn ^:export set-repl-pprint
+  "This method gives you the ability to turn the pretty printing of
+  the REPL's return value on and off.
+  
+  (figwheel.client/set-repl-pprint false)
+
+  NOTE: This is a persistent setting, meaning that it will persist
+  through browser reloads."
+  [b]
+  (assert (or (true? b) (false? b)))
+  (utils/persistent-config-set! :figwheel-repl-pprint b))
 
 (defn ^:export repl-result-pr-str [v]
   (if (repl-pprint)

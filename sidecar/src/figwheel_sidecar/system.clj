@@ -484,8 +484,8 @@
           (clean-builds [id ..])          ;; deletes compiled cljs target files
           (print-config [id ...])         ;; prints out build configurations
           (fig-status)                    ;; displays current state of system
-          (figwheel.client/toggle-autoload)    ;; will turn autoloading on and off
-          (figwheel.client/toggle-repl-pprint) ;; will turn pretty printing on and off
+          (figwheel.client/set-autoload false)    ;; will turn autoloading off
+          (figwheel.client/set-repl-pprint false) ;; will turn pretty printing off
   Switch REPL build focus:
           :cljs/quit                      ;; allows you to switch REPL to another build
     Docs: (doc function-name-here)

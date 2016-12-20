@@ -102,7 +102,7 @@
      (fn [_] (.succeed Deferred @results)))))
 
 
-;; persistent storage of live togglable configuration keys
+;; persistent storage of configuration keys
 
 (defonce local-persistent-config
   (let [a (atom {})]
@@ -132,11 +132,3 @@ the browser gets reloaded."
      :else not-found))
   ([ky]
    (persistent-config-get ky nil)))
-
-(defn persistent-config-swap! [ky f]
-  (swap! local-persistent-config #(update-in % [ky] f)))
-
-(defn persistent-config-toggle!
-  ([ky initial]
-   (persistent-config-swap! ky #((fnil not initial) %)))
-  ([ky] (persistent-config-toggle! ky false)))
