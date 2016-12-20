@@ -168,6 +168,25 @@ code in nodejs.
 
   :target :nodejs")
 
+(def-key ::infer-externs boolean?
+  "Experimental externs inference.
+
+  :infer-externs true
+
+When you set :infer-externs true you will get a new file in
+your :output-dir named inferred_externs.js. When you do an advanced
+build, this externs file will be used.
+  
+You must add type hints to your code as such:
+
+  (set! *warn-on-infer* true)
+  (defn foo [^js/React.Component c]
+    (.render c))
+
+Please see:
+https://gist.github.com/swannodette/4fc9ccc13f62c66456daf19c47692799")
+
+
 (def-key ::foreign-libs (s/every
                          (strict-keys
                           :req-un [::file
@@ -803,6 +822,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::verbose
      ::pretty-print
      ::target
+     ::infer-externs
      ::foreign-libs
      ::externs
      ::modules
