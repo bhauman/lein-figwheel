@@ -40,11 +40,24 @@
 
 (defn exception-info? [ex] (= (:class ex) clojure.lang.ExceptionInfo))
 
+(defn extract-location-info
+  "Return a map {:file ... :line X :column Y}"
+  [ex]
+  (cond
+    (= (:class ex) clojure.lang.Compiler$CompilerException)
+    (let [[_ file line column] (re-matches #".*\((.*)\:(\d+)\:(\d+)\)" (:message ex))]
+      {:file file
+       :line (Integer/parseInt line)
+       :column (Integer/parseInt column)})
+
+    ;; AR - boot-cljs format here
+    (= (-> ex :data :tag) :cljs/analysis-error)
+    (:data ex)))
+
 (defn parse-loaded-clojure-exception [{:keys [exception-data] :as ex}]
   (let [exception (first exception-data)]
-    (if (= (:class exception) clojure.lang.Compiler$CompilerException)
-      (let [[_ file line column] (re-matches #".*\((.*)\:(\d+)\:(\d+)\)"
-                                             (:message exception))]
+    (if-let [location-info (extract-location-info exception)]
+      (let [{:keys [file line column]} location-info]
         (cond-> (merge exception
                        {:failed-loading-clj-file true
                         :message (if file
@@ -54,8 +67,8 @@
                         :class (if file (get-in exception [:cause :class])
                                    (:class exception))})
           file   (assoc :file file)
-          line   (assoc :line (Integer/parseInt line))
-          column (assoc :column (Integer/parseInt column))))
+          line   (assoc :line line)
+          column (assoc :column column)))
       ex)))
 
 (defn parse-failed-compile [{:keys [exception-data] :as ex}]
