@@ -4,96 +4,91 @@
    [clojure.string :as string]
    [clojure.java.io :as io]
    [clojure.stacktrace :as stack]
+   [clojure.walk :refer [postwalk]]
+   #_[clojure.pprint :refer [pprint]]
    [strictly-specking-standalone.ansi-util :refer [color-text]]   
    #_[cljs.build.api :as bapi]
    [figwheel-sidecar.utils :as utils]))
 
-;; TODO this should only happen before sending across the wire
-(defn data-serialize [k o]
+(def serializable-datum? (some-fn map? list? vector? set? number? string? symbol? keyword?))
+
+(defn serialize-filter [i]
   (cond
-    (= k :root-source-info) o
-    (= k :form) o
-    (= k :focused-form) o
-    (or (number? o)
-        (symbol? o)
-        (keyword? o)) o
-    :else (str o)))
+    ;; this is temporary while versions of clojurescript read-string can't
+    ;; can't read namespaced maps like #:asdf {:hello 1 :there 2}
+    ;; this is mainly a problem with wanting to ship
+    ;; clojure.spec explain data to the figwheel client
+    (keyword? i) (keyword (name i))
+    (serializable-datum? i) i
+    :else (str i)))
+
+(def serialize-edn-for-js-env (partial postwalk serialize-filter))
 
 (defn inspect-exception [ex]
   (-> 
    {:class (type ex)
     :message (.getMessage ex)
-    :data (when-let [data (ex-data ex)]
-           (->> data
-                (map #(vector (first %) (data-serialize (first %) (second %))))
-                (into {})))  
+    :data (ex-data ex)  
     :cause (when (.getCause ex) (inspect-exception (.getCause ex)))}
    ;; adding exception to meta data because I don't want it serialize over the wire
    ;; and its only here as a fall back
-   ;; I also don't wanted printed out during development
+   ;; I also don't want it printed out during development
    (vary-meta assoc :orig-exception ex)))
 
-(defn flatten-exception [ex]
-  (->> ex
-       (iterate :cause)
-       (take-while (comp not nil?))))
+(def flatten-exception #(take-while some? (iterate :cause %)))
 
-(defn exception-info? [ex] (= (:class ex) clojure.lang.ExceptionInfo))
+(def exception-info? #(-> % :class (= clojure.lang.ExceptionInfo)))
+
+(defn display-ex-data? [{:keys [cause]}]
+  (when ((every-pred exception-info? :data) cause)
+    {:display-ex-data (serialize-edn-for-js-env (:data cause))}))
 
 (defn parse-loaded-clojure-exception [{:keys [exception-data] :as ex}]
-  (let [exception (first exception-data)]
-    (if (= (:class exception) clojure.lang.Compiler$CompilerException)
-      (let [[_ file line column] (re-matches #".*\((.*)\:(\d+)\:(\d+)\)"
-                                             (:message exception))]
-        (cond-> (merge exception
+  (if (-> exception-data :class (= clojure.lang.Compiler$CompilerException))
+    (let [[_ file line column] (re-matches #"(?s).*\((.*)\:(\d+)\:(\d+)\)"
+                                           (:message exception-data))]
+      (cond-> (merge ex
+                     (let [exceptions-to-try (cond->> [exception-data]
+                                               file (cons (:cause exception-data)))]
                        {:failed-loading-clj-file true
-                        :message (if file
-                                   (or (get-in exception [:cause :message])
-                                       (:message exception))
-                                   (:message exception))
-                        :class (if file (get-in exception [:cause :class])
-                                   (:class exception))})
-          file   (assoc :file file)
-          line   (assoc :line (Integer/parseInt line))
-          column (assoc :column (Integer/parseInt column))))
-      ex)))
+                        :message (first (keep :message exceptions-to-try))
+                        :class   (first (keep :class   exceptions-to-try))})
+                     (display-ex-data? exception-data))
+        file   (assoc :file file)
+        line   (assoc :line (Integer/parseInt line))
+        column (assoc :column (Integer/parseInt column))))
+    ex))
 
 (defn parse-failed-compile [{:keys [exception-data] :as ex}]
-  (let [exception (first exception-data)]
-    (if (and
-         (exception-info? exception)
-         (->> exception
-             :message
-             (re-matches #"failed compiling.*")))
-      (assoc ex
+  (if (and
+       (exception-info? exception-data)
+       (->> exception-data :message (re-matches #"failed compiling.*")))
+    (assoc ex
              :failed-compiling true
-             :message (:message exception)
-             :file (get-in exception [:data :file]))
-      ex)))
+             :message (:message exception-data)
+             :file (get-in exception-data [:data :file]))
+    ex))
+
+(defn some-exception-info [pred-fn exception-data]
+  (->> (flatten-exception exception-data)
+       (filter (every-pred exception-info? pred-fn))
+       first))
 
 (defn parse-analysis-error [{:keys [exception-data] :as ex}]
   (if-let [analysis-exception
-           (first
-            (filter (fn [{:keys [data] :as exc}]
-                      (when (and (exception-info? exc) data)
-                        (= (:tag data) :cljs/analysis-error)))
-                    exception-data))]
-    (merge {:analysis-exception analysis-exception
-            :class   (get-in analysis-exception [:cause :class])}
+           (some-exception-info #(= (-> % :data :tag) :cljs/analysis-error) exception-data)]
+    (merge {:analysis-exception true
+            :class      (get-in analysis-exception [:cause :class])}
            (select-keys (:data analysis-exception) [:file :line :column :root-source-info])
            ex
-           {:message (or (get-in analysis-exception [:cause :message])
-                         (:message analysis-exception))})
+           (display-ex-data? analysis-exception)
+           {:message (first (keep :message ((juxt :cause identity) analysis-exception)))})
     ex))
 
 (defn parse-reader-error [{:keys [exception-data] :as ex}]
   (if-let [reader-exception
-           (first
-            (filter (fn [{:keys [data] :as exc}]
-                      (when (and (exception-info? exc) data)
-                        (= (:type data) :reader-exception)))
-                    exception-data))]
-    (merge {:reader-exception reader-exception}
+           (some-exception-info #(= (-> % :data :type) :reader-exception) exception-data)]
+    (merge {:reader-exception true}
            (select-keys (:data reader-exception) [:file :line :column])
            ex
            {:message (:message reader-exception)})
@@ -110,16 +105,21 @@
 
 ;; last resort if no line or file data available in exception
 (defn ensure-file-line [{:keys [exception-data] :as ex}]
-  (let [{:keys [file line]} (apply merge (keep :data exception-data))]
-    (cond->> ex
-        (-> :file nil?) (assoc ex :file file)
-        (-> :line nil?) (assoc ex :line line)
-        (-> :message nil?) (assoc ex :message (last (keep :message exception-data))))))
+  (let [exception-data (flatten-exception exception-data)
+        {:keys [file line]} (apply merge (keep :data exception-data))]
+    (cond-> ex
+        (-> ex :file nil?)    (assoc :file file)
+        (-> ex :line nil?)    (assoc :line line)
+        (-> ex :message nil?) (assoc :message (last (keep :message exception-data))))))
 
 (defn remove-file-from-message [{:keys [message file] :as ex}]
   (if (and file (re-matches #".*in file.*" message))
     (assoc ex :message (first (string/split message #"in file")) )
     ex))
+
+;;; above here is exception specific
+
+;;; in context display
 
 (defn breaker-line [previous-line message column]
   (let [previous-line-start-pos (count (take-while #(= % \space) previous-line))]
@@ -128,11 +128,6 @@
                                       \space)) "^--- "
                    (if message message ""))
       :else (str (apply str (repeat previous-line-start-pos \space)) (if message message "^^^^ error originates on line above ^^^^")))))
-
-
-;;; above here is exception specific
-
-;;; in context display
 
 (defn trim-blank* [lines]
   (drop-while #(string/blank? (nth % 2)) lines))
@@ -230,7 +225,7 @@
 (defn parse-inspected-exception
   ([inspected-exception] (parse-inspected-exception inspected-exception nil))
   ([inspected-exception opts]
-   (-> {:exception-data (flatten-exception inspected-exception)}
+   (-> {:exception-data inspected-exception}
        (merge opts)
        parse-loaded-clojure-exception
        parse-failed-compile
@@ -240,7 +235,21 @@
        remove-file-from-message
        relativize-file-to-project-root
        (display-error-in-context (if (= (:environment opts) :repl) 15 3))
-       )))
+       ;; remove data before shipping over the wire
+       (update-in [:exception-data]
+                  (fn remove-data [d]
+                    (cond-> d
+                      (:cause d) (update-in [:cause] remove-data)
+                      (:data d)  (dissoc :data)))))))
+
+(comment
+  (parse-inspected-exception (example-ex :analysis))
+  (parse-inspected-exception (example-ex :analysis2))
+  (parse-inspected-exception (example-ex :analysis3))
+  (parse-inspected-exception (example-ex :reader))
+  (parse-inspected-exception (example-ex :plain-exception))
+  (parse-inspected-exception (example-ex :repl-based-exception))
+  )
 
 (defn parse-exception
   ([exception] (parse-exception exception nil))
@@ -278,30 +287,28 @@
     (.getName x)
     (catch Exception e x)))
 
- (defn exception-data->display-data [{:keys [failed-compiling reader-exception analysis-exception
+(defn exception-data->display-data [{:keys [failed-compiling reader-exception analysis-exception
+                                            failed-loading-clj-file
                                             class file line column message error-inline environment current-ns] :as exception}]
   (let [direct-form (#{"<cljs repl>" "NO_SOURCE_FILE"} file)
         file         (if direct-form "<cljs form>" file)
         last-message (cond
-                       direct-form
-                       nil
-                       #_(and file line column)
-                       #_(str "Please see line " line ", column " column " of file " file )
-                       #_(and file line)
-                       #_(str "Please see line " line " of file " file )
+                       direct-form nil
                        file (str "Please see " file)
                        :else nil)]
     {:type ::exception
      :error-type (cond
+                   failed-loading-clj-file "Clojure File Load Error"
                    analysis-exception "Analysis Error"
                    reader-exception   "Reader Error"
                    failed-compiling   "Compiler Error"
                    :else "Exception")
      :head (cond
-                analysis-exception "Could not Analyze"
-                reader-exception   "Could not Read"
-                failed-compiling   "Could not Compile"
-                :else "Exception")
+             failed-loading-clj-file "Couldn't load Clojure file"
+             analysis-exception "Could not Analyze"
+             reader-exception   "Could not Read"
+             failed-compiling   "Could not Compile"
+             :else "Exception")
      :sub-head file
      :messages (map
                 #(update-in % [:class] get-class-name)
@@ -309,7 +316,7 @@
                  [{:class class :message message}]
                  (:exception-data exception)))
      :stack-trace (when-not (or failed-compiling reader-exception analysis-exception)
-                    (when-let [e (-> exception :exception-data last meta :orig-exception)]
+                    (when-let [e (-> exception :exception-data flatten-exception last meta :orig-exception)]
                       (with-out-str (stack/print-cause-trace e))))
      :error-inline error-inline
      :last-message last-message
@@ -317,9 +324,7 @@
      :line line
      :column column
      :environment environment
-     :current-ns current-ns
-     
-     }))
+     :current-ns current-ns}))
 
 (defn warning-data->display-data [{:keys [file line column message
                                           error-inline ns environment current-ns] :as exception}]
@@ -471,21 +476,21 @@
                     :data {:file "test.cljs", :line 6, :column 4, :tag :cljs/analysis-error},
                     :cause {:class java.lang.IllegalArgumentException, :message "Parameter declaration \"a\" should be a vector", :data nil, :cause nil}}}
    :analysis3 {:class clojure.lang.ExceptionInfo,
-                   :message "failed compiling file:test.cljs",
-                   :data {:file "test.cljs"},
-                   :cause
-                   {:class clojure.lang.ExceptionInfo,
-                    :message "Invalid :refer, var var cljs.core.async/yep does not exist in file test.cljs",
-                    :data {:tag :cljs/analysis-error},
-                    :cause nil}}
+               :message "failed compiling file:test.cljs",
+               :data {:file "test.cljs"},
+               :cause
+               {:class clojure.lang.ExceptionInfo,
+                :message "Invalid :refer, var var cljs.core.async/yep does not exist in file test.cljs",
+                :data {:tag :cljs/analysis-error},
+                :cause nil}}
    :reader {:class clojure.lang.ExceptionInfo,
-                :message "failed compiling file:test.cljs",
-                :data {:file "test.cljs"},
-                :cause
-                {:class clojure.lang.ExceptionInfo,
-                 :message "EOF while reading, starting at line 3 and column 4",
-                 :data {:type :reader-exception, :line 10, :column 1, :file "/Users/bhauman/workspace/lein-figwheel/example/test.cljs"},
-                 :cause nil}}
+            :message "failed compiling file:test.cljs",
+            :data {:file "test.cljs"},
+            :cause
+            {:class clojure.lang.ExceptionInfo,
+             :message "EOF while reading, starting at line 3 and column 4",
+             :data {:type :reader-exception, :line 10, :column 1, :file "/Users/bhauman/workspace/lein-figwheel/example/test.cljs"},
+             :cause nil}}
    :plain-exception (let [e (try (throw (Exception. "HEEEY"))
                                                     (catch Throwable e
                                                       e))]

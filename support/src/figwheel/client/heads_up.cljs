@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as string]
    [figwheel.client.socket :as socket]
+   [figwheel.client.utils :as utils]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [goog.string]
    [goog.dom.dataset :as data]
@@ -178,10 +179,13 @@
          (string/join "\n" lines)
          "</pre>")))
 
+(def flatten-exception #(take-while some? (iterate :cause %)))
+
 (defn exception->display-data [{:keys [failed-loading-clj-file
                                        failed-compiling
                                        reader-exception
                                        analysis-exception
+                                       display-ex-data
                                        class file line column message
                                        error-inline] :as exception}]
   (let [last-message (cond
@@ -204,10 +208,12 @@
                            (str (escape class)
                                 ": ") "")
                         "<span style=\"font-weight:bold;\">" (escape message) "</span>")
+                   (when display-ex-data
+                     (str "<pre>" (utils/pprint-to-string display-ex-data) "</pre>"))
                    (when (pos? (count error-inline))
                      (format-inline-error error-inline))]
                   (map #(str (escape (:class %))
-                             ": " (escape (:message %)))  (:exception-data exception))))
+                             ": " (escape (:message %)))  (flatten-exception (:exception-data exception)))))
                 (when last-message [(str "<div style=\"color: #AD4F4F; padding-top: 3px;\">" (escape last-message) "</div>")]))
      :file file
      :line line
