@@ -51,6 +51,7 @@
     ::server-port
     ::server-ip
     ::css-dirs
+    ::force-index
     ::ring-handler
     ::builds-to-start
     ::auto-clean
@@ -112,6 +113,15 @@ files. These files will be watched for changes and the figwheel client
 will attempt to reload them.
 
   :css-dirs [\"resources/public/css\"]")
+
+(def-key ::force-index       boolean?
+  "Typically, the figwheel server returns a 404 page if it cannot find
+a resource for a given path. With this option, you can force figwheel to
+attempt to return the index.html instead of the 404, which can be useful
+when using client-side routing libraries.
+Default: False
+
+  :force-index true")
 
 (def-key ::ring-handler      ::string-or-named
 
