@@ -18,7 +18,8 @@
 
 (defn worker-env? [] (and
                       (nil? goog/global.document)
-                      (not (nil? (.-importScripts js/self)))))
+                      (exists? js/self)
+                      (exists? (.-importScripts js/self))))
 
 (defn host-env? [] (cond (node-env?)   :node
                          (html-env?)   :html
