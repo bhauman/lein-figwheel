@@ -62,6 +62,7 @@
 (defn parse-failed-compile [{:keys [exception-data] :as ex}]
   (if (and
        (exception-info? exception-data)
+       (:message exception-data)
        (->> exception-data :message (re-matches #"failed compiling.*")))
     (assoc ex
              :failed-compiling true
@@ -314,7 +315,7 @@
                 #(update-in % [:class] get-class-name)
                 (if message
                  [{:class class :message message}]
-                 (:exception-data exception)))
+                 (flatten-exception (:exception-data exception))))
      :stack-trace (when-not (or failed-compiling reader-exception analysis-exception)
                     (when-let [e (-> exception :exception-data flatten-exception last meta :orig-exception)]
                       (with-out-str (stack/print-cause-trace e))))
@@ -451,10 +452,10 @@
       warning-data->display-data
       formatted-exception-display-str))
 
-#_(-> (:reader example-ex)
-    parse-inspected-exception
-    exception-data->display-data
-    formatted-exception-display-str)
+#_(-> (example-ex :analysis-no-message) #_(:reader example-ex)
+      parse-inspected-exception
+      exception-data->display-data
+      formatted-exception-display-str)
 
 ;; this is only for development
 
@@ -483,6 +484,12 @@
                 :message "Invalid :refer, var var cljs.core.async/yep does not exist in file test.cljs",
                 :data {:tag :cljs/analysis-error},
                 :cause nil}}
+   :analysis-no-message {:class clojure.lang.ExceptionInfo,
+                         :data {:file "test.cljs"},
+                         :cause
+                         {:class clojure.lang.ExceptionInfo,
+                          :data {:tag :cljs/analysis-error},
+                          :cause nil}}
    :reader {:class clojure.lang.ExceptionInfo,
             :message "failed compiling file:test.cljs",
             :data {:file "test.cljs"},
