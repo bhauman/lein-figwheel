@@ -77,7 +77,7 @@
     (go-loop []
       (when-let [v (<! throttle-chan)]
         (let [files (<! (take-until-timeout throttle-chan))]
-          (when-let [result-files (not-empty (filter valid-file? (map :file (cons v files))))]
+          (when-let [result-files (not-empty (distinct (filter valid-file? (map :file (cons v files)))))]
             (callback result-files)))
         (recur)))
     
