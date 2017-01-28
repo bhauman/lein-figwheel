@@ -7,14 +7,6 @@
 
 ;; live javascript reloading
 
-(defn get-foreign-lib [{:keys [foreign-libs]} file-path]
-  (when foreign-libs
-    (let [file (io/file file-path)]
-      (first (filter (fn [fl]
-                       (= (.getCanonicalPath (io/file (:file fl)))
-                          (.getCanonicalPath file)))
-                     foreign-libs)))))
-
 ;; extremely tenuous relationship, this could break easily
 ;; file-path is a string and it is an absolute path
 (defn cljs-target-file-from-foreign [output-dir file-path]
@@ -44,9 +36,7 @@
              (safe-js->ns out-file))))))
 
 (defn js-file->namespaces [{:keys [foreign-libs output-dir] :as state} js-file-path]
-  (if-let [foreign (get-foreign-lib state js-file-path)]
-    (best-try-js-ns state js-file-path)
-    (safe-js->ns js-file-path)))
+  (best-try-js-ns state js-file-path))
 
 (defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
