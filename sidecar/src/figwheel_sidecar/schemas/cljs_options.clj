@@ -189,9 +189,9 @@ https://gist.github.com/swannodette/4fc9ccc13f62c66456daf19c47692799")
 
 (def-key ::foreign-libs (s/every
                          (strict-keys
-                          :req-un [::file
-                                   ::provides]
+                          :req-un [::file]
                           :opt-un [::file-min
+                                   ::provides
                                    ::requires
                                    ::module-type
                                    ::preprocess])
