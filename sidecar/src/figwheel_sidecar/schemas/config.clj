@@ -487,7 +487,7 @@ correct paths to your classpath.
 
 Compile Paths - The :source-paths vector of paths is passed to the
 compiler and tells it to compile these directories.  The ClojureScript
-compiler then interates through the CLJS sources in these directories
+compiler then iterates through the CLJS sources in these directories
 and compiles them. You can override :source-paths and specify which
 paths are sent to the compiler with :compile-paths.
 
@@ -504,15 +504,12 @@ for changes.
 
 The default value is the contents of :source-paths
 
-These paths should be relative from the root of the project to the
-root the namespace.  For example, if you have an src/example/core.cljs
-file that contains a example.core namespace, the source path to this
-file is \"src\"
+These paths should be relative from the root of the project.
 
   :watch-paths [\"src\"]")
 
 (def-key ::compile-paths (s/every non-blank-string? :into [] :kind sequential?)
-  "A vector of paths to the directories of source files that you want compiled. 
+  "A vector of paths to the directories of cljs source files that you want compiled. 
 
 The default value is the contents of :source-paths
 
