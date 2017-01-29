@@ -242,8 +242,8 @@
   (map-to-vec-builds
    (let [res (if-let [data (figwheel-edn)]
                (:builds data)
-               (get-in (fuz/fuzzy-select-keys-and-fix data [:cljsbuild])
-                       [:cljsbuild :builds]))]
+               (let [cnf (fuz/fuzzy-select-keys-and-fix data [:cljsbuild :figwheel])]
+                 (or (get-in cnf [:figwheel :builds]) (get-in cnf [:cljsbuild :builds]))))]
      (if (coll? res) res []))))
 
 (defn figwheel-options [data]
