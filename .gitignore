@@ -13,6 +13,9 @@ example/figwheel_server.log
 example/node_modules
 example/server_out
 example/target
+examples/node-example/node_modules
+examples/node-example/figwheel_server.log
+examples/node-example/target
 support/target
 sidecar/target
 plugin/target
@@ -36,6 +39,7 @@ pom.xml.asc
 .lein-classpath
 config.ru
 
+figwheel_server.log
 *~
 *-init.clj
 sidecar/figwheel_server.log
