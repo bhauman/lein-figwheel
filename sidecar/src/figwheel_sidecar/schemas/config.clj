@@ -900,9 +900,9 @@ Default: nil (disabled)
 
 (def-key ::lein-project-with-figwheel-builds
   (strict-keys
-   :opt-un [:figwheel.lein-project.require-builds/figwheel]
+   :req-un [:figwheel.lein-project.require-builds/figwheel]
    ;; don't require builds in cljsbuild
-   :req-un [:cljsbuild.lein-project/cljsbuild]))
+   :opt-un [:cljsbuild.lein-project/cljsbuild]))
 
 (defn must-have-one-opt-none-build [with-builds]
   (if (and (or (map? (:builds with-builds))
