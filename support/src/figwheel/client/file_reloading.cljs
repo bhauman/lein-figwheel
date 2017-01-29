@@ -61,13 +61,6 @@
 (defn provided? [ns]
   (aget js/goog.dependencies_.written (name->path ns)))
 
-;; this is pretty simple, not sure how brittle it is 
-(defn fix-node-request-url [url]
-  (dev-assert (string? url))
-  (if (gstring/startsWith url "../")
-    (string/replace url "../" "")
-    (str "goog/" url)))
-
 (defn immutable-ns? [name]
   (or (#{"goog"
          "cljs.core"
@@ -221,17 +214,18 @@
 (def reload-file*
   (condp = (utils/host-env?)
     :node
-    (let [path-parts #(string/split %  #"[/\\]")
-          sep (if (re-matches #"win.*" js/process.platform ) "\\" "/")
-          root (string/join sep (pop (pop (path-parts js/__dirname))))]
+    (let [node-path-lib (js/require "path")
+          ;; just finding a file that is in the cache so we can
+          ;; figure out where we are
+          util-pattern (str (.-sep node-path-lib)
+                            (.join node-path-lib "goog" "bootstrap" "nodejs.js"))
+          util-path (gobj/findKey js/require.cache (fn [v k o] (gstring/endsWith k util-pattern)))
+          parts     (-> (string/split util-path #"[/\\]") pop pop)
+          root-path (string/join (.-sep node-path-lib) parts)]
       (fn [request-url callback]
         (dev-assert (string? request-url) (not (nil? callback)))
-        (let [cache-path
-              (string/join
-               sep
-               (cons root
-                     (path-parts (fix-node-request-url request-url))))]
-          (aset (.-cache js/require) cache-path nil)
+        (let [cache-path (.resolve node-path-lib root-path request-url)]
+          (gobj/remove (.-cache js/require) cache-path)
           (callback (try
                       (js/require cache-path)
                       (catch js/Error e
