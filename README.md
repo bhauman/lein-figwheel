@@ -18,7 +18,7 @@ please take a moment and support it:
 <img src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png" width="200">
 </a>
 
-Donated so far: 2015 $73 &nbsp;&nbsp;&nbsp; 2016: $2752 &nbsp;&nbsp;&nbsp; 2017: $73
+Donated so far: &nbsp;&nbsp;&nbsp; 2015: $73 &nbsp;&nbsp;&nbsp; 2016: $2752 &nbsp;&nbsp;&nbsp; 2017: $22
 
 
 #### Current version:
