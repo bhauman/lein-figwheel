@@ -16,7 +16,7 @@
    [cljs.core.async.macros :refer [go go-loop]])
   (:import [goog]))
 
-(def _figwheel-version_ "0.5.9-SNAPSHOT")
+(def _figwheel-version_ "0.5.9")
 
 ;; exception formatting
 

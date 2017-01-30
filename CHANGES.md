@@ -1,3 +1,34 @@
+## 0.5.9 JavaScript reloading for Foreign lib dirs and pprint REPL results
+
+* seemless hot reloading of JavaScript in foreign lib dirs
+  This works for the new Javascript module and pre-processing 
+  functionality introduced in CLJS 1.9.456
+* added pprint for repl eval results and tools to turn it on and off
+* display the number of connections in the REPL
+* support for webworkers added PR #498
+* send errors thrown when we try to reload a clojure file up to the HUD
+* added :compile-paths and :watch-paths
+  - :compile-paths will override :source-paths and determine the paths given to the compiler
+  - :watch-paths will override :source-paths and determine the paths given to the filewatcher
+  - :source-paths will always determine the paths to be added to the classpath
+* fix hot reloading on node for CLJS 1.9.456
+* support lein's managed dependencies
+* text-align left forced for the HUD displays
+* fixed css reloading race condition
+* fixed clj file reloading so that only macro files trigger reloads of CLJS dependents
+* fixed ^:figwheel-no-load
+* added :auto-clean option to allow the dissabling of figwheel's auto cleaning
+* reverted the inlining of figwheel connect cljs code and dump it to the filesystem
+* fixed (require) in the figwheel repl
+* fixed the reported output directory of a changed file
+* fix bug where figwheel connection scripts were being reloaded
+* clarify message when starting nrepl without piggieback
+* fix bugs around having :figwheel > :builds hold your build configs
+* :provides in :foreign libs is not a required option
+* added :infer-externs to schema
+* add cljs-config :closure-warnings to the config spec
+* add cljs-config :warnings to the config spec
+
 ## 0.5.8 Fix for Clojure 1.9.0-alpha12
 
 * small fix for recent Clojure alpha
