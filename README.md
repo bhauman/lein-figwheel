@@ -11,20 +11,15 @@ Read the [introductory blog post](http://rigsomelight.com/2014/05/01/interactive
 
 ## Support Figwheel
 
-If Figwheel has fundamentally redefined the way you perceive and do
-front-end work please take a moment and support it:
+If Figwheel has fundamentally redefined the way you do front-end work
+please take a moment and support it:
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=B8B3LKTXKV69C">
 <img src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png" width="200">
 </a>
 
-Donation totals by year (updated monthly):
+Donated so far: 2015: $73 2016: $2752 2017: $73 ...
 
-Year|Amount
------|-----
-2017|$22
-2016|$2752
-2015|$73
 
 #### Current version:
 [![Clojars Project](https://clojars.org/lein-figwheel/latest-version.svg)](https://clojars.org/lein-figwheel)
