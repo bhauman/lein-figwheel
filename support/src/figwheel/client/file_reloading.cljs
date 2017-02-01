@@ -64,6 +64,7 @@
 (defn immutable-ns? [name]
   (or (#{"goog"
          "cljs.core"
+         "cljs.nodejs"
          "an.existing.path"
          "dup.base"
          "far.out"
@@ -148,7 +149,8 @@
 
 (defn get-all-dependents [nss]
   (let [topo-sort' (build-topo-sort ns->dependents)]
-    (reverse (apply concat (topo-sort' (set nss))))))
+    (filter (comp not immutable-ns?)
+            (reverse (apply concat (topo-sort' (set nss)))))))
 
 #_(prn "dependents" (get-all-dependents [ "example.core" "figwheel.client.file_reloading" "cljs.core"]))
 
