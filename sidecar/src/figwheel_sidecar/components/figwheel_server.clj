@@ -11,7 +11,7 @@
    [clojure.stacktrace :as stack]
    [clojure.core.async :refer [go-loop <!! <! timeout]]
 
-   [ring.util.response :refer [resource-response] :as response]
+   [ring.util.response :refer [file-response] :as response]
    [ring.util.mime-type :as mime]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
@@ -154,7 +154,7 @@
 (defn handle-index [handler root]
   (fn [request]
     (if (= [:get "/"] ((juxt :request-method :uri) request))
-      (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")})
+      (if-let [resp (some-> (file-response "index.html" {:root (or root "resources/public")})
                             (response/content-type "text/html; charset=utf-8"))]
         resp
         (handler request))
@@ -167,7 +167,7 @@
                           response))]
     (fn [{:keys [request-method uri] :as request}]
       (if (= :get request-method)
-        (if-let [resp (some-> (resource-response uri {:root (or root "public")})
+        (if-let [resp (some-> (file-response uri {:root (or root "resources/public")})
                               (add-mime-type uri))]
           resp
           (handler request))
@@ -267,7 +267,7 @@
         ;; seems like this id should be different for every
         ;; server restart thus forcing the client to reload
         :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
-        :http-server-root (or http-server-root "public")
+        :http-server-root (or http-server-root "resources/public")
         :server-port (or server-port 3449)
         :server-ip (or server-ip "0.0.0.0")
         :ring-handler ring-handler
