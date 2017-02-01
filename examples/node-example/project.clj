@@ -19,8 +19,9 @@
                 :figwheel true
                 :compiler {:main node-example.core
                            ;; in order to call node from root of project
-                           ;; need to asset same as :output-dir
+                           ;; need to have :asset-path be the same as :output-dir
                            :asset-path "target/js/compiled/out"
+                           ;; the script you will run with node
                            :output-to  "target/js/compiled/node_example.js"
                            :output-dir "target/js/compiled/out"
                            :source-map-timestamp true
