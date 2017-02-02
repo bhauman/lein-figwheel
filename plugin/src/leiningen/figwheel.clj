@@ -3,12 +3,15 @@
   (:require
    #_[clojure.pprint :as pp]
    [leiningen.core.eval :as leval]
+   [leiningen.core.project :as lproject]
    [leiningen.clean :as clean]
    [leiningen.core.main :as main]
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
    [leiningen.figwheel.fuzzy :as fuz]
-   [simple-lein-profile-merge.core :as lm]))
+   [simple-lein-profile-merge.core :as lm])
+  (:import (java.io File)
+           (java.nio.file Path)))
 
 (def _figwheel-version_ "0.5.15-SNAPSHOT")
 
@@ -284,6 +287,44 @@
   (when (every? not-empty args)
     (not-empty (apply intersection (map set args)))))
 
+(defn checkout-source-paths
+  "Get source paths for all of the lein projects in the checkouts directory."
+  [project]
+  (let [checkout-project-maps (lproject/read-checkouts project)
+        checkout-sources (for [co-project checkout-project-maps
+                               source-path (:source-paths co-project)]
+                           ;; Make the checkout source path pretty, e.g. checkouts/utils-lib/src
+                           (str (.relativize (.toPath (io/file (:root project))) ;; Note, root of the parent project, not the checkout project
+                                             (.toPath (io/file source-path)))))]
+    (distinct checkout-sources)))
+
+(defn map-vals
+  "Returns a hashmap consisting of the result of applying f to
+   the value of each set in hashmap.
+   Function f should accept one single argument."
+  [f m]
+  (persistent!
+    (reduce-kv (fn [m k v] (assoc! m k (f v)))
+               (transient (empty m)) m)))
+
+(defn update-builds
+  "Map a function across each cljsbuild build config.
+
+   The :cljsbuild :builds path can either be a vector of builds,
+   or a map of build-ids to builds. This function handles both variants."
+  [project f]
+  (if-let [builds (get-in project [:cljsbuild :builds])]
+    (assoc-in project
+              [:cljsbuild :builds]
+              (if (map? builds)
+                (map-vals f builds)
+                (map f builds)))
+    project))
+
+(defn add-source-paths [project source-paths]
+  (update-builds project
+                 (fn [build] (update build :source-paths (fn [existing-paths] (reduce conj existing-paths source-paths))))))
+
 (defn source-paths-for-classpath [{:keys [figwheel-options all-builds build-ids] :as data}]
   (if-not (and all-builds (not-empty all-builds))
     []
@@ -398,21 +439,25 @@
 
 (defn build-once [project build-ids]
   (when-not (report-if-bad-build-ids project build-ids)
-    (run-build-once
-     project
-     (fuzzy-config-from-project project)
-     (source-paths-for-classpath
-      (normalize-data project build-ids))
-     (vec build-ids))))
+    (let [checkout-sources (checkout-source-paths project)
+          project (add-source-paths project checkout-sources)]
+      (run-build-once
+        project
+        (fuzzy-config-from-project project)
+        (source-paths-for-classpath
+          (normalize-data project build-ids))
+        (vec build-ids)))))
 
 (defn figwheel-main [project build-ids]
   (when-not (report-if-bad-build-ids project build-ids)
-    (run-figwheel
-     project
-     (fuzzy-config-from-project project)
-     (source-paths-for-classpath
-      (normalize-data project build-ids))
-     (vec build-ids))))
+    (let [checkout-sources (checkout-source-paths project)
+          project          (add-source-paths project checkout-sources)]
+      (run-figwheel
+        project
+        (-> project fuzzy-config-from-project)
+        (source-paths-for-classpath
+          (normalize-data project build-ids))
+        (vec build-ids)))))
 
 (defmulti fig-dispatch (fn [command _ _] command))
 

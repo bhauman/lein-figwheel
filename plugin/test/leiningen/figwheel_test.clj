@@ -1,11 +1,12 @@
 (ns leiningen.figwheel-test
   (:require
-   [leiningen.figwheel :as f]
-   [clojure.test :as t :refer [deftest is testing run-tests]]
-   [clojure.test.check :as tc]
-   [clojure.test.check.generators :as gen]
-   [clojure.test.check.properties :as prop]
-   [clojure.test.check.clojure-test :refer [defspec]]))
+    [leiningen.figwheel :as f]
+    [clojure.test :as t :refer [deftest is testing run-tests]]
+    [clojure.test.check :as tc]
+    [clojure.test.check.generators :as gen]
+    [clojure.test.check.properties :as prop]
+    [clojure.test.check.clojure-test :refer [defspec]]
+    [clojure.java.io :as io]))
 
 (def iterations 10)
 
@@ -132,7 +133,86 @@
                (gen/vector (gen/map (gen/return :source-paths)
                                     (gen/vector gen/string)))))
 
+(deftest update-builds-test
+  (testing "vector of builds"
+    (is (= (f/update-builds {:cljsbuild {:builds [{:id "dev"}
+                                                  {:id "prod"}
+                                                  {:id "test"}]}}
+                            (fn [build]
+                              (update build :source-paths conj "src")))
+           {:cljsbuild {:builds [{:id           "dev"
+                                  :source-paths ["src"]}
+                                 {:id           "prod"
+                                  :source-paths ["src"]}
+                                 {:id           "test"
+                                  :source-paths ["src"]}]}})))
+  (testing "map of builds"
+    (is (= (f/update-builds {:cljsbuild {:builds {"dev"  {}
+                                                  "prod" {}
+                                                  "test" {}}}}
+                            (fn [build]
+                              (update build :source-paths conj "src")))
+           {:cljsbuild {:builds {"dev"  {:source-paths ["src"]}
+                                 "prod" {:source-paths ["src"]}
+                                 "test" {:source-paths ["src"]}}}})))
+  (testing "edge cases around no builds"
+    (testing "vector of builds"
+      (is (= (f/update-builds {:cljsbuild {:builds []}}
+                              (fn [x]
+                                1))
+             {:cljsbuild {:builds []}}))
+      (is (= (f/update-builds {:cljsbuild {}}
+                              (fn [x]
+                                1))
+             {:cljsbuild {}})))
+    (testing "map of builds"
+      (is (= (f/update-builds {:cljsbuild {:builds {}}}
+                              (fn [x]
+                                1))
+             {:cljsbuild {:builds {}}}))
+      (is (= (f/update-builds {:cljsbuild {}}
+                              (fn [x]
+                                1))
+             {:cljsbuild {}})))))
 
+(deftest add-source-paths-test
+  (testing "vector of builds"
+    (is (= (f/add-source-paths
+             {:cljsbuild {:builds [{:id             "dev"
+                                    :source-paths   ["src/cljs" "src/cljc" "dev"]
+                                    :resource-paths ["resources"]}
+                                   {:id             "prod"
+                                    :source-paths   ["src/cljs" "src/cljc" "prod"]
+                                    :resource-paths ["resources"]}]}}
+             ["checkouts/util-lib/src"])
+           {:cljsbuild {:builds [{:id             "dev"
+                                  :source-paths   ["src/cljs" "src/cljc" "dev" "checkouts/util-lib/src"]
+                                  :resource-paths ["resources"]}
+                                 {:id             "prod"
+                                  :source-paths   ["src/cljs" "src/cljc" "prod" "checkouts/util-lib/src"]
+                                  :resource-paths ["resources"]}]}}))))
 
-
-
+(deftest checkout-source-paths-test
+  (let [cwd (.getCanonicalFile (io/file "."))]
+    (testing "test project with checkouts"
+      (is (= (f/checkout-source-paths
+               {:root         (str cwd "/test-resources/test-project-with-checkouts")
+                :source-paths ["src"]
+                :cljsbuild    {:builds {:dev {:source-paths ["src"]
+                                              :compiler     {:main          'core
+                                                             :asset-path    "js/out"
+                                                             :output-to     "resources/public/js/example.js"
+                                                             :output-dir    "resources/public/js/out"
+                                                             :optimizations :none}}}}})
+             ["checkouts/utils-lib/src"])))
+    (testing "test project with no checkouts"
+      (is (= (f/checkout-source-paths
+               {:root         (str cwd "/test-resources/test-project-with-no-checkouts")
+                :source-paths ["src"]
+                :cljsbuild    {:builds {:dev {:source-paths ["src"]
+                                              :compiler     {:main          'core
+                                                             :asset-path    "js/out"
+                                                             :output-to     "resources/public/js/example.js"
+                                                             :output-dir    "resources/public/js/out"
+                                                             :optimizations :none}}}}})
+             [])))))
