@@ -26,8 +26,6 @@ You now have a complete dev environment setup.
 
 Please take some time to look at the `project.clj` and the `src/example/server_handler.clj`
 
-Espcially look at the `:ring-handler`
-
 ## Not for production
 
 Using the ring-handler is intended only for initial rapid developement
