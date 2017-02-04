@@ -47,7 +47,9 @@
 (def-key :figwheel.lein-project/figwheel
   (strict-keys
    :opt-un
-   [::http-server-root
+   [::init
+    ::destroy
+    ::http-server-root
     ::server-port
     ::server-ip
     ::css-dirs
@@ -72,6 +74,32 @@
   :figwheel {
     :css-dirs [\"resources/public/css\"]
   }")
+
+(def-key ::init ::string-or-named
+  "A String or Symbol representing a Clojure function to call before
+starting the figwheel system. A conventional use for this would be to
+put a function in user.clj called in start-server which starts your
+application server and other needed services.
+
+:init is only available Figwheel is launched via Leiningen, not needed
+otherwise.
+
+Default: Off
+
+  :on-jsload \"user/start-server\"")
+
+(def-key ::destroy ::string-or-named
+  "A String or Symbol representing a Clojure function to call after
+shutting down the figwheel system. A conventional use for this would
+be to put a function in user.clj called stop-server which will stop
+your application server and other needed services.
+
+:destroy is only available Figwheel is launched via Leiningen, not needed
+otherwise.
+
+Default: Off
+
+  :on-jsload \"user/stop-server\"")
 
 (def-key ::http-server-root  non-blank-string?
 

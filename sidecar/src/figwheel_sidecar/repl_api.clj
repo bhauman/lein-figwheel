@@ -7,6 +7,7 @@
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.system :as fs]
    [figwheel-sidecar.config :as config]
+   [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.build-middleware.notifications :as notify]
    [figwheel-sidecar.components.cljs-autobuild :as cljs-auto]
    #_[figwheel-sidecar.build-utils :as butils]
@@ -186,10 +187,39 @@ the first default id)."
         figwheel-internal-final
         (do (mapv println errors) false)))))
 
+(defn resolve-hook-fn [ky hook]
+  (if-let [hook-fn (and hook (utils/require-resolve-handler hook))]
+    (if (or (fn? hook-fn) (and (var? hook-fn) (fn? @hook-fn)))
+      hook-fn
+      (println "Figwheel: your" (pr-str ky) "function is not a function - " (pr-str hook)))
+    (println "Figwheel: unable to resolve your" (pr-str ky) "function - " (pr-str hook))))
+
+(defn call-hook-fn [ky hook-fn]
+  (do (println "Figwheel: calling your" (pr-str ky) "function - "(pr-str hook-fn))
+      (hook-fn)))
+
+(defn launch-init [figwheel-internal-final]
+  (when-let [hook-fn
+             (resolve-hook-fn
+              :init
+              (:init (config/figwheel-options figwheel-internal-final)))]
+    (call-hook-fn :init hook-fn)))
+
+(defn wrap-destroy [destroy-hook thunk]
+  (let [destroy-hook' (memoize #(call-hook-fn :destroy destroy-hook))]
+    (.addShutdownHook (Runtime/getRuntime) (Thread. destroy-hook'))
+    (thunk)
+    (destroy-hook')))
+
 (defn launch-from-lein [narrowed-project build-ids]
   (when-let [figwheel-internal-final
              (validate-and-return-final-config-data narrowed-project build-ids)]
-    (start-figwheel-from-lein figwheel-internal-final)))
+    (launch-init figwheel-internal-final)
+    (if-let [destroy-hook (resolve-hook-fn
+                           :destroy
+                           (:destroy (config/figwheel-options figwheel-internal-final)))]
+      (wrap-destroy destroy-hook #(start-figwheel-from-lein figwheel-internal-final))
+      (start-figwheel-from-lein figwheel-internal-final))))
 
 (defn build-once-from-lein [narrowed-project build-ids]
   (when-let [config-data (validate-figwheel-conf narrowed-project {})]
@@ -220,8 +250,8 @@ the first default id)."
   (def proj (config/->config-data (config/->lein-project-config-source)))
   (def error-proj (assoc-in (:data proj) [:figwheel :server-port]
                             "ASDFASDF"))
-  
-  (launch-from-lein (:data proj) ["asdf"])
+  (config/figwheel-options proj)
+  (launch-from-lein (:data proj) ["dev"])
 
   (launch-from-lein (:data proj) ["example-prod"])
   
