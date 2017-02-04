@@ -52,6 +52,7 @@
         valid-file?   (fn [file]
                         (and file
                              (.isFile file)
+                             (not (.isHidden file))
                              (let [file-path (.getCanonicalPath file)
                                    n (.getName file)]
                                (and
