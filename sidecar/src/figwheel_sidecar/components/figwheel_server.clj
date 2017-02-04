@@ -151,13 +151,17 @@
                        trace
                        "</pre>")}))))))
 
+(defn return-index [handler root]
+  (fn [request]
+    (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")})
+                          (response/content-type "text/html; charset=utf-8"))]
+      resp
+      (handler request))))
+
 (defn handle-index [handler root]
   (fn [request]
     (if (= [:get "/"] ((juxt :request-method :uri) request))
-      (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")})
-                            (response/content-type "text/html; charset=utf-8"))]
-        resp
-        (handler request))
+      (return-index handler root)
       (handler request))))
 
 (defn handle-static-resources [handler root]
@@ -200,6 +204,11 @@
     #(possible-fn %)
     #(handler %)))
 
+(defn possibly-force-index [handler root force-index?]
+  (if force-index?
+    (return-index handler root)
+    handler))
+
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
    also provides the figwheel websocket connection."
@@ -210,6 +219,9 @@
        (response/not-found
         "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
      
+     ;; optional index.html catch-all
+     (possibly-force-index http-server-root force-index)
+
      ;; users handler goes last
      (possible-endpoint resolved-ring-handler)
      
