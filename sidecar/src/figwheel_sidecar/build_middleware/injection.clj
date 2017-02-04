@@ -19,7 +19,7 @@
 
 (defn figwheel-connect-ns-parts [{:keys [id]}]
   (cond-> ["figwheel" "connect"]
-    (and id (name-like? id)) (conj (name id))))
+    (and id (name-like? id)) (conj (str "build-" (name id)))))
 
 (defn underscore [cljs-path-name]
   (string/replace cljs-path-name "-" "_"))
