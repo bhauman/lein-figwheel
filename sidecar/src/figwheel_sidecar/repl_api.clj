@@ -188,11 +188,12 @@ the first default id)."
         (do (mapv println errors) false)))))
 
 (defn resolve-hook-fn [ky hook]
-  (if-let [hook-fn (and hook (utils/require-resolve-handler hook))]
-    (if (or (fn? hook-fn) (and (var? hook-fn) (fn? @hook-fn)))
-      hook-fn
-      (println "Figwheel: your" (pr-str ky) "function is not a function - " (pr-str hook)))
-    (println "Figwheel: unable to resolve your" (pr-str ky) "function - " (pr-str hook))))
+  (when hook
+    (if-let [hook-fn (utils/require-resolve-handler hook)]
+      (if (or (fn? hook-fn) (and (var? hook-fn) (fn? @hook-fn)))
+        hook-fn
+        (println "Figwheel: your" (pr-str ky) "function is not a function - " (pr-str hook)))
+      (println "Figwheel: unable to resolve your" (pr-str ky) "function - " (pr-str hook)))))
 
 (defn call-hook-fn [ky hook-fn]
   (do (println "Figwheel: calling your" (pr-str ky) "function - "(pr-str hook-fn))
