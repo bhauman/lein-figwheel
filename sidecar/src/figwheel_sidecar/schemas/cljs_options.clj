@@ -467,7 +467,7 @@ Defaults to :ecmascript3
 (def-key ::closure-defines (s/map-of
                             ::string-or-symbol
                             (some-fn number?
-                                     non-blank-string?
+                                     string?
                                      boolean?))
 
   "Set the values of Closure libraries' variables annotated with @define
