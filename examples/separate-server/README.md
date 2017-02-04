@@ -31,7 +31,6 @@ figwheel you can just do:
 
     lein ring
 	
-
 ## Deployment
 
 You can easily create a standalone jar file which you can deploy to
@@ -40,6 +39,14 @@ Heroku or some other deployment container like so
     lein package
 	
 Please refer to the `project.clj` under `:aliases` to see how it works.
+
+The resulting jar file can be executed with:
+
+    java -jar target/example-0.1.0-SNAPSHOT-standalone.jar
+
+You can also set a PORT environment variable:
+   
+    PORT=5555 java -jar target/example-0.1.0-SNAPSHOT-standalone.jar
 
 ## Notes 
 
