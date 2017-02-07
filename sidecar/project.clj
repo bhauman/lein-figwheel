@@ -31,7 +31,7 @@
    [strictly-specking-standalone "0.1.1"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
-  
+
   :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
                    :source-paths ["cljs_src" "src"]
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
@@ -67,5 +67,5 @@
                            :optimizations :simple}
                }]
               }
-  
+
   )

@@ -67,7 +67,7 @@
   (cond
     (false? reload-clj-files) false
     (or (true? reload-clj-files)
-          (not (map? reload-clj-files))) 
+          (not (map? reload-clj-files)))
     {:cljc true :clj true}
     :else reload-clj-files))
 
@@ -105,7 +105,7 @@
                                      (:id build-config)
                                      { :msg-name :files-changed
                                       :files [{:file first-file :type :file}]}))))
-          
+
           (catch Throwable e
             (notify/handle-exceptions figwheel-server (assoc build-config :exception e))))
         (build-fn build-state)))))

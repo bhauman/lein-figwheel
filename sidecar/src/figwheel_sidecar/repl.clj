@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.repl
   (:require
-   [cljs.analyzer :as ana]   
+   [cljs.analyzer :as ana]
    [cljs.env :as env]
    [cljs.repl]
    [cljs.stacktrace]
@@ -13,7 +13,7 @@
 
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [figwheel-sidecar.components.figwheel-server :as server]
-   
+
    [figwheel-sidecar.config :as config]
    [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   )
   (:import [clojure.lang IExceptionInfo]))
@@ -165,8 +165,8 @@
     (catch Exception e
       (println "!!!" (.getMessage e))
       (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.
-This is commonly caused by 
- A) not providing piggieback as a dependency and/or 
+This is commonly caused by
+ A) not providing piggieback as a dependency and/or
  B) not adding piggieback middleware into your nrepl middleware chain.
 
 example profile.clj code:
@@ -308,6 +308,6 @@ This can cause confusion when your are not using Cider."]
       :default)
     (apply cljs-repl-env args)))
 
-;; deprecated 
+;; deprecated
 (defn get-project-cljs-builds []
   (-> (config/fetch-config) :data :all-builds))

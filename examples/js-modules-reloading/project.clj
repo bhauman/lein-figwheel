@@ -8,11 +8,11 @@
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.9.459"]]
-  
+
   :plugins [[lein-figwheel "0.5.10-SNAPSHOT"]]
 
   :clean-targets ^{:protect false} ["resources/public/js/compiled" :target-path]
-  
+
   :source-paths ["src"]
 
   :cljsbuild {:builds

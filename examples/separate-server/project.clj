@@ -21,7 +21,7 @@
             ;; NOTE: lein-ring plugin allows you to start a server
             ;; with a simple `lein ring`
             ;; see --> https://github.com/weavejester/lein-ring
-            
+
             [lein-ring "0.10.0"]]
 
   ;; NOTE: configure lein-ring to serve your ring handler
@@ -66,7 +66,7 @@
   :aliases {"package" ["do" "clean"
                        ["cljsbuild" "once" "min"]
                        ["ring" "uberjar"]]}
-  
+
   ;; setting up nREPL for Figwheel and ClojureScript dev
   ;; Please see:
   ;; https://github.com/bhauman/lein-figwheel/wiki/Using-the-Figwheel-REPL-within-NRepl
@@ -78,7 +78,7 @@
                                   ;; see --> dev/user.clj
                                   [ring-server "0.4.0"]]
                    :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
-                   
+
                    ;; need to add dev source path here to get user.clj loaded
                    :source-paths ["src" "dev"]
                    ;; for CIDER

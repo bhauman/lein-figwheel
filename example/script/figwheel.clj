@@ -9,7 +9,7 @@
    :all-builds
    [{ :id "example"
      :source-paths ["src"]
-     
+
      :figwheel { :websocket-host "localhost"
                 :on-jsload       "example.core/fig-reload"
                                         ; :debug true

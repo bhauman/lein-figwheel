@@ -15,5 +15,5 @@
                    :source-paths ["dev" "src"]
                    :aliases {"change-version" ["run" "-m" "figwheel-tasks.core" ":change-version"]
                              "install-all"    ["run" "-m" "figwheel-tasks.core" ":install-all"]}}}
-  
+
   :eval-in-leiningen true)

@@ -40,7 +40,7 @@
 (defn watch! [hawk-options source-paths callback]
   (let [hawk-options (default-hawk-options hawk-options)
         throttle-chan (chan)
-        
+
         {:keys [files dirs]} (files-and-dirs source-paths)
         individual-file-map   (single-files files)
         canonical-source-dirs (set (map #(.getCanonicalPath %) dirs))
@@ -48,7 +48,7 @@
         source-paths (distinct
                       (concat (map str dirs)
                               (map #(.getParent %) files)))
-        
+
         valid-file?   (fn [file]
                         (and file
                              (.isFile file)
@@ -74,14 +74,14 @@
                    :filter hawk/file?
                    :handler (fn [ctx e]
                               (put! throttle-chan e))}])]
-    
+
     (go-loop []
       (when-let [v (<! throttle-chan)]
         (let [files (<! (take-until-timeout throttle-chan))]
           (when-let [result-files (not-empty (distinct (filter valid-file? (map :file (cons v files)))))]
             (callback result-files)))
         (recur)))
-    
+
     {:watcher watcher
      :throttle-chan throttle-chan}))
 

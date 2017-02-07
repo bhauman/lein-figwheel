@@ -233,7 +233,7 @@ the first default id)."
           unknown-ids (set/difference
                        (set build-ids)
                        (set (map :id all-builds)))]
-      
+
       (when (empty? builds)
         (println "Figwheel: Didn't find any the supplied build ids in the configuration.")
         (println "Unknown build ids: " (pr-str (vec unknown-ids)))
@@ -255,5 +255,5 @@ the first default id)."
   (launch-from-lein (:data proj) ["dev"])
 
   (launch-from-lein (:data proj) ["example-prod"])
-  
+
   )

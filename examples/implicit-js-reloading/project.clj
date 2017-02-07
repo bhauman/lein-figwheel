@@ -24,7 +24,7 @@
                            :output-to "resources/public/js/compiled/example.js"
                            :output-dir "resources/public/js/compiled/out"
                            :source-map-timestamp true}}
-               
+
                ;; JavaScript can also be the root of a cljs project!
                ;; This means that you can build a JavaScript project
                ;; in Figwheel. Again you need to follow the

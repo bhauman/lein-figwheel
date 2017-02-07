@@ -92,10 +92,10 @@
   (into {} (map #(let [[_ v] (get-keylike % m)] [% v]) kys)))
 
 (comment
-  
+
   (metrics/levenshtein "GSFD" "GFSD")
-  
+
   (ky-distance :GFSD :GSFD)
-  
+
   (ky-distance :figwheel :figwheeler)
   )

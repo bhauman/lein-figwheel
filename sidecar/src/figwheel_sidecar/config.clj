@@ -9,7 +9,7 @@
    [simple-lein-profile-merge.core :as lm]
    [figwheel-sidecar.utils.fuzzy :as fuz]
    [strictly-specking-standalone.ansi-util :refer [with-color-when color-text]]
-      
+
    [figwheel-sidecar.utils :as utils]
    [strictly-specking-standalone.core :as speck]
    [figwheel-sidecar.schemas.config :as config-spec]
@@ -123,7 +123,7 @@
     (vec (map (fn [[k v]] (assoc v :id (name k))) builds))
     builds))
 
-(defn narrow-builds* 
+(defn narrow-builds*
   "Filters builds to the chosen build-ids or if no build-ids specified returns the first
    build with optimizations set to none."
   [builds build-ids]
@@ -172,7 +172,7 @@
 (defn normalize-dir
   "If directory ends with '/' then truncate the trailing forward slash."
   [dir]
-  (if (and dir (< 1 (count dir)) (re-matches #".*\/$" dir)) 
+  (if (and dir (< 1 (count dir)) (re-matches #".*\/$" dir))
     (subs dir 0 (dec (count dir)))
     dir))
 
@@ -201,7 +201,7 @@
 
 (comment
   (default-optimizations-to-none {:optimizations :simple})
-  
+
   (sane-output-to-dir {:output-dir "yes" })
 
   (sane-output-to-dir {:output-to "yes.js"})
@@ -275,10 +275,10 @@
   (cond-> url
     (.contains url "[[server-hostname]]")
     (string/replace "[[server-hostname]]" (.getHostName (java.net.InetAddress/getLocalHost)))
-    
+
     (.contains url "[[server-ip]]")
     (string/replace "[[server-ip]]"       (.getHostAddress (java.net.InetAddress/getLocalHost)))
-    
+
     (.contains url "[[server-port]]")
     (string/replace "[[server-port]]"     (str server-port))))
 
@@ -322,13 +322,13 @@
                                     :id "dev"
                                     :figwheel {:foo 1
                                                :websocket-host :server-ip}})
-  
+
   (update-figwheel-connect-options {:server-port 5555}
                                    {:yeah 6
                                     :id "dev"
                                     :figwheel {:foo 1
                                                :websocket-host :server-hostname}})
-  
+
   )
 
 (comment
@@ -394,7 +394,7 @@
 ;; validation
 
 ;; TODO add :validate-interactive option
-;; TODO add :validate-level option   
+;; TODO add :validate-level option
 
 ;; TODO move to standalone
 
@@ -446,13 +446,13 @@
   (def xxx (->config-data (->lein-project-config-source)))
 
   (lein-project-spec (:data xxx))
-  
+
   (all-builds xxx)
-  
+
   (validate-project-config-data xxx)
   (speck/explain (lein-project-spec (:data xxx))
                  (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel]))
-  
+
   (let [x (fuz/fuzzy-select-keys (:data xxx) [:cljsbuild :figwheel])
         x (-> x (:cljsbuild x))]
     (validate-figwheel-edn-config-data {:data x})
@@ -554,7 +554,7 @@
 (comment
   (->config-data (->lein-project-config-source))
   (->config-data (->figwheel-config-source nil "/Users/bhauman/workspace/lein-figwheel/example/figwheel.edn"))
-  
+
   )
 
 
@@ -590,7 +590,7 @@
                      "Or keys like: " (pr-str internal-keys))
                     {:reason :not-a-configuration-map
                      :config-data data}))))
-    (throw (ex-info "The configuration data provided is not a Map" 
+    (throw (ex-info "The configuration data provided is not a Map"
                     {:reason :configuration-not-a-map
                      :config-data data})) ))
 

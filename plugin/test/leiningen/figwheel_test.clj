@@ -98,7 +98,7 @@
           (= (->> v :cljsbuild :builds count)
              (count (:all-builds nd)))))))
 
-(defspec source-paths-for-class-path-arbi 
+(defspec source-paths-for-class-path-arbi
   iterations
   (prop/for-all
    [v (gen/map (gen/elements [:figwheel-options :all-builds :build-ids])

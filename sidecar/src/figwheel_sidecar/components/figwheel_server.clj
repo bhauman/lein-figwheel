@@ -15,7 +15,7 @@
    [ring.util.mime-type :as mime]
    [ring.middleware.cors :as cors]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
-   
+
    [com.stuartsierra.component :as component]))
 
 (defprotocol ChannelServer
@@ -68,7 +68,7 @@
           (println "Figwheel: there was a problem running the open file command - "
                    command)
           (println (.getMessage e))))
-      (println "Figwheel: Can't open " (pr-str (vals (select-keys msg [:file-name :file-line :file-column]))) 
+      (println "Figwheel: Can't open " (pr-str (vals (select-keys msg [:file-name :file-line :file-column])))
                "No :open-file-command supplied in the config."))))
 
 ;; should make this extendable with multi-method
@@ -108,19 +108,19 @@
            (<!! (timeout compile-wait-time))
            (when (open? wschannel)
              (send! wschannel (prn-str msg)))))))
-    
+
     (on-close wschannel
               (fn [status]
                 (update-connection-count connection-count desired-build-id dec)
                 (remove-watch file-change-atom watch-key)
                 #_(println "Figwheel: client disconnected " status)))
-    
+
     (on-receive wschannel
                 (fn [data] (#'handle-client-msg server-state data
                             )))
 
     ;; Keep alive!!
-    ;; 
+    ;;
     (go-loop []
       (<! (timeout 5000))
       (when (open? wschannel)
@@ -209,14 +209,14 @@
      (fn [_]
        (response/not-found
         "<div><h1>Figwheel Server: Resource not found</h1><h3><em>Keep on figwheelin'</em></h3></div>"))
-     
+
      ;; users handler goes last
      (possible-endpoint resolved-ring-handler)
-     
+
      (handle-static-resources http-server-root)
      (handle-index            http-server-root)
      (handle-figwheel-websocket server-state)
-     
+
      ;; adding cors to support @font-face which has a strange cors error
      ;; super promiscuous please don't uses figwheel as a production server :)
      (cors/wrap-cors
@@ -250,7 +250,7 @@
         (assoc :callback-name callback-name)))
     msg-data))
 
-;; remove resource paths here 
+;; remove resource paths here
 (defn create-initial-state [{:keys [unique-id
                                     http-server-root
                                     server-port
@@ -266,7 +266,7 @@
        {
         ;; seems like this id should be different for every
         ;; server restart thus forcing the client to reload
-        :unique-id (or unique-id (.getCanonicalPath (io/file "."))) 
+        :unique-id (or unique-id (.getCanonicalPath (io/file ".")))
         :http-server-root (or http-server-root "public")
         :server-port (or server-port 3449)
         :server-ip (or server-ip "0.0.0.0")
@@ -274,10 +274,10 @@
         ;; TODO handle this better
         :resolved-ring-handler (or resolved-ring-handler
                                    (utils/require-resolve-handler ring-handler))
-        
+
         :open-file-command open-file-command
         :compile-wait-time (or compile-wait-time 10)
-        
+
         :file-md5-atom (atom {})
 
         :ansi-color-output (if (false? ansi-color-output) false true)
@@ -343,7 +343,7 @@
 (defn config-options [figwheel-server]
   (-actual figwheel-server))
 
-;; setup server for overall system 
+;; setup server for overall system
 
 (defn ensure-array-map [all-builds]
   (into (array-map)
@@ -371,10 +371,10 @@
           config-data)
         all-builds (map butils/add-compiler-env (config/prep-builds* all-builds))
         all-builds (ensure-array-map all-builds)
-        
+
         initial-state       (create-initial-state figwheel-options)
         figwheel-opts (assoc initial-state
-                             :builds all-builds       
+                             :builds all-builds
                              :log-writer    (extract-log-writer figwheel-options)
                              :cljs-build-fn (extract-cljs-build-fn figwheel-options))]
     (map->FigwheelServer figwheel-opts)))
