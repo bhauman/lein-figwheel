@@ -6,14 +6,14 @@
    [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [strictly-specking-standalone.ansi-util :refer [with-color with-color-when color-text]]
-   
+
       ;; build hooks
    [figwheel-sidecar.build-middleware.injection :as injection]
    [figwheel-sidecar.build-middleware.notifications :as notifications]
    [figwheel-sidecar.build-middleware.clj-reloading :as clj-reloading]
    [figwheel-sidecar.build-middleware.javascript-reloading :as javascript-reloading]
    [figwheel-sidecar.build-middleware.stamp-and-clean :as stamp-and-clean]
-   
+
    [com.stuartsierra.component :as component]
    [cljs.closure]
    [cljs.build.api :as bapi]
@@ -50,7 +50,7 @@
                                "\" in " (time-elapsed started-at) ".")
                               :green))
         (catch Throwable e
-          (println (color-text (str 
+          (println (color-text (str
                                 "Failed to compile \""
                                 output-to
                                 "\" in " (time-elapsed started-at) ".")
@@ -89,13 +89,13 @@
       ;; the following two hooks have to be called before the notifications
       ;; a they modify the message on the way down
       clj-reloading/hook
-      javascript-reloading/hook      
+      javascript-reloading/hook
       color-output))
 
 (def figwheel-build-without-javascript-reloading
   (-> cljs-build
       injection/hook
-      notify-command-hook      
+      notify-command-hook
       figwheel-start-and-end-messages
       notifications/hook
       clj-reloading/hook
@@ -104,7 +104,7 @@
 (def figwheel-build-without-clj-reloading
   (-> cljs-build
       injection/hook
-      notify-command-hook      
+      notify-command-hook
       figwheel-start-and-end-messages
       notifications/hook
       javascript-reloading/hook
@@ -152,8 +152,8 @@
 
 (defn deadman-header-comment []
   "/* FIGWHEEL BAD COMPILE RECOVERY APPLICATION */
-/* NOT YOUR COMPILED CLOJURESCRIPT - TEMPORARY FIGWHEEL GENERATED PROGRAM 
- * This is only created in the case where the compile fails and you don't have a 
+/* NOT YOUR COMPILED CLOJURESCRIPT - TEMPORARY FIGWHEEL GENERATED PROGRAM
+ * This is only created in the case where the compile fails and you don't have a
  * generated output-to file.
  */")
 
@@ -241,7 +241,7 @@
         (flush)
         ;; Not the best but just to make sure there isn't a lingering figwheel connect script
         (injection/delete-connect-scripts! [build-config])
-        
+
         (let [cljs-build-fn (extract-cljs-build-fn this)]
           ;; build once before watching
           ;; tiny experience tweak
@@ -256,14 +256,14 @@
              ;; the order here is very very important
              ;; must think about the exception flow
              ;; exceptions must skip over code that needs the build to succeed
-             ;; also consider the messages that the user recieves 
+             ;; also consider the messages that the user recieves
              (-> cljs-build
                  injection/hook
                  notify-command-hook
                  figwheel-start-and-end-messages
                  catch-print-hook
                  open-urls-hook
-                 stamp-and-clean/hook                 
+                 stamp-and-clean/hook
                  color-output)
              cljs-build-fn) this)
           (assoc this

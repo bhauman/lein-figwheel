@@ -4,7 +4,7 @@
    #_[clojure.pprint :as pp]
    [leiningen.core.eval :as leval]
    [leiningen.clean :as clean]
-   [leiningen.core.main :as main]   
+   [leiningen.core.main :as main]
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
    [leiningen.figwheel.fuzzy :as fuz]
@@ -91,7 +91,7 @@
 (defn project-keys-affected-by-profile-mering [project]
   (when-let [{:keys [profiles]} (meta project)]
     (when (map? profiles)
-      (->> profiles 
+      (->> profiles
            vals
            (filter map?)
            (mapcat keys)
@@ -119,7 +119,7 @@
       false)))
 
 (comment
-  
+
   (def r (leiningen.core.project/read))
   #_(meta (raw-project-with-profile-meta r))
   (not=   (fuzzy-config-from-project (:without-profiles (meta r)))
@@ -230,7 +230,7 @@
             (str "---- Bad figwheel.edn File! ----\n"
                  "You have a malformed figwheel.edn file at the root of your\n"
                  "of your project directory.\n\n"
-                 
+
                  "While reading this file we encountered the following error:\n"
                  " --->  " (.getMessage e)
                  "\n\n"
@@ -315,7 +315,7 @@
          (filter map?)
          (keep (fn [x] (get-in x [:compiler :output-to])))
          (filter string?)
-         (keep #(.getParentFile (io/file %)))         
+         (keep #(.getParentFile (io/file %)))
          distinct
          (mapv #(.mkdirs %)))))
 
@@ -330,7 +330,7 @@
               :builds-to-start ["asdf"]
               :load-all-builds false
               }})
-  
+
   (source-paths-for-classpath (normalize-data test-project ["example"]))
   (figwheel-exec-body `())
 
@@ -360,7 +360,7 @@
 
 (defn report-if-bad-command [command]
   (when (and (command-like? command)
-             (not (known-commands command))) 
+             (not (known-commands command)))
     (println (str "Command Error: " (pr-str command)
                   " is not a known Figwheel command."))
     (println "  Known commands" (vec known-commands))
@@ -496,11 +496,11 @@ Commands:
   builds.
 
 :help
-  
+
   Prints this documentation
 
 Configuration:
-  
+
   Figwheel relies on a configuration that is found in the project.clj
   or in a figwheel.edn file in your project root. If a figwheel.edn is
   present any Figwheel configuration found in the project.clj will be

@@ -43,7 +43,7 @@
 
   :resource-paths ["resources" "other_resources"]
 
-  
+
   :cljsbuild {
               :builds {
                        :example {
@@ -69,9 +69,9 @@
                                             ;; :recompile-dependents true
                                             :optimizations :none}}
 
-                       
 
-                       
+
+
                        :example-prod {
                                       :source-paths ["src"]
                                       :compiler { :main example.core
@@ -90,7 +90,7 @@
                                            :target :nodejs
                                            :source-map true}}
                        :example-admin {
-                         :figwheel true              
+                         :figwheel true
                          :source-paths ["other_src" "src" #_"../support/src"]
                                        :compiler {
                                                   :main "example-admin.core"
@@ -133,7 +133,7 @@
              :server-port 3449 ;; default
              :css-dirs ["resources/public/css"]
              :open-file-command "emacsclient"
-             
+
              ;; :ring-handler example.server/handler
 
              ;; :repl false
@@ -172,5 +172,5 @@
 
              ;; :validate-config :warn-unknown-keys
              ;; :validate-interactive true
-             
+
              })

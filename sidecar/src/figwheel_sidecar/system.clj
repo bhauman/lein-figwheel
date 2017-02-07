@@ -3,7 +3,7 @@
    [figwheel-sidecar.utils :as utils]
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.config :as config]
-   [figwheel-sidecar.repl :as frepl]   
+   [figwheel-sidecar.repl :as frepl]
 
    [figwheel-sidecar.components.nrepl-server    :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
@@ -13,7 +13,7 @@
    [strictly-specking-standalone.ansi-util :refer [with-color-when color-text]]
    [com.stuartsierra.component :as component]
 
-   [clojure.pprint :as p]   
+   [clojure.pprint :as p]
    [clojure.java.io :as io]
    [clojure.set :refer [difference union intersection]]
    [clojure.string :as string]))
@@ -120,7 +120,7 @@
       this))
   (stop [this]
     (if (:system-running this)
-      (do 
+      (do
         (swap! system component/stop)
         (assoc this :system-running false))
       this))
@@ -156,10 +156,10 @@
   If you only have a few components to add to this system then you can
   assoc them onto the created system before you start like so.
 
-  (def my-system 
+  (def my-system
     (assoc (create-figwheel-system (config/fetch-config))
-           :html-reload 
-           (component/using 
+           :html-reload
+           (component/using
              (html-reloader {:watch-paths [\"resources/public\"]})
              [:figwheel-system])
            :web-server (my-webserver-component)))"
@@ -225,7 +225,7 @@
 ;; figwheel system control function helpers
 
 (defn build-diff
-  "Makes sure that the autobuilds in the system match the build-ids provided" 
+  "Makes sure that the autobuilds in the system match the build-ids provided"
   [system ids]
   (let [ids (set (map id->key ids))
         build-keys (all-build-keys system)]
@@ -301,7 +301,7 @@
 (defn- clean-build
   "Deletes compiled assets for given id."
   [system id]
-  (if-let [build-options 
+  (if-let [build-options
            (get-in system [:figwheel-server :builds (name id) :build-options])]
     (do
       (println "Figwheel: Cleaning build -" id)
@@ -330,7 +330,7 @@
                       (map key->id
                            (ids-or-all-build-keys system running-ids))
                       running-ids)]
-    (if-let [ids (not-empty process-ids)] 
+    (if-let [ids (not-empty process-ids)]
       (stop-and-start-watchers
        system ids
        #(reduce clean-build % ids))
@@ -375,7 +375,7 @@
           (println (.getMessage e))
           {})
         (throw e)))))
-  
+
 (defn get-project-builds []
   (into (array-map)
         (map
@@ -459,9 +459,9 @@
   {'start-autobuild (make-special-fn (system-setter start-autobuild system))
    'stop-autobuild  (make-special-fn (system-setter stop-autobuild system))
    'switch-to-build (make-special-fn (system-setter switch-to-build system))
-   'clean-builds    (make-special-fn (system-setter clean-builds system)) 
+   'clean-builds    (make-special-fn (system-setter clean-builds system))
    'build-once      (make-special-fn (system-setter build-once system))
-   
+
    'reset-autobuild (make-special-fn (system-setter
                                             (fn [sys _] (reset-autobuild sys))
                                             system))
@@ -473,7 +473,7 @@
                                             (fn [sys _] (fig-status sys))
                                             system))})
 
-(def repl-function-docs 
+(def repl-function-docs
   "Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
           (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
@@ -532,7 +532,7 @@
         (let [res (read-line)]
           (cond
             (nil? res) false
-            (choices res) res          
+            (choices res) res
             (= res "quit") false
             (= res "exit") false
             :else
@@ -592,7 +592,7 @@
                    start-build-id
                    (initial-repl-focus-build-id @system))]
      (if (frepl/in-nrepl-env?)
-       (figwheel-cljs-repl* system build-id repl-options) 
+       (figwheel-cljs-repl* system build-id repl-options)
        (build-switching-cljs-repl* system build-id repl-options)))))
 
 ;; takes a FigwheelSystem
@@ -663,7 +663,7 @@
 
         (map? (first args))
         [(first args) (not-empty (rest args))]
-        
+
         ((some-fn string? symbol? keyword?) (first args))
         [(config/fetch-config) args]
         :else
@@ -681,7 +681,7 @@
         (-> config-options
             config/->config-source
             config/config-source->prepped-figwheel-internal
-            config/adjust-to-internal-configuration-representation            
+            config/adjust-to-internal-configuration-representation
             :data)
         internal-config-data (if (not-empty build-ids)
                                (do
@@ -708,19 +708,19 @@
   autobuilding.  If these ids aren't available in the builds specified
   in the found configuration this function will throw an error.
 
-(start-figwheel! 
+(start-figwheel!
   ;; using the configuration shape of figwheel.edn
   {:server-port 5000
    :builds [{:id ...}]}
 
-(start-figwheel! 
+(start-figwheel!
   ;; using the configuration shape of figwheel.edn
   {:server-port 5000
    :builds (figwheel-sidecar.config/get-project-builds)
    :builds-to-start [\"example\"]})
 
-(start-figwheel! 
- ;; using the soon to be deprecated legacy configuration shape 
+(start-figwheel!
+ ;; using the soon to be deprecated legacy configuration shape
  {:figwheel-options { :server-port 4000 }
   :all-builds [{:id ...}]
   :build-ids [\"example\"]})

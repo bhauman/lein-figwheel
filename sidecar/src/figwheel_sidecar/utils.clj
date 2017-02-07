@@ -81,7 +81,7 @@
   [p] (string/replace p  "\\" "/"))
 
 (let [root (norm-path (.getCanonicalPath (io/file ".")))]
-  (defn remove-root-path 
+  (defn remove-root-path
     "relativize to the local root just in case we have an absolute path"
     [path]
     (string/replace-first (norm-path path) (str root "/") "")))

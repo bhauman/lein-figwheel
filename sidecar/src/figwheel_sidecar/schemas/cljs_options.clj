@@ -176,7 +176,7 @@ code in nodejs.
 When you set :infer-externs true you will get a new file in
 your :output-dir named inferred_externs.js. When you do an advanced
 build, this externs file will be used.
-  
+
 You must add type hints to your code as such:
 
   (set! *warn-on-infer* true)
@@ -803,12 +803,12 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
    (attach-reason  ":source-map must be a string? when :optimizations is not :none"
                    (fn [{:keys [source-map optimizations] :as cmpl}]
                      (not (and
-                           (contains? cmpl :source-map)                           
+                           (contains? cmpl :source-map)
                            (not (string? source-map))
                            (not (opt-none? optimizations)))))
                    :focus-path [:source-map])
 
-   
+
    (strict-keys
     :opt-un
     [::main

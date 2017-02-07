@@ -51,7 +51,7 @@
                                   [figwheel-sidecar "0.5.10-SNAPSHOT"]
                                   [com.cemerick/piggieback "0.2.1"]]
                    :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
-                   
+
                    ;; need to add dev source path here to get user.clj loaded
                    :source-paths ["src" "dev"]
                    ;; for CIDER

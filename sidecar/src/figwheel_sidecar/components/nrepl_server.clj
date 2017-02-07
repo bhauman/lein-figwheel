@@ -53,7 +53,7 @@
   Options:
   :nrepl-port   the port to start the server on; must exist or the server wont start
   :nrepl-host   an optional network host to open the port on
-  :nrepl-middleware a optional list of nREPL middleware to include 
+  :nrepl-middleware a optional list of nREPL middleware to include
 
   This function will attempt to require/load the
   cemerick.piggieback/wrap-cljs-repl middleware which is needed to

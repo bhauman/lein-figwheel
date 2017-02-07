@@ -63,11 +63,11 @@
     ::nrepl-host
     ::nrepl-middleware
     ::validate-config
-    ::validate-interactive    
+    ::validate-interactive
     ::load-all-builds
     ::ansi-color-output
     ::builds
-    ::reload-clj-files    
+    ::reload-clj-files
     ::hawk-options])
   "A Map of options that determine the behavior of the Figwheel system.
 
@@ -163,7 +163,7 @@ when you invoke lein figwheel without arguments.
 (def-key ::auto-clean boolean?
   "Figwheel detects whether dependencies have changed and
 automatically deletes compiled assets to prevent compilation
-inconsistencies.  
+inconsistencies.
 
 You can set :auto-clean flase to disable this behavior.
 Default: true
@@ -180,7 +180,7 @@ Default: \"figwheel_server.log\"
 
   :server-logfile \"tmp/figwheel_server.log\"
 
-or 
+or
 
   :server-logfile false")
 
@@ -198,7 +198,7 @@ The add this script in your config:
   :open-file-command \"myfile-opener\"
 
 But thats not the best example because Figwheel handles 'emacsclient'
-as a special case so as long as 'emacsclient' is on the shell path you can 
+as a special case so as long as 'emacsclient' is on the shell path you can
 simply do:
 
   :open-file-command \"emacsclient\"
@@ -373,7 +373,7 @@ Or you can specify which suffixes will cause the reloading
 ;; it also can be found at the top level of a figwheel.edn file
 
 (def-key ::builds
-  (s/or                
+  (s/or
    :builds-vector (s/every ::build-config-require-id :min-count 1 :into [] :kind sequential?)
    :builds-map  (s/every-kv ::string-or-named ::build-config
                             :kind map?
@@ -465,7 +465,7 @@ Or you can specify which suffixes will cause the reloading
         e (first (ssp/prepare-errors exd x nil))]
     (ep/pprint-inline-message e)
     (ssp/dev-print exd x nil)
-    
+
     )
 
 )
@@ -503,7 +503,7 @@ example.core namespace, the source path to this file is \"src\"
 
   :source-paths [\"src\"]
 
-Advanced: 
+Advanced:
 
 This value represents three concrete things:
 
@@ -528,7 +528,7 @@ with :compile-paths.
 
 (def-key ::watch-paths (s/every non-blank-string? :into [] :kind sequential?)
   "A vector of paths to directories that you want figwheel to watch
-for changes. 
+for changes.
 
 The default value is the contents of :source-paths
 
@@ -537,7 +537,7 @@ These paths should be relative from the root of the project.
   :watch-paths [\"src\"]")
 
 (def-key ::compile-paths (s/every non-blank-string? :into [] :kind sequential?)
-  "A vector of paths to the directories of cljs source files that you want compiled. 
+  "A vector of paths to the directories of cljs source files that you want compiled.
 
 The default value is the contents of :source-paths
 
@@ -582,8 +582,8 @@ want the figwheel client code to be injected into the build.
 Or
 
   :figwheel {
-    :on-jsload \"example.core/on-reload\" 
-  } 
+    :on-jsload \"example.core/on-reload\"
+  }
 ")
 
 (def-key ::compiler ::cljs-opt/compiler-options
@@ -735,7 +735,7 @@ immediately jumping to the error in the file when a compile error or
 compile warning occurs.
 
 Default: false
-  
+
   :auto-jump-to-source-on-error true")
 
 (def-key ::load-warninged-code  boolean?
@@ -839,7 +839,7 @@ Default: nil (disabled)
          "The only known opt' :none build configs are " (pr-str (known-build-ids proj)))))
     builds-to-start-ids-must-be-in-builds
     :focus-path (fn [project]
-                  (if-let [idx (when-let [ky 
+                  (if-let [idx (when-let [ky
                                           (first
                                            (get-builds-to-start-not-in-build-ids project))]
                                  (.indexOf (vec (-> project :figwheel :builds-to-start))
@@ -909,7 +909,7 @@ Default: nil (disabled)
         e (first (ssp/prepare-errors exd x nil))]
     (ep/pprint-inline-message e)
     (ssp/dev-print exd x nil)
-    
+
     )
 
 )
@@ -968,7 +968,7 @@ Default: nil (disabled)
   ;; wait for merge to not propogate conformed values
   (s/and
    map?
-   #(contains? % :builds)   
+   #(contains? % :builds)
    must-have-one-opt-none-build-spec
    :figwheel.lein-project/figwheel))
 
@@ -1019,7 +1019,7 @@ Example figwheel.edn file
 
 
 
-                           
+
                                  :compiler { :main 'example.core
                                              :asset-path "js/out"
                                              :output-to "resources/public/js/example.js"
@@ -1060,7 +1060,7 @@ Example figwheel.edn file
                                                           "http://localhost:3449/index.html"]
                                   :debug true
                                   }
-                           
+
                                  :compiler { :main 'example.core
                                             :asset-path "js/out"
                                             :output-to "resources/public/js/example.js"
@@ -1087,7 +1087,7 @@ Example figwheel.edn file
                                                           "http://localhost:3449/index.html"]
                                   :debug true
                                   }
-                           
+
                                  :compiler { :main 'example.core
                                             :asset-path "js/out"
                                             :output-to "resources/public/js/example.js"
@@ -1098,7 +1098,7 @@ Example figwheel.edn file
                                                             :provides ["wowzacore"]}]
                                             ;; :recompile-dependents true
                                             :optimizations :none}}
-                           
+
 
                                 { :id "example"
                                  :source-paths ["src" "dev" "tests" "../support/src"]
@@ -1130,12 +1130,12 @@ Example figwheel.edn file
                                    {})
                    {}
                    nil)
-  
+
   (first (ssp/prepare-errors (s/explain-data ::lein-project-with-cljsbuild
                                             test-data)
                             test-data
                             nil))
- 
+
   )
 
 

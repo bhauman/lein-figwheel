@@ -48,7 +48,7 @@
 
 (defn file-changed?
   "Standard checksum to see if a file actually changed."
-  [{:keys [file-md5-atom]} filepath]  
+  [{:keys [file-md5-atom]} filepath]
   (when-let [file (io/file filepath)]
     (when (.exists file)
       (let [contents (slurp file)]

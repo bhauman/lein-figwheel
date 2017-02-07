@@ -6,7 +6,7 @@
    [clojure.stacktrace :as stack]
    [clojure.walk :refer [postwalk]]
    #_[clojure.pprint :refer [pprint]]
-   [strictly-specking-standalone.ansi-util :refer [color-text]]   
+   [strictly-specking-standalone.ansi-util :refer [color-text]]
    #_[cljs.build.api :as bapi]
    [figwheel-sidecar.utils :as utils]))
 
@@ -25,10 +25,10 @@
 (def serialize-edn-for-js-env (partial postwalk serialize-filter))
 
 (defn inspect-exception [ex]
-  (-> 
+  (->
    {:class (type ex)
     :message (.getMessage ex)
-    :data (ex-data ex)  
+    :data (ex-data ex)
     :cause (when (.getCause ex) (inspect-exception (.getCause ex)))}
    ;; adding exception to meta data because I don't want it serialize over the wire
    ;; and its only here as a fall back
@@ -200,7 +200,7 @@
                [[:error-in-code line (nth lines (dec line))]]
                [[:error-message nil
                  (breaker-line (nth lines (dec line))
-                               (when-not (= environment :repl) message) 
+                               (when-not (= environment :repl) message)
                                (if (= line 1)
                                  (+ (repl-prompt-indent
                                      environment
@@ -421,7 +421,7 @@
                       (fn [{:keys [class message]}]
                         (str "  " (when class (str (left-pad-string max-len class) " : "))
                              (color-text message :bold)))
-                      messages)))      
+                      messages)))
           "\n\n"))
    (when (pos? (count error-inline))
      (str  (format-error-inline error-inline)
@@ -518,7 +518,7 @@
     (catch Throwable e
       (inspect-exception e)
       #_(print-exception e)
-      #_(->> 
+      #_(->>
            exception-data->display-data
            formatted-exception-display-str
            #_println

@@ -141,7 +141,7 @@
           (update-in [:compile-paths]
                      ;; using the connect script instead of inline code because of two prominent
                      ;; CLJS bugs
-                     ;; - another where the connection script isn't generated in a node env                     
+                     ;; - another where the connection script isn't generated in a node env
                      ;; https://github.com/bhauman/lein-figwheel/issues/474
                      ;; - one where analysis cache is invlidated
                      ;; https://github.com/bhauman/lein-figwheel/issues/489
@@ -170,10 +170,10 @@
 
 (defn require-connection-script-js [build]
   (let [node?     (when-let [target (get-in build [:build-options :target])]
-                    (= target :nodejs)) 
+                    (= target :nodejs))
         main?     (get-in build [:build-options :main])
         output-to (get-in build [:build-options :output-to])
-        munged-connect-script-ns (compiler/munge (figwheel-connect-ns-name build)) 
+        munged-connect-script-ns (compiler/munge (figwheel-connect-ns-name build))
         line (if (and main? (not node?))
                (str
                 (when (get-in build [:figwheel :devcards])
