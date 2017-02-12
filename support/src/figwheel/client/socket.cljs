@@ -5,8 +5,7 @@
 
 (defn get-websocket-imp []
   (cond
-    (or (utils/html-env?)
-        (utils/react-native-env?)) (aget js/window "WebSocket")
+    (utils/html-or-react-native-env?) (aget js/window "WebSocket")
     (utils/node-env?) (try (js/require "ws")
                            (catch js/Error e
                              nil))

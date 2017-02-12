@@ -211,6 +211,14 @@
 (defn patch-goog-base []
   (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
 
+(defn reload-file-in-html-env
+  [request-url callback]
+  (dev-assert (string? request-url) (not (nil? callback)))
+  (let [deferred (loader/load (add-cache-buster request-url)
+                              #js {:cleanupWhenDone true})]
+    (.addCallback deferred #(apply callback [true]))
+    (.addErrback deferred #(apply callback [false]))))
+
 (def reload-file*
   (condp = (utils/host-env?)
     :node
@@ -232,13 +240,8 @@
                         (utils/log :error (str  "Figwheel: Error loading file " cache-path))
                         (utils/log :error (.-stack e))
                         false))))))
-
-    :html-or-RN (fn [request-url callback]
-                  (dev-assert (string? request-url) (not (nil? callback)))
-                  (let [deferred (loader/load (add-cache-buster request-url)
-                                              #js {:cleanupWhenDone true})]
-                    (.addCallback deferred #(apply callback [true]))
-                    (.addErrback deferred #(apply callback [false]))))
+    :html reload-file-in-html-env
+    :react-native reload-file-in-html-env
     :worker (fn [request-url callback]
               (dev-assert (string? request-url) (not (nil? callback)))
               (callback (try
