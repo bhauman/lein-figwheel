@@ -14,7 +14,8 @@
 
 (defn html-env? [] (not (nil? goog/global.document)))
 
-(defn react-native-env? [] (= goog/global.navigator.product "ReactNative"))
+(defn react-native-env? [] (and (exists? goog/global.navigator)
+                                (= goog/global.navigator.product "ReactNative")))
 
 (defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
 
