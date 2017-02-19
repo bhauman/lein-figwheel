@@ -14,16 +14,23 @@
 
 (defn html-env? [] (not (nil? goog/global.document)))
 
+(defn react-native-env? [] (and (exists? goog/global.navigator)
+                                (= goog/global.navigator.product "ReactNative")))
+
 (defn node-env? [] (not (nil? goog/nodeGlobalRequire)))
+
+(defn html-or-react-native-env? []
+  (or (html-env?) (react-native-env?)))
 
 (defn worker-env? [] (and
                       (nil? goog/global.document)
                       (exists? js/self)
                       (exists? (.-importScripts js/self))))
 
-(defn host-env? [] (cond (node-env?)   :node
-                         (html-env?)   :html
-                         (worker-env?) :worker))
+(defn host-env? [] (cond (node-env?)         :node
+                         (html-env?)         :html
+                         (react-native-env?) :react-native
+                         (worker-env?)       :worker))
 
 (defn base-url-path [] (string/replace goog/basePath #"(.*)goog/" "$1"))
 
@@ -56,7 +63,7 @@
 (defn log
   ([x] (log :info x))
   ([level arg]
-   (let [f (condp = (if (html-env?) level :info)
+   (let [f (condp = (if (html-or-react-native-env?) level :info)
             :warn  #(.warn js/console %)
             :debug #(.debug js/console %)
             :error #(.error js/console %)

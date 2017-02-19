@@ -3,7 +3,7 @@
    [figwheel.client.utils :as utils :refer-macros [dev-assert]]
    [goog.Uri :as guri]
    [goog.string]
-   [goog.object :as gobj]   
+   [goog.object :as gobj]
    [goog.net.jsloader :as loader]
    [goog.string :as gstring]
    [clojure.string :as string]
@@ -109,7 +109,7 @@
 (defn setup-ns->dependents!
   "This reverses the goog.dependencies_.requires for looking up ns-dependents."
   []
-  (let [requires (gobj/filter js/goog.dependencies_.requires 
+  (let [requires (gobj/filter js/goog.dependencies_.requires
                               (fn [v k o] (gstring/startsWith k "../")))]
     (gobj/forEach
      requires
@@ -202,7 +202,7 @@
           (fn [& args]
             (apply addDependency args)
             (apply (.-addDependency_figwheel_backup_ js/goog) args)))
-    
+
     (goog/constructNamespace_ "cljs.user")
     ;; we must reuse Closure library dev time dependency management, under namespace
     ;; reload scenarios we simply delete entries from the correct
@@ -212,6 +212,14 @@
 
 (defn patch-goog-base []
   (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
+
+(defn reload-file-in-html-env
+  [request-url callback]
+  (dev-assert (string? request-url) (not (nil? callback)))
+  (let [deferred (loader/load (add-cache-buster request-url)
+                              #js {:cleanupWhenDone true})]
+    (.addCallback deferred #(apply callback [true]))
+    (.addErrback deferred #(apply callback [false]))))
 
 (def reload-file*
   (condp = (utils/host-env?)
@@ -234,13 +242,8 @@
                         (utils/log :error (str  "Figwheel: Error loading file " cache-path))
                         (utils/log :error (.-stack e))
                         false))))))
-
-    :html (fn [request-url callback]
-            (dev-assert (string? request-url) (not (nil? callback)))
-            (let [deferred (loader/load (add-cache-buster request-url)
-                                        #js { :cleanupWhenDone true })]
-              (.addCallback deferred #(apply callback [true]))
-              (.addErrback deferred #(apply callback [false]))))
+    :html reload-file-in-html-env
+    :react-native reload-file-in-html-env
     :worker (fn [request-url callback]
               (dev-assert (string? request-url) (not (nil? callback)))
               (callback (try
@@ -413,7 +416,7 @@
         (utils/log :debug "Figwheel: loaded these dependencies")
         (utils/log (pr-str (map (fn [{:keys [request-url]}]
                                   (string/replace request-url goog/basePath ""))
-                                (reverse dependencies-that-loaded)))))      
+                                (reverse dependencies-that-loaded)))))
       (when (not-empty res)
         (utils/log :debug "Figwheel: loaded these files")
         (utils/log (pr-str (map (fn [{:keys [namespace file]}]
@@ -423,7 +426,7 @@
         (js/setTimeout #(do
                           (on-jsload-custom-event res)
                           (apply on-jsload [res])) 10))
-      
+
       (when (not-empty files-not-loaded)
         (utils/log :debug "Figwheel: NOT loading these files ")
         (let [{:keys [figwheel-no-load not-required]}
@@ -448,10 +451,10 @@
          (.getElementsByTagName js/document "link")))
 
 (defn truncate-url [url]
-  (-> (first (string/split url #"\?")) 
+  (-> (first (string/split url #"\?"))
       (string/replace-first (str (.-protocol js/location) "//") "")
       (string/replace-first ".*://" "")
-      (string/replace-first #"^//" "")         
+      (string/replace-first #"^//" "")
       (string/replace-first #"[^\/]*" "")))
 
 (defn matches-file?

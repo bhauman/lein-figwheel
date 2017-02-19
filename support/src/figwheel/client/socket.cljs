@@ -5,7 +5,7 @@
 
 (defn get-websocket-imp []
   (cond
-    (utils/html-env?) (aget js/window "WebSocket")
+    (utils/html-or-react-native-env?) (aget js/window "WebSocket")
     (utils/node-env?) (try (js/require "ws")
                            (catch js/Error e
                              nil))
@@ -75,7 +75,7 @@
                                    (let [retried-count (or retried-count 0)]
                                      (utils/debug-prn "Figwheel: socket closed or failed to open")
                                      (when (> retry-count retried-count)
-                                       (js/setTimeout 
+                                       (js/setTimeout
                                         (fn []
                                           (open
                                            (assoc opts :retried-count (inc retried-count))))
