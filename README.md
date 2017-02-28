@@ -116,19 +116,6 @@ If your ClojureScript code is generating compiler warnings Figwheel
 won't load it. This, again, is very helpful in keeping the client
 environment stable. This behavior is optional and can be turned off.
 
-## Testimonials
-
-My cofounder, Danny, and I can't imagine working without Figwheel.
-We have been using it since December to build
-[Precursor](https://precursorapp.com), a collaborative drawing
-tool. It has saved us a ton of time and contributed a lot towards
-Danny's [appreciation of ClojureScript for design](https://precursorapp.com/blog/clojure-is-a-product-design-tool).
-> Danny King and Daniel Woelfel
-
-
-My major issue is that Figwheel is too awesome.
-> Julian Leviston
-
 ## Try Figwheel
 
 Make sure you have the [latest version of leiningen installed](https://github.com/technomancy/leiningen#installation).
