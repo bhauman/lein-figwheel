@@ -158,7 +158,7 @@
  */")
 
 (defn create-deadman-app-js [build-config output-to-filepath exception]
-  (println (color-text (str "Figwheel: inital compile failed - outputing temporary helper application to "
+  (println (color-text (str "Figwheel: initial compile failed - outputting temporary helper application to "
                             output-to-filepath)
                        :magenta))
   (let [data (pr-str (pr-str (extract-data-for-deadman-app build-config exception)))]
