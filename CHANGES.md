@@ -1,3 +1,19 @@
+## 0.5.10 Init and destroy hooks
+
+In the top level figwheel config one can now place some lifecycle
+hooks, to easily add more services to the process that figwheel is
+running in.
+
+For example:
+
+
+    :figwheel { :init    user/start-server
+                :destroy user/stop-server }
+
+Also:
+
+* loosen :clojure-defines validation
+
 ## 0.5.9 JavaScript reloading for Foreign lib dirs and pprint REPL results
 
 * seemless hot reloading of JavaScript in foreign lib dirs
