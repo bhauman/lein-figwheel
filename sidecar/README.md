@@ -15,7 +15,7 @@ file in the root directory of our project.
   :builds [{:id "example", 
             :source-paths ["src"],
             :figwheel true
-            :build-options
+            :compiler
             {:main example.core,
              :asset-path "js/out",
              :output-to "resources/public/js/example.js",
