@@ -3,7 +3,8 @@
    [clojure.java.io :as io]
    [cljs.analyzer :as ana]
    [cljs.env]
-   [clojure.string :as string]))
+   [clojure.string :as string])
+  (:import [java.nio.file Path Paths]))
 
 (def sync-agent (agent {}))
 
@@ -115,3 +116,25 @@
        (println line#)
        (Thread/sleep 15))
      result#))
+
+(defn sanitize-path
+  "Return the java.io.File of the input string s."
+  [s]
+  (-> s io/file .getCanonicalPath io/file))
+
+(defn cwd
+  "Return the current \".\" expanded to the actual absolute
+  java.io.File"
+  []
+  (-> "." (java.io.File.) .getCanonicalFile))
+
+(defn uri-path
+  "Return a normalized path when the input string is a valid URI
+  format. Return nil otherwise."
+  [s] ^Path
+  (try
+    (Paths/get (java.net.URI. s))
+    (catch java.net.URISyntaxException e
+      (println " URI syntax exception handled for" s))
+    (catch  java.lang.IllegalArgumentException e
+      (println "Illegal argument exception handled for" s))))
