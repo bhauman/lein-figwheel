@@ -827,6 +827,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::externs
      ::modules
      ::source-map-path
+     ::source-map-asset-path
      ::source-map-timestamp
      ::cache-analysis
      ::recompile-dependents
