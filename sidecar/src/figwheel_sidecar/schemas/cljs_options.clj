@@ -317,6 +317,14 @@ further web server configuration.
 
   :source-map-path \"public/js\"")
 
+(def-key ::source-map-asset-path            string?
+
+  "Provides fine grained control over the sourceMappingURL comment that
+is appended to generated JavaScript files when source mapping is enabled.
+further web server configuration.
+
+  :source-map-asset-path \"http://foo.com/public/js/out\"")
+
 (def-key ::source-map-timestamp       boolean?
 
   "Add cache busting timestamps to source map urls. This is helpful for
@@ -358,6 +366,16 @@ compiled with :static-fns implicitly set to true.
   :static-fns true")
 
 ;; (def-key ::warnings                   (ref-schema 'CompilerWarnings))
+
+(def-key ::load-tests              boolean?
+
+  "This flag will cause deftest from cljs.test to be ignored if false.
+
+Useful for production if deftest has been used in the production classpath.
+
+Default is true. Has the same effect as binding cljs.analyzer/*load-tests*.
+
+  :load-tests true")
 
 (def-key ::elide-asserts              boolean?
 
@@ -832,6 +850,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::cache-analysis
      ::recompile-dependents
      ::static-fns
+     ::load-tests
      ::elide-asserts
      ::pseudo-names
      ::print-input-delimiter
