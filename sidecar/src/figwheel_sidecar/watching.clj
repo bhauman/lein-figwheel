@@ -13,7 +13,8 @@
 
 (defn files-and-dirs [source-paths]
   (group-by #(if (.isDirectory %) :dirs :files)
-            (map io/file source-paths)))
+            (->> (map io/file source-paths)
+                 (filter #(.exists %)))))
 
 ;; relies on canonical strings
 (defn is-subdirectory [dir child]
