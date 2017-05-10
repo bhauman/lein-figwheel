@@ -504,6 +504,12 @@ For :optimization :none, a :main option must be specified for defines
 to work, and only goog-define defines are affected. :closure-defines
 currently does not have any effect with :optimization :whitespace.")
 
+(def-key ::npm-deps (s/map-of keyword? string?)
+  "Please see:
+https://anmonteiro.com/2017/03/requiring-node-js-modules-from-clojurescript-namespaces/
+
+  :npm-deps {:left-pad \"1.1.3\" }")
+
 (def-key ::closure-extra-annotations
   (s/every non-blank-string? :min-count 1 :into [] :kind sequential?)
 
@@ -861,6 +867,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::compiler-stats
      ::language-in
      ::language-out
+     ::npm-deps
      ::closure-defines
      ::closure-extra-annotations
      ::anon-fn-naming-policy
