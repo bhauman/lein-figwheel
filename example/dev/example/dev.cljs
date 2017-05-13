@@ -18,5 +18,5 @@
            :on-jsload (fn []
                         ;; it can be helpful to touch the state on 
                         ;; reload to cause a re-render
-                        (swap! core/app-state update-in [:__figwheel_counter] inc))})
+                        (swap! core/app-state update-in [:__figwheel_counter] (fnil inc 0)))})
 
