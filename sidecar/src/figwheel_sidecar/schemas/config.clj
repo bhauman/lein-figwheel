@@ -424,6 +424,7 @@ Or you can specify which suffixes will cause the reloading
      ::jar
      ::incremental
      ::assert
+     ::warnings
      ::warning-handlers
      ::figwheel
      ::watch-paths
@@ -613,6 +614,7 @@ Default: nil (disabled)
 (def-key ::jar              boolean?)
 (def-key ::incremental      boolean?)
 (def-key ::assert           boolean?)
+(def-key ::warnings         boolean?)
 (def-key ::warning-handlers (s/every ::s/any :min-count 1 :into [] :kind sequential?))
 
 ;; **** Figwheel Client Options
