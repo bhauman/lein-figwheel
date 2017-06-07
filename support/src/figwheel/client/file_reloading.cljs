@@ -474,13 +474,13 @@
          :current-url-length (count (truncate-url link-href))}))))
 
 (defn get-correct-link [f-data]
-  (when-let [res (first
-                  (sort-by
-                   (fn [{:keys [match-length current-url-length]}]
-                     (- current-url-length match-length))
-                   (keep #(matches-file? f-data %)
-                         (current-links))))]
-    (:link res)))
+  (letfn [(match-quality [{:keys [match-length current-url-length]}]
+            (- current-url-length match-length))]
+    (->> (current-links)
+      (keep #(matches-file? f-data %))
+      (sort-by match-quality)
+      (partition-by match-quality)
+      (first) (last) (:link))))
 
 (defn clone-link [link url]
   (let [clone (.createElement js/document "link")]
