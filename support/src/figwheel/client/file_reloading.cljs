@@ -62,19 +62,9 @@
   (aget js/goog.dependencies_.written (name->path ns)))
 
 (defn immutable-ns? [name]
-  (or (#{"goog"
-         "cljs.core"
-         "cljs.nodejs"
-         "an.existing.path"
-         "dup.base"
-         "far.out"
-         "ns"
-         "someprotopackage.TestPackageTypes"
-         "svgpan.SvgPan"
-         "testDep.bar"} name)
-      (some
-       (partial goog.string/startsWith name)
-       ["goog." "cljs." "clojure." "fake." "proto2."])))
+  (or (#{"goog" "cljs.core" "cljs.nodejs"} name)
+      (goog.string/startsWith "clojure." name)
+      (goog.string/startsWith "goog." name)))
 
 (defn get-requires [ns]
   (->> ns
@@ -189,7 +179,6 @@
   ;; The biggest problem here is that clojure.browser.repl might have
   ;; patched this or might patch this afterward
   (when-not js/COMPILED
-    ;; 
     (set! (.-require_figwheel_backup_ js/goog) (or js/goog.require__ js/goog.require))
     ;; suppress useless Google Closure error about duplicate provides
     (set! (.-isProvided_ js/goog) (fn [name] false))
