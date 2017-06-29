@@ -1,4 +1,4 @@
-(defproject lein-figwheel "0.5.10"
+(defproject lein-figwheel "0.5.11-SNAPSHOT"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser. This is the lein plugin."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -10,7 +10,7 @@
          :url "https://github.com/bhauman/lein-figwheel"
          :dir ".."}
 
-  :profiles {:dev {:dependencies [[leiningen "2.6.1"]
+  :profiles {:dev {:dependencies [[leiningen "2.7.1"]
                                   [org.clojure/test.check "0.9.0"]]
                    :source-paths ["dev" "src"]
                    :aliases {"change-version" ["run" "-m" "figwheel-tasks.core" ":change-version"]

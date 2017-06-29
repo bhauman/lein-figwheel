@@ -1,4 +1,4 @@
-(defproject figwheel-sidecar "0.5.10"
+(defproject figwheel-sidecar "0.5.11-SNAPSHOT"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -10,29 +10,29 @@
   [[org.clojure/clojure "1.8.0"]
    [org.clojure/clojurescript "1.8.51"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.3.442"
+   [org.clojure/core.async "0.3.443"
     :exclusions [org.clojure/tools.reader]]
-   [com.stuartsierra/component "0.3.1"]
+   [com.stuartsierra/component "0.3.2"]
    [http-kit "2.2.0"]
-   [ring-cors "0.1.8"
+   [ring-cors "0.1.11"
     :exclusions [ring/ring-core org.clojure/clojure]]
-   [ring/ring-core "1.5.0"
+   [ring/ring-core "1.6.1"
     :exclusions
     [org.clojure/tools.reader
      org.clojure/clojure]]
    [clj-stacktrace "0.2.8"]
-   [figwheel "0.5.10"
+   [figwheel "0.5.11-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.11" :exclusions [org.clojure/clojure]]
 
-   [org.clojure/tools.nrepl "0.2.12"]
+   [org.clojure/tools.nrepl "0.2.13"]
    ;; for config validation
    [simple-lein-profile-merge "0.1.4"]
    [strictly-specking-standalone "0.1.1"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
 
-  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
+  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
                    :source-paths ["cljs_src" "src"]
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
                              [lein-ancient "0.6.10"]]}
