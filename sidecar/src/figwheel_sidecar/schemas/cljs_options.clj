@@ -582,6 +582,17 @@ Only available for cljs.build.api/watch
 (def-key ::closure-output-charset     non-blank-string?)
 (def-key ::external-config            (s/map-of keyword? map?))
 
+(def-key ::fn-invoke-direct boolean?
+  "Requires :static-fns true. This option emits slightly different
+code that can speed up your code around 10-30%. Higher order
+function  that don’t implement the IFn protocol are normally called
+with f.call(null, arg0, arg1 …​).
+
+With this option enabled the compiler calls them with a faster
+f(arg0, arg1 …​ instead.)
+
+  :fn-invoke-direct true"
+
 ;; ** ClojureScript Compiler Warnings
 
 (def-key ::warnings
@@ -884,7 +895,8 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::closure-output-charset
      ::external-config
      ::watch-fn
-     ::warnings])
+     ::warnings
+     ::fn-invoke-direct])
 
 
    ))
