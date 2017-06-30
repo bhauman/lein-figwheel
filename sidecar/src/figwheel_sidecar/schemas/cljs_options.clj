@@ -803,10 +803,10 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
    ;; **** TODO add in the cljs.compiler unknown/similar-key warning here
 
    ;; these next warnings probably be elevated to an errors attach-reason
-   (attach-warning ":preamble has no effect when :optimizations is not :none"
+   (attach-warning ":preamble has no effect when :optimizations is :none"
                    (fn [{:keys [optimizations] :as cmpl}]
                      (not (and (contains? cmpl :preamble)
-                               (not (opt-none? optimizations))))))
+                               (opt-none? optimizations)))))
 
    (attach-warning ":hashbang has no effect when :target is not :nodejs"
                    (fn [{:keys [target] :as cmpl}]
