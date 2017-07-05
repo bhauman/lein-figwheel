@@ -593,6 +593,14 @@ f(arg0, arg1 …​ instead.)
 
   :fn-invoke-direct true")
 
+(def-key ::rewrite-polyfills boolean?
+  "If set to true, the google closure compiler will add polyfills (for example
+when you use native javascript Promise). This requires :language-in to be set
+to :es6 or higher or it will silently be ignored!
+
+  :language-in :es6
+  :rewrite-polyfills true")
+
 ;; ** ClojureScript Compiler Warnings
 
 (def-key ::warnings
@@ -896,7 +904,8 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::external-config
      ::watch-fn
      ::warnings
-     ::fn-invoke-direct])
+     ::fn-invoke-direct
+     ::rewrite-polyfills])
 
 
    ))
