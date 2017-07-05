@@ -591,7 +591,7 @@ with f.call(null, arg0, arg1 …​).
 With this option enabled the compiler calls them with a faster
 f(arg0, arg1 …​ instead.)
 
-  :fn-invoke-direct true"
+  :fn-invoke-direct true")
 
 ;; ** ClojureScript Compiler Warnings
 
