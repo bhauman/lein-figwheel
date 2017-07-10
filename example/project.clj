@@ -6,7 +6,7 @@
   :dependencies [
                  [org.clojure/clojure "1.9.0-alpha15"]
                  #_[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.229"]
+                 [org.clojure/clojurescript "1.9.671"]
                  [org.clojure/core.async "0.3.442"
                   :exclusions [org.clojure/tools.reader]]
                  [sablono "0.3.5"]
@@ -19,7 +19,7 @@
 
   :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
-            [lein-figwheel "0.5.11-SNAPSHOT"]
+            [lein-figwheel "0.5.11"]
             #_[lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -113,7 +113,7 @@
                                                        }}}}
 
   :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
-                                    [figwheel-sidecar "0.5.11-SNAPSHOT"]
+                                    [figwheel-sidecar "0.5.11"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
                                     [leiningen-core "2.6.1"]]

@@ -13,7 +13,7 @@
    [figwheel.client.heads-up :as hu]
    ;; reload js oh yeah
    [example.fun-tester]
-   [tabby]
+   #_[tabby]
    [tweaky]
    #_[wowzacore]
    #_[clojure.string :refer [hithere]])
@@ -43,7 +43,7 @@
 
 (prn (testmac "hey there"))
 
-(prn (tabby/hello))
+#_(prn (tabby/hello))
 (prn (tweaky/hello))
 
 (prn (example.sss/add ))
@@ -109,8 +109,8 @@
 (defn todo [{:keys [id content completed] :as huh} owner]
   (om/component
    (let [todos (om/observe owner (todos*))]
-     (sab/html [:li 
-                [:div 
+     (sab/html [:li
+                [:div
                  (if completed
                    [:a {:href "#"
                         :style style/done-button

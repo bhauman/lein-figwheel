@@ -10,7 +10,7 @@
    [leiningen.figwheel.fuzzy :as fuz]
    [simple-lein-profile-merge.core :as lm]))
 
-(def _figwheel-version_ "0.5.11-SNAPSHOT")
+(def _figwheel-version_ "0.5.11")
 
 (defn make-subproject [project paths-to-add]
   (with-meta

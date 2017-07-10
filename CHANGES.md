@@ -1,3 +1,31 @@
+## 0.5.11 New cljs compiler options
+
+* add CLJS compile option `:fn-invoke-direct` to validation schema
+* add CLJS compile option `:source-map-asset-path` to validation schema
+* add CLJS compile option `:load-test` to validation schema
+* add CLJS compile option `:npm-deps` to validation schema
+* only watch directories if they exist - PR #551 fixes Issue #451
+
+I knew when I started validating compiler options that there was a
+trade-off. On the one hand I can create really specific errors
+(i.e. spelling errors) if I do a hard check for key membership, but
+with the down side that as figwheel trails the compiler development
+new options would couse the config to fail validiation.
+
+I figured this would be a good trade off considering that:
+
+A. Compiler options will be added at a slower and slower rate as time
+goes on.
+
+B. In general newer compiler options are geared towards more advanced
+users who understand the trade-off of opting-out of config validation.
+
+One can opt-out/tune this behavior with the `:validate-config` option:
+
+    :validate-config (false | :warn-unknown-keys | :ignore-unknown-keys)
+
+and skip unknown key validation all together. 
+
 ## 0.5.10 Init and destroy hooks
 
 In the top level figwheel config one can now place some lifecycle
