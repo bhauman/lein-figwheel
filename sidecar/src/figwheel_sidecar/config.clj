@@ -845,7 +845,7 @@
                          (utils/slow-output
                           (print-validate-config-data config-data)))
                   (do
-                    (println (color-text "Figwheel: Configuration Valid :)" :green))
+                    (println (color-text "Figwheel: Configuration Valid ;)" :green))
                     config-data)
                   (do
                     (when (:read-exception config-data)
