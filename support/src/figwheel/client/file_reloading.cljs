@@ -56,10 +56,10 @@
 
 (defn name->path [ns]
   (dev-assert (string? ns))
-  (aget js/goog.dependencies_.nameToPath ns))
+  (gobj/get js/goog.dependencies_.nameToPath ns))
 
 (defn provided? [ns]
-  (aget js/goog.dependencies_.written (name->path ns)))
+  (gobj/get js/goog.dependencies_.written (name->path ns)))
 
 (defn immutable-ns? [name]
   (or (#{"goog" "cljs.core" "cljs.nodejs"} name)
@@ -69,7 +69,7 @@
 (defn get-requires [ns]
   (->> ns
     name->path
-    (aget js/goog.dependencies_.requires)
+    (gobj/get js/goog.dependencies_.requires)
     (gobj/getKeys)
     (filter #(not (immutable-ns? %)))
     set))

@@ -1,15 +1,16 @@
 (ns figwheel.client.socket
   (:require
+   [goog.object :as gobj]
    [figwheel.client.utils :as utils]
    [cljs.reader :refer [read-string]]))
 
 (defn get-websocket-imp []
   (cond
-    (utils/html-or-react-native-env?) (aget js/window "WebSocket")
+    (utils/html-or-react-native-env?) (gobj/get js/window "WebSocket")
     (utils/node-env?) (try (js/require "ws")
                            (catch js/Error e
                              nil))
-    (utils/worker-env?) (aget js/self "WebSocket")
+    (utils/worker-env?) (gobj/get js/self "WebSocket")
     :else nil))
 
 ;; messages have the following formats
