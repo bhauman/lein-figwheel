@@ -1,6 +1,7 @@
 (ns ^:figwheel-no-load figwheel.client.utils
   (:require [clojure.string :as string]
             [goog.string :as gstring]
+            [goog.object :as gobj]
             [cljs.reader :refer [read-string]]
             [cljs.pprint :refer [pprint]]
             [goog.userAgent.product :as product])
@@ -48,7 +49,7 @@
 ;; actually we should probably lift the event system here off the DOM
 ;; so that we work well in Node and other environments
 (defn dispatch-custom-event [event-name data]
-  (when (and (html-env?) (aget js/window "CustomEvent") (js* "typeof document !== 'undefined'"))
+  (when (and (html-env?) (gobj/get js/window "CustomEvent") (js* "typeof document !== 'undefined'"))
     (.dispatchEvent (.-body js/document)
                     (create-custom-event event-name data))))
 

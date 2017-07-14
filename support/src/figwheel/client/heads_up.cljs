@@ -83,7 +83,7 @@
 (defn set-style! [{:keys [container-el]} st-map]
   (mapv
    (fn [[k v]]
-     (aset (.-style container-el) (name k) v))
+     (gobj/set (.-style container-el) (name k) v))
    st-map))
 
 (defn set-content! [{:keys [content-area-el] :as c} dom-str]
