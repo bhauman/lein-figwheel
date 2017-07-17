@@ -601,6 +601,10 @@ to :es6 or higher or it will silently be ignored!
   :language-in :es6
   :rewrite-polyfills true")
 
+;; TODO waiting on docs
+(def-key ::checked-arrays (s/or :keyval #{:warn :error}
+                                :bool   boolean?))
+
 ;; ** ClojureScript Compiler Warnings
 
 (def-key ::warnings
@@ -1038,4 +1042,5 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::watch-fn
      ::warnings
      ::fn-invoke-direct
-     ::rewrite-polyfills])))
+     ::rewrite-polyfills
+     ::checked-arrays])))
