@@ -609,28 +609,41 @@ to :es6 or higher or it will silently be ignored!
    :warnings-map-options
    (strict-keys
     :opt-un
-      [::undeclared-ns-form
-       ::protocol-deprecated
-       ::undeclared-protocol-symbol
-       ::fn-var
-       ::invalid-arithmetic
-       ::preamble-missing
-       ::undeclared-var
-       ::protocol-invalid-method
-       ::variadic-max-arity
-       ::multiple-variadic-overloads
-       ::fn-deprecated
-       ::redef
-       ::fn-arity
-       ::invalid-protocol-symbol
-       ::dynamic
-       ::undeclared-ns
-       ::overload-arity
-       ::extending-base-js-type
-       ::single-segment-namespace
-       ::protocol-duped-method
-       ::protocol-multiple-impls
-       ::invoke-ctor]))
+    [::dynamic
+     ::extending-base-js-type
+     ::extend-type-invalid-method-shape
+     ::fn-var
+     ::fn-arity
+     ::fn-deprecated
+     ::invalid-protocol-symbol
+     ::invoke-ctor
+     ::invalid-arithmetic
+     ::invalid-array-access
+     ::infer-warning
+     ::js-shadowed-by-local
+     ::multiple-variadic-overloads
+     ::munged-namespace
+     ::ns-var-clash
+     ::overload-arity
+     ::preamble-missing
+     ::protocol-deprecated
+     ::protocol-invalid-method
+     ::protocol-duped-method
+     ::protocol-multiple-impls
+     ::protocol-with-variadic-method
+     ::protocol-impl-with-variadic-method
+     ::protocol-impl-recur-with-target
+     ::redef
+     ::redef-in-file
+     ::single-segment-namespace
+     ::unprovided
+     ::undeclared-var
+     ::undeclared-ns
+     ::undeclared-ns-form
+     ::undeclared-protocol-symbol
+     ::unsupported-js-module-type
+     ::unsupported-preprocess-value
+     ::variadic-max-arity]))
 
   "This flag will turn on/off compiler warnings for references to
 undeclared vars, wrong function call arities, etc. Can be a boolean
@@ -646,6 +659,7 @@ keys with associated booleans. Defaults to true.
 The following warnings are supported:
 
   :preamble-missing, missing preamble
+  :unprovided, required namespace not provided
   :undeclared-var, undeclared var
   :undeclared-ns, var references non-existent namespace
   :undeclared-ns-form, namespace reference in ns form that does not exist
@@ -666,31 +680,55 @@ The following warnings are supported:
   :protocol-invalid-method, protocol method does not match declaration
   :protocol-duped-method, duplicate protocol method implementation
   :protocol-multiple-impls, protocol implemented multiple times
-  :single-segment-namespace, single segment namespace")
+  :protocol-with-variadic-method, protocol declares variadic signature
+  :protocol-impl-with-variadic-method, protocol impl employs variadic signature
+  :protocol-impl-recur-with-target, target passed in recur to protocol method head
+  :single-segment-namespace, single segment namespace
+  :munged-namespace, namespace name contains a reserved JavaScript keyword
+  :ns-var-clash, namespace clashes with var
+  :extend-type-invalid-method-shape, method arities must be grouped together
+  :unsupported-js-module-type, unsupported JavaScript module type
+  :unsupported-preprocess-value, unsupported foreign lib preprocess value
+  :js-shadowed-by-local, name shadowed by a local
+  :infer-warning, warnings related to externs inference")
 
 ;; *** TODO differnet ns??
-(def-key ::undeclared-ns-form          boolean?)
-(def-key ::protocol-deprecated         boolean?)
-(def-key ::undeclared-protocol-symbol  boolean?)
-(def-key ::fn-var                      boolean?)
-(def-key ::invalid-arithmetic          boolean?)
-(def-key ::preamble-missing            boolean?)
-(def-key ::undeclared-var              boolean?)
-(def-key ::protocol-invalid-method     boolean?)
-(def-key ::variadic-max-arity          boolean?)
+
+(def-key ::dynamic boolean?)
+(def-key ::extending-base-js-type boolean?)
+(def-key ::extend-type-invalid-method-shape boolean?)
+(def-key ::fn-var boolean?)
+(def-key ::fn-arity boolean?)
+(def-key ::fn-deprecated boolean?)
+(def-key ::invalid-protocol-symbol boolean?)
+(def-key ::invoke-ctor boolean?)
+(def-key ::invalid-arithmetic boolean?)
+(def-key ::invalid-array-access boolean?)
+(def-key ::infer-warning boolean?)
+(def-key ::js-shadowed-by-local boolean?)
 (def-key ::multiple-variadic-overloads boolean?)
-(def-key ::fn-deprecated               boolean?)
-(def-key ::redef                       boolean?)
-(def-key ::fn-arity                    boolean?)
-(def-key ::invalid-protocol-symbol     boolean?)
-(def-key ::dynamic                     boolean?)
-(def-key ::undeclared-ns               boolean?)
-(def-key ::overload-arity              boolean?)
-(def-key ::extending-base-js-type      boolean?)
-(def-key ::single-segment-namespace    boolean?)
-(def-key ::protocol-duped-method       boolean?)
-(def-key ::protocol-multiple-impls     boolean?)
-(def-key ::invoke-ctor                 boolean?)
+(def-key ::munged-namespace boolean?)
+(def-key ::ns-var-clash boolean?)
+(def-key ::overload-arity boolean?)
+(def-key ::preamble-missing boolean?)
+(def-key ::protocol-deprecated boolean?)
+(def-key ::protocol-invalid-method boolean?)
+(def-key ::protocol-duped-method boolean?)
+(def-key ::protocol-multiple-impls boolean?)
+(def-key ::protocol-with-variadic-method boolean?)
+(def-key ::protocol-impl-with-variadic-method boolean?)
+(def-key ::protocol-impl-recur-with-target boolean?)
+(def-key ::redef boolean?)
+(def-key ::redef-in-file boolean?)
+(def-key ::single-segment-namespace boolean?)
+(def-key ::unprovided boolean?)
+(def-key ::undeclared-var boolean?)
+(def-key ::undeclared-ns boolean?)
+(def-key ::undeclared-ns-form boolean?)
+(def-key ::undeclared-protocol-symbol boolean?)
+(def-key ::unsupported-js-module-type boolean?)
+(def-key ::unsupported-preprocess-value boolean?)
+(def-key ::variadic-max-arity boolean?)
 
 ;; ** Closure Compiler Warnings
 
@@ -699,28 +737,60 @@ The following warnings are supported:
    :opt-un
    [::access-controls
     ::ambiguous-function-decl
-    ::debugger-statement-present
+    ::analyzer-checks
+    ::check-eventful-object-disposal
     ::check-regexp
     ::check-types
     ::check-useless-code
     ::check-variables
+    ::closure-dep-method-usage-checks
+    ::common-js-module-load
+    ::conformance-violations
     ::const
     ::constant-property
+    ::debugger-statement-present
     ::deprecated
+    ::deprecated-annotations
     ::duplicate-message
+    ::duplicate-vars
+    ::es3
     ::es5-strict
     ::externs-validation
+    ::extra-require
     ::fileoverview-jsdoc
+    ::function-params
     ::global-this
+    ::inferred-const-checks
     ::internet-explorer-checks
     ::invalid-casts
+    ::j2cl-checks
+    ::late-provide
+    ::lint-checks
+    ::message-descriptions
+    ::misplaced-type-annotation
+    ::missing-getcssname
+    ::missing-override
+    ::missing-polyfill
     ::missing-properties
+    ::missing-provide
+    ::missing-require
+    ::missing-return
     ::non-standard-jsdoc
+    ::report-unknown-types
+    ::strict-missing-require
     ::strict-module-dep-check
+    ::strict-requires
+    ::suspicious-code
     ::tweaks
+    ::type-invalidation
     ::undefined-names
     ::undefined-variables
+    ::underscore
     ::unknown-defines
+    ::unused-local-variable
+    ::unused-private-property
+    ::use-of-goog-base
+    ::violated-module-dep
     ::visiblity])
 
   "Configure warnings generated by the Closure compiler. A map from
@@ -733,28 +803,60 @@ The following Closure warning options are exposed to ClojureScript:
 
   :access-controls
   :ambiguous-function-decl
-  :debugger-statement-present
+  :analyzer-checks
+  :check-eventful-object-disposal
   :check-regexp
   :check-types
   :check-useless-code
   :check-variables
+  :closure-dep-method-usage-checks
+  :common-js-module-load
+  :conformance-violations
   :const
   :constant-property
+  :debugger-statement-present
   :deprecated
+  :deprecated-annotations
   :duplicate-message
+  :duplicate-vars
+  :es3
   :es5-strict
   :externs-validation
+  :extra-require
   :fileoverview-jsdoc
+  :function-params
   :global-this
+  :inferred-const-checks
   :internet-explorer-checks
   :invalid-casts
+  :j2cl-checks
+  :late-provide
+  :lint-checks
+  :message-descriptions
+  :misplaced-type-annotation
+  :missing-getcssname
+  :missing-override
+  :missing-polyfill
   :missing-properties
+  :missing-provide
+  :missing-require
+  :missing-return
   :non-standard-jsdoc
+  :report-unknown-types
+  :strict-missing-require
   :strict-module-dep-check
+  :strict-requires
+  :suspicious-code
   :tweaks
+  :type-invalidation
   :undefined-names
   :undefined-variables
+  :underscore
   :unknown-defines
+  :unused-local-variable
+  :unused-private-property
+  :use-of-goog-base
+  :violated-module-dep
   :visiblity
 
 See the Closure Compiler Warning wiki for detailed descriptions.")
@@ -762,32 +864,63 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
 (def-key ::warning-value #{:error :warning :off})
 
 ;; *** TODO differnet ns??
-(def-key ::access-controls            ::warning-value)
-(def-key ::ambiguous-function-decl    ::warning-value)
-(def-key ::debugger-statement-present ::warning-value)
-(def-key ::check-regexp               ::warning-value)
-(def-key ::check-types                ::warning-value)
-(def-key ::check-useless-code         ::warning-value)
-(def-key ::check-variables            ::warning-value)
-(def-key ::const                      ::warning-value)
-(def-key ::constant-property          ::warning-value)
-(def-key ::deprecated                 ::warning-value)
-(def-key ::duplicate-message          ::warning-value)
-(def-key ::es5-strict                 ::warning-value)
-(def-key ::externs-validation         ::warning-value)
-(def-key ::fileoverview-jsdoc         ::warning-value)
-(def-key ::global-this                ::warning-value)
-(def-key ::internet-explorer-checks   ::warning-value)
-(def-key ::invalid-casts              ::warning-value)
-(def-key ::missing-properties         ::warning-value)
-(def-key ::non-standard-jsdoc         ::warning-value)
-(def-key ::strict-module-dep-check    ::warning-value)
-(def-key ::tweaks                     ::warning-value)
-(def-key ::undefined-names            ::warning-value)
-(def-key ::undefined-variables        ::warning-value)
-(def-key ::unknown-defines            ::warning-value)
-(def-key ::visiblity                  ::warning-value)
-
+(def-key  ::access-controls ::warning-value)
+(def-key  ::ambiguous-function-decl ::warning-value)
+(def-key  ::analyzer-checks ::warning-value)
+(def-key  ::check-eventful-object-disposal ::warning-value)
+(def-key  ::check-regexp ::warning-value)
+(def-key  ::check-types ::warning-value)
+(def-key  ::check-useless-code ::warning-value)
+(def-key  ::check-variables ::warning-value)
+(def-key  ::closure-dep-method-usage-checks ::warning-value)
+(def-key  ::common-js-module-load ::warning-value)
+(def-key  ::conformance-violations ::warning-value)
+(def-key  ::const ::warning-value)
+(def-key  ::constant-property ::warning-value)
+(def-key  ::debugger-statement-present ::warning-value)
+(def-key  ::deprecated ::warning-value)
+(def-key  ::deprecated-annotations ::warning-value)
+(def-key  ::duplicate-message ::warning-value)
+(def-key  ::duplicate-vars ::warning-value)
+(def-key  ::es3 ::warning-value)
+(def-key  ::es5-strict ::warning-value)
+(def-key  ::externs-validation ::warning-value)
+(def-key  ::extra-require ::warning-value)
+(def-key  ::fileoverview-jsdoc ::warning-value)
+(def-key  ::function-params ::warning-value)
+(def-key  ::global-this ::warning-value)
+(def-key  ::inferred-const-checks ::warning-value)
+(def-key  ::internet-explorer-checks ::warning-value)
+(def-key  ::invalid-casts ::warning-value)
+(def-key  ::j2cl-checks ::warning-value)
+(def-key  ::late-provide ::warning-value)
+(def-key  ::lint-checks ::warning-value)
+(def-key  ::message-descriptions ::warning-value)
+(def-key  ::misplaced-type-annotation ::warning-value)
+(def-key  ::missing-getcssname ::warning-value)
+(def-key  ::missing-override ::warning-value)
+(def-key  ::missing-polyfill ::warning-value)
+(def-key  ::missing-properties ::warning-value)
+(def-key  ::missing-provide ::warning-value)
+(def-key  ::missing-require ::warning-value)
+(def-key  ::missing-return ::warning-value)
+(def-key  ::non-standard-jsdoc ::warning-value)
+(def-key  ::report-unknown-types ::warning-value)
+(def-key  ::strict-missing-require ::warning-value)
+(def-key  ::strict-module-dep-check ::warning-value)
+(def-key  ::strict-requires ::warning-value)
+(def-key  ::suspicious-code ::warning-value)
+(def-key  ::tweaks ::warning-value)
+(def-key  ::type-invalidation ::warning-value)
+(def-key  ::undefined-names ::warning-value)
+(def-key  ::undefined-variables ::warning-value)
+(def-key  ::underscore ::warning-value)
+(def-key  ::unknown-defines ::warning-value)
+(def-key  ::unused-local-variable ::warning-value)
+(def-key  ::unused-private-property ::warning-value)
+(def-key  ::use-of-goog-base ::warning-value)
+(def-key  ::violated-module-dep ::warning-value)
+(def-key  ::visiblity ::warning-value)
 
 ;; opt none helper
 (defn- opt-none? [opt]
@@ -905,7 +1038,4 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::watch-fn
      ::warnings
      ::fn-invoke-direct
-     ::rewrite-polyfills])
-
-
-   ))
+     ::rewrite-polyfills])))
