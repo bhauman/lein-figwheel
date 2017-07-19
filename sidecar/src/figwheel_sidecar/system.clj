@@ -12,6 +12,7 @@
 
    [strictly-specking-standalone.ansi-util :refer [with-color-when color-text]]
    [com.stuartsierra.component :as component]
+   [suspendable.core :refer [Suspendable]]
 
    [clojure.pprint :as p]
    [clojure.java.io :as io]
@@ -130,7 +131,16 @@
                    channel-id msg-data callback))
   (-connection-data [this]
     (server/-connection-data (:figwheel-server @system)))
-  (-actual [this] (:figwheel-server @system)))
+  (-actual [this] (:figwheel-server @system))
+  Suspendable
+  (suspend [this] (assoc this :suspended? true))
+  (resume [this old-this]
+    (if (:suspended? old-this)
+      (-> this
+          (assoc :system-running (:system-running old-this))
+          (assoc :system (:system old-this)))
+      (do (when old-this (component/stop old-this))
+          (component/start this)))))
 
 (defn figwheel-system [config-data]
   (let [{:keys [build-ids] :as options}

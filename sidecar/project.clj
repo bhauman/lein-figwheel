@@ -13,6 +13,8 @@
    [org.clojure/core.async "0.3.443"
     :exclusions [org.clojure/tools.reader]]
    [com.stuartsierra/component "0.3.2"]
+   [suspendable "0.1.1"
+    :exclusions [org.clojure/clojure com.stuartsierra/component]]
    [http-kit "2.2.0"]
    [ring-cors "0.1.11"
     :exclusions [ring/ring-core org.clojure/clojure]]
