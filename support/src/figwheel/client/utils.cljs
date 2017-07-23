@@ -131,13 +131,17 @@ the browser gets reloaded."
 
 (defn persistent-config-get
   ([ky not-found]
-   (cond
-     (contains? @local-persistent-config ky)
-     (get @local-persistent-config ky)
-     (and (exists? js/localStorage) (.getItem js/localStorage (name ky)))
-     (let [v (read-string (.getItem js/localStorage (name ky)))]
-       (persistent-config-set! ky v)
-       v)
-     :else not-found))
+   (try
+     (cond
+       (contains? @local-persistent-config ky)
+       (get @local-persistent-config ky)
+       (and (exists? js/localStorage)
+            (.getItem js/localStorage (name ky)))
+       (let [v (read-string (.getItem js/localStorage (name ky)))]
+         (persistent-config-set! ky v)
+         v)
+       :else not-found)
+     (catch js/Error e
+       not-found)))
   ([ky]
    (persistent-config-get ky nil)))
