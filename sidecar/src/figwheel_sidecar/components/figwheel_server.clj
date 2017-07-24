@@ -14,6 +14,7 @@
    [ring.util.response :refer [resource-response] :as response]
    [ring.util.mime-type :as mime]
    [ring.middleware.cors :as cors]
+   [ring.middleware.not-modified :as not-modified]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
 
    [com.stuartsierra.component :as component]))
@@ -234,6 +235,7 @@
      (handle-figwheel-websocket server-state)
 
      (wrap-no-cache)
+     (not-modified/wrap-not-modified)
      ;; adding cors to support @font-face which has a strange cors error
      ;; super promiscuous please don't uses figwheel as a production server :)
      (cors/wrap-cors
