@@ -200,12 +200,21 @@
     #(possible-fn %)
     #(handler %)))
 
-(defn wrap-no-cache [handler]
+(defn wrap-no-cache
+  "Add 'Cache-Control: no-cache' to responses.
+   This allows the client to cache the response, but
+   requires it to check with the server every time to make
+   sure that the response is still valid, before using
+   the locally cached file.
+
+   This avoids stale files being served because of overzealous
+   browser caching, while still speeding up load times by caching
+   files."
+  [handler]
   (fn [req]
     (some-> (handler req)
       (update :headers assoc
-              "Cache-Control" "no-cache"
-              "Expires" "-1"))))
+              "Cache-Control" "no-cache"))))
 
 (defn server
   "This is the server. It is complected and its OK. Its trying to be a basic devel server and
