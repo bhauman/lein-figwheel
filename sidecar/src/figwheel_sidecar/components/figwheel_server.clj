@@ -155,7 +155,8 @@
 (defn handle-index [handler root]
   (fn [request]
     (if (= [:get "/"] ((juxt :request-method :uri) request))
-      (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")})
+      (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")
+                                                             :allow-symlinks? true})
                             (response/content-type "text/html; charset=utf-8"))]
         resp
         (handler request))
@@ -168,7 +169,8 @@
                           response))]
     (fn [{:keys [request-method uri] :as request}]
       (if (= :get request-method)
-        (if-let [resp (some-> (resource-response uri {:root (or root "public")})
+        (if-let [resp (some-> (resource-response uri {:root (or root "public")
+                                                      :allow-symlinks? true})
                               (add-mime-type uri))]
           resp
           (handler request))
