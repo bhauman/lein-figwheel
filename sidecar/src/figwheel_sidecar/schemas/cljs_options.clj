@@ -603,7 +603,8 @@ to :es6 or higher or it will silently be ignored!
 
 ;; TODO waiting on docs
 (def-key ::checked-arrays (s/or :keyval #{:warn :error}
-                                :bool   boolean?))
+                                :false   false?
+                                :nil    nil?))
 
 ;; ** ClojureScript Compiler Warnings
 
