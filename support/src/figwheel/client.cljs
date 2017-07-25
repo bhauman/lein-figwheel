@@ -6,7 +6,7 @@
    [cljs.reader :refer [read-string]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.client.socket :as socket]
-   [figwheel.client.utils :as utils]   
+   [figwheel.client.utils :as utils]
    [figwheel.client.heads-up :as heads-up]
    [figwheel.client.file-reloading :as reloading]
    [clojure.string :as string]
@@ -18,14 +18,20 @@
 
 (def _figwheel-version_ "0.5.12-SNAPSHOT")
 
-;; exception formatting
+(def js-stringify
+  (if (and (exists? js/JSON) (some? js/JSON.stringify))
+    (fn [x] (str "#js " (js/JSON.stringify x nil " ")))
+    (fn [x] (try (str x) (catch js/Error e "Error: Unable to stringify")))))
 
 (defn figwheel-repl-print
   ([stream args]
    (socket/send! {:figwheel-event "callback"
                   :callback-name "figwheel-repl-print"
                   :content {:stream stream
-                            :args args}})
+                            :args
+                            (mapv
+                             #(if (string? %) % (js-stringify %))
+                             args)}})
    nil)
   ([args]
    (figwheel-repl-print :out args)))
@@ -49,7 +55,7 @@
 (defn enable-repl-print! []
   (set! *print-newline* false)
   (set-print-fn! repl-out-print-fn)
-  (set-print-err-fn! repl-err-print-fn)  
+  (set-print-err-fn! repl-err-print-fn)
   nil)
 
 (defn autoload? []
@@ -67,7 +73,7 @@
   "Figwheel by default loads code changes as you work. Sometimes you
   just want to work on your code without the ramifications of
   autoloading and simply load your code piecemeal in the REPL. You can
-  turn autoloading on and of with this method. 
+  turn autoloading on and of with this method.
 
   (figwheel.client/set-autoload false)
 
@@ -83,7 +89,7 @@
 (defn ^:export set-repl-pprint
   "This method gives you the ability to turn the pretty printing of
   the REPL's return value on and off.
-  
+
   (figwheel.client/set-repl-pprint false)
 
   NOTE: This is a persistent setting, meaning that it will persist
@@ -153,7 +159,7 @@
                      (cond
                        (reload-file-state? msg-names opts)
                        (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
-                       
+
                        (block-reload-file-state? msg-names opts)
                        (utils/log :warn (str "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
                      (do
@@ -196,13 +202,13 @@
         (result-handler
          {:status :exception
           :value (pr-str e)
-          :ua-product (get-ua-product)          
+          :ua-product (get-ua-product)
           :stacktrace (string/join "\n" (truncate-stack-trace (.-stack e)))
           :base-path base-path }))
       (catch :default e
         (result-handler
          {:status :exception
-          :ua-product (get-ua-product)          
+          :ua-product (get-ua-product)
           :value (pr-str e)
           :stacktrace "No stacktrace available."}))
       (finally
@@ -256,32 +262,32 @@
                (:autoload opts))
         (<! (heads-up/flash-loaded))
         (<! (heads-up/clear)))
-     
+
       (compile-refail-state? msg-names)
       (do
         (<! (heads-up/clear))
         (<! (heads-up/display-exception (:exception-data msg)))
         (auto-jump-to-error opts (:exception-data msg)))
-      
+
       (compile-fail-state? msg-names)
       (do
         (<! (heads-up/display-exception (:exception-data msg)))
         (auto-jump-to-error opts (:exception-data msg)))
-      
+
       (warning-append-state? msg-names)
       (heads-up/append-warning-message (:message msg))
-      
+
       (rewarning-state? msg-names)
       (do
         (<! (heads-up/clear))
         (<! (heads-up/display-warning (:message msg)))
         (auto-jump-to-error opts (:message msg)))
-      
+
       (warning-state? msg-names)
       (do
         (<! (heads-up/display-warning (:message msg)))
         (auto-jump-to-error opts (:message msg)))
-      
+
       (css-loaded-state? msg-names)
       (<! (heads-up/flash-loaded))))))
 
@@ -323,7 +329,7 @@
                   ".  Shutting down Websocket Connection!"
                   "<h4>To fix try:</h4>"
                   "<ol><li>Reload this page and make sure you are not getting a cached version of the client.</li>"
-                  "<li>You may have to clean (delete compiled assets) and rebuild to make sure that the new client code is being used.</li>"                  
+                  "<li>You may have to clean (delete compiled assets) and rebuild to make sure that the new client code is being used.</li>"
                   "<li>Also, make sure you have consistent Figwheel dependencies.</li></ol>"))))))))
 
 #_((enforce-figwheel-version-plugin {:heads-up-display true}) [{:figwheel-version "yeah"}])
@@ -364,7 +370,7 @@
 
 (defn default-on-cssload [files]
   (utils/log :debug "Figwheel: loaded CSS files")
-  (utils/log :info (pr-str (map :file files)))  
+  (utils/log :info (pr-str (map :file files)))
   files)
 
 (defonce config-defaults
@@ -375,21 +381,21 @@
    :load-warninged-code false
    :auto-jump-to-source-on-error false
    ;; :on-message identity
-   
+
    :on-jsload default-on-jsload
    :before-jsload default-before-load
 
    :on-cssload default-on-cssload
-   
+
    :on-compile-fail #'default-on-compile-fail
    :on-compile-warning #'default-on-compile-warning
 
    :reload-dependents true
-   
+
    :autoload true
-   
+
    :debug false
-   
+
    :heads-up-display true
 
    :eval-fn false
@@ -459,7 +465,7 @@
                             plugins'
                             (merge (base-plugins system-options) merge-plugins))]
              (set! utils/*print-debug* (:debug opts))
-             (enable-repl-print!)         
+             (enable-repl-print!)
              (add-plugins plugins system-options)
              (reloading/patch-goog-base)
              (doseq [msg (:initial-messages system-options)]
