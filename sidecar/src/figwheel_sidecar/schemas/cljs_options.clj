@@ -510,6 +510,13 @@ https://anmonteiro.com/2017/03/requiring-node-js-modules-from-clojurescript-name
 
   :npm-deps {:left-pad \"1.1.3\" }")
 
+(def-key ::install-deps boolean?
+
+  "When set to true, the Clojurescript compiler will handle downloading
+the Javascript dependencies defined in the :npm-deps section of the config.
+
+  :install-deps true")
+
 (def-key ::closure-extra-annotations
   (s/every non-blank-string? :min-count 1 :into [] :kind sequential?)
 
@@ -1025,6 +1032,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::language-in
      ::language-out
      ::npm-deps
+     ::install-deps
      ::closure-defines
      ::closure-extra-annotations
      ::anon-fn-naming-policy
