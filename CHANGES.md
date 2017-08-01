@@ -1,3 +1,23 @@
+## 0.5.12-SNAPSHOT Cache busting and more compiler option updates
+
+There have been constant problems when reloading an application into
+Chrome where even a hard reload insists on pulling items from the
+cache. Adding `no-cache` to the response headers headers and returning
+appropriate `not-modified` responses is a trade-off that will
+hopefully address this issue without adversely affecting initial load
+performance. Keep in mind that this will only apply to Figwheel's built-in
+dev server. If this becomes a problem for some projects we can explore
+adding a flag for this behavior.
+
+* let :npm-deps use any named type for the keys 
+* allow the server to serve symlinks outside of the project
+* take more care when checking localStorage for persistent config
+* add suspendable interface implementation to figwheel system component
+* add :checked-arrays option
+* update the catalog of :warning and :closure-warning options
+* fixes uses of `aget`
+* make configuration smiley paredit friendly
+
 ## 0.5.11 New cljs compiler options
 
 * add CLJS compile option `:fn-invoke-direct` to validation schema
