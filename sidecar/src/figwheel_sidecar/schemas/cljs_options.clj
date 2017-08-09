@@ -617,10 +617,18 @@ to :es6 or higher or it will silently be ignored!
   :language-in :es6
   :rewrite-polyfills true")
 
-;; TODO waiting on docs
 (def-key ::checked-arrays (s/or :keyval #{:warn :error}
                                 :false   false?
-                                :nil    nil?))
+                                :nil    nil?)
+  "If set to :warn or :error, checks inferred types and runtime values passed
+to aget and aset. Inferred type mismatches will result in the
+:invalid-array-access warning being triggered. Logs when incorrect values
+are passed if set to :warn, throws if set to :error. May be set to a
+false-y value to disable this feature.
+
+This setting does not apply if :optimizations is set to :advanced.
+
+  :checked-arrays :warn")
 
 ;; ** ClojureScript Compiler Warnings
 
