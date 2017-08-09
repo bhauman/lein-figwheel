@@ -575,6 +575,15 @@ Only available for cljs.build.api/watch
 
   :watch-fn (fn [] (println \"Updated build\"))")
 
+(def-key ::process-shim boolean?
+
+  "Defaults to true. Automatically provide a shim for Node.js process.env
+containing a single Google Closure define, NODE_ENV with \"development\"
+as the default value. In production NODE_ENV will be set to \"production\".
+If set to false all of the stated behavior is disabled.
+
+  :process-shim false")
+
 (def-key ::dump-core                  boolean?)
 (def-key ::emit-constants             boolean?)
 (def-key ::warning-handlers  ;; symbol, string, or fn?
@@ -1049,6 +1058,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::closure-output-charset
      ::external-config
      ::watch-fn
+     ::process-shim
      ::warnings
      ::fn-invoke-direct
      ::rewrite-polyfills
