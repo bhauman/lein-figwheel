@@ -1,4 +1,10 @@
-## 0.5.12-SNAPSHOT Cache busting and more compiler option updates
+## 0.5.13 Small updates
+
+* remove the use of a deprecated Google Closure library function 
+  goog.net.jsloader.load
+* add CLJS compile option `:process-shim` to validation code
+
+## 0.5.12 Cache busting and more compiler option updates
 
 There have been constant problems when reloading an application into
 Chrome where even a hard reload insists on pulling items from the

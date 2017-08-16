@@ -5,8 +5,11 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
                  [org.clojure/clojure "1.9.0-alpha15"]
+                 [org.clojure/clojurescript "1.9.908"]
+
+                 ;; trying to keep things compatible back to these versions at least
                  #_[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.671"]
+                 #_[org.clojure/clojurescript "1.8.51"]
                  [org.clojure/core.async "0.3.442"
                   :exclusions [org.clojure/tools.reader]]
                  [sablono "0.3.5"]
@@ -19,7 +22,7 @@
 
   :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
-            [lein-figwheel "0.5.13-SNAPSHOT"]
+            [lein-figwheel "0.5.13"]
             #_[lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
