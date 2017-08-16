@@ -5,6 +5,7 @@
    [goog.string]
    [goog.object :as gobj]
    [goog.net.jsloader :as loader]
+   [goog.html.legacyconversions :as conv]
    [goog.string :as gstring]
    [clojure.string :as string]
    [clojure.set :refer [difference]]
@@ -205,8 +206,10 @@
 (defn reload-file-in-html-env
   [request-url callback]
   (dev-assert (string? request-url) (not (nil? callback)))
-  (let [deferred (loader/load (add-cache-buster request-url)
-                              #js {:cleanupWhenDone true})]
+  (let [deferred (loader/safeLoad
+                  (conv/trustedResourceUrlFromString
+                   (str (add-cache-buster request-url)))
+                  #js {:cleanupWhenDone true})]
     (.addCallback deferred #(apply callback [true]))
     (.addErrback deferred #(apply callback [false]))))
 
