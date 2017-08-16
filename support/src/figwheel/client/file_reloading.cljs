@@ -203,15 +203,19 @@
 (defn patch-goog-base []
   (defonce bootstrapped-cljs (do (bootstrap-goog-base) true)))
 
+(def gloader
+  (cond
+    (exists? loader/safeLoad)
+    #(loader/safeLoad (conv/trustedResourceUrlFromString (str %1)) %2)
+    (exists? loader/load) #(loader/load (str %1) %2)
+    :else (throw (ex-info "No remote script loading function found." {}))))
+
 (defn reload-file-in-html-env
   [request-url callback]
   (dev-assert (string? request-url) (not (nil? callback)))
-  (let [deferred (loader/safeLoad
-                  (conv/trustedResourceUrlFromString
-                   (str (add-cache-buster request-url)))
-                  #js {:cleanupWhenDone true})]
-    (.addCallback deferred #(apply callback [true]))
-    (.addErrback deferred #(apply callback [false]))))
+  (doto (gloader (add-cache-buster request-url) #js {:cleanupWhenDone true})
+    (.addCallback #(apply callback [true]))
+    (.addErrback  #(apply callback [false]))))
 
 (def reload-file*
   (condp = (utils/host-env?)
