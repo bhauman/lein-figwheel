@@ -194,7 +194,8 @@ https://gist.github.com/swannodette/4fc9ccc13f62c66456daf19c47692799")
                                    ::provides
                                    ::requires
                                    ::module-type
-                                   ::preprocess])
+                                   ::preprocess
+                                   ::global-exports])
                          :into []
                          :kind sequential?)
 
@@ -232,7 +233,12 @@ keys have these semantics:
               dialects (JSX, etc.). A defmethod for
               cljs.clojure/js-transforms must be provided that matches
               the supplied value in order to effect the desired code
-              transformation.")
+              transformation.
+
+  :global-exports (Optional) used to map provided namespaces to
+                  globally exported values. If present the foreign
+                  library can be used idiomatically when required,
+                  i.e. support for :refer, :rename, :as, etc.")
 
 (def-key ::file        non-blank-string?)
 (def-key ::provides    (s/every non-blank-string? :min-count 1 :into [] :kind sequential?))
@@ -240,6 +246,7 @@ keys have these semantics:
 (def-key ::requires    (s/every non-blank-string? :min-count 1 :into [] :kind sequential?))
 (def-key ::module-type #{:commonjs :amd :es6})
 (def-key ::preprocess  ::string-or-named)
+(def-key ::global-exports (s/map-of ::string-or-named ::string-or-named))
 
 (def-key ::externs     (s/every non-blank-string? :min-count 1 :into [] :kind sequential?)
 
