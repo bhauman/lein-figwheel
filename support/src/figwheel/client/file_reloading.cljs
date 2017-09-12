@@ -205,7 +205,7 @@
 
 (def gloader
   (cond
-    (exists? loader/safeLoad)
+    (and (exists? loader/safeLoad) (utils/html-env?))
     #(loader/safeLoad (conv/trustedResourceUrlFromString (str %1)) %2)
     (exists? loader/load) #(loader/load (str %1) %2)
     :else (throw (ex-info "No remote script loading function found." {}))))
