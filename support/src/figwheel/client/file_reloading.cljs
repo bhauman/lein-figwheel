@@ -114,6 +114,10 @@
 (defn ns->dependents [ns]
   (get-in @dependency-data [:dependents ns]))
 
+(defn in-upper-level? [topo-state current-depth dep]
+  (some (fn [[_ v]] (and v (v dep)))
+        (filter (fn [[k v]] (> k current-depth)) topo-state)))
+
 (defn build-topo-sort [get-deps]
   (let [get-deps (memoize get-deps)]
     (letfn [(topo-sort-helper* [x depth state]
@@ -125,7 +129,8 @@
               ([deps depth state]
                (swap! state update-in [depth] (fnil into #{}) deps)
                (doseq [dep deps]
-                 (topo-sort-helper* dep (inc depth) state))
+                 (when (and dep (not (in-upper-level? @state depth dep)))
+                   (topo-sort-helper* dep (inc depth) state)))
                (when (= depth 0)
                  (elim-dups* (reverse (vals @state))))))
             (elim-dups* [[x & xs]]
