@@ -262,9 +262,9 @@ Defaults to the empty vector [].
 (def-key ::modules (s/map-of
                     keyword?
                     (strict-keys
-                     :req-un [:cljs.options-schema.modules/output-to
-                              ::entries]
-                     :opt-un [::depends-on]))
+                     :req-un [:cljs.options-schema.modules/output-to]
+                     :opt-un [::entries
+                              ::depends-on]))
 
   "A new option for emitting Google Closure Modules. Closure Modules
 supports splitting up an optimized build into N different modules. If
