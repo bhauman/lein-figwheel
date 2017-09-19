@@ -58,6 +58,7 @@
     ::auto-clean
     ::server-logfile
     ::open-file-command
+    ::repl-eval-timeout
     ::repl
     ::nrepl-port
     ::nrepl-host
@@ -204,6 +205,18 @@ simply do:
   :open-file-command \"emacsclient\"
 
 and Figwheel will call emacsclient with the correct args.")
+
+(def-key ::repl-eval-timeout integer?
+  "The time (in milliseconds) it takes for the repl to timeout.
+Evaluating any given expression in cljs can take some time.
+The repl is configured to throw a timeout exception as to not hang forever.
+
+This config option will determine how long the repl waits for the result of an eval
+before throwing.
+
+Default: 8000
+
+  :repl-eval-timeout 10000 ;;waits for 10 seconds instead of 8")
 
 (def-key ::repl              boolean?
 

@@ -18,8 +18,9 @@
    [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   )
   (:import [clojure.lang IExceptionInfo]))
 
-(defn eval-js [{:keys [browser-callbacks] :as figwheel-server} js]
+(defn eval-js [{:keys [browser-callbacks repl-eval-timeout] :as figwheel-server} js]
   (let [out (chan)
+        repl-timeout (or repl-eval-timeout 8000)
         callback (fn [result]
                    (put! out result)
                    (go
@@ -30,7 +31,7 @@
                                        {:msg-name :repl-eval
                                         :code js}
                                        callback)
-    (let [[v ch] (alts!! [out (timeout 8000)])]
+    (let [[v ch] (alts!! [out (timeout repl-timeout)])]
       (if (= ch out)
         v
         {:status :exception
