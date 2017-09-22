@@ -5,20 +5,26 @@
    [cljs.reader :refer [read-string]]))
 
 (defn get-websocket-imp []
-  (cond
-    (utils/html-or-react-native-env?) (gobj/get js/window "WebSocket")
-    (utils/node-env?) (try (js/require "ws")
-                           (catch js/Error e
-                             nil))
-    (utils/worker-env?) (gobj/get js/self "WebSocket")
-    :else nil))
+  (or
+   (gobj/get goog.global "FIGWHEEL_WEBSOCKET_CLASS")
+   (gobj/get goog.global "WebSocket")
+   (cond
+     ;; TODO remove
+     (utils/html-or-react-native-env?) (gobj/get js/window "WebSocket")
+     (utils/node-env?) (try (js/require "ws")
+                            (catch js/Error e
+                              nil))
+     ;; TODO remove
+     (utils/worker-env?) (gobj/get js/self "WebSocket")
+     :else nil)))
+
 
 ;; messages have the following formats
 
 ;; files-changed message
 ;; { :msg-name :files-changed
 ;;   :files    [{:file "/js/compiled/out/example/core.js",
-;;               :type :javascript, 
+;;               :type :javascript,
 ;;               :msg-name :file-changed,
 ;;               :namespace "example.core" }] }
 
