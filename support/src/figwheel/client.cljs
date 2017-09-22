@@ -443,6 +443,9 @@
    socket/message-history-atom key
    (fn [_ _ _ msg-hist] (callback (first msg-hist)))))
 
+(defn ^:export add-json-message-watch [key callback]
+  (add-message-watch key (comp callback clj->js)))
+
 (defn add-plugins [plugins system-options]
   (doseq [[k plugin] plugins]
     (when plugin
