@@ -222,52 +222,70 @@
     (.addCallback #(apply callback [true]))
     (.addErrback  #(apply callback [false]))))
 
+(def ^:export write-script-tag-import reload-file-in-html-env)
+
+(defn ^:export worker-import-script [request-url callback]
+  (dev-assert (string? request-url) (not (nil? callback)))
+  (callback (try
+              (do (.importScripts js/self (add-cache-buster request-url))
+                  true)
+              (catch js/Error e
+                (utils/log :error (str  "Figwheel: Error loading file " request-url))
+                (utils/log :error (.-stack e))
+                false))))
+
+(defn ^:export create-node-script-import-fn []
+  (let [node-path-lib (js/require "path")
+        ;; just finding a file that is in the cache so we can
+        ;; figure out where we are
+        util-pattern (str (.-sep node-path-lib)
+                          (.join node-path-lib "goog" "bootstrap" "nodejs.js"))
+        util-path (gobj/findKey js/require.cache (fn [v k o] (gstring/endsWith k util-pattern)))
+        parts     (-> (string/split util-path #"[/\\]") pop pop)
+        root-path (string/join (.-sep node-path-lib) parts)]
+    (fn [request-url callback]
+      (dev-assert (string? request-url) (not (nil? callback)))
+      (let [cache-path (.resolve node-path-lib root-path request-url)]
+        (gobj/remove (.-cache js/require) cache-path)
+        (callback (try
+                    (js/require cache-path)
+                    (catch js/Error e
+                      (utils/log :error (str  "Figwheel: Error loading file " cache-path))
+                      (utils/log :error (.-stack e))
+                      false)))))))
+
+;; TODO
+#_(defn async-fetch-import-script [request-url callback]
+  (let [base-url (or goog.global.FIGWHEEL_RELOAD_BASE_URL "http://localhost:8081")]
+    (doto (js/fetch (str base-url "/" request-url))
+      (.then (fn [r] ))
+      )))
+
 (def reload-file*
   (condp = (utils/host-env?)
-    :node
-    (let [node-path-lib (js/require "path")
-          ;; just finding a file that is in the cache so we can
-          ;; figure out where we are
-          util-pattern (str (.-sep node-path-lib)
-                            (.join node-path-lib "goog" "bootstrap" "nodejs.js"))
-          util-path (gobj/findKey js/require.cache (fn [v k o] (gstring/endsWith k util-pattern)))
-          parts     (-> (string/split util-path #"[/\\]") pop pop)
-          root-path (string/join (.-sep node-path-lib) parts)]
-      (fn [request-url callback]
-        (dev-assert (string? request-url) (not (nil? callback)))
-        (let [cache-path (.resolve node-path-lib root-path request-url)]
-          (gobj/remove (.-cache js/require) cache-path)
-          (callback (try
-                      (js/require cache-path)
-                      (catch js/Error e
-                        (utils/log :error (str  "Figwheel: Error loading file " cache-path))
-                        (utils/log :error (.-stack e))
-                        false))))))
-    :html reload-file-in-html-env
-    :react-native reload-file-in-html-env
-    :worker (fn [request-url callback]
-              (dev-assert (string? request-url) (not (nil? callback)))
-              (callback (try
-                          (do (.importScripts js/self (add-cache-buster request-url))
-                              true)
-                          (catch js/Error e
-                            (utils/log :error (str  "Figwheel: Error loading file " request-url))
-                            (utils/log :error (.-stack e))
-                            false))))
+    :node (create-node-script-import-fn)
+    :html write-script-tag-import
+    ;; TODO react native reloading not supported internally yet
+    ;:react-native
+    #_(if (utils/worker-env?)
+      worker-import-script
+      async-fetch-import-script)
+    :worker worker-import-script
     (fn [a b] (throw "Reload not defined for this platform"))))
 
 (defn reload-file [{:keys [request-url] :as file-msg} callback]
   (dev-assert (string? request-url) (not (nil? callback)))
   (utils/debug-prn (str "FigWheel: Attempting to load " request-url))
-  (reload-file* request-url
-                (fn [success?]
-                  (if success?
-                    (do
-                      (utils/debug-prn (str "FigWheel: Successfully loaded " request-url))
-                      (apply callback [(assoc file-msg :loaded-file true)]))
-                    (do
-                      (utils/log :error (str  "Figwheel: Error loading file " request-url))
-                      (apply callback [file-msg]))))))
+  ((or (gobj/get goog.global "FIGWHEEL_IMPORT_SCRIPT") reload-file*)
+   request-url
+   (fn [success?]
+     (if success?
+       (do
+         (utils/debug-prn (str "FigWheel: Successfully loaded " request-url))
+         (apply callback [(assoc file-msg :loaded-file true)]))
+       (do
+         (utils/log :error (str  "Figwheel: Error loading file " request-url))
+         (apply callback [file-msg]))))))
 
 ;; for goog.require consumption
 (defonce reload-chan (chan))
