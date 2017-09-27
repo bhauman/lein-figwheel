@@ -305,14 +305,23 @@
 
 (defonce reloader-loop
   (go-loop []
-    (when-let [url (<! reload-chan)]
-      (let [file-msg (<! (blocking-load url))]
-        (if-let [callback (get @on-load-callbacks url)]
-          (callback file-msg)
-          (swap! dependencies-loaded conj file-msg))
-        (recur)))))
+    (when-let [[url opt-source-text] (<! reload-chan)]
+      (cond
+        opt-source-text
+        (do
+          (js/console.log "Evaling!" opt-source-text)
+          (js/eval opt-source-text))
+        url
+        (let [file-msg (<! (blocking-load url))]
+          (js/console.log "Loading!" url)
+          (if-let [callback (get @on-load-callbacks url)]
+            (callback file-msg)
+            (swap! dependencies-loaded conj file-msg))))
+      (recur))))
 
-(defn queued-file-reload [url] (put! reload-chan url))
+(defn queued-file-reload
+  ([url] (queued-file-reload url nil))
+  ([url opt-source-text] (put! reload-chan [url opt-source-text])))
 
 (defn require-with-callback [{:keys [namespace] :as file-msg} callback]
   (let [request-url (resolve-ns namespace)]
