@@ -1,4 +1,4 @@
-(ns figwheel.preload
+(ns figwheel.env-config
   (:require
    [cljs.env]
    [clojure.string :as string]))
@@ -36,12 +36,15 @@
        (into {})
        (merge figwheel-config)))
 
+(defmacro external-tooling-config []
+  (protect-reload-hooks (figwheel-client-config-from-env)))
+
 ;; TODO if devcards is true call the javascript start function for devcards
 
 #_(cljs.compiler/munge "devcards.core.start-devcard-ui!*")
 #_[cljs.compiler :refer (munge)]
 
-(defmacro connect []
+#_(defmacro connect []
   (let [config (figwheel-client-config-from-env)]
     `(do
        (figwheel.client/start

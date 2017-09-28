@@ -1,7 +1,4 @@
 (ns figwheel.preload
-  (:require
-   [figwheel.client])
-  (:require-macros
-   [figwheel.preload :refer [connect]]))
+  (:require [figwheel.connect]))
 
-(connect)
+(figwheel.connect/start)
