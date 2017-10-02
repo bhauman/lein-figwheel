@@ -1,3 +1,42 @@
+## 0.5.14 Faster loading for complex dependency trees
+
+Figwheel inherited a topo sort algorithm from the CLJS compiler. It
+turned out that this graph sorting algorithm missed a very important
+optimization, which is fixed in this release. If you have project that
+has a lot of namespaces and have experienced slower load times when
+you change a file that is deeper in your dependency chain, you should
+notice a big improvement when using this release.
+
+Added JavaScript environment hooks for tools like `re-natal` to
+customize the websocket implementation and the script loading behavior.
+
+* improved topo-sort algorithm
+* CLJS compile option: the `:entries` key is no longer required in the
+  `:modules` configs
+* new `:repl-eval-timeout` allows you to increase or lower the
+  Figwheel REPL eval timeout as a top level config setting
+* added `goog.global.FIGWHEEL_WEBSOCKET_CLASS` to allow one to
+  override or supply a websocket implementation for the figwheel
+  client
+* added `goog.global.FIGWHEEL_IMPORT_SCRIPT` to allow one to override
+  or supply a function to the figwheel client, that is responsible for
+  loading a namespace into the JavaScript runtime.
+* added two new namespaces that can be supplied the ClojureScript
+  compiler's `:preloads` option.
+  
+  The two namespaces are only different in that one set's up figwheel
+  while the other both sets up and starts figwheel. These are
+  currently meant to clean up how the figwheel client is injected into
+  the build. The next release of Figwheel will do away with generating
+  a small ClojureScript file to inject the Figwheel client into build.
+  - `figwheel.connect` which will take a configuration from
+    `:external-tooling` > `:figwheel/config` and supply a
+    `figwheel.connect/start` function which contains the supplied
+    config options. This function is exported so that it can be easily
+    called from JavaScript.
+  - `figwheel.preload` which simply calls the above `figwheel.connect/start`
+    function
+
 ## 0.5.13 Small updates
 
 * remove the use of a deprecated Google Closure library function 

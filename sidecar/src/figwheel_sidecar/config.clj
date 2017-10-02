@@ -18,7 +18,7 @@
 
 #_(remove-ns 'figwheel-sidecar.config)
 
-(def _figwheel-version_ "0.5.14-SNAPSHOT")
+(def _figwheel-version_ "0.5.14")
 
 ;; file stamping pattern
 
