@@ -18,7 +18,7 @@ please take a moment and support it:
 <img src="https://s3.amazonaws.com/bhauman-blog-images/Smaller%2BDonate%2BButton%402x.png" width="200">
 </a>
 
-Donated so far: &nbsp;&nbsp;&nbsp; 2015: $73 &nbsp;&nbsp;&nbsp; 2016: $2752 &nbsp;&nbsp;&nbsp; 2017(through July): $849
+Donated so far: &nbsp;&nbsp;&nbsp; 2015: $73 &nbsp;&nbsp;&nbsp; 2016: $2752 &nbsp;&nbsp;&nbsp; 2017(through September): $1803
 
 #### Current version:
 [![Clojars Project](https://clojars.org/lein-figwheel/latest-version.svg)](https://clojars.org/lein-figwheel)
@@ -189,7 +189,7 @@ Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.13"]
+[lein-figwheel "0.5.14"]
 ```
 
 #### Configure your builds
@@ -572,7 +572,7 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.13"]` in your dependencies.
+`[figwheel-sidecar "0.5.14"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
