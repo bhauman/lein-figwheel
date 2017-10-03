@@ -8,7 +8,8 @@
                                 :on-cssload
                                 :on-message
                                 :on-compile-fail
-                                :on-compile-warning])
+                                :on-compile-warning
+                                :eval-fn])
 
 (defn figwheel-client-config-from-env []
   (get-in (when-let [x cljs.env/*compiler*] @x)
@@ -38,17 +39,3 @@
 
 (defmacro external-tooling-config []
   (protect-reload-hooks (figwheel-client-config-from-env)))
-
-;; TODO if devcards is true call the javascript start function for devcards
-
-#_(cljs.compiler/munge "devcards.core.start-devcard-ui!*")
-#_[cljs.compiler :refer (munge)]
-
-#_(defmacro connect []
-  (let [config (figwheel-client-config-from-env)]
-    `(do
-       (figwheel.client/start
-        ~(protect-reload-hooks config))
-       ;; TODO take this out eventually when devcards.preload is a thing
-       ~(when (:devcards config)
-          `(js/devcards.core.start-devcard-ui!*)))))
