@@ -240,7 +240,7 @@
         (println "Figwheel: Watching build -" (:id build-config))
         (flush)
         ;; Not the best but just to make sure there isn't a lingering figwheel connect script
-        (injection/delete-connect-scripts! [build-config])
+        #_(injection/delete-connect-scripts! [build-config])
 
         (let [cljs-build-fn (extract-cljs-build-fn this)]
           ;; build once before watching

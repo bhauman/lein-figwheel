@@ -308,12 +308,9 @@
     (when-let [[url opt-source-text] (<! reload-chan)]
       (cond
         opt-source-text
-        (do
-          (js/console.log "Evaling!" opt-source-text)
-          (js/eval opt-source-text))
+        (js/eval opt-source-text)
         url
         (let [file-msg (<! (blocking-load url))]
-          (js/console.log "Loading!" url)
           (if-let [callback (get @on-load-callbacks url)]
             (callback file-msg)
             (swap! dependencies-loaded conj file-msg))))
