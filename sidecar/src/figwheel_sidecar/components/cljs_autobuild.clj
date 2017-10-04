@@ -38,22 +38,24 @@
 (defn figwheel-start-and-end-messages [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (let [started-at (System/currentTimeMillis)
-          {:keys [build-options compile-paths]} build-config
-            {:keys [output-to]} build-options]
+          {:keys [build-options compile-paths id]} build-config
+            {:keys [output-to output-dir]} build-options]
       ;; print start message
-      (println (color-text (str "Compiling \"" output-to
-                       "\" from " (pr-str compile-paths) "...")
-                :none))
+      (println (color-text (str "Compiling build :" id " to \""
+                                (or output-to output-dir)
+                                "\" from " (pr-str compile-paths) "...")
+                           :none))
       (try
         (build-fn build-state)
-        (println (color-text (str "Successfully compiled \"" output-to
-                               "\" in " (time-elapsed started-at) ".")
-                              :green))
+        (println (color-text (str "Successfully compiled build :" id " to \""
+                                  (or output-to output-dir)
+                                  "\" in " (time-elapsed started-at) ".")
+                             :green))
         (catch Throwable e
           (println (color-text (str
-                                "Failed to compile \""
-                                output-to
-                                "\" in " (time-elapsed started-at) ".")
+                                "Failed to compile build :" id " from "
+                                (pr-str compile-paths)
+                                " in " (time-elapsed started-at) ".")
                                :red))
           (throw e))
         (finally (flush))))))
@@ -196,9 +198,11 @@
                     (deadman-output-to-file? output-to-filepath))
             ;; must be a fighweel build
             ;; and not a node build
+            ;; and not a modules based build
             (if (and (:figwheel build-config)
                      (-> build-config :build-options :main)
-                     (not (= :nodejs (:target build-config))))
+                     (not (= :nodejs (:target build-config)))
+                     (not (:modules build-config)))
               (create-deadman-app-js build-config output-to-filepath e)
               (throw
                (ex-info (str "---- Initial Figwheel ClojureScript Compilation Failed ---- \n"
