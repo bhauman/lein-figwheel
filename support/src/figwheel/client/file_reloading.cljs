@@ -333,6 +333,9 @@
   (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
     (:figwheel-no-load meta-pragmas)))
 
+(defn ns-exists? [namespace]
+  (some? (reduce gobj/get goog.global (string/split (name namespace) "."))))
+
 (defn reload-file? [{:keys [namespace] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
   (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
@@ -342,7 +345,8 @@
       (:figwheel-always meta-pragmas)
       (:figwheel-load meta-pragmas)
       ;; might want to use .-visited here
-      (provided? (name namespace))))))
+      (provided? (name namespace))
+      (ns-exists? namespace)))))
 
 (defn js-reload [{:keys [request-url namespace] :as file-msg} callback]
   (dev-assert (namespace-file-map? file-msg))
