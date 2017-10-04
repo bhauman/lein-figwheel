@@ -967,10 +967,11 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
   (s/and
    map?
 
-   (attach-warning ":asset-path has no effect without a :main"
-                   (fn [{:keys [main] :as cmpl}]
+   (attach-warning ":asset-path has no effect without a :main or :modules"
+                   (fn [{:keys [main modules] :as cmpl}]
                      (not (and (contains? cmpl :asset-path)
-                               (nil? main)))))
+                               (nil? main)
+                               (nil? modules)))))
 
    (attach-warning ":pseudo-names has no effect when :optimizations is not :advanced"
                    (fn [{:keys [optimizations] :as cmpl}]
@@ -995,7 +996,8 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
                                (= :whitespace optimizations)))))
 
    (attach-warning "missing an :output-to option - you probably will want this ..."
-                   (fn [cmpl] (contains? cmpl :output-to)))
+                   (fn [cmpl] (or (contains? cmpl :output-to)
+                                  (contains? cmpl :modules))))
 
    (attach-reason  ":closure-defines requires a :main when :optimizations is :none"
                    (fn [{:keys [optimizations main] :as cmpl}]
