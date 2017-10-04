@@ -1,3 +1,9 @@
+## 0.5.15-SNAPSHOT Support code spliting and modules
+
+This release adds automatic support for projects that use
+[Code Splitting](https://clojurescript.org/guides/code-splitting). You
+should now be able to use code splitting and have Figwheel "just work".
+
 ## 0.5.14 Faster loading for complex dependency trees
 
 Figwheel inherited a topo sort algorithm from the CLJS compiler. It
