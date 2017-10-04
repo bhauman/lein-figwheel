@@ -190,14 +190,20 @@
 
 (defn sane-output-to-dir [{:keys [output-to output-dir] :as options}]
   (letfn [(parent [fname] (if-let [p (.getParent (io/file fname))] (str p "/") ""))]
-    (if (and #_(opt-none? options)
-             (or (nil? output-dir) (nil? output-to)))
-      (if (and (nil? output-dir) (nil? output-to))
-        (assoc options :output-to "main.js" :output-dir "out")
-        (if output-dir ;; probably shouldn't do this
-          (assoc options :output-to (str (parent output-dir) "main.js"))
-          (assoc options :output-dir (str (parent output-to) "out"))))
-      options)))
+    (if (:modules options)
+      (if (nil? output-dir)
+        (if-let [output-to (first (keep :output-to (vals (:modules options))))]
+          (assoc options :output-dir (str (parent output-to) "out"))
+          (assoc options :output-dir "out"))
+        options)
+      (if (and #_(opt-none? options)
+               (or (nil? output-dir) (nil? output-to)))
+        (if (and (nil? output-dir) (nil? output-to))
+          (assoc options :output-to "main.js" :output-dir "out")
+          (if output-dir ;; probably shouldn't do this
+            (assoc options :output-to (str (parent output-dir) "main.js"))
+            (assoc options :output-dir (str (parent output-to) "out"))))
+        options))))
 
 (comment
   (default-optimizations-to-none {:optimizations :simple})
