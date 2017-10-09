@@ -334,7 +334,8 @@
     (:figwheel-no-load meta-pragmas)))
 
 (defn ns-exists? [namespace]
-  (some? (reduce gobj/get goog.global (string/split (name namespace) "."))))
+  (some? (reduce (fnil gobj/get #js{})
+                 goog.global (string/split (name namespace) "."))))
 
 (defn reload-file? [{:keys [namespace] :as file-msg}]
   (dev-assert (namespace-file-map? file-msg))
