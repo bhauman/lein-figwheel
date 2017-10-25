@@ -69,7 +69,8 @@
     ::ansi-color-output
     ::builds
     ::reload-clj-files
-    ::hawk-options])
+    ::hawk-options
+    ::cljs-build-fn])
   "A Map of options that determine the behavior of the Figwheel system.
 
   :figwheel {
