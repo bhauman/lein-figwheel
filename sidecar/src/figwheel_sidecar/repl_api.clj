@@ -152,8 +152,9 @@ the first default id)."
       (alter-var-root #'*repl-api-system* (fn [_] system))
       (if (false? (:repl (config/figwheel-options config-data)))
         (loop [] (Thread/sleep 30000) (recur))
-        ;; really should get the given initial build id here
-        (fs/cljs-repl (:figwheel-system system))))))
+        (if-let [build-id (first (:build-ids (:data config-data)))]
+          (fs/cljs-repl (:figwheel-system system) build-id)
+          (fs/cljs-repl (:figwheel-system system)))))))
 
 ;; new start from lein code here
 
