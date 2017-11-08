@@ -160,6 +160,8 @@ Default: Off
   "A vector of build ids that you would like figwheel to start building
 when you invoke lein figwheel without arguments.
 
+The first build specified is the default REPL build.
+
   :builds-to-start [\"dev\" \"test\"]")
 
 (def-key ::auto-clean boolean?
@@ -806,11 +808,11 @@ Default: nil (disabled)
   (let [g (or (:builds figwheel) (:builds cljsbuild))
         builds (if (map? g) (map (fn [[k v]] (assoc v :id k)) g) g)
         v (filter opt-none-build builds)]
-    (set (if (map? v) (keys v) (keep :id v)))))
+    (set (map name (if (map? v) (keys v) (keep :id v))))))
 
 (defn get-builds-to-start-not-in-build-ids [{:keys [cljsbuild figwheel] :as proj}]
   (let [build-ids (known-build-ids proj)]
-    (filter (complement build-ids) (:builds-to-start figwheel))))
+    (filter (complement build-ids) (map name (:builds-to-start figwheel)))))
 
 (defn builds-to-start-ids-must-be-in-builds [{:keys [cljsbuild figwheel] :as proj}]
   (if (not-empty (:builds-to-start figwheel))
