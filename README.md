@@ -147,7 +147,7 @@ Or optionally:
 
 If you are brand new to ClojureScript it is highly recommended that
 you do the [ClojureScript Quick
-Start](https://github.com/clojure/clojurescript/wiki/Quick-Start)
+Start](https://clojurescript.org/guides/quick-start)
 first. If you skip this you will probably suffer.
 
 There is a **lot to learn** when you are first learning ClojureScript,
