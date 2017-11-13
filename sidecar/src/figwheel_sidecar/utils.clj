@@ -38,8 +38,8 @@
     (require symbol)
     true
     (catch Exception e
-      (println (.getMessage e))
-      (.printStackTrace e)
+      #_(println (.getMessage e))
+      #_(.printStackTrace e)
       false)))
 
 (defn silent-fail-require! [symbol]

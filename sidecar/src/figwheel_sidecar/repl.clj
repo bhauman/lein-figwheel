@@ -13,7 +13,7 @@
 
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [figwheel-sidecar.components.figwheel-server :as server]
-
+   [figwheel-sidecar.utils :refer [require?]]
    [figwheel-sidecar.config :as config]
    [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   )
   (:import [clojure.lang IExceptionInfo]))
@@ -159,10 +159,20 @@
 (defmethod start-cljs-repl :nrepl
   [_ figwheel-env]
   (try
-    (require 'cemerick.piggieback)
-    (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
-          opts' (:repl-opts figwheel-env)]
-      (apply cljs-repl figwheel-env (apply concat opts')))
+    (cond
+      (and (require? 'figwheel.tools.nrepl)
+           (when-let [present-var (resolve 'figwheel.tools.nrepl/*cljs-evaluator*)]
+             (thread-bound? present-var)))
+      (let [cljs-repl (resolve 'figwheel.tools.nrepl/cljs-repl)
+            opts' (:repl-opts figwheel-env)]
+        (apply cljs-repl figwheel-env (apply concat opts')))
+      (and (require? 'cemerick.piggieback)
+           (when-let [present-var (resolve 'cemerick.piggieback/*cljs-repl-env*)]
+             (thread-bound? present-var)))
+      (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
+            opts' (:repl-opts figwheel-env)]
+        (apply cljs-repl figwheel-env (apply concat opts')))
+      :else (throw (ex-info "Unable to load a ClojureScript nREPL middleware library" {})))
     (catch Exception e
       (println "!!!" (.getMessage e))
       (let [message "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.
