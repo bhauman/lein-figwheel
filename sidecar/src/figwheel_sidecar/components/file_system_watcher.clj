@@ -36,7 +36,8 @@
                          (fn []
                            (utils/bind-logging
                             log-writer
-                            (notification-handler this files))))))))
+                            (notification-handler this files)))))
+                      (:wait-time-ms figwheel-server-options))))
             (do
               (println "Figwheel: No watch paths configured for" watcher-name)
               this)))

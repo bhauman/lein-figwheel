@@ -70,7 +70,9 @@
     ::builds
     ::reload-clj-files
     ::hawk-options
-    ::cljs-build-fn])
+    ::cljs-build-fn
+    ::wait-time-ms])
+
   "A Map of options that determine the behavior of the Figwheel system.
 
   :figwheel {
@@ -309,6 +311,13 @@ to false.  Default: true
 be useful for certain docker environments.
 
   :hawk-options {:watcher :polling}" )
+
+(def-key ::wait-time-ms integer?
+
+  "The number of milliseconds to wait before issuing reloads. Set this higher
+to wait longer for changes. Default: 50
+
+  :wait-time-ms 50")
 
 (def-key ::reload-clj-files
   (s/or

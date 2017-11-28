@@ -277,7 +277,8 @@
                  (watching/watch!
                   (:hawk-options figwheel-server)
                   (source-paths-that-affect-build build-config)
-                  (partial execute-build this)))))
+                  (partial execute-build this)
+                  (:wait-time-ms figwheel-server)))))
       this))
   (stop [this]
     (when (:file-watcher this)
