@@ -140,3 +140,10 @@ to prevent ANSI color codes in figwheel output set :ansi-color-output
 to false.  Default: true
 
   :ansi-color-output false
+
+:wait-time-ms
+
+The number of milliseconds to wait before issuing reloads. Set this higher
+to wait longer for changes. Default: 50
+
+  :wait-time-ms 50

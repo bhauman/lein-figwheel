@@ -23,8 +23,8 @@
 ;;; we are going to have to throttle this
 ;; so that we can catch more than one file at a time
 
-(defn take-until-timeout [in]
-  (let [time-out (timeout 50)]
+(defn take-until-timeout [in t]
+  (let [time-out (timeout t)]
     (go-loop [collect []]
       (when-let [[v ch] (alts! [in time-out])]
         (if (= ch time-out)
@@ -38,53 +38,57 @@
       (merge {:sensitivity :high} hawk-options)
       hawk-options)))
 
-(defn watch! [hawk-options source-paths callback]
-  (let [hawk-options (default-hawk-options hawk-options)
-        throttle-chan (chan)
+(defn watch!
+  ([hawk-options source-paths callback wait-time-ms]
+   (let [hawk-options (default-hawk-options hawk-options)
+         wait-time-ms (or wait-time-ms 50)
+         throttle-chan (chan)
 
-        {:keys [files dirs]} (files-and-dirs source-paths)
-        individual-file-map   (single-files files)
-        canonical-source-dirs (set (map #(.getCanonicalPath %) dirs))
+         {:keys [files dirs]} (files-and-dirs source-paths)
+         individual-file-map   (single-files files)
+         canonical-source-dirs (set (map #(.getCanonicalPath %) dirs))
 
-        source-paths (distinct
-                      (concat (map str dirs)
-                              (map #(.getParent %) files)))
+         source-paths (distinct
+                       (concat (map str dirs)
+                               (map #(.getParent %) files)))
 
-        valid-file?   (fn [file]
-                        (and file
-                             (.isFile file)
-                             (not (.isHidden file))
-                             (let [file-path (.getCanonicalPath file)
-                                   n (.getName file)]
-                               (and
-                                (not= \. (first n))
-                                (not= \# (first n))
-                                (or
-                                 ;; just skip this if
-                                 ;; there are no individual-files
-                                 (empty? individual-file-map)
-                                 ;; if file is on a path that is already being watched we are cool
-                                 (some #(is-subdirectory % file-path) canonical-source-dirs)
-                                 ;; if not we need to see if its an individually watched file
-                                 (when-let [acceptable-paths
-                                            (get individual-file-map
-                                                 (.getCanonicalPath (.getParentFile file)))]
-                                   (some #(= (.getCanonicalPath %) file-path) acceptable-paths)))))))
-        watcher (hawk/watch! hawk-options
-                 [{:paths source-paths
-                   :filter hawk/file?
-                   :handler (fn [ctx e]
-                              (put! throttle-chan e))}])]
+         valid-file?   (fn [file]
+                         (and file
+                              (.isFile file)
+                              (not (.isHidden file))
+                              (let [file-path (.getCanonicalPath file)
+                                    n (.getName file)]
+                                (and
+                                 (not= \. (first n))
+                                 (not= \# (first n))
+                                 (or
+                                  ;; just skip this if
+                                  ;; there are no individual-files
+                                  (empty? individual-file-map)
+                                  ;; if file is on a path that is already being watched we are cool
+                                  (some #(is-subdirectory % file-path) canonical-source-dirs)
+                                  ;; if not we need to see if its an individually watched file
+                                  (when-let [acceptable-paths
+                                             (get individual-file-map
+                                                  (.getCanonicalPath (.getParentFile file)))]
+                                    (some #(= (.getCanonicalPath %) file-path) acceptable-paths)))))))
+         watcher (hawk/watch! hawk-options
+                              [{:paths source-paths
+                                :filter hawk/file?
+                                :handler (fn [ctx e]
+                                           (put! throttle-chan e))}])]
 
-    (go-loop []
-      (when-let [v (<! throttle-chan)]
-        (let [files (<! (take-until-timeout throttle-chan))]
-          (when-let [result-files (not-empty (distinct (filter valid-file? (map :file (cons v files)))))]
-            (callback result-files)))
-        (recur)))
+     (go-loop []
+       (when-let [v (<! throttle-chan)]
+         (let [files (<! (take-until-timeout throttle-chan wait-time-ms))]
+           (when-let [result-files (not-empty (distinct (filter valid-file? (map :file (cons v files)))))]
+             (callback result-files)))
+         (recur)))
 
-    {:watcher watcher
-     :throttle-chan throttle-chan}))
+     {:watcher watcher
+      :throttle-chan throttle-chan}))
+  ([hawk-options source-paths callback]
+   (watch! hawk-options source-paths callback 50)))
 
 (defn stop! [{:keys [throttle-chan watcher]}]
   (hawk/stop! watcher)
