@@ -209,7 +209,7 @@
                                 ": ") "")
                         "<span style=\"font-weight:bold;\">" (escape message) "</span>")
                    (when display-ex-data
-                     (str "<pre>" (utils/pprint-to-string display-ex-data) "</pre>"))
+                     (str "<pre style=\"white-space: pre-wrap\">" (utils/pprint-to-string display-ex-data) "</pre>"))
                    (when (pos? (count error-inline))
                      (format-inline-error error-inline))]
                   (map #(str (escape (:class %))
