@@ -45,9 +45,11 @@
 
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project paths-to-add requires form]
+  (leval/prep project)
   (let [project' (-> project
                    (update-in [:dependencies] conj ['figwheel-sidecar _figwheel-version_])
                    (update-in [:dependencies] conj ['figwheel _figwheel-version_])
+                   (update-in [:resource-path] conj (:compile-path project))
                    (make-subproject paths-to-add))]
     (eval-and-catch project' requires form)))
 
