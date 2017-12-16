@@ -27,6 +27,14 @@ Default: Off
 
   :on-jsload "example.core/fig-reload"
 
+:before-jsload
+
+A String or Symbol representing a client side ClojureScript function
+to be invoked before new code has been loaded.
+Default: Off
+
+  :before-jsload "example.core/fig-teardown"
+
 :heads-up-display
 
 Show a notification in the browser on each refresh.
