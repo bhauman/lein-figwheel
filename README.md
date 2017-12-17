@@ -1,5 +1,7 @@
 # lein-figwheel
 
+[![CircleCI](https://circleci.com/gh/bhauman/lein-figwheel.svg?style=svg)](https://circleci.com/gh/bhauman/lein-figwheel)
+
 Figwheel builds your ClojureScript code and hot loads it into the browser as you are coding!
 
 Get a quick idea of what figwheel does by watching the

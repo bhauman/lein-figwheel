@@ -1,0 +1,24 @@
+dependencies:
+  override:
+    - scripts/install
+    - lein deps:
+        pwd:
+          plugin
+    - lein deps:
+        pwd:
+          sidecar
+    - lein deps:
+        pwd:
+          support
+test:
+  override:
+    - lein test:
+        pwd:
+          plugin
+    - lein test:
+        pwd:
+          sidecar
+    - lein test:
+        pwd:
+          support
+
