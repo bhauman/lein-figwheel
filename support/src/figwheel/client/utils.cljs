@@ -56,19 +56,19 @@
 (defn debug-prn [o]
   (when *print-debug*
     (let [o (if (or (map? o)
-                  (seq? o))
-            (prn-str o)
-            o)]
+                    (seq? o))
+              (prn-str o)
+              o)]
       (.log js/console o))))
 
 (defn log
   ([x] (log :info x))
   ([level arg]
    (let [f (condp = (if (html-or-react-native-env?) level :info)
-            :warn  #(.warn js/console %)
-            :debug #(.debug js/console %)
-            :error #(.error js/console %)
-            #(.log js/console %))]
+             :warn  #(.warn js/console %)
+             :debug #(.debug js/console %)
+             :error #(.error js/console %)
+             #(.log js/console %))]
      (f arg))))
 
 (defn eval-helper [code {:keys [eval-fn] :as opts}]
@@ -111,16 +111,21 @@
      (fn [_] (.succeed Deferred @results)))))
 
 
+(defn- feature? [obj feature]
+  (and (exists? obj)
+       (exists? (aget obj feature))))
+
+
 ;; persistent storage of configuration keys
 
 (defonce local-persistent-config
   (let [a (atom {})]
-    (when (exists? js/localStorage)
+    (when (feature? js/localStorage "setItem")
       (add-watch a :sync-local-storage
                  (fn [_ _ _ n]
-                    (mapv (fn [[ky v]]
-                            (.setItem js/localStorage (name ky) (pr-str v)))
-                          n))))
+                   (mapv (fn [[ky v]]
+                           (.setItem js/localStorage (name ky) (pr-str v)))
+                         n))))
     a))
 
 (defn persistent-config-set!
@@ -135,7 +140,7 @@ the browser gets reloaded."
      (cond
        (contains? @local-persistent-config ky)
        (get @local-persistent-config ky)
-       (and (exists? js/localStorage)
+       (and (feature? js/localStorage "getItem")
             (.getItem js/localStorage (name ky)))
        (let [v (read-string (.getItem js/localStorage (name ky)))]
          (persistent-config-set! ky v)
