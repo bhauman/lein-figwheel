@@ -922,6 +922,16 @@ a great deal of programming complexity stems from complex interactions
 (side effecting events) between things that have local state, it is my
 belief that reloadable code is often simply better code.
 
+## Checkouts
+
+Figwheel supports Leiningen's [checkouts][checkouts]
+mechanism. This is useful when you want to make changes to a library
+while you are developing an application that is using that library.
+Figwheel will automatically pick up the :source-paths of any projects
+symlinked in the `checkouts` directory. For full details, see
+Leiningen's documentation on [checkouts][checkouts].
+
+[checkouts]: (https://github.com/technomancy/leiningen/blob/master/doc/TUTORIAL.md#checkout-dependencies)
 
 ## More React Advocacy
 

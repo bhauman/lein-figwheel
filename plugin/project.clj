@@ -12,6 +12,7 @@
 
   :profiles {:dev {:dependencies [[leiningen "2.7.1"]
                                   [org.clojure/test.check "0.9.0"]]
+                   :resource-paths ["test-resources"]
                    :source-paths ["dev" "src"]
                    :aliases {"change-version" ["run" "-m" "figwheel-tasks.core" ":change-version"]
                              "install-all"    ["run" "-m" "figwheel-tasks.core" ":install-all"]}}}
