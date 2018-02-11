@@ -5,6 +5,7 @@
    [leiningen.core.eval :as leval]
    [leiningen.clean :as clean]
    [leiningen.core.main :as main]
+   [leiningen.trampoline :as tramp]
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
    [leiningen.figwheel.fuzzy :as fuz]
@@ -445,6 +446,12 @@
 (defmethod fig-dispatch ":help" [_ project build-ids]
   (println (:doc (meta #'figwheel))))
 
+(defn launch-figwheel [command project build-ids]
+  (clean-on-dependency-change project)
+  (ensure-build-dirs project)
+  (println "Figwheel: Cutting some fruit, just a sec ...")
+  (fig-dispatch command project build-ids))
+
 (defn figwheel
 "Figwheel - a tool that helps you compile and reload ClojureScript.
 
@@ -519,19 +526,18 @@ Configuration:
   ignored.
 
   To learn more about configuring Figwheel please see the README at
-  https://github.com/bhauman/lein-figwheel
-"
+  https://github.com/bhauman/lein-figwheel"
   [project & command-and-or-build-ids]
   (let [[command & build-ids] command-and-or-build-ids]
     (when-not ((every-pred command-like? report-if-bad-command) command)
       (let [[command build-ids] (if (command-like? command)
-                                  [command build-ids]
-                                  [nil (and command (cons command build-ids))])]
-        (clean-on-dependency-change project)
-        (ensure-build-dirs project)
-        (println "Figwheel: Cutting some fruit, just a sec ...")
-        (fig-dispatch command project build-ids)))))
-
-#_(figwheel {:cljsbuilds {:builds [{:id :five}
-                                 {:id :six}]}}
-          )
+                                    [command build-ids]
+                                    [nil (and command (cons command build-ids))])]
+        (if (and
+             (or (= nil command)
+                 (= ":reactor" command))
+             (get-in project [:figwheel :repl] true))
+          (if tramp/*trampoline?*
+            (launch-figwheel command project build-ids)
+            (apply tramp/trampoline project "figwheel" command-and-or-build-ids))
+          (launch-figwheel command project build-ids))))))
