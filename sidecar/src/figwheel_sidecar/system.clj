@@ -499,7 +499,7 @@
   Switch REPL build focus:
           :cljs/quit                      ;; allows you to switch REPL to another build
     Docs: (doc function-name-here)
-    Exit: Control+C or :cljs/quit
+    Exit: :cljs/quit
  Results: Stored in vars *1, *2, *3, *e holds last exception object")
 
 (defn figwheel-repl-options
@@ -753,4 +753,3 @@
 (defn start-figwheel-and-cljs-repl! [autobuild-options]
   (when-let [system (start-figwheel! autobuild-options)]
     (cljs-repl (:figwheel-system system))))
-
