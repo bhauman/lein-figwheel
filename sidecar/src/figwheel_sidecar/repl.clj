@@ -194,7 +194,35 @@ This can cause confusion when your are not using Cider."]
 
 (defmethod start-cljs-repl :default
   [_ figwheel-env]
-  (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))
+  (let [prompt (:prompt (:repl-opts figwheel-env))
+        prompt-fn' (fn [] (with-out-str (prompt)))]
+    (cond (and
+           (require? 'rebel-readline.core)
+           (require? 'rebel-readline-cljs.service)
+           (require? 'rebel-readline-cljs.core)
+           (resolve 'rebel-readline.core/line-reader)
+           (resolve 'rebel-readline-cljs.service/create)
+           (resolve 'rebel-readline-cljs.core/cljs-repl-read))
+          (let [line-reader    (resolve 'rebel-readline.core/line-reader)
+                cljs-service   (resolve 'rebel-readline-cljs.service/create)
+                cljs-repl-read (resolve 'rebel-readline-cljs.core/cljs-repl-read)]
+            (try
+              (cljs.repl/repl*
+               figwheel-env
+               (assoc
+                (:repl-opts figwheel-env)
+                :read (cljs-repl-read
+                       (line-reader
+                        (cljs-service {:repl-env figwheel-env
+                                       :prompt prompt-fn'})))
+                :prompt (fn [])))
+              (catch clojure.lang.ExceptionInfo e
+                (if (-> e ex-data :type (= :rebel-readline.line-reader/bad-terminal))
+                  (do (println (.getMessage e))
+                      (println "Falling back to REPL without terminal readline functionality!")
+                      (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))))))
+          :else
+          (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))))
 
 (defn in-nrepl-env? []
   (thread-bound? #'nrepl-eval/*msg*))

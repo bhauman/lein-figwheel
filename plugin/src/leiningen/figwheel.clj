@@ -11,6 +11,7 @@
    [simple-lein-profile-merge.core :as lm]))
 
 (def _figwheel-version_ "0.5.15-SNAPSHOT")
+(def _rebel-readline-cljs-version_ "0.1.0-SNAPSHOT")
 
 (defn make-subproject [project paths-to-add]
   (with-meta
@@ -43,11 +44,22 @@
           (System/exit 1))))
    requires))
 
+(defn coord-version [library]
+  (let [[_ coords version]
+        (some-> (io/resource (format "META-INF/leiningen/%s/%s/project.clj" library library))
+                slurp
+                read-string)]
+    version))
+
+(def rebel-readline-cljs-version
+  (or (coord-version "rebel-readline-cljs") _rebel-readline-cljs-version_))
+
 ;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project paths-to-add requires form]
   (let [project' (-> project
                    (update-in [:dependencies] conj ['figwheel-sidecar _figwheel-version_])
                    (update-in [:dependencies] conj ['figwheel _figwheel-version_])
+                   (update-in [:dependencies] conj ['rebel-readline-cljs rebel-readline-cljs-version])
                    (make-subproject paths-to-add))]
     (eval-and-catch project' requires form)))
 
