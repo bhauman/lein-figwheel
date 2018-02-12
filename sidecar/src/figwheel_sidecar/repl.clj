@@ -204,6 +204,7 @@ This can cause confusion when your are not using Cider."]
            (resolve 'rebel-readline-cljs.service/create)
            (resolve 'rebel-readline-cljs.core/cljs-repl-read))
           (let [line-reader    (resolve 'rebel-readline.core/line-reader)
+                help-message    (resolve 'rebel-readline.core/help-message)
                 line-reader-command (resolve 'rebel-readline.commands/command)
                 line-reader-command-doc (resolve 'rebel-readline.commands/command-doc)
                 docs (resolve 'figwheel-sidecar.system/repl-function-docs)
@@ -215,6 +216,7 @@ This can cause confusion when your are not using Cider."]
                 (println @docs))
               (defmethod @line-reader-command-doc :repl/help-figwheel [_]
                 "Displays the help docs for the Figwheel REPL"))
+            (when help-message (println (help-message)))
             (try
               (cljs.repl/repl*
                figwheel-env
