@@ -7,7 +7,7 @@
    [clojure.test.check.properties :as prop]
    [clojure.test.check.clojure-test :refer [defspec]]))
 
-(def iterations 10)
+(def iterations 50)
 
 (defspec command-like?-handles-arbitrary-data
   iterations
@@ -106,8 +106,9 @@
    #_(source-paths-for-class-path v)
    (vector? (f/source-paths-for-classpath v))))
 
+;; super slow
 (defspec source-paths-bad-data
-  iterations
+  10
   (prop/for-all
    [v (gen/map (gen/return :all-builds)
                (gen/vector (gen/map (gen/return :source-paths)
@@ -131,8 +132,3 @@
 #_(gen/sample (gen/map (gen/return :all-builds)
                (gen/vector (gen/map (gen/return :source-paths)
                                     (gen/vector gen/string)))))
-
-
-
-
-

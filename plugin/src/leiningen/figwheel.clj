@@ -226,7 +226,7 @@
   (vec
    (if (map? builds)
      (keep (fn [[k v]]
-             (when (named? k)
+             (when (and (map? v) (named? k))
                (assoc v :id (name k))))
            builds)
      builds)))
