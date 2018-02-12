@@ -43,3 +43,5 @@ figwheel_server.log
 *~
 *-init.clj
 sidecar/figwheel_server.log
+
+DESIGN_THOUGHTS.md
