@@ -486,13 +486,13 @@
 (def repl-function-docs
   "Figwheel Controls:
           (stop-autobuild)                ;; stops Figwheel autobuilder
-          (start-autobuild [id ...])      ;; starts autobuilder focused on optional ids
+          (start-autobuild id ...)        ;; starts autobuilder focused on optional ids
           (switch-to-build id ...)        ;; switches autobuilder to different build
           (reset-autobuild)               ;; stops, cleans, and starts autobuilder
           (reload-config)                 ;; reloads build config and resets autobuild
-          (build-once [id ...])           ;; builds source one time
-          (clean-builds [id ..])          ;; deletes compiled cljs target files
-          (print-config [id ...])         ;; prints out build configurations
+          (build-once id ...)             ;; builds source one time
+          (clean-builds id ..)            ;; deletes compiled cljs target files
+          (print-config id ...)           ;; prints out build configurations
           (fig-status)                    ;; displays current state of system
           (figwheel.client/set-autoload false)    ;; will turn autoloading off
           (figwheel.client/set-repl-pprint false) ;; will turn pretty printing off
