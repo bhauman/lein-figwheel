@@ -209,7 +209,8 @@ This can cause confusion when your are not using Cider."]
                 line-reader-command-doc (resolve 'rebel-readline.commands/command-doc)
                 docs (resolve 'figwheel-sidecar.system/repl-function-docs)
                 cljs-service   (resolve 'rebel-readline-cljs.service/create)
-                cljs-repl-read (resolve 'rebel-readline-cljs.core/cljs-repl-read)]
+                cljs-repl-read (resolve 'rebel-readline-cljs.core/cljs-repl-read)
+                cljs-repl-print (resolve 'rebel-readline-cljs.core/cljs-repl-print)]
             (when (and line-reader-command line-reader-command-doc docs
                        @line-reader-command @line-reader-command-doc @docs)
               (defmethod @line-reader-command :repl/help-figwheel [_]
@@ -218,15 +219,17 @@ This can cause confusion when your are not using Cider."]
                 "Displays the help docs for the Figwheel REPL"))
             (when help-message (println (help-message)))
             (try
-              (cljs.repl/repl*
-               figwheel-env
-               (assoc
-                (:repl-opts figwheel-env)
-                :read (cljs-repl-read
-                       (line-reader
-                        (cljs-service {:repl-env figwheel-env
-                                       :prompt prompt-fn'})))
-                :prompt (fn [])))
+              (let [line-reader'
+                    (line-reader
+                     (cljs-service {:repl-env figwheel-env
+                                    :prompt prompt-fn'}))]
+                (cljs.repl/repl*
+                 figwheel-env
+                 (assoc
+                  (:repl-opts figwheel-env)
+                  :read (cljs-repl-read line-reader')
+                  :prompt (fn [])
+                  :print (cljs-repl-print line-reader'))))
               (catch clojure.lang.ExceptionInfo e
                 (if (-> e ex-data :type (= :rebel-readline.line-reader/bad-terminal))
                   (do (println (.getMessage e))
