@@ -197,39 +197,20 @@ This can cause confusion when your are not using Cider."]
   (let [prompt (:prompt (:repl-opts figwheel-env))
         prompt-fn' (fn [] (with-out-str (prompt)))]
     (cond (and
-           (require? 'rebel-readline.core)
-           (require? 'rebel-readline-cljs.service)
-           (require? 'rebel-readline-cljs.core)
-           (resolve 'rebel-readline.core/line-reader)
-           (resolve 'rebel-readline-cljs.service/create)
-           (resolve 'rebel-readline-cljs.core/cljs-repl-read))
-          (let [line-reader    (resolve 'rebel-readline.core/line-reader)
-                help-message    (resolve 'rebel-readline.core/help-message)
-                line-reader-command (resolve 'rebel-readline.commands/command)
-                line-reader-command-doc (resolve 'rebel-readline.commands/command-doc)
-                docs (resolve 'figwheel-sidecar.system/repl-function-docs)
-                cljs-service   (resolve 'rebel-readline-cljs.service/create)
-                cljs-repl-read (resolve 'rebel-readline-cljs.core/cljs-repl-read)
-                cljs-repl-print (resolve 'rebel-readline-cljs.core/cljs-repl-print)]
-            (when (and line-reader-command line-reader-command-doc docs
-                       @line-reader-command @line-reader-command-doc @docs)
-              (defmethod @line-reader-command :repl/help-figwheel [_]
-                (println @docs))
-              (defmethod @line-reader-command-doc :repl/help-figwheel [_]
-                "Displays the help docs for the Figwheel REPL"))
-            (when help-message (println (help-message)))
+           (require? 'rebel-readline-cljs.repl)
+           (require? 'rebel-readline.commands)
+           (resolve 'rebel-readline-cljs.repl/cljs-repl*)
+           (resolve 'rebel-readline.commands/add-command))
+          (let [rebel-cljs-repl* (resolve 'rebel-readline-cljs.repl/cljs-repl*)
+                add-command      (resolve 'rebel-readline.commands/add-command)
+                docs             (resolve 'figwheel-sidecar.system/repl-function-docs)]
+            (when (and add-command docs @add-command @docs)
+              (add-command
+               :repl/help-figwheel
+               #(println @docs)
+               "Displays the help docs for the Figwheel REPL"))
             (try
-              (let [line-reader'
-                    (line-reader
-                     (cljs-service {:repl-env figwheel-env
-                                    :prompt prompt-fn'}))]
-                (cljs.repl/repl*
-                 figwheel-env
-                 (assoc
-                  (:repl-opts figwheel-env)
-                  :read (cljs-repl-read line-reader')
-                  :prompt (fn [])
-                  :print (cljs-repl-print line-reader'))))
+              (rebel-cljs-repl* figwheel-env (:repl-opts figwheel-env))
               (catch clojure.lang.ExceptionInfo e
                 (if (-> e ex-data :type (= :rebel-readline.line-reader/bad-terminal))
                   (do (println (.getMessage e))
