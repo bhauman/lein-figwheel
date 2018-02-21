@@ -212,7 +212,7 @@ This can cause confusion when your are not using Cider."]
             (try
               (rebel-cljs-repl* figwheel-env (:repl-opts figwheel-env))
               (catch clojure.lang.ExceptionInfo e
-                (if (-> e ex-data :type (= :rebel-readline.line-reader/bad-terminal))
+                (if (-> e ex-data :type (= :rebel-readline.jline-api/bad-terminal))
                   (do (println (.getMessage e))
                       (println "Falling back to REPL without terminal readline functionality!")
                       (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))
