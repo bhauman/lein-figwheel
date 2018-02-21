@@ -57,7 +57,7 @@
 
 (defn- run-local-project [project paths-to-add requires form]
   (let [project' (cond-> project
-                   (not (false? (get-in project [:figwheel :readline])))
+                   (get-in project [:figwheel :readline] true)
                    (update-in [:dependencies] conj ['rebel-readline-cljs rebel-readline-cljs-version])
                    :finally
                    (->
@@ -538,7 +538,8 @@ Configuration:
         (if (and
              (or (= nil command)
                  (= ":reactor" command))
-             (get-in project [:figwheel :repl] true))
+             (get-in project [:figwheel :repl] true)
+             (get-in project [:figwheel :readline] true))
           (if tramp/*trampoline?*
             (launch-figwheel command project build-ids)
             (apply tramp/trampoline project "figwheel" command-and-or-build-ids))
