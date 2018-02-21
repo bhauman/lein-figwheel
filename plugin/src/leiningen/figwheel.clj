@@ -12,7 +12,7 @@
    [simple-lein-profile-merge.core :as lm]))
 
 (def _figwheel-version_ "0.5.15-SNAPSHOT")
-(def _rebel-readline-cljs-version_ "0.1.0-SNAPSHOT")
+(def _rebel-readline-cljs-version_ "0.1.1-SNAPSHOT")
 
 (defn make-subproject [project paths-to-add]
   (with-meta

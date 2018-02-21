@@ -197,11 +197,11 @@ This can cause confusion when your are not using Cider."]
   (let [prompt (:prompt (:repl-opts figwheel-env))
         prompt-fn' (fn [] (with-out-str (prompt)))]
     (cond (and
-           (require? 'rebel-readline-cljs.repl)
+           (require? 'rebel-readline.cljs.repl)
            (require? 'rebel-readline.commands)
-           (resolve 'rebel-readline-cljs.repl/cljs-repl*)
-           (resolve 'rebel-readline.commands/add-command))
-          (let [rebel-cljs-repl* (resolve 'rebel-readline-cljs.repl/cljs-repl*)
+           (resolve  'rebel-readline.cljs.repl/repl*)
+           (resolve  'rebel-readline.commands/add-command))
+          (let [rebel-cljs-repl* (resolve 'rebel-readline.cljs.repl/repl*)
                 add-command      (resolve 'rebel-readline.commands/add-command)
                 docs             (resolve 'figwheel-sidecar.system/repl-function-docs)]
             (when (and add-command docs @add-command @docs)
