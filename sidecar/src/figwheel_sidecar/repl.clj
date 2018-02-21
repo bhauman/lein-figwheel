@@ -215,7 +215,8 @@ This can cause confusion when your are not using Cider."]
                 (if (-> e ex-data :type (= :rebel-readline.line-reader/bad-terminal))
                   (do (println (.getMessage e))
                       (println "Falling back to REPL without terminal readline functionality!")
-                      (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))))))
+                      (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))
+                  (throw e)))))
           :else
           (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))))
 
