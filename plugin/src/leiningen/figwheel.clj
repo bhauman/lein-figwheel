@@ -55,13 +55,15 @@
 (def rebel-readline-cljs-version
   (or (coord-version "rebel-readline-cljs") _rebel-readline-cljs-version_))
 
-;; well this is private in the leiningen.cljsbuild ns
 (defn- run-local-project [project paths-to-add requires form]
-  (let [project' (-> project
-                   (update-in [:dependencies] conj ['figwheel-sidecar _figwheel-version_])
-                   (update-in [:dependencies] conj ['figwheel _figwheel-version_])
+  (let [project' (cond-> project
+                   (not (false? (get-in project [:figwheel :readline])))
                    (update-in [:dependencies] conj ['rebel-readline-cljs rebel-readline-cljs-version])
-                   (make-subproject paths-to-add))]
+                   :finally
+                   (->
+                    (update-in [:dependencies] conj ['figwheel-sidecar _figwheel-version_])
+                    (update-in [:dependencies] conj ['figwheel _figwheel-version_])
+                    (make-subproject paths-to-add)))]
     (eval-and-catch project' requires form)))
 
 (defn figwheel-exec-body [body]

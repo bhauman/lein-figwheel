@@ -57,6 +57,7 @@
     ::builds-to-start
     ::auto-clean
     ::server-logfile
+    ::readline
     ::open-file-command
     ::repl-eval-timeout
     ::repl
@@ -175,6 +176,17 @@ You can set :auto-clean flase to disable this behavior.
 Default: true
 
   :auto-clean false")
+
+(def-key ::readline boolean?
+  "By default Figwheel engauges a Rebel readline editor when it starts
+the ClojureScript Repl in the terminal that it is launched in.
+
+More about Rebel readline:
+https://github.com/bhauman/rebel-readline
+
+Default: true
+
+  :readline false")
 
 (def-key ::server-logfile    (some-fn non-blank-string? false?)
   "The path to the file where Figwheel will log its system output.
