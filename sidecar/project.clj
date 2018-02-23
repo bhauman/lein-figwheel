@@ -10,7 +10,7 @@
   [[org.clojure/clojure "1.8.0"]
    [org.clojure/clojurescript "1.9.946"
     :exclusions [org.apache.ant/ant]]
-   [org.clojure/core.async "0.3.443"
+   [org.clojure/core.async "0.4.474"
     :exclusions [org.clojure/tools.reader]]
    [com.stuartsierra/component "0.3.2"]
    [suspendable "0.1.1"
@@ -18,7 +18,7 @@
    [http-kit "2.2.0"]
    [ring-cors "0.1.11"
     :exclusions [ring/ring-core org.clojure/clojure]]
-   [ring/ring-core "1.6.1"
+   [ring/ring-core "1.6.3"
     :exclusions
     [org.clojure/tools.reader
      org.clojure/clojure]]
@@ -37,7 +37,7 @@
   :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
                    :source-paths ["cljs_src" "src"]
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
-                             [lein-ancient "0.6.10"]]}
+                             [lein-ancient "0.6.15"]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
                     :source-paths ["cljs_src" "src"]
                     :resource-paths ["resources" "dev-resources"]

@@ -10,7 +10,7 @@
          :url "https://github.com/bhauman/lein-figwheel"
          :dir ".."}
 
-  :profiles {:dev {:dependencies [[leiningen "2.7.1"]
+  :profiles {:dev {:dependencies [[leiningen "2.8.1"]
                                   [rebel-readline-cljs "0.1.1-SNAPSHOT"]
                                   [org.clojure/test.check "0.9.0"]]
                    :source-paths ["dev" "src"]
