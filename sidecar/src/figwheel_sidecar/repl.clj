@@ -89,6 +89,9 @@
     ;; we need to print in the same thread as
     ;; the that the repl process was created in
     ;; thank goodness for the go loop!!
+
+    ;; TODO I don't think we need this anymore
+    ;; if we miss extraneous prints it's not a big deal
     (reset! (::repl-writers figwheel-server) (get-thread-bindings))
     (go-loop []
       (when-let [{:keys [stream args]}
@@ -108,12 +111,18 @@
   (-evaluate [_ _ _ js]
     (reset! (::repl-writers figwheel-server) (get-thread-bindings))
     (wait-for-connection figwheel-server)
-    (eval-js figwheel-server js))
+    (let [{:keys [out] :as result} (eval-js figwheel-server js)]
+      (when (not (string/blank? out))
+        (println (string/trim-newline out)))
+      result))
       ;; this is not used for figwheel
   (-load [this ns url]
     (reset! (::repl-writers figwheel-server) (get-thread-bindings))
     (wait-for-connection figwheel-server)
-    (eval-js figwheel-server (slurp url)))
+    (let [{:keys [out] :as result} (eval-js figwheel-server (slurp url))]
+      (when (not (string/blank? out))
+        (println (string/trim-newline out)))
+      result))
   (-tear-down [_]
     (close! (:repl-print-chan figwheel-server))
     true)
