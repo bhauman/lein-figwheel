@@ -39,14 +39,14 @@
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
                              [lein-ancient "0.6.15"]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
-                    :source-paths ["cljs_src" "src"]
+                    :source-paths ["cljs_src" "src" "dev"]
                     :resource-paths ["resources" "dev-resources"]
                     :repl-options {:init-ns figwheel-sidecar.repl-api}}}
 
   :cljsbuild {
              :builds
               [{:id "dev"
-                :source-paths ["cljs_src"]
+                :source-paths ["cljs_src" "../support/src"]
                 :compiler {:main figwheel-helper.core
                            :asset-path "js/out"
                            :output-to  "dev-resources/public/js/figwheel-helper.js"
