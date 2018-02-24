@@ -301,7 +301,6 @@
 
         :file-md5-atom (atom {})
 
-        :ansi-color-output (if (false? ansi-color-output) false true)
         :file-change-atom (atom (list))
         :browser-callbacks (atom {})
         :connection-count (atom {})

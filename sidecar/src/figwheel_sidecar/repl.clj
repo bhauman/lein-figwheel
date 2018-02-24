@@ -228,8 +228,7 @@ This can cause confusion when your are not using Cider."]
    (if (and (instance? IExceptionInfo e)
             (#{:js-eval-error :js-eval-exception} (:type (ex-data e))))
      (cljs.repl/repl-caught e repl-env opts)
-     ;; color is going to have to be configurable
-     (with-color-when (-> repl-env :figwheel-server :ansi-color-output)
+     (with-color-when (config/use-color? (:figwheel-server repl-env))
        (cljs-ex/print-exception e (cond-> {:environment :repl
                                            :current-ns ana/*cljs-ns*}
                                     form (assoc :source-form form)
@@ -240,7 +239,7 @@ This can cause confusion when your are not using Cider."]
 (defn warning-handler [repl-env form opts]
   (fn [warning-type env extra]
     (when-let [warning-data (cljs-ex/extract-warning-data warning-type env extra)]
-      (debug-prn (with-color-when (-> repl-env :figwheel-server :ansi-color-output)
+      (debug-prn (with-color-when (config/use-color? (:figwheel-server repl-env))
                    (cljs-ex/format-warning (assoc warning-data
                                                   :source-form form
                                                   :current-ns ana/*cljs-ns*
@@ -300,7 +299,7 @@ This can cause confusion when your are not using Cider."]
   (if (in-nrepl-env?)
     #(when-let [c (connection-count figwheel-server build-id)]
        (when (> c 1)
-         (with-color-when (-> figwheel-server :ansi-color-output)
+         (with-color-when (config/use-color? figwheel-server)
            (println
             (color
              (str "v------- " build-id "!{:conn " c "} -------")

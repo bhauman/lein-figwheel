@@ -20,8 +20,36 @@
 
 (def _figwheel-version_ "0.5.15-SNAPSHOT")
 
-;; file stamping pattern
+;; needed to determine the default color setting because windows
+;; obtained these detection patterns from Jline3
+(def WINDOWS-ENV-DATA
+  (when-let [windows (-> (System/getProperty "os.name")
+                         (string/lower-case)
+                         (.contains "win"))]
+    {:windows true
+     :cygwin  (some-> (System/getenv "PWD") (.startsWith "/"))
+     :mingw   (some-> (System/getenv "MSYSTEM") (.startsWith "MINGW"))
+     :con-emu (some? (System/getenv "ConEmuPID"))}))
 
+(defn in-rebel-readline-terminal? []
+  (when-let [term-var (resolve 'rebel-readline.jline-api/*terminal*)]
+    (thread-bound? term-var)))
+
+(defn use-color-default []
+  (boolean
+   (if-not WINDOWS-ENV-DATA
+     true
+     (or (in-rebel-readline-terminal?)
+         (:cygwin  WINDOWS-ENV-DATA)
+         (:mingw   WINDOWS-ENV-DATA)
+         (:con-emu WINDOWS-ENV-DATA)))))
+
+(defn use-color?
+  "Takes figwheel options and looks for a :ansi-color-output key"
+  [fig-opts]
+  (get fig-opts :ansi-color-output (use-color-default)))
+
+;; file stamping pattern
 (defn on-stamp-change [{:keys [file signature]} f]
   {:pre [(string? signature) (= (type file) java.io.File)]}
   (let [old-val (when (.exists file) (slurp file))]
@@ -629,8 +657,6 @@
       :ignore-unknown-keys :ignore
       nil)))
 
-(declare use-color?)
-
 ;; ConfigData -> ConfigData ; raises runtime exception with on configuration error
 (defn validate-config-data [config-data]
   {:pre [(config-data? config-data)]
@@ -638,7 +664,7 @@
   (if (validate-config-data? config-data)
     (let [config-data (if (:data config-data) config-data (assoc config-data :data {}))]
       #_(println "VALIDATING!!!!")
-      (with-color-when (use-color? config-data)
+      (with-color-when (use-color? (figwheel-options config-data))
         (if-let [level (validate-config-level config-data)]
           (binding [strictk/*unknown-key-level* level]
             (-validate config-data))
@@ -813,11 +839,6 @@
             (get-choice choices))
           ch)))))
 
-(defn use-color? [config-data]
-  (if-let [fig-opt (and (config-data? config-data) (figwheel-options config-data))]
-    (if (false? (:ansi-color-output fig-opt)) false true)
-    true))
-
 (defn validate-loop-behavior [config-data]
   (if-let [fig-opt (and (config-data? config-data) (figwheel-options config-data))]
     (when (contains? fig-opt :validate-interactive)
@@ -837,7 +858,7 @@
   (let [{:keys [file] :as first-config-data} (first lazy-config-data-list)]
     (if-not (validate-config-data? first-config-data)
       first-config-data
-      (with-color-when (use-color? first-config-data)
+      (with-color-when (use-color? (figwheel-options first-config-data))
         (if-not (and file (.exists (io/file file)))
           (do
             (println "Configuration file" (str file) "was not found")

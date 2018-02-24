@@ -245,7 +245,8 @@ the first default id)."
              notify/print-hook
              cljs-auto/color-output)
          {:figwheel-server
-          {:ansi-color-output (config/use-color? figwheel-internal-final)}
+          {:ansi-color-output (config/use-color?
+                               (config/figwheel-options figwheel-internal-final))}
           :build-config build})))))
 
 (comment

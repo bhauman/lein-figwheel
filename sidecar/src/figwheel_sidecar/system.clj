@@ -275,7 +275,7 @@
         (component/start-system running-build-keys))))
 
 (defn use-color? [system]
-  (-> system :figwheel-server :ansi-color-output))
+  (config/use-color? (:figwheel-server system)))
 
 ;; start System Control Functions
 ;; These commands are intended to be run from a Clojure REPL or to be

@@ -1,6 +1,6 @@
 (ns figwheel-sidecar.components.cljs-autobuild
   (:require
-   [figwheel-sidecar.config :refer [prep-build prepped?]]
+   [figwheel-sidecar.config :as config :refer [prep-build prepped?]]
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.watching :as watching]
    [figwheel-sidecar.utils :as utils]
@@ -39,12 +39,11 @@
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (let [started-at (System/currentTimeMillis)
           {:keys [build-options compile-paths id]} build-config
-            {:keys [output-to output-dir]} build-options]
+          {:keys [output-to output-dir]} build-options]
       ;; print start message
-      (println (color-text (str "Compiling build :" id " to \""
-                                (or output-to output-dir)
-                                "\" from " (pr-str compile-paths) "...")
-                           :none))
+      (println (str "Compiling build :" id " to \""
+                    (or output-to output-dir)
+                    "\" from " (pr-str compile-paths) "..."))
       (try
         (build-fn build-state)
         (println (color-text (str "Successfully compiled build :" id " to \""
@@ -77,7 +76,7 @@
 
 (defn color-output [build-fn]
   (fn [{:keys [figwheel-server] :as build-state}]
-    (with-color-when (-> figwheel-server :ansi-color-output)
+    (with-color-when (config/use-color? figwheel-server)
       (build-fn build-state))))
 
 ;; !! assume nothing about the order of middleware !!
