@@ -35,11 +35,11 @@
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
 
   :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
-                   :source-paths ["cljs_src" "src"]
+                   :source-paths ["cljs_src" "src" "dev"]
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
                              [lein-ancient "0.6.15"]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
-                    :source-paths ["cljs_src" "src" "dev"]
+                    :source-paths ["cljs_src" "src"]
                     :resource-paths ["resources" "dev-resources"]
                     :repl-options {:init-ns figwheel-sidecar.repl-api}}}
 
