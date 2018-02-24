@@ -18,25 +18,21 @@
    [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   )
   (:import [clojure.lang IExceptionInfo]))
 
-(defn eval-js [{:keys [browser-callbacks repl-eval-timeout] :as figwheel-server} js]
-  (let [out (chan)
-        repl-timeout (or repl-eval-timeout 8000)
-        callback (fn [result]
-                   (put! out result)
-                   (go
-                     (<! (timeout 2000))
-                     (close! out)))]
-    (server/send-message-with-callback figwheel-server
-                                       (:build-id figwheel-server)
-                                       {:msg-name :repl-eval
-                                        :code js}
-                                       callback)
-    (let [[v ch] (alts!! [out (timeout repl-timeout)])]
-      (if (= ch out)
-        v
-        {:status :exception
-         :value "Eval timed out!"
-         :stacktrace "No stacktrace available."}))))
+(let [timeout-val (Object.)]
+  (defn eval-js [{:keys [browser-callbacks repl-eval-timeout] :as figwheel-server} js]
+    (let [out (promise)
+          repl-timeout (or repl-eval-timeout 8000)]
+      (server/send-message-with-callback figwheel-server
+                                         (:build-id figwheel-server)
+                                         {:msg-name :repl-eval
+                                          :code js}
+                                         (partial deliver out))
+      (let [v (deref out repl-timeout timeout-val)]
+        (if (= timeout-val v)
+          {:status :exception
+           :value "Eval timed out!"
+           :stacktrace "No stacktrace available."}
+          v)))))
 
 (defn connection-available?
   [figwheel-server build-id]
