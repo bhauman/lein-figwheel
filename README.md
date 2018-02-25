@@ -397,7 +397,7 @@ The following configuration options are available:
 ;; have compiled files autoloaded into the client env
 :autoload false
 
-;; The heads up display is enabled by default to disable it: 
+;; The heads up display is enabled by default; to disable it: 
 :heads-up-display false
 
 ;; when the compiler emits warnings figwheel blocks the loading of files.
