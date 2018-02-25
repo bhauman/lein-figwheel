@@ -192,7 +192,6 @@
 (let [base-path (utils/base-url-path)]
   (defn eval-javascript** [code opts result-handler]
     (try
-      (enable-repl-print!)
       (let [sb (js/goog.string.StringBuffer.)]
         (binding [cljs.core/*print-newline* false
                   cljs.core/*print-fn* (fn [x] (.append sb x))]
@@ -214,12 +213,7 @@
          {:status :exception
           :ua-product (get-ua-product)
           :value (pr-str e)
-          :stacktrace "No stacktrace available."}))
-      (finally
-        ;; should we let people shoot themselves in the foot?
-        ;; you can theoretically disable repl printing in the repl
-        ;; but for now I'm going to prevent it
-        (enable-repl-print!)))))
+          :stacktrace "No stacktrace available."})))))
 
 (defn ensure-cljs-user
   "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
