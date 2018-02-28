@@ -11,7 +11,7 @@
          :dir ".."}
 
   :profiles {:dev {:dependencies [[leiningen "2.8.1"]
-                                  [rebel-readline-cljs "0.1.1-SNAPSHOT"]
+                                  [com.bhauman/rebel-readline-cljs "0.1.1"]
                                   [org.clojure/test.check "0.9.0"]]
                    :source-paths ["dev" "src"]
                    :aliases {"change-version" ["run" "-m" "figwheel-tasks.core" ":change-version"]

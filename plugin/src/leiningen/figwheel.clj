@@ -12,7 +12,7 @@
    [simple-lein-profile-merge.core :as lm]))
 
 (def _figwheel-version_ "0.5.15-SNAPSHOT")
-(def _rebel-readline-cljs-version_ "0.1.1-SNAPSHOT")
+(def _rebel-readline-cljs-version_ "0.1.1")
 
 (defn make-subproject [project paths-to-add]
   (with-meta
@@ -58,7 +58,7 @@
 (defn- run-local-project [project paths-to-add requires form]
   (let [project' (cond-> project
                    (get-in project [:figwheel :readline] true)
-                   (update-in [:dependencies] conj ['rebel-readline-cljs rebel-readline-cljs-version])
+                   (update-in [:dependencies] conj ['com.bhauman/rebel-readline-cljs rebel-readline-cljs-version])
                    :finally
                    (->
                     (update-in [:dependencies] conj ['figwheel-sidecar _figwheel-version_])
