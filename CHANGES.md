@@ -1,8 +1,32 @@
-## 0.5.15-SNAPSHOT Support code spliting and modules
+## 0.5.15 Readline
 
-This release adds automatic support for projects that use
+A big thanks goes out to ClojuristsTogether.org and everyone who
+contributed for helping to make this work possible!
+
+This release includes the biggest change that Figwheel has had in
+quite a while. After 2 months of work I'm proud to release a version
+of Figwheel that has Clojure readline support. Even if you always use
+your editor REPL like me, you make want to try the REPL that `lein
+figwheel` launches. You may find that its a handy tool to have around.
+
+You can learn more about rebel-readline at
+[https://github.com/bhauman/rebel-readline](https://github.com/bhauman/rebel-readline).
+
+Don't forget this gets rid of the need for `rlwrap`.
+
+You can disable the Rebel readline by adding `:readline false` to your
+`:figwheel` config.
+
+This release requires that you use
+`[org.clojure/clojurescript "1.9.946"]` at least.
+
+This release also, adds automatic support for projects that use
 [Code Splitting](https://clojurescript.org/guides/code-splitting). You
 should now be able to use code splitting and have Figwheel "just work".
+
+Other changes:
+
+* Figwheel is now using cljs `:preloads` for figwheel client injection
 
 ## 0.5.14 Faster loading for complex dependency trees
 
