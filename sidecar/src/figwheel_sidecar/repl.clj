@@ -165,12 +165,6 @@
   [_ figwheel-env]
   (try
     (cond
-      (and (require? 'figwheel.tools.nrepl)
-           (when-let [present-var (resolve 'figwheel.tools.nrepl/*cljs-evaluator*)]
-             (thread-bound? present-var)))
-      (let [cljs-repl (resolve 'figwheel.tools.nrepl/cljs-repl)
-            opts' (:repl-opts figwheel-env)]
-        (apply cljs-repl figwheel-env (apply concat opts')))
       (and (require? 'cemerick.piggieback)
            (when-let [present-var (resolve 'cemerick.piggieback/*cljs-repl-env*)]
              (thread-bound? present-var)))
