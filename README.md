@@ -566,7 +566,8 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.15"]` in your dependencies.
+`[figwheel-sidecar "0.5.15"]` and
+`[com.bhauman/rebel-readline "0.1.1"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -661,7 +662,7 @@ The next line will call `clojure.main` and initialize it with our
 script and then continue on to launch a REPL.
 
 ```
-$ lein trampoline run -m clojure.main --init script/figwheel.clj  -r
+$ lein trampoline run -m clojure.main --init script/figwheel.clj -m rebel-readline.main
 ```
 
 After the Clojure REPL has launched, you will now have the ability to
@@ -741,7 +742,7 @@ with a Ring server component to serve your application.
 Again you can run this script as so:
 
 ```
-$ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
+$ lein trampoline run -m clojure.main --init script/figwheel.clj -m rebel-readline.main
 ```
 
 As you can see with humble beginnings you can build up arbitrary
