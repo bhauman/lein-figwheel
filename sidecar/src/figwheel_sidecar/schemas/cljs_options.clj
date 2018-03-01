@@ -159,7 +159,7 @@ human-readable manner. Defaults to true.
 
   :pretty-print false")
 
-(def-key ::target                    #{:nodejs}
+(def-key ::target                    #{:nodejs :webworker}
 
   "If targeting nodejs add this line. Takes no other options at the
 moment. The default (no :target specified) implies browsers are being
