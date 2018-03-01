@@ -184,7 +184,7 @@ Then include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
 [org.clojure/clojure "1.8.0"]
-[org.clojure/clojurescript "1.9.229"]
+[org.clojure/clojurescript "1.9.946"]
 ```
 
 Then include `lein-figwheel` in the `:plugins`
