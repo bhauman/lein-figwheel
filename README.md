@@ -191,7 +191,7 @@ Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.14"]
+[lein-figwheel "0.5.15"]
 ```
 
 #### Configure your builds
@@ -477,18 +477,10 @@ it is a namespace that isn't in your loaded application's required
 dependencies. In many cases you can just `(in-ns 'my.namespace)` and
 everything you need to access will be there already.
 
-The REPL doesn't currently have built-in readline support. To have a
-better experience please install **rlwrap**. You can do this on OSX
-using brew: `brew install rlwrap`.
+The REPL get's its syntax highlighting and other features from the
+[rebel-readline](https://github.com/bhauman/rebel-readline) library.
 
-When `rlwrap` is installed you can now execute lein figwheel as so:
-
-```
-$ rlwrap lein figwheel
-```
-
-This will give you a much nicer REPL experience with history and line
-editing.
+You can type `:repl/help` to learn more about how to use it.
 
 ##### REPL Figwheel control functions.
 
@@ -574,7 +566,7 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.14"]` in your dependencies.
+`[figwheel-sidecar "0.5.15"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -620,7 +612,7 @@ To start Figwheel from a script, you will need to require the
 Assuming the above script is in `script/figwheel.clj` you can invoke it as follows:
 
 ```
-$ rlwrap lein run -m clojure.main script/figwheel.clj
+$ lein trampoline run -m clojure.main script/figwheel.clj
 ```
 
 The above command will start figwheel and it will behave just like
@@ -669,7 +661,7 @@ The next line will call `clojure.main` and initialize it with our
 script and then continue on to launch a REPL.
 
 ```
-$ rlwrap lein run -m clojure.main --init script/figwheel.clj  -r
+$ lein trampoline run -m clojure.main --init script/figwheel.clj  -r
 ```
 
 After the Clojure REPL has launched, you will now have the ability to
