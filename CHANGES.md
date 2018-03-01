@@ -6,7 +6,7 @@ contributed for helping to make this work possible!
 This release includes the biggest change that Figwheel has had in
 quite a while. After 2 months of work I'm proud to release a version
 of Figwheel that has Clojure readline support. Even if you always use
-your editor REPL like me, you make want to try the REPL that `lein
+your editor REPL like me, you may want to try the REPL that `lein
 figwheel` launches. You may find that its a handy tool to have around.
 
 You can learn more about rebel-readline at
