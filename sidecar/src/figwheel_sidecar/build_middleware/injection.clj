@@ -11,6 +11,10 @@
   (when-let [target (get-in build [:build-options :target])]
     (= target :nodejs)))
 
+(defn- webworker? [build]
+  (when-let [target (get-in build [:build-options :target])]
+    (= target :webworker)))
+
 (defn- has-main? [build]
   (get-in build [:build-options :main]))
 
@@ -41,7 +45,8 @@
                      (fnil conj [])
                      (if (and (has-main? build)
                               (not (has-modules? build))
-                              (not (node? build)))
+                              (not (node? build))
+                              (not (webworker? build)))
                        'figwheel.connect
                        'figwheel.preload))
           (update-in [:build-options :external-config :figwheel/config] #(if % % (get build :figwheel {})))
@@ -70,7 +75,7 @@
 
 (defn append-src-script [build src-code]
   (let [output-to (has-output-to? build)
-        line (if (and (has-main? build) (not (node? build)))
+        line (if (and (has-main? build) (not (node? build)) (not (webworker? build)))
                (str (document-write-src-script src-code))
                (format "\n%s" src-code))]
     (when (and output-to (.exists (io/file output-to)))
@@ -80,7 +85,8 @@
   (when (and (config/figwheel-build? build)
              (has-main? build)
              (not (has-modules? build))
-             (not (node? build)))
+             (not (node? build))
+             (not (webworker? build)))
     (append-src-script build "figwheel.connect.start();")))
 
 (defn hook [build-fn]
