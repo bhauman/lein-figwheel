@@ -7,7 +7,8 @@
             [goog.userAgent.product :as product])
   (:import [goog]
            [goog.async Deferred]
-           [goog.string StringBuffer]))
+           [goog.string StringBuffer])
+  (:require-macros [figwheel.client.utils :refer [feature?]]))
 
 ;; don't auto reload this file it will mess up the debug printing
 
@@ -109,12 +110,6 @@
                                    (fin v))))))
              deferred coll)
      (fn [_] (.succeed Deferred @results)))))
-
-
-(defn- feature? [obj feature]
-  (and (exists? obj)
-       (exists? (aget obj feature))))
-
 
 ;; persistent storage of configuration keys
 
