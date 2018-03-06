@@ -46,11 +46,10 @@
 
   :resource-paths ["resources" "other_resources"]
 
-
   :cljsbuild {
               :builds {
                        :example {
-                                 :source-paths ["src" #_"dev" #_"tests" #_"../support/src"]
+                                 :source-paths ["src" #_"dev" #_"tests" "../support/src"]
                                  :notify-command ["notify"]
                                  :figwheel {:websocket-host "localhost"
                                             :on-jsload      example.core/fig-reload
@@ -125,8 +124,7 @@
                                    :recompile-dependents false
                                    }
                     :source-paths ["src" "dev"]
-                    :repl-options {:init (set! *print-length* 50)}
-                    :plugins [[cider/cider-nrepl "0.11.0"]]}}
+                    :repl-options {:init (set! *print-length* 50)}}}
 
 
   ; :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
