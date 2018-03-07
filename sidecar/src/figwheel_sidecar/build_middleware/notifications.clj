@@ -19,18 +19,24 @@
    #_[clojure.pprint :refer [pprint]]
    ))
 
+(comment
+  (def comp-env (atom nil))
+  (keys @comp-env)
+  (map (comp meta :ns) (:sources @comp-env))
+  (clojure.java.shell/sh "touch" "cljs_src/figwheel_helper/core.cljs")
+  )
+
 (defn find-figwheel-meta []
   (into {}
-        (map
-         (fn [n]
-           [(cljs.compiler/munge (name n))
-            (select-keys (meta n) [:figwheel-always :figwheel-load :figwheel-no-load])])
-         (filter (fn [n] (let [m (meta n)]
-                          (or
-                           (get m :figwheel-always)
-                           (get m :figwheel-load)
-                           (get m :figwheel-no-load))))
-                 (ana-api/all-ns)))))
+        (comp
+         (map :ns)
+         (map (juxt
+               identity
+               #(select-keys
+                 (meta %)
+                 [:figwheel-always :figwheel-load :figwheel-no-load])))
+         (filter (comp not-empty second)))
+        (:sources @env/*compiler*)))
 
 (defn send-changed-files
   "Formats and sends a files-changed message to the file-change-atom.
