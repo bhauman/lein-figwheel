@@ -253,41 +253,36 @@
   (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
         msg-names (map :msg-name msg-hist)
         msg (first msg-hist)]
-    (go
-     (cond
+    (cond
       (reload-file-state? msg-names opts)
       (if (and (autoload?)
                (:autoload opts))
-        (<! (heads-up/flash-loaded))
-        (<! (heads-up/clear)))
+        (heads-up/flash-loaded)
+        (heads-up/clear))
 
       (compile-refail-state? msg-names)
-      (do
-        (<! (heads-up/clear))
-        (<! (heads-up/display-exception (:exception-data msg)))
-        (auto-jump-to-error opts (:exception-data msg)))
+      (-> (heads-up/clear)
+          (.then (fn [_] (heads-up/display-exception (:exception-data msg))))
+          (.then (fn [_] (auto-jump-to-error opts (:exception-data msg)))))
 
       (compile-fail-state? msg-names)
-      (do
-        (<! (heads-up/display-exception (:exception-data msg)))
-        (auto-jump-to-error opts (:exception-data msg)))
+      (-> (heads-up/display-exception (:exception-data msg))
+          (.then (fn [] (auto-jump-to-error opts (:exception-data msg)))))
 
       (warning-append-state? msg-names)
       (heads-up/append-warning-message (:message msg))
 
       (rewarning-state? msg-names)
-      (do
-        (<! (heads-up/clear))
-        (<! (heads-up/display-warning (:message msg)))
-        (auto-jump-to-error opts (:message msg)))
+      (-> (heads-up/clear)
+          (.then (fn [_] (heads-up/display-warning (:message msg))))
+          (.then (fn [_] (auto-jump-to-error opts (:message msg)))))
 
       (warning-state? msg-names)
-      (do
-        (<! (heads-up/display-warning (:message msg)))
-        (auto-jump-to-error opts (:message msg)))
+      (-> (heads-up/display-warning (:message msg))
+          (.then (fn [_] (auto-jump-to-error opts (:message msg))) ))
 
       (css-loaded-state? msg-names)
-      (<! (heads-up/flash-loaded))))))
+      (heads-up/flash-loaded))))
 
 (defn heads-up-plugin [opts]
   (let [ch (chan)]

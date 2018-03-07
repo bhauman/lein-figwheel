@@ -3,14 +3,12 @@
    [clojure.string :as string]
    [figwheel.client.socket :as socket]
    [figwheel.client.utils :as utils]
-   [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [goog.string]
    [goog.dom.dataset :as data]
    [goog.object :as gobj]
    [goog.dom :as dom]
    [cljs.pprint :as pp])
-  (:require-macros
-   [cljs.core.async.macros :refer [go go-loop]]))
+  (:import [goog Promise]))
 
 (declare clear cljs-logo-svg)
 
@@ -106,18 +104,21 @@
       "</a>"))
 
 (defn display-heads-up [style msg]
-  (go
-   (let [c (ensure-container)]
-     (set-style! c (merge {
-                          :paddingTop "10px"
-                          :paddingBottom "10px"
-                          :width "100%"
-                          :minHeight "68px"
-                          :opacity "1.0" }
-                          style))
-     (set-content! c msg)
-     (<! (timeout 300))
-     (set-style! c {:height "auto"}))))
+  (Promise.
+   (fn [resolve reject]
+     (let [c (ensure-container)]
+       (set-style! c (merge {
+                             :paddingTop "10px"
+                             :paddingBottom "10px"
+                             :width "100%"
+                             :minHeight "68px"
+                             :opacity "1.0" }
+                            style))
+       (set-content! c msg)
+       (js/setTimeout (fn []
+                        (set-style! c {:height "auto"})
+                        (resolve true))
+                      300)))))
 
 (defn heading
   ([s] (heading s ""))
@@ -127,12 +128,12 @@
         "line-height: 26px;"
         "margin-bottom: 2px;"
         "padding-top: 1px;"
-        "\">"        
+        "\">"
         s
         " <span style=\""
         "display: inline-block;"
         "font-size: 13px;"
-        "\">"       
+        "\">"
         sub-head
         "</span></div>")))
 
@@ -315,19 +316,27 @@
                                        :style "margin-top: 3px; font-weight: bold"}
                             "1 more warning that has not been displayed ..."))))))))
 
+(defn timeout* [time-ms]
+  (Promise.
+   (fn [resolve _]
+     (js/setTimeout #(resolve true) time-ms))))
+
 (defn clear []
-  (go
-   (let [c (ensure-container)]
-     (set-style! c { :opacity "0.0" })
-     (<! (timeout 300))
-     (set-style! c { :width "auto"
-                    :height "0px"
-                    :minHeight "0px"
-                    :padding "0px 10px 0px 70px"
-                    :borderRadius "0px"
-                    :backgroundColor "transparent" })
-     (<! (timeout 200))
-     (set-content! c ""))))
+  (let [c (ensure-container)]
+    (-> (Promise.
+         (fn [r _]
+           (set-style! c { :opacity "0.0" })
+           (r true)))
+        (.then (fn [_] (timeout* 300)))
+        (.then (fn [_]
+                 (set-style! c { :width "auto"
+                                :height "0px"
+                                :minHeight "0px"
+                                :padding "0px 10px 0px 70px"
+                                :borderRadius "0px"
+                                :backgroundColor "transparent" })))
+        (.then (fn [_] (timeout* 200)))
+        (.then (fn [_] (set-content! c ""))))))
 
 (defn display-loaded-start []
   (display-heads-up {:backgroundColor "rgba(211,234,172,1.0)"
@@ -338,10 +347,9 @@
                      :borderRadius "35px" } ""))
 
 (defn flash-loaded []
-  (go
-   (<! (display-loaded-start))
-   (<! (timeout 400))
-   (<! (clear))))
+  (-> (display-loaded-start)
+      (.then (fn [_] (timeout* 400)))
+      (.then (fn [_] (clear)))))
 
 (def cljs-logo-svg
   "<?xml version='1.0' encoding='utf-8'?>
@@ -397,7 +405,7 @@
                (dom/createDom
                 "div"
                 #js {:class "message"
-                     :style (str 
+                     :style (str
                                  "color: #FFF5DB;"
                                  "width: 100vw;"
                                  "margin: auto;"
