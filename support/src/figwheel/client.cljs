@@ -18,10 +18,75 @@
 
 (def _figwheel-version_ "0.5.16-SNAPSHOT")
 
+(def default-on-jsload identity)
+
+(defn get-essential-messages [ed]
+  (when ed
+    (cons (select-keys ed [:message :class])
+          (get-essential-messages (:cause ed)))))
+
+(defn error-msg-format [{:keys [message class]}] (str class " : " message))
+
+(def format-messages (comp (partial map error-msg-format) get-essential-messages))
+
+(defn file-line-column [{:keys [file line column]}]
+  (cond-> ""
+    file (str "file " file)
+    line (str " at line " line)
+    (and line column) (str ", column " column)))
+
+(defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
+  (utils/log :debug "Figwheel: Compile Exception")
+  (doseq [msg (format-messages exception-data)]
+    (utils/log :info msg))
+  (if cause
+    (utils/log :info (str "Error on " (file-line-column ed))))
+  ed)
+
+(defn default-on-compile-warning [{:keys [message] :as w}]
+  (utils/log :warn (str "Figwheel: Compile Warning - " (:message message) " in " (file-line-column message)))
+  w)
+
+(defn default-before-load [files]
+  (utils/log :debug "Figwheel: notified of file changes")
+  files)
+
+(defn default-on-cssload [files]
+  (utils/log :debug "Figwheel: loaded CSS files")
+  (utils/log :info (pr-str (map :file files)))
+  files)
+
+(def config-defaults
+  {;; TODO these don't belong here as they have nothing to do with reloading
+   :retry-count 100
+   :websocket-url (str "ws://"
+                       (if (utils/html-env?) js/location.host "localhost:3449")
+                       "/figwheel-ws")
+
+   :load-warninged-code false
+   :auto-jump-to-source-on-error false
+   ;; :on-message identity
+   :on-jsload default-on-jsload
+   :before-jsload default-before-load
+   :on-cssload default-on-cssload
+   :on-compile-fail #'default-on-compile-fail
+   :on-compile-warning #'default-on-compile-warning
+   :reload-dependents true
+   :autoload true
+   :debug false
+   :heads-up-display true
+   :eval-fn false})
+
+(defonce figwheel-state (atom config-defaults))
+
 (def js-stringify
   (if (and (exists? js/JSON) (some? js/JSON.stringify))
     (fn [x] (str "#js " (js/JSON.stringify x nil " ")))
     (fn [x] (try (str x) (catch js/Error e "Error: Unable to stringify")))))
+
+;; -------------------------------------------------------
+;; Printing
+;; -------------------------------------------------------
 
 (defn figwheel-repl-print
   ([stream args]
@@ -58,6 +123,33 @@
   (set-print-err-fn! repl-err-print-fn)
   nil)
 
+;; -------------------------------------------------------
+;; Toggling pprint
+
+(defn ^:export repl-pprint []
+  (utils/persistent-config-get :figwheel-repl-pprint true))
+
+(defn ^:export set-repl-pprint
+  "This method gives you the ability to turn the pretty printing of
+  the REPL's return value on and off.
+
+  (figwheel.client/set-repl-pprint false)
+
+  NOTE: This is a persistent setting, meaning that it will persist
+  through browser reloads."
+  [b]
+  (assert (or (true? b) (false? b)))
+  (utils/persistent-config-set! :figwheel-repl-pprint b))
+
+(defn ^:export repl-result-pr-str [v]
+  (if (repl-pprint)
+    (utils/pprint-to-string v)
+    (pr-str v)))
+
+;; -------------------------------------------------------
+;; Toggling autoloading
+;; -------------------------------------------------------
+
 (defn autoload? []
   (utils/persistent-config-get :figwheel-autoload true))
 
@@ -83,36 +175,12 @@
   (assert (or (true? b) (false? b)))
   (utils/persistent-config-set! :figwheel-autoload b))
 
-(defn ^:export repl-pprint []
-  (utils/persistent-config-get :figwheel-repl-pprint true))
-
-(defn ^:export set-repl-pprint
-  "This method gives you the ability to turn the pretty printing of
-  the REPL's return value on and off.
-
-  (figwheel.client/set-repl-pprint false)
-
-  NOTE: This is a persistent setting, meaning that it will persist
-  through browser reloads."
-  [b]
-  (assert (or (true? b) (false? b)))
-  (utils/persistent-config-set! :figwheel-repl-pprint b))
-
-(defn ^:export repl-result-pr-str [v]
-  (if (repl-pprint)
-    (utils/pprint-to-string v)
-    (pr-str v)))
-
-(defn get-essential-messages [ed]
-  (when ed
-    (cons (select-keys ed [:message :class])
-          (get-essential-messages (:cause ed)))))
-
-(defn error-msg-format [{:keys [message class]}] (str class " : " message))
-
-(def format-messages (comp (partial map error-msg-format) get-essential-messages))
-
 ;; more flexible state management
+
+;; -------------------------------------------------------
+;; State machine
+;; -------------------------------------------------------
+;; TODO needs to go away
 
 (defn focus-msgs [name-set msg-hist]
   (cons (first msg-hist) (filter (comp name-set :msg-name) (rest msg-hist))))
@@ -147,6 +215,10 @@
 (defn css-loaded-state? [msg-names]
   (= :css-files-changed (first msg-names)))
 
+;; -------------------------------------------------------
+;; File reloading
+;; -------------------------------------------------------
+
 (defn file-reloader-plugin [opts]
   (let [ch (chan)]
     (go-loop []
@@ -167,6 +239,10 @@
                        (utils/log :info (str "Not loading: " (map :file (:files msg))))))
                  (recur))))
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
+
+;; ----------------------------------------------
+;; REPL eval needs to move to REPL client
+;; ----------------------------------------------
 
 #_(defn error-test2 []
   js/joe)
@@ -215,22 +291,17 @@
           :value (pr-str e)
           :stacktrace "No stacktrace available."})))))
 
-(defn ensure-cljs-user
-  "The REPL can disconnect and reconnect lets ensure cljs.user exists at least."
-  []
-  ;; this should be included in the REPL
-  (when-not js/cljs.user
-    (set! js/cljs.user #js {})))
-
 (defn repl-plugin [{:keys [build-id] :as opts}]
   (fn [[{:keys [msg-name] :as msg} & _]]
     (when (= :repl-eval msg-name)
-      (ensure-cljs-user)
       (eval-javascript** (:code msg) opts
                          (fn [res]
                            (socket/send! {:figwheel-event "callback"
                                           :callback-name (:callback-name  msg)
                                           :content res}))))))
+
+;; CSS reloading
+;; TODO shouldn't be here
 
 (defn css-reloader-plugin [opts]
   (fn [[{:keys [msg-name] :as msg} & _]]
@@ -243,6 +314,11 @@
           :compile-warning (on-compile-warning msg)
           :compile-failed  (on-compile-fail msg)
           nil)))
+
+;; --------------------------------------------------
+;; Heads up display
+;; --------------------------------------------------
+
 
 (defn auto-jump-to-error [opts error]
   (when (:auto-jump-to-source-on-error opts)
@@ -294,6 +370,11 @@
     (heads-up/ensure-container)
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
+;; --------------------------------------------------
+;; enforment plugins
+;; --------------------------------------------------
+
+
 (defn enforce-project-plugin [opts]
   (fn [msg-hist]
     (when (< 1 (count (set (keep :project-id (take 5 msg-hist)))))
@@ -337,62 +418,7 @@
 ;; you can listen to this event easily like so:
 ;; document.body.addEventListener("figwheel.js-reload", function (e) { console.log(e.detail);} );
 
-(def default-on-jsload identity)
 
-(defn file-line-column [{:keys [file line column]}]
-  (cond-> ""
-    file (str "file " file)
-    line (str " at line " line)
-    (and line column) (str ", column " column)))
-
-(defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
-  (utils/log :debug "Figwheel: Compile Exception")
-  (doseq [msg (format-messages exception-data)]
-    (utils/log :info msg))
-  (if cause
-    (utils/log :info (str "Error on " (file-line-column ed))))
-  ed)
-
-(defn default-on-compile-warning [{:keys [message] :as w}]
-  (utils/log :warn (str "Figwheel: Compile Warning - " (:message message) " in " (file-line-column message)))
-  w)
-
-(defn default-before-load [files]
-  (utils/log :debug "Figwheel: notified of file changes")
-  files)
-
-(defn default-on-cssload [files]
-  (utils/log :debug "Figwheel: loaded CSS files")
-  (utils/log :info (pr-str (map :file files)))
-  files)
-
-(defonce config-defaults
-  {:retry-count 100
-   :websocket-url (str "ws://"
-                       (if (utils/html-env?) js/location.host "localhost:3449")
-                       "/figwheel-ws")
-   :load-warninged-code false
-   :auto-jump-to-source-on-error false
-   ;; :on-message identity
-
-   :on-jsload default-on-jsload
-   :before-jsload default-before-load
-
-   :on-cssload default-on-cssload
-
-   :on-compile-fail #'default-on-compile-fail
-   :on-compile-warning #'default-on-compile-warning
-
-   :reload-dependents true
-
-   :autoload true
-
-   :debug false
-
-   :heads-up-display true
-
-   :eval-fn false
-   })
 
 (defn handle-deprecated-jsload-callback [config]
   (if (:jsload-callback config)
