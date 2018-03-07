@@ -389,7 +389,7 @@
           (utils/log :error (str "Unable to evaluate " file)))))))
 
 (defn expand-files [files]
-  (let [deps (get-all-dependents (map :namespace files))]
+  (let [deps (get-all-dependents (keep :namespace files))]
     (filter (comp not
                   (partial re-matches #"figwheel\.connect.*")
                   :namespace)
