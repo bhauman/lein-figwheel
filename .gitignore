@@ -45,3 +45,7 @@ figwheel_server.log
 sidecar/figwheel_server.log
 
 DESIGN_THOUGHTS.md
+
+example/checkouts/figwheel
+
+example/checkouts/figwheel-sidecar
