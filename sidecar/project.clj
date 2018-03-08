@@ -34,23 +34,26 @@
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
 
-  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
+  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.3-SNAPSHOT"]]
                    :source-paths ["cljs_src" "src" "dev"]
-                   :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
+                   :plugins [[binaryage/devtools "0.9.9"]
+                             [lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
                              [lein-ancient "0.6.15"]]}
              :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
                     :source-paths ["cljs_src" "src"]
                     :resource-paths ["resources" "dev-resources"]
-                    :repl-options {:init-ns figwheel-sidecar.repl-api}}}
+                    #_:repl-options #_{:init-ns figwheel-sidecar.repl-api}}}
 
   :cljsbuild {
              :builds
               [{:id "dev"
                 :source-paths ["cljs_src" "../support/src"]
+                :figwheel {:debug true}
                 :compiler {:main figwheel-helper.core
                            :asset-path "js/out"
                            :output-to  "dev-resources/public/js/figwheel-helper.js"
-                           :output-dir "dev-resources/public/js/out"}
+                           :output-dir "dev-resources/public/js/out"
+                           :preloads [devtools.preload]}
                 }
                {:id "deploy"
                 :source-paths ["cljs_src"]

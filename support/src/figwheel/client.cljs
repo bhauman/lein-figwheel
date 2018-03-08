@@ -5,6 +5,7 @@
    [goog.object :as gobj]
    [cljs.reader :refer [read-string]]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
+   [figwheel.core :as figcore]
    [figwheel.client.socket :as socket]
    [figwheel.client.utils :as utils]
    [figwheel.client.heads-up :as heads-up]
@@ -215,31 +216,6 @@
 (defn css-loaded-state? [msg-names]
   (= :css-files-changed (first msg-names)))
 
-;; -------------------------------------------------------
-;; File reloading
-;; -------------------------------------------------------
-
-(defn file-reloader-plugin [opts]
-  (let [ch (chan)]
-    (go-loop []
-             (when-let [msg-hist' (<! ch)]
-               (let [msg-hist (focus-msgs #{:files-changed :compile-warning} msg-hist')
-                     msg-names (map :msg-name msg-hist)
-                     msg (first msg-hist)]
-                 #_(.log js/console (prn-str msg))
-                 (if (autoload?)
-                     (cond
-                       (reload-file-state? msg-names opts)
-                       (alts! [(reloading/reload-js-files opts msg) (timeout 1000)])
-
-                       (block-reload-file-state? msg-names opts)
-                       (utils/log :warn (str "Figwheel: Not loading code with warnings - " (-> msg :files first :file))))
-                     (do
-                       (utils/log :warn "Figwheel: code autoloading is OFF")
-                       (utils/log :info (str "Not loading: " (map :file (:files msg))))))
-                 (recur))))
-    (fn [msg-hist] (put! ch msg-hist) msg-hist)))
-
 ;; ----------------------------------------------
 ;; REPL eval needs to move to REPL client
 ;; ----------------------------------------------
@@ -278,6 +254,7 @@
               :ua-product (get-ua-product)
               :value result-value}))))
       (catch js/Error e
+        (js/console.error e)
         (result-handler
          {:status :exception
           :value (pr-str e)
@@ -365,7 +342,7 @@
     (def heads-up-config-options** opts)
     (go-loop []
              (when-let [msg-hist' (<! ch)]
-               (<! (heads-up-plugin-msg-handler opts msg-hist'))
+               (heads-up-plugin-msg-handler opts msg-hist')
                (recur)))
     (heads-up/ensure-container)
     (fn [msg-hist] (put! ch msg-hist) msg-hist)))
@@ -439,13 +416,11 @@
 (defn base-plugins [system-options]
   (let [base {:enforce-project-plugin enforce-project-plugin
               :enforce-figwheel-version-plugin enforce-figwheel-version-plugin
-              :file-reloader-plugin     file-reloader-plugin
               :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
               :repl-plugin      repl-plugin}
         base  (if (not (utils/html-env?)) ;; we are in an html environment?
                (select-keys base [#_:enforce-project-plugin
-                                  :file-reloader-plugin
                                   :comp-fail-warning-plugin
                                   :repl-plugin])
                base)

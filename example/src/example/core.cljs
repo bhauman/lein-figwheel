@@ -50,15 +50,16 @@
 
 (prn (example.sss/adder 1 2))
 
-
-
 #_(prn (js/wowza.hello))
 
 #_(prn example.tester)
 
 #_(fw/start)
 
-(prn (example.fun-tester/hello))
+
+
+#_(prn (example.fun-tester/hello))
+
 
 (enable-dev-blocks!)
 (enable-console-print!)
@@ -71,6 +72,9 @@
 (defn prevent->value [f]
   (prevent (fn [e]
              (f (.-value (.-target e))))))
+
+
+
 
 (defonce app-state
   (atom { :todos []
@@ -171,6 +175,7 @@
 (defmulti remote-transact :tag)
 
 (defmethod remote-transact :default [_])
+
 
 (defmethod remote-transact :create-todo [{:keys [old-value new-value]}]
   (when (= 1 (- (count new-value) (count old-value)))

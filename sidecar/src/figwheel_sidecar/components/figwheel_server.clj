@@ -74,6 +74,7 @@
 
 ;; should make this extendable with multi-method
 (defn handle-client-msg [{:keys [browser-callbacks log-writer] :as server-state} data]
+
   (when data
     (let [msg (read-msg data)]
       (bind-logging log-writer

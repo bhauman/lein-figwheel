@@ -4,8 +4,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
-                 [org.clojure/clojure "1.9.0-alpha15"]
-                 [org.clojure/clojurescript "1.9.908"]
+                 [org.clojure/clojure "1.9.0"]
+                 [org.clojure/clojurescript "1.10.145"]
 
                  ;; trying to keep things compatible back to these versions at least
                  #_[org.clojure/clojure "1.8.0"]
@@ -49,14 +49,15 @@
   :cljsbuild {
               :builds {
                        :example {
-                                 :source-paths ["src" #_"dev" #_"tests" "../support/src"]
+                                 :source-paths ["src" #_"dev" #_"tests" "../support/src"
+                                                "../sidecar/src"]
                                  :notify-command ["notify"]
                                  :figwheel {:websocket-host "localhost"
                                             :on-jsload      example.core/fig-reload
                                             :on-message     example.core/on-message
                                             :auto-jump-to-source-on-error true
-                                        ; :open-urls ["http://localhost:3449/index.html"]
-                                        ; :debug true
+                                            :open-urls ["http://localhost:3449/index.html"]
+                                         :debug true
                                             }
                                  :compiler {
                                             :main example.core
@@ -68,6 +69,7 @@
                                             ;; :externs ["foreign/wowza-externs.js"]
                                             :foreign-libs [{:file "foreign/wowza.js"
                                                             :provides ["wowzacore"]}]
+                                            :preloads [devtools.preload]
                                             ;; :recompile-dependents true
                                             :optimizations :none}}
 
@@ -118,6 +120,7 @@
                                     [figwheel-sidecar "0.5.16-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     [org.clojure/tools.nrepl "0.2.12"]
+                                    [binaryage/devtools "0.9.4"]
                                     [leiningen-core "2.6.1"]]
                     ;; this is testing profile merging
                     #_:figwheel #_{
