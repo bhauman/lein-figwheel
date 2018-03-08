@@ -18,3 +18,8 @@
 (defmacro dev-assert [& body]
   `(dev
      ~@(map (fn [pred-stmt] `(assert ~pred-stmt)) body)))
+
+(defmacro feature?
+  [obj feature]
+  `(and (cljs.core/exists? ~obj)
+        (cljs.core/exists? (cljs.core/aget ~obj ~feature))))

@@ -51,6 +51,7 @@
                        :example {
                                  :source-paths ["src" #_"dev" #_"tests" "../support/src"
                                                 "../sidecar/src"]
+
                                  :notify-command ["notify"]
                                  :figwheel {:websocket-host "localhost"
                                             :on-jsload      example.core/fig-reload
