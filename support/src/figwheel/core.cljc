@@ -10,6 +10,8 @@
        [[cljs.env :as env]
         [cljs.compiler]
         [cljs.repl]
+        [cljs.analyzer :as ana]
+        [cljs.build.api :as bapi]
         [clojure.data.json :as json]
         [clojure.java.io :as io]]))
   (:import #?@(:cljs [[goog]
@@ -120,7 +122,6 @@
 ;; ----------------------------------------------------------------
 ;; TODOS
 ;; ----------------------------------------------------------------
-;; get rid of javascript reloading stuff and confirm that it works here
 ;; look at moving clojure reloading here
 ;; have an interface that relies on the *repl-env*
 ;; have an interface that just takes changed files and returns a list of namespaces to reload
@@ -340,7 +341,24 @@
   (when (not-empty ns-syms)
     (client-eval (reload-namespace-code ns-syms))))
 
+(defn reload-clj-namespaces [nses]
+  (when (not-empty nses)
+    (doseq [ns nses] (require ns :reload))
+    (let [affected-nses (bapi/cljs-dependents-for-macro-namespaces env/*compiler* nses)]
+      (doseq [ns affected-nses]
+        (bapi/mark-cljs-ns-for-recompile! ns (output-dir)))
+      affected-nses)))
+
+(defn reload-clj-files [files]
+  (let [nses (map (comp :ns ana/parse-ns io/file) files)]
+    (reload-clj-files nses)))
+
+
 (comment
+
+  (bapi/cljs-dependents-for-macro-namespaces (atom (first (vals @last-compiler-env)))
+                                             '[example.macros])
+
   (swap! scratch assoc :require-map2 (require-map (first (vals @last-compiler-env))))
 
   (def save (:files @scratch))
