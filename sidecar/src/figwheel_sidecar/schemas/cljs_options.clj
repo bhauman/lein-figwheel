@@ -624,6 +624,11 @@ to :es6 or higher or it will silently be ignored!
   :language-in :es6
   :rewrite-polyfills true")
 
+(def-key ::aot-cache boolean?
+  "A boolean value to disable or enable global caching of compiled assets.
+
+  :aot-cache false")
+
 (def-key ::checked-arrays (s/or :keyval #{:warn :error}
                                 :false   false?
                                 :nil    nil?)
@@ -1079,4 +1084,27 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::warnings
      ::fn-invoke-direct
      ::rewrite-polyfills
-     ::checked-arrays])))
+     ::checked-arrays
+     ::aot-cache
+
+     ;; these need definitions above
+     ::closure-variable-map-out
+     ::closure-generate-exports
+     ::closure-module-roots
+     ::rename-prefix
+     ::closure-property-map-in
+     ::ignore-js-module-exts
+     ::closure-property-map-out
+     ::stable-names
+     ::watch-error-fn
+     ::browser-repl
+     ::opts-cache
+     ::watch
+     ::cache-analysis-format
+     ::rename-prefix-namespace
+     ::closure-variable-map-in
+     ::use-only-custom-externs
+
+
+     ]
+    )))
