@@ -10,7 +10,8 @@
        [[cljs.env :as env]
         [cljs.compiler]
         [cljs.repl]
-        [clojure.data.json :as json]]))
+        [clojure.data.json :as json]
+        [clojure.java.io :as io]]))
   (:import #?@(:cljs [[goog]
                       [goog.async Deferred]
                       [goog Promise]
@@ -116,8 +117,18 @@
       (provided? (name namespace))
       (ns-exists? namespace)))))
 
-;; get rid of extra code in file reloading
-;; fix reload all in file reloading
+;; ----------------------------------------------------------------
+;; TODOS
+;; ----------------------------------------------------------------
+;; get rid of javascript reloading stuff and confirm that it works here
+;; look at moving clojure reloading here
+;; have an interface that relies on the *repl-env*
+;; have an interface that just takes changed files and returns a list of namespaces to reload
+;; have an interface that just take the current compiler env and returns a list of namespaces to reload
+;; move meta-data onto the namespaces themselves and get rid of global metadata
+;; don't unprovide for things with no-load meta data
+
+;; look more closely at getting a signal for reloading from the env/compiler
 
 ;; use goog logging and make log configurable log level
 ;; make reloading conditional on warnings
@@ -146,14 +157,10 @@
                (exists? js/figwheel.client.file_reloading)
                (exists? js/figwheel.client.file_reloading.after_reloads))
         (js/figwheel.client.file_reloading.after_reloads after-reload-fn)
-        (js/setTimeout after-reload-fn 100)))))
-
+        (js/setTimeout after-reload-fn 100)))
+    nil))
 
 ))
-
-
-
-
 
 #?(:clj
    (do
@@ -223,6 +230,29 @@
         (files (.getCanonicalPath source-file)))
      sources)))
 
+(defn js-dependencies-with-paths [files js-dependency-index]
+  (let [files (set files)]
+    (distinct
+     (filter
+      #(when-let [source-file (.getFile (:url %))]
+         (files source-file))
+      (filter :url (vals js-dependency-index))))))
+
+;; TODO handle clj files
+(defn namespaces-for-paths [files compiler-env]
+  (let [cljs-paths (filter #(or (.endsWith % ".cljs")
+                                (.endsWith % ".cljc"))
+                           files)
+        js-paths (filter #(.endsWith % ".js") files)]
+    (distinct
+     (concat
+      (when-not (empty? cljs-paths)
+        (map :ns (sources-with-paths cljs-paths (:sources compiler-env))))
+      (when-not (empty? js-paths)
+        (->> (js-dependencies-with-paths js-paths (:js-dependency-index compiler-env))
+             (mapcat :provides)
+             (map symbol)))))))
+
 (defn require-map [env]
   (->> env
        :sources
@@ -256,13 +286,21 @@
     (cljs.repl/load-namespace noop-repl-env ns-sym {:output-dir (or output-dir "out")})))
 
 (defn all-add-dependencies [ns-syms output-dir]
-  (string/join "\n"
+  (string/join
+   "\n"
    (distinct
     (mapcat #(filter
               (complement string/blank?)
-              (string/split-lines
-               (add-dependiencies-js % output-dir)))
-            ns-syms))))
+              (string/split-lines %))
+            (concat
+             ;; this is strange because foreign libs aren't being included in add-dependencies above
+             (let [deps-file (io/file output-dir "cljs_deps.js")]
+               (when-let [deps-data (and (.exists deps-file) (slurp deps-file))]
+                 (when-not (string/blank? deps-data)
+                   [deps-data])))
+             (map
+              #(add-dependiencies-js % output-dir)
+              ns-syms))))))
 
 (defn output-dir []
   (-> @env/*compiler* :options :output-dir (or "out")))
@@ -290,6 +328,7 @@
                  (string/join "," (map (comp pr-str str) (mapv cljs.compiler/munge ns-syms)))
                  (json/write-str figwheel-ns-meta)))))
 
+
 ;; TODO do a reload namespace that relies on *repl-env*
 ;; this is temporary
 (defn reload-namespace-code! [ns-syms]
@@ -303,6 +342,11 @@
 
 (comment
   (swap! scratch assoc :require-map2 (require-map (first (vals @last-compiler-env))))
+
+  (def save (:files @scratch))
+
+  (js-dependencies-with-paths save (:js-dependency-index ))
+  (namespaces-for-paths save (first (vals @last-compiler-env)))
 
   (= (-> @scratch :require-map)
      (-> @scratch :require-map2)
@@ -324,7 +368,7 @@
 
   (def scratch (atom {}))
   (def comp-env (atom nil))
-  (keys @comp-env)
+
   (first (:files @scratch))
   (.getAbsolutePath (:source-file (first (:sources @comp-env))))
   (sources-with-paths (:files @scratch) (:sources @comp-env))

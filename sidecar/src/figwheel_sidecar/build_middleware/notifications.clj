@@ -126,10 +126,7 @@
 
 (defn notify-change-helper [{:keys [figwheel-server build-config additional-changed-ns]} files]
   (let [changed-ns (set (concat
-                         (map :ns
-                              (figcore/sources-with-paths
-                               files
-                               (:sources @(:compiler-env build-config))))
+                         (figcore/namespaces-for-paths files @(:compiler-env build-config))
                          (map symbol additional-changed-ns)))]
     (when-not (empty? changed-ns)
       (binding [env/*compiler* (:compiler-env build-config)]

@@ -11,7 +11,6 @@
    [figwheel-sidecar.build-middleware.injection :as injection]
    [figwheel-sidecar.build-middleware.notifications :as notifications]
    [figwheel-sidecar.build-middleware.clj-reloading :as clj-reloading]
-   [figwheel-sidecar.build-middleware.javascript-reloading :as javascript-reloading]
    [figwheel-sidecar.build-middleware.stamp-and-clean :as stamp-and-clean]
 
    [com.stuartsierra.component :as component]
@@ -90,16 +89,6 @@
       ;; the following two hooks have to be called before the notifications
       ;; a they modify the message on the way down
       clj-reloading/hook
-      javascript-reloading/hook
-      color-output))
-
-(def figwheel-build-without-javascript-reloading
-  (-> cljs-build
-      injection/hook
-      notify-command-hook
-      figwheel-start-and-end-messages
-      notifications/hook
-      clj-reloading/hook
       color-output))
 
 (def figwheel-build-without-clj-reloading
@@ -108,7 +97,6 @@
       notify-command-hook
       figwheel-start-and-end-messages
       notifications/hook
-      javascript-reloading/hook
       color-output))
 
 (defn source-paths-that-affect-build [{:keys [build-options watch-paths]}]
