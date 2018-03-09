@@ -41,6 +41,8 @@
     (let [msg (edn/read-string data)]
       (if (and (map? msg) (:figwheel-event msg)) msg {}))
     (catch Exception e
+      (println "message:" data)
+      (println (.getMessage e))
       (println "Figwheel: message from client couldn't be read!")
       {})))
 
