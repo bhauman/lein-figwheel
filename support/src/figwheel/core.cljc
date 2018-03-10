@@ -84,85 +84,76 @@
 ;; Namespace reloading
 ;; ------------------------------------------------------------
 
-(defonce figwheel-meta-pragmas (atom {}))
-
-(defn immutable-ns? [name]
-  (or (#{"goog" "cljs.core" "cljs.nodejs"
-         "figwheel.preload"
-         "figwheel.connect"} name)
-      (goog.string/startsWith "clojure." name)
-      (goog.string/startsWith "goog." name)))
+(defn immutable-ns? [ns]
+  (let [ns (name ns)]
+    (or (#{"goog" "cljs.core" "cljs.nodejs"
+           "figwheel.preload"
+           "figwheel.connect"} ns)
+        (goog.string/startsWith "clojure." ns)
+        (goog.string/startsWith "goog." ns))))
 
 (defn name->path [ns]
   (gobj/get js/goog.dependencies_.nameToPath ns))
 
 (defn provided? [ns]
-  (gobj/get js/goog.dependencies_.written (name->path ns)))
+  (gobj/get js/goog.dependencies_.written (name->path (name ns))))
 
-(defn figwheel-no-load? [{:keys [namespace] :as file-msg}]
-  (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
-    (:figwheel-no-load meta-pragmas)))
-
-(defn ns-exists? [namespace]
+(defn ns-exists? [ns]
   (some? (reduce (fnil gobj/get #js{})
-                 goog.global (string/split (name namespace) "."))))
+                 goog.global (string/split (name ns) "."))))
 
-(defn reload-file? [{:keys [namespace] :as file-msg}]
-  (let [meta-pragmas (get @figwheel-meta-pragmas (name namespace))]
+(defn reload-ns? [namespace]
+  (let [meta-data (meta namespace)]
     (and
      (not (immutable-ns? namespace))
-     (not (figwheel-no-load? file-msg))
+     (not (:figwheel-no-load meta-data))
      (or
-      (:figwheel-always meta-pragmas)
-      (:figwheel-load meta-pragmas)
+      (:figwheel-always meta-data)
+      (:figwheel-load meta-data)
       ;; might want to use .-visited here
-      (provided? (name namespace))
+      (provided? namespace)
       (ns-exists? namespace)))))
 
 ;; ----------------------------------------------------------------
 ;; TODOS
 ;; ----------------------------------------------------------------
-;; look at moving clojure reloading here
-;;  - have to remove unwanted clj files form changed file list
-;;  - have to have exceptions working
 
-;; have an interface that relies on the *repl-env*
-;; have an interface that just takes changed files and returns a list of namespaces to reload
-;; have an interface that just take the current compiler env and returns a list of namespaces to reload
-;; move meta-data onto the namespaces themselves and get rid of global metadata
 ;; don't unprovide for things with no-load meta data
 
 ;; look more closely at getting a signal for reloading from the env/compiler
 
 ;; use goog logging and make log configurable log level
 ;; make reloading conditional on warnings
+;; have an interface that just take the current compiler env and returns a list of namespaces to reload
 (defn ^:export reload-namespaces [namespaces figwheel-meta]
+  ;; reconstruct serialized data
   (let [figwheel-meta (into {}
                             (map (fn [[k v]] [(name k) v]))
-                            (js->clj figwheel-meta :keywordize-keys true))]
-    (when-not (empty? figwheel-meta)
-      (reset! figwheel-meta-pragmas figwheel-meta)))
-  (swap! state assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
-  (when-not (empty? namespaces)
-    (js/setTimeout #(dispatch-event :figwheel.before-js-reload {:namespaces namespaces}) 0))
-  (let [to-reload (filter #(reload-file? {:namespace %}) namespaces)]
-    (doseq [ns to-reload]
-      ;; goog/require has to be patched by a repl bootstrap
-      (goog/require (name ns) true))
-    (let [after-reload-fn
-          (fn []
-            (when (not-empty to-reload)
-              (utils/log (str "Figwheel: loaded " (pr-str to-reload))))
-            (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
-              (utils/log (str "Figwheel: did not load " (pr-str not-loaded))))
-            (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
-            (swap! state assoc ::reload-state {}))]
-      (if (and (exists? js/figwheel.client)
-               (exists? js/figwheel.client.file_reloading)
-               (exists? js/figwheel.client.file_reloading.after_reloads))
-        (js/figwheel.client.file_reloading.after_reloads after-reload-fn)
-        (js/setTimeout after-reload-fn 100)))
-    nil))
+                            (js->clj figwheel-meta :keywordize-keys true))
+        namespaces (map #(with-meta (symbol %)
+                           (get figwheel-meta %))
+                        namespaces)]
+    (swap! state assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
+    (when-not (empty? namespaces)
+      (js/setTimeout #(dispatch-event :figwheel.before-js-reload {:namespaces namespaces}) 0))
+    (let [to-reload (filter #(reload-ns? %) namespaces)]
+      (doseq [ns to-reload]
+        ;; goog/require has to be patched by a repl bootstrap
+        (goog/require (name ns) true))
+      (let [after-reload-fn
+            (fn []
+              (when (not-empty to-reload)
+                (utils/log (str "Figwheel: loaded " (pr-str to-reload))))
+              (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
+                (utils/log (str "Figwheel: did not load " (pr-str not-loaded))))
+              (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
+              (swap! state assoc ::reload-state {}))]
+        (if (and (exists? js/figwheel.client)
+                 (exists? js/figwheel.client.file_reloading)
+                 (exists? js/figwheel.client.file_reloading.after_reloads))
+          (js/figwheel.client.file_reloading.after_reloads after-reload-fn)
+          (js/setTimeout after-reload-fn 100)))
+      nil)))
 
 ))
 
@@ -224,9 +215,9 @@
                 (reduce #(assoc %1 %2 [ns]) {} requires))
               sources)))
 
-(defn expand-to-dependents [sources deps]
+(defn expand-to-dependents [deps]
   (reverse (apply concat
-                  ((build-topo-sort (invert-deps sources))
+                  ((build-topo-sort (invert-deps (:sources @env/*compiler*)))
                    deps))))
 
 (defn sources-with-paths [files sources]
@@ -244,31 +235,35 @@
          (files source-file))
       (filter :url (vals js-dependency-index))))))
 
-(defn clj-files->namespaces [files]
-  (->> files
+(defn clj-paths->namespaces [paths]
+  (->> paths
        (filter #(.exists (io/file %)))
        (map (comp :ns ana/parse-ns io/file))
        distinct))
 
-;; TODO handle clj files
-(defn namespaces-for-paths [files compiler-env]
+(defn figwheel-always-namespaces [figwheel-ns-meta]
+  (keep (fn [[k v]] (when (:figwheel-always v) k))
+        figwheel-ns-meta))
+
+(defn paths->namespaces-to-reload [paths]
   (let [cljs-paths (filter #(or (.endsWith % ".cljs")
                                 (.endsWith % ".cljc"))
-                           files)
-        js-paths   (filter #(.endsWith % ".js") files)
-        clj-paths  (filter #(.endsWith % ".clj") files)]
+                           paths)
+        js-paths   (filter #(.endsWith % ".js") paths)
+        clj-paths  (filter #(.endsWith % ".clj") paths)]
     (distinct
      (concat
+      (figwheel-always-namespaces (find-figwheel-meta))
       (when-not (empty? cljs-paths)
-        (map :ns (sources-with-paths cljs-paths (:sources compiler-env))))
+        (map :ns (sources-with-paths cljs-paths (:sources @env/*compiler*))))
       (when-not (empty? js-paths)
-        (->> (js-dependencies-with-paths js-paths (:js-dependency-index compiler-env))
+        (->> (js-dependencies-with-paths js-paths (:js-dependency-index @env/*compiler*))
              (mapcat :provides)
              (map symbol)))
       (when-not (empty? clj-paths)
         (bapi/cljs-dependents-for-macro-namespaces
-         (atom compiler-env)
-         (clj-files->namespaces clj-paths)))))))
+         env/*compiler*
+         (clj-paths->namespaces clj-paths)))))))
 
 (defn require-map [env]
   (->> env
@@ -279,17 +274,6 @@
 (defn changed-dependency-tree? [previous-compiler-env compiler-env]
   (not= (require-map previous-compiler-env) (require-map compiler-env)))
 
-#_(defn- jsonify-string-vector [v]
-  (clojure.walk/postwalk (fn [x]
-                           (cond
-                             (vector? x)
-                             (str "[" (string/join "," x) "]")
-                             (and (string? x)
-                                  (not (.startsWith x "[")))
-                             (pr-str x)
-                             :else x))
-                         v))
-
 (defrecord FakeReplEnv []
   cljs.repl/IJavaScriptEnv
   (-setup [this opts])
@@ -299,7 +283,7 @@
 
 ;; this is a hack for now, easy enough to write this without the hack
 (let [noop-repl-env (FakeReplEnv.)]
-  (defn add-dependiencies-js [ns-sym output-dir]
+  (defn add-dependencies-js [ns-sym output-dir]
     (cljs.repl/load-namespace noop-repl-env ns-sym {:output-dir (or output-dir "out")})))
 
 (defn all-add-dependencies [ns-syms output-dir]
@@ -316,7 +300,7 @@
                  (when-not (string/blank? deps-data)
                    [deps-data])))
              (map
-              #(add-dependiencies-js % output-dir)
+              #(add-dependencies-js % output-dir)
               ns-syms))))))
 
 (defn output-dir []
@@ -326,6 +310,8 @@
   (clojure.set/difference (->> env :sources (mapv :ns) (into #{}))
                           (->> env :sources (map :requires) (reduce into #{}))))
 
+;; TODO since this is the only fn that needs state perhaps isolate
+;; last compiler state here?
 (defn all-dependency-code [ns-syms]
   (when-let [last-env (get @last-compiler-env env/*compiler*)]
     (when (changed-dependency-tree? last-env @env/*compiler*)
@@ -333,30 +319,20 @@
         (all-add-dependencies roots (output-dir))))))
 
 (defn reload-namespace-code [ns-syms]
-  (let [figwheel-ns-meta (find-figwheel-meta)
-        ns-syms (expand-to-dependents
-                 (:sources @env/*compiler*)
-                 (concat ns-syms
-                         ;; add in figwheel-always
-                         (keep (fn [[k v]] (when (:figwheel-always v) k))
-                               figwheel-ns-meta)))]
-    (str (all-dependency-code ns-syms)
-         (format "figwheel.core.reload_namespaces([%s],%s)"
-                 (string/join "," (map (comp pr-str str) (mapv cljs.compiler/munge ns-syms)))
-                 (json/write-str figwheel-ns-meta)))))
+  (str (all-dependency-code ns-syms)
+       (format "figwheel.core.reload_namespaces([%s],%s)"
+               (string/join "," (map (comp pr-str str) (mapv cljs.compiler/munge ns-syms)))
+               (json/write-str (find-figwheel-meta)))))
 
-
-;; TODO do a reload namespace that relies on *repl-env*
-;; this is temporary
-(defn reload-namespace-code! [ns-syms]
-  (let [ret (reload-namespace-code ns-syms)]
-    (swap! last-compiler-env assoc env/*compiler* @env/*compiler*)
-    ret))
-
-#_(defn reload-namespaces! [ns-syms]
+(defn reload-namespaces [ns-syms]
   (when (not-empty ns-syms)
-    (client-eval (reload-namespace-code ns-syms))))
+    (let [ret (client-eval (reload-namespace-code ns-syms))]
+      ;; currently we are saveing the value of the compiler env
+      ;; so that we can detect if the dependency tree changed
+      (swap! last-compiler-env assoc env/*compiler* @env/*compiler*)
+      ret)))
 
+;; keep in mind that you need to reload clj namespaces before cljs compiling
 (defn reload-clj-namespaces [nses]
   (when (not-empty nses)
     (doseq [ns nses] (require ns :reload))
@@ -366,7 +342,7 @@
       affected-nses)))
 
 (defn reload-clj-files [files]
-  (reload-clj-namespaces (clj-files->namespaces files)))
+  (reload-clj-namespaces (clj-paths->namespaces files)))
 
 (comment
 

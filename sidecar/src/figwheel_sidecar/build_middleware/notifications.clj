@@ -23,74 +23,38 @@
    #_[clojure.pprint :refer [pprint]]
    ))
 
+(defn repl-env-evaluate-callback [callback]
+  (reify
+    cljs.repl/IJavaScriptEnv
+    (-setup [this opts])
+    (-evaluate [_ _ _ js] (callback js))
+    (-load [this ns url])
+    (-tear-down [_] true)))
+
 (defn send-changed-namespaces
   "Formats and sends a files-changed message to the file-change-atom.
    Also reports this event to the console."
   [{:keys [build-id] :as figwheel-server} ns-syms]
   (when (not-empty ns-syms)
-    (server/send-message-with-callback
-     figwheel-server
-     build-id
-     {:msg-name :repl-eval
-      :code (figcore/reload-namespace-code! ns-syms)}
-     (fn [x] (clojure.pprint/pprint x)))
+    (binding [cljs.repl/*repl-env*
+              (repl-env-evaluate-callback
+               #(server/send-message-with-callback
+                 figwheel-server
+                 build-id
+                 {:msg-name :repl-eval
+                  :code %}
+                 identity))]
+      (figcore/reload-namespaces ns-syms))
     (doseq [n ns-syms]
       (println "notifying browser that namespace changed: " (name n)))))
-
-#_(defn file-changed?
-  "Standard checksum to see if a file actually changed."
-  [{:keys [file-md5-atom]} filepath]
-  (when-let [file (io/file filepath)]
-    (when (.exists file)
-      (let [contents (slurp file)]
-        (when (.contains contents "addDependency")
-          (let [check-sum (.hashCode contents)
-                changed? (not= (get @file-md5-atom filepath)
-                               check-sum)]
-            (swap! file-md5-atom assoc filepath check-sum)
-            changed?))))))
-
-#_(defn dependency-files [{:keys [output-to output-dir]}]
-   [output-to (str output-dir "/goog/deps.js") (str output-dir "/cljs_deps.js")])
-
-#_(defn get-dependency-files
-  "Handling dependency files is different they don't have namespaces and their mtimes
-   change on every compile even though their content doesn't. So we only want to include them
-   when they change. This returns map representations that are ready to be sent to the client."
-  [st]
-  (keep
-   #(when (file-changed? st %)
-      { :dependency-file true
-        :type :dependency-update
-        :file (utils/remove-root-path %)
-        :eval-body (slurp %)})
-   (dependency-files st)))
-
-#_(defn make-sendable-file
-  "Formats a namespace into a map that is ready to be sent to the client."
-  [st nm]
-  (let [n (-> nm name utils/underscore)] ;; TODO I don't think this is needed
-    { :file (str (build-api/target-file-for-cljs-ns nm (:output-dir st)))
-      :namespace (cljs.compiler/munge n)
-      :type :namespace}))
-
-;; this is temporary until we fix up this api
 
 (defn merge-build-into-server-state [figwheel-server {:keys [id build-options]}]
   (merge figwheel-server
          (if id {:build-id id} {})
          (select-keys build-options [:output-dir :output-to :recompile-dependents])))
 
-(defn notify-cljs-ns-changes* [state ns-syms]
-  (->> ns-syms
-
-       #_(expand-to-dependents (:sources @env/*compiler*))
-       #_(map (partial make-sendable-file state))
-       #_(concat (get-dependency-files state))
-       (send-changed-namespaces state)))
-
 (defn notify-cljs-ns-changes [state build-config ns-syms]
-  (notify-cljs-ns-changes*
+  (send-changed-namespaces
    (merge-build-into-server-state state build-config)
    ns-syms))
 
@@ -117,23 +81,21 @@
   (compile-warning-occured (merge-build-into-server-state st build-config)
                            warning-msg))
 
-
-
 ;; change notifications
 
 ;; explore if we can simply forward javascript file names here and skip the
 ;; additional ns stuff for them
 
 (defn notify-change-helper [{:keys [figwheel-server build-config additional-changed-ns]} files]
-  (let [changed-ns (set (concat
-                         (figcore/namespaces-for-paths files @(:compiler-env build-config))
-                         (map symbol additional-changed-ns)))]
-    (when-not (empty? changed-ns)
-      (binding [env/*compiler* (:compiler-env build-config)]
+  (binding [env/*compiler* (:compiler-env build-config)]
+    (let [changed-ns (figcore/paths->namespaces-to-reload files)]
+      (when-not (empty? changed-ns)
         (notify-cljs-ns-changes
          figwheel-server
          build-config
-         changed-ns)))))
+         (if (get-in build-config [:build-options :reload-dependents] true)
+           (figcore/expand-to-dependents changed-ns)
+           changed-ns))))))
 
 (defn warning-message-handler [callback]
   (fn [warning-type env extra]
