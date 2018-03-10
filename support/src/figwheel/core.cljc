@@ -123,6 +123,9 @@
 ;; TODOS
 ;; ----------------------------------------------------------------
 ;; look at moving clojure reloading here
+;;  - have to remove unwanted clj files form changed file list
+;;  - have to have exceptions working
+
 ;; have an interface that relies on the *repl-env*
 ;; have an interface that just takes changed files and returns a list of namespaces to reload
 ;; have an interface that just take the current compiler env and returns a list of namespaces to reload
@@ -165,6 +168,8 @@
 
 #?(:clj
    (do
+
+#_(def scratch (atom {}))
 
 (defonce last-compiler-env (atom {}))
 
@@ -239,12 +244,19 @@
          (files source-file))
       (filter :url (vals js-dependency-index))))))
 
+(defn clj-files->namespaces [files]
+  (->> files
+       (filter #(.exists (io/file %)))
+       (map (comp :ns ana/parse-ns io/file))
+       distinct))
+
 ;; TODO handle clj files
 (defn namespaces-for-paths [files compiler-env]
   (let [cljs-paths (filter #(or (.endsWith % ".cljs")
                                 (.endsWith % ".cljc"))
                            files)
-        js-paths (filter #(.endsWith % ".js") files)]
+        js-paths   (filter #(.endsWith % ".js") files)
+        clj-paths  (filter #(.endsWith % ".clj") files)]
     (distinct
      (concat
       (when-not (empty? cljs-paths)
@@ -252,7 +264,11 @@
       (when-not (empty? js-paths)
         (->> (js-dependencies-with-paths js-paths (:js-dependency-index compiler-env))
              (mapcat :provides)
-             (map symbol)))))))
+             (map symbol)))
+      (when-not (empty? clj-paths)
+        (bapi/cljs-dependents-for-macro-namespaces
+         (atom compiler-env)
+         (clj-files->namespaces clj-paths)))))))
 
 (defn require-map [env]
   (->> env
@@ -350,9 +366,7 @@
       affected-nses)))
 
 (defn reload-clj-files [files]
-  (let [nses (map (comp :ns ana/parse-ns io/file) files)]
-    (reload-clj-files nses)))
-
+  (reload-clj-namespaces (clj-files->namespaces files)))
 
 (comment
 
@@ -363,8 +377,10 @@
 
   (def save (:files @scratch))
 
+  (clj-files->namespaces ["/Users/bhauman/workspace/lein-figwheel/example/src/example/macros.clj"])
   (js-dependencies-with-paths save (:js-dependency-index ))
-  (namespaces-for-paths save (first (vals @last-compiler-env)))
+  (namespaces-for-paths ["/Users/bhauman/workspace/lein-figwheel/example/src/example/macros.clj"]
+                        (first (vals @last-compiler-env)))
 
   (= (-> @scratch :require-map)
      (-> @scratch :require-map2)
