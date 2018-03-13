@@ -46,7 +46,7 @@
     (doseq [f files]
       (println "notifying browser that file changed: " (:file f)))))
 
-(defn file-changed?
+(defn dependency-file-changed?
   "Standard checksum to see if a file actually changed."
   [{:keys [file-md5-atom]} filepath]
   (when-let [file (io/file filepath)]
@@ -68,7 +68,7 @@
    when they change. This returns map representations that are ready to be sent to the client."
   [st]
   (keep
-   #(when (file-changed? st %)
+   #(when (dependency-file-changed? st %)
       { :dependency-file true
         :type :dependency-update
         :file (utils/remove-root-path %)
