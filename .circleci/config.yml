@@ -1,0 +1,33 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/lein-figwheel
+    docker:
+      - image: circleci/clojure:lein-2.7.1
+    environment:
+      LEIN_ROOT: nbd
+      JVM_OPTS: -Xmx3200m
+    steps:
+      - checkout
+      # See https://discuss.circleci.com/t/cant-checksum-multiple-files-with-slashes-in-the-file-path/20667 for why we do this:
+      - run: shasum sidecar/project.clj plugin/project.clj support/project.clj > checksum.tmp
+      - restore_cache:
+          key: figwheel-{{ checksum "checksum.tmp" }}
+      - run: scripts/install
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: figwheel-{{ checksum "checksum.tmp" }}
+      - run:
+          name: Test plugin
+          command: lein test
+          working_directory: plugin
+      - run:
+          name: Test sidecar
+          command: lein test
+          working_directory: sidecar
+      - run:
+          name: Test support
+          command: lein test
+          working_directory: support
+

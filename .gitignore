@@ -38,6 +38,7 @@ pom.xml.asc
 .nrepl-port
 .lein-classpath
 config.ru
+checksum.tmp
 
 figwheel_server.log
 *~
