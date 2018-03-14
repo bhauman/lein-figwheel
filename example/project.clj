@@ -66,7 +66,7 @@
                                             :asset-path "js/out"
                                             :output-to "resources/public/js/example.js"
                                             :output-dir "resources/public/js/out"
-                                            :libs ["libs_src" "libs_sscr/tweaky.js"]
+                                            :libs ["libs_src" "libs_sscr/tweaky.js" "src"]
                                             ;; :externs ["foreign/wowza-externs.js"]
                                             :foreign-libs [{:file "foreign/wowza.js"
                                                             :provides ["wowzacore"]}]

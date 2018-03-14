@@ -9,6 +9,7 @@
    #?@(:clj
        [[cljs.env :as env]
         [cljs.compiler]
+        [cljs.closure]
         [cljs.repl]
         [cljs.analyzer :as ana]
         [cljs.build.api :as bapi]
@@ -18,6 +19,22 @@
                       [goog.async Deferred]
                       [goog Promise]
                       [goog.events EventTarget Event]])))
+;; -------------------------------------------------
+;; utils
+;; -------------------------------------------------
+
+(defn distinct-by [f coll]
+  (let [seen (volatile! #{})]
+    (filter #(let [k (f %)
+                   res (not (@seen k))]
+               (vswap! seen conj k)
+               res)
+            coll)))
+
+(defn map-keys [f coll]
+  (into {}
+        (map (fn [[k v]] [(f k) v]))
+        coll))
 
 #?(:cljs
    (do
@@ -160,6 +177,10 @@
 #?(:clj
    (do
 
+     (defn debug-prn [& args]
+       (binding [*err* *out*]
+         (apply prn args)))
+
 #_(def scratch (atom {}))
 
 (defonce last-compiler-env (atom {}))
@@ -176,7 +197,7 @@
         (comp
          (map :ns)
          (map (juxt
-               cljs.compiler/munge
+               identity
                #(select-keys
                  (meta %)
                  [:figwheel-always :figwheel-load :figwheel-no-load])))
@@ -227,13 +248,19 @@
         (files (.getCanonicalPath source-file)))
      sources)))
 
+(defn js-dependencies-with-file-urls [js-dependency-index]
+  (distinct-by :url
+   (filter #(when-let [u  (:url %)]
+              (= "file" (.getProtocol u)))
+           (vals js-dependency-index))))
+
 (defn js-dependencies-with-paths [files js-dependency-index]
   (let [files (set files)]
     (distinct
      (filter
       #(when-let [source-file (.getFile (:url %))]
          (files source-file))
-      (filter :url (vals js-dependency-index))))))
+      (js-dependencies-with-file-urls js-dependency-index)))))
 
 (defn clj-paths->namespaces [paths]
   (->> paths
@@ -245,6 +272,14 @@
   (keep (fn [[k v]] (when (:figwheel-always v) k))
         figwheel-ns-meta))
 
+(defn sources->namespaces-to-reload [sources]
+  (distinct
+   (concat
+    (figwheel-always-namespaces (find-figwheel-meta))
+    (map :ns (filter :source-file sources))
+    (map symbol
+     (mapcat :provides (filter :url sources))))))
+
 (defn paths->namespaces-to-reload [paths]
   (let [cljs-paths (filter #(or (.endsWith % ".cljs")
                                 (.endsWith % ".cljc"))
@@ -253,13 +288,14 @@
         clj-paths  (filter #(.endsWith % ".clj") paths)]
     (distinct
      (concat
-      (figwheel-always-namespaces (find-figwheel-meta))
-      (when-not (empty? cljs-paths)
-        (map :ns (sources-with-paths cljs-paths (:sources @env/*compiler*))))
-      (when-not (empty? js-paths)
-        (->> (js-dependencies-with-paths js-paths (:js-dependency-index @env/*compiler*))
-             (mapcat :provides)
-             (map symbol)))
+      (sources->namespaces-to-reload
+       (concat
+        (when-not (empty? cljs-paths)
+          (sources-with-paths cljs-paths (:sources @env/*compiler*)))
+        (when-not (empty? js-paths)
+          (js-dependencies-with-paths
+           js-paths
+           (:js-dependency-index @env/*compiler*)))))
       (when-not (empty? clj-paths)
         (bapi/cljs-dependents-for-macro-namespaces
          env/*compiler*
@@ -318,11 +354,17 @@
       (let [roots (root-namespaces @env/*compiler*)]
         (all-add-dependencies roots (output-dir))))))
 
+;; TODO change this to reload_namespace_remote interface
+;; I think we only need the meta data for the current symbols
+;; better to send objects that hold a namespace and its meta data
+;; and have a function that reassembles this on the other side
+;; this will allow us to add arbitrary data and pehaps change the
+;; serialization in the future
 (defn reload-namespace-code [ns-syms]
   (str (all-dependency-code ns-syms)
-       (format "figwheel.core.reload_namespaces([%s],%s)"
-               (string/join "," (map (comp pr-str str) (mapv cljs.compiler/munge ns-syms)))
-               (json/write-str (find-figwheel-meta)))))
+       (format "figwheel.core.reload_namespaces(%s,%s)"
+               (json/write-str (mapv cljs.compiler/munge ns-syms))
+               (json/write-str (map-keys cljs.compiler/munge (find-figwheel-meta))))))
 
 (defn reload-namespaces [ns-syms]
   (when (not-empty ns-syms)
@@ -344,12 +386,174 @@
 (defn reload-clj-files [files]
   (reload-clj-namespaces (clj-paths->namespaces files)))
 
+;; -------------------------------------------------------------
+;; listening for changes
+;; -------------------------------------------------------------
+
+(defn all-sources [compiler-env]
+  (concat
+   (filter :source-file (:sources compiler-env))
+   (js-dependencies-with-file-urls (:js-dependency-index compiler-env))))
+
+(defn source-file [source-o-js-dep]
+  (cond
+    (:url source-o-js-dep) (io/file (.getFile (:url source-o-js-dep)))
+    (:source-file source-o-js-dep) (:source-file source-o-js-dep)))
+
+(defn sources->modified-map [sources]
+  (into {}
+        (map (comp
+              (juxt #(.getCanonicalPath %) #(.lastModified %))
+              source-file))
+        sources))
+
+(defn sources-modified [compiler-env last-modifieds]
+  (doall
+   (keep
+    (fn [source]
+      (let [file' (source-file source)
+            path  (.getCanonicalPath file')
+            last-modified' (.lastModified file')
+            last-modified (get last-modifieds path 0)]
+        (when (> last-modified' last-modified)
+          (vary-meta source assoc ::last-modified last-modified'))))
+    (all-sources compiler-env))))
+
+(defn sources-modified! [compiler-env last-modified-vol]
+  (let [modified-sources (sources-modified compiler-env @last-modified-vol)]
+    (vswap! last-modified-vol merge (sources->modified-map modified-sources))
+    modified-sources))
+
+(defn start*
+  ([] (start* env/*compiler* cljs.repl/*repl-env*))
+  ([compiler-env repl-env]
+   (add-watch
+    compiler-env
+    ::watch-hook
+    (let [last-modified (volatile! (sources->modified-map (all-sources @compiler-env)))]
+      (fn [_ _ o n]
+        (let [compile-data (-> n meta ::compile-data)]
+          (when (and (not= (-> o meta ::compile-data) compile-data)
+                     (not-empty (-> n meta ::compile-data)))
+            (cond
+              (and (:finished compile-data)
+                   (not (:exception compile-data))
+                   (not (:warnings compile-data)))
+              (binding [env/*compiler* compiler-env
+                        cljs.repl/*repl-env* repl-env]
+                (let [modified-sources (sources-modified! @compiler-env last-modified)
+                      namespaces (sources->namespaces-to-reload modified-sources)]
+                  (reload-namespaces namespaces)))
+              ;; next cond
+              :else nil
+              ))))))))
+
+;; TODO this is still really rough, not quite sure about this yet
+(defmacro start-from-repl
+  ([] (start*) nil)
+  ([config]
+   (start*)
+   (when config
+     `(swap! state merge ~config))))
+
+(defn stop
+  ([] (stop env/*compiler*))
+  ([compiler-env] (remove-watch ::watch-hook compiler-env)))
+
+;; -------------------------------------------------------------
+;; building
+;; -------------------------------------------------------------
+
+(let [cljs-build cljs.closure/build]
+  (defn build
+    ([src opts] (with-redefs [cljs.closure/build build]
+                  (cljs-build src opts)))
+    ([src opts compiler-env]
+     (let [local-data (volatile! {})]
+       (binding [cljs.analyzer/*cljs-warning-handlers*
+                 (conj cljs.analyzer/*cljs-warning-handlers*
+                       (fn [warning-type env extra]
+                         (vswap! local-data update :warnings
+                                 (fnil conj [])
+                                 {:warning-type warning-type
+                                  :env env
+                                  :extra extra})))]
+         (try
+           (swap! compiler-env vary-meta assoc ::compile-data {:started (System/currentTimeMillis)})
+           (cljs-build src opts compiler-env)
+           (swap! compiler-env
+                  vary-meta
+                  update ::compile-data
+                  (fn [x]
+                    (merge (select-keys x [:started])
+                           @local-data
+                           {:finished (System/currentTimeMillis)})))
+           (vreset! local-data {})
+           (catch Throwable e
+             (swap! compiler-env
+                    vary-meta
+                    update ::compile-data
+                    (fn [x]
+                      (merge (select-keys x [:started])
+                             @local-data
+                             {:exception e
+                              :finished (System/currentTimeMillis)}))))
+           (finally
+             (swap! compiler-env vary-meta assoc ::compile-data {})))))))
+
+  ;; invasive hook of cljs.closure/build
+  (defn hook-cljs-closure-build! []
+    (if (and (= cljs-build cljs.closure/build) (not= build cljs.closure/build))
+      (alter-var-root #'cljs.closure/build build)
+      (when (not= cljs-build cljs.closure/build)
+        (ex-info "Figwheel can't hook cljs.closure/build as it has already been modified."
+                 {:cljs.closure.build cljs.closure/build}))))
+  )
+
+
+
+
+
+
 (comment
+
+
+
+  (first (cljs.js-deps/load-library* "src"))
 
   (bapi/cljs-dependents-for-macro-namespaces (atom (first (vals @last-compiler-env)))
                                              '[example.macros])
 
   (swap! scratch assoc :require-map2 (require-map (first (vals @last-compiler-env))))
+
+  (def last-modifieds (volatile! (sources->modified-map (all-sources (first (vals @last-compiler-env))))))
+
+  (map source-file
+       (all-sources (first (vals @last-compiler-env))))
+
+  (let [compile-env (atom (first (vals @last-compiler-env)))]
+    (binding [env/*compiler* compile-env]
+      (paths->namespaces-to-reload [(.getCanonicalPath (io/file "src/example/fun_tester.js"))])
+
+      ))
+  (secon (:js-dependency-index (first (vals @last-compiler-env))))
+  (js-dependencies-with-file-urls (:js-dependency-index (first (vals @last-compiler-env))))
+  (filter (complement #(or (.startsWith % "goog") (.startsWith % "proto")))
+          (mapcat :provides (vals (:js-dependency-index (first (vals @last-compiler-env))))))
+  (map :provides  (all-sources (first (vals @last-compiler-env))))
+  (sources-last-modified (first (vals @last-compiler-env)))
+
+
+(map source-file )
+
+
+
+
+
+
+  (js-dependencies-with-file-urls (:js-dependency-index (first (vals @last-compiler-env))))
+
+(distinct (filter #(= "file" (.getProtocol %)) (keep :url (vals ))))
 
   (def save (:files @scratch))
 
