@@ -97,9 +97,31 @@
            (figcore/expand-to-dependents changed-ns)
            changed-ns))))))
 
-(defn warning-message-handler [callback]
+(defn warning-message-handler [{:keys [build-config figwheel-server]} callback]
   (fn [warning-type env extra]
     (when (warning-type cljs.analyzer/*cljs-warnings*)
+      (try
+        (binding [cljs.repl/*repl-env*
+                  (repl-env-evaluate-callback
+                   #(server/send-message-with-callback
+                     figwheel-server
+                     (:id build-config)
+                     {:msg-name :repl-eval
+                      :code %}
+                     identity))
+                  cljs.env/*compiler* (:compiler-env build-config)]
+          (figcore/handle-warnings [{:warning-type warning-type
+                                     :env env
+                                     :extra extra
+                                     :path ana/*cljs-file*}]))
+        (catch Throwable t
+          (spit "help.log" (with-out-str
+                             (clojure.pprint/pprint (Throwable->map t)))
+                :append true)
+          )))
+
+
+    #_(when (warning-type cljs.analyzer/*cljs-warnings*)
       (when-let [s (cljs.analyzer/error-message warning-type extra)]
         (let [warning-data {:line   (:line env)
                             :column (:column env)
@@ -109,7 +131,10 @@
                                     ana/*cljs-file*)
                             :message s
                             :extra   extra}
-              parsed-warning (cljs-ex/parse-warning warning-data)]
+
+              parsed-warning (cljs-ex/parse-warning warning-data)
+              _ (swap! figcore/scratch update :parsed-warning conj parsed-warning)]
+
           (debug-prn (cljs-ex/format-warning warning-data))
           (callback parsed-warning))))))
 
@@ -119,7 +144,7 @@
 (defn print-hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (binding [cljs.analyzer/*cljs-warning-handlers*
-              [(#'warning-message-handler identity)]]
+              [(#'warning-message-handler build-state identity)]]
       (try
         (build-fn build-state)
         (catch Throwable e
@@ -130,7 +155,7 @@
 (defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
     (binding [cljs.analyzer/*cljs-warning-handlers*
-              [(#'warning-message-handler
+              [(#'warning-message-handler build-state
                 #(notify-compile-warning figwheel-server build-config %))]]
       (try
         (binding [env/*compiler* (:compiler-env build-config)]
