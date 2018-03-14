@@ -3,7 +3,8 @@
    #?@(:cljs
        [[figwheel.client.utils :as utils :refer-macros [dev-assert]]
         [figwheel.client.heads-up :as heads-up]
-        [goog.object :as gobj]])
+        [goog.object :as gobj]
+        [goog.string :as gstring]])
    [clojure.set :refer [difference]]
    [clojure.string :as string]
    #?@(:clj
@@ -35,6 +36,47 @@
   (into {}
         (map (fn [[k v]] [(f k) v]))
         coll))
+
+;; ------------------------------------------------------
+;; inline code message formatting
+;; ------------------------------------------------------
+
+(def ^:dynamic *inline-code-message-max-column* 80)
+
+(defn wrap-line [text size]
+  (re-seq (re-pattern (str ".{1," size "}\\s|.{1," size "}"))
+          (str (string/replace text #"\n" " ") " ")))
+
+(defn cross-format [& args]
+  (apply #?(:clj format :cljs gstring/format) args))
+
+;; TODO this could be more sophisticated
+(defn- pointer-message-lines [{:keys [message column]}]
+  (if (> (+ column (count message)) *inline-code-message-max-column*)
+    (->> (wrap-line message (- *inline-code-message-max-column* 10))
+         (map #(cross-format (str "%" *inline-code-message-max-column* "s") %))
+         (cons (cross-format (str "%" (dec column) "s%s") "" "^---"))
+         (mapv #(vec (concat [:error-message nil] [%]))))
+    [[:error-message nil (cross-format (str "%" (dec column) "s%s %s") "" "^---" message)]]))
+
+(defn inline-message-display-data [{:keys [message line column file-excerpt] :as message-data}]
+  (let [{:keys [start-line path excerpt]} file-excerpt
+        lines (map-indexed
+               (fn [i l] (let [ln (+ i start-line)]
+                           (vector (if (= line ln) :error-in-code :code-line) ln l)))
+               (string/split-lines excerpt))
+        [begin end] (split-with #(not= :error-in-code (first %)) lines)]
+    (concat
+     (take-last 5 begin)
+     (take 1 end)
+     (pointer-message-lines message-data)
+     (take 5 (rest end)))))
+
+(defn file-line-column [{:keys [file line column]}]
+  (cond-> ""
+    file (str "file " file)
+    line (str " at line " line)
+    (and line column) (str ", column " column)))
 
 #?(:cljs
    (do
@@ -82,6 +124,7 @@
 
 (defonce state (atom config-defaults))
 
+
 ;; ------------------------------------------------------------
 ;; Heads up display logic
 ;; ------------------------------------------------------------
@@ -90,10 +133,19 @@
       promise-chain (Promise. (fn [r _] (r true)))]
   (defn render-watcher [_ _ o n]
     ;; a new reload has arrived
+    #_(js/console.log @state)
     (if-let [ts (when-let [ts (get-in n [::reload-state :reload-started])]
                   (and (< @last-reload-timestamp ts) ts))]
-      (do (reset! last-reload-timestamp ts)
-          (.then promise-chain (fn [] (heads-up/flash-loaded)))))))
+      (do
+        (reset! last-reload-timestamp ts)
+        (if-let [warnings (not-empty (get-in n [::reload-state :warnings]))]
+          (.then promise-chain (fn [] (let [warn (first warnings)]
+                                        (binding [*inline-code-message-max-column* 132]
+                                          (.then (heads-up/display-warning (assoc warn :error-inline (inline-message-display-data warn)))
+                                                 (fn []
+                                                   (doseq [w (rest warnings)]
+                                                     (heads-up/append-warning-message w))))))))
+          (.then promise-chain (fn [] (heads-up/flash-loaded))))))))
 
 (add-watch state ::render-watcher render-watcher)
 
@@ -153,24 +205,42 @@
     (swap! state assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
     (when-not (empty? namespaces)
       (js/setTimeout #(dispatch-event :figwheel.before-js-reload {:namespaces namespaces}) 0))
-    (let [to-reload (filter #(reload-ns? %) namespaces)]
+    (let [to-reload
+          (when-not (and (false? (:load-warninged-code @state))
+                         (not-empty (get-in @state [::reload-state :warnings])))
+            (filter #(reload-ns? %) namespaces))]
       (doseq [ns to-reload]
         ;; goog/require has to be patched by a repl bootstrap
         (goog/require (name ns) true))
       (let [after-reload-fn
             (fn []
-              (when (not-empty to-reload)
-                (utils/log (str "Figwheel: loaded " (pr-str to-reload))))
-              (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
-                (utils/log (str "Figwheel: did not load " (pr-str not-loaded))))
-              (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
-              (swap! state assoc ::reload-state {}))]
+              (try
+                (when (not-empty to-reload)
+                  (utils/log (str "Figwheel: loaded " (pr-str to-reload))))
+                (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
+                  (utils/log (str "Figwheel: did not load " (pr-str not-loaded))))
+                (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
+                (finally
+                  (swap! state assoc ::reload-state {}))))]
         (if (and (exists? js/figwheel.client)
                  (exists? js/figwheel.client.file_reloading)
                  (exists? js/figwheel.client.file_reloading.after_reloads))
           (js/figwheel.client.file_reloading.after_reloads after-reload-fn)
           (js/setTimeout after-reload-fn 100)))
       nil)))
+
+(defn ^:export compile-warnings [warnings]
+  (when-not (empty? warnings)
+    (js/setTimeout #(dispatch-event :figwheel.compile-warnings {:warnings warnings}) 0))
+  (swap! state update-in [::reload-state :warnings] concat warnings)
+  (doseq [warning warnings]
+    (utils/log :warn (str "Figwheel: Compile Warning - " (:message warning) " in " (file-line-column warning))))
+  )
+
+(defn ^:export compile-warnings-remote [warnings-json]
+  (compile-warnings (js->clj warnings-json :keywordize-keys true)))
+
+
 
 ))
 
@@ -181,7 +251,7 @@
        (binding [*err* *out*]
          (apply prn args)))
 
-#_(def scratch (atom {}))
+(def scratch (atom {}))
 
 (defonce last-compiler-env (atom {}))
 
@@ -367,12 +437,11 @@
                (json/write-str (map-keys cljs.compiler/munge (find-figwheel-meta))))))
 
 (defn reload-namespaces [ns-syms]
-  (when (not-empty ns-syms)
-    (let [ret (client-eval (reload-namespace-code ns-syms))]
-      ;; currently we are saveing the value of the compiler env
-      ;; so that we can detect if the dependency tree changed
-      (swap! last-compiler-env assoc env/*compiler* @env/*compiler*)
-      ret)))
+  (let [ret (client-eval (reload-namespace-code ns-syms))]
+    ;; currently we are saveing the value of the compiler env
+    ;; so that we can detect if the dependency tree changed
+    (swap! last-compiler-env assoc env/*compiler* @env/*compiler*)
+    ret))
 
 ;; keep in mind that you need to reload clj namespaces before cljs compiling
 (defn reload-clj-namespaces [nses]
@@ -385,6 +454,72 @@
 
 (defn reload-clj-files [files]
   (reload-clj-namespaces (clj-paths->namespaces files)))
+
+;; -------------------------------------------------------------
+;; warnings
+;; -------------------------------------------------------------
+
+#_(defn relativize-local [path]
+  (.getPath
+   (.relativize
+    (.toURI (io/file (.getCanonicalPath (io/file "."))))
+    ;; just in case we get a URL or some such let's change it to a string first
+    (.toURI (io/file (str path))))))
+
+(defn file-excerpt [file start length]
+  {:start-line start
+   :path       (.getCanonicalPath file)
+   :excerpt  (->> (string/split-lines (slurp file))
+                  (drop (dec start))
+                  (take length)
+                  (string/join "\n"))})
+
+(defn warning-info [{:keys [warning-type env extra path]}]
+  (when warning-type
+    (let [file (io/file path)
+          line (:line env)
+          file-excerpt (when (and file (.exists file))
+                         (file-excerpt file (max 1 (- line 10)) 20))
+          message (cljs.analyzer/error-message warning-type extra)]
+      (cond-> {:warning-type warning-type
+               :line    (:line env)
+               :column  (:column env)
+               :ns      (-> env :ns :name)
+               :extra   extra}
+        message      (assoc :message message)
+        path         (assoc :file path)
+        file-excerpt (assoc :file-excerpt file-excerpt)))))
+
+(defn warnings->warning-infos [warnings]
+  (->> warnings
+       (filter
+        (comp cljs.analyzer/*cljs-warnings* :warning-type))
+       (map warning-info)
+       not-empty))
+
+(defn compiler-warnings-code [warning-infos]
+  (format "figwheel.core.compile_warnings_remote(%s);"
+          (json/write-str warning-infos)))
+
+(defn handle-warnings [warnings]
+  (when-let [warns (warnings->warning-infos warnings)]
+    (client-eval (compiler-warnings-code warns))))
+
+(comment
+  (reset! scratch {})
+  (def x
+    (first
+     (filter (comp cljs.analyzer/*cljs-warnings* :warning-type) (:warnings @scratch))))
+  (:warning-data @scratch)
+  (count (:parsed-warning @scratch))
+
+  (warnings->warning-infos (:warnings @scratch))
+
+  (handle-warnings (:warnings @scratch))
+
+  )
+
+
 
 ;; -------------------------------------------------------------
 ;; listening for changes
