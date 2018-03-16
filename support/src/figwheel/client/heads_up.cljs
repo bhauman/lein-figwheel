@@ -182,39 +182,36 @@
 
 (def flatten-exception #(take-while some? (iterate :cause %)))
 
-(defn exception->display-data [{:keys [failed-loading-clj-file
-                                       failed-compiling
-                                       reader-exception
-                                       analysis-exception
-                                       display-ex-data
-                                       class file line column message
-                                       error-inline] :as exception}]
+(defn exception->display-data [{:keys [tag message line column type file data error-inline] :as exception}]
   (let [last-message (cond
                        (and file line)
                        (str "Please see line " line " of file " file )
                        file (str "Please see " file)
-                       :else nil)]
-    {:head (cond
-             failed-loading-clj-file "Couldn't load Clojure file"
-             analysis-exception "Could not Analyze"
-             reader-exception   "Could not Read"
-             failed-compiling   "Could not Compile"
+                       :else nil)
+        data-for-display (when-not (#{"cljs/analysis-error" "tools.reader/eof-reader-exception" "tools.reader/reader-exception"}
+                                    tag)
+                           data)]
+    {:head (condp = tag
+             "clj/compiler-exception"            "Couldn't load Clojure file"
+             "cljs/analysis-error"               "Could not Analyze"
+             "tools.reader/eof-reader-exception" "Could not Read"
+             "tools.reader/reader-exception"     "Could not Read"
+             "cljs/general-compile-failure"      "Could not Compile"
              :else "Compile Exception")
      :sub-head file
      :messages (concat
                 (map
-                #(str "<div>" % "</div>")
-                (if message
-                  [(str (if class
-                           (str (escape class)
-                                ": ") "")
-                        "<span style=\"font-weight:bold;\">" (escape message) "</span>")
-                   (when display-ex-data
-                     (str "<pre style=\"white-space: pre-wrap\">" (utils/pprint-to-string display-ex-data) "</pre>"))
+                 #(str "<div>" % "</div>")
+                 (filter
+                  (complement string/blank?)
+                  [(cond-> ""
+                     type (str (escape type))
+                     (and type message) (str ": ")
+                     message (str "<span style=\"font-weight:bold;\">" (escape message) "</span>"))
+                   (when data-for-display
+                     (str "<pre style=\"white-space: pre-wrap\">" (utils/pprint-to-string data-for-display) "</pre>"))
                    (when (pos? (count error-inline))
-                     (format-inline-error error-inline))]
-                  (map #(str (escape (:class %))
-                             ": " (escape (:message %)))  (flatten-exception (:exception-data exception)))))
+                     (format-inline-error error-inline))]))
                 (when last-message [(str "<div style=\"color: #AD4F4F; padding-top: 3px;\">" (escape last-message) "</div>")]))
      :file file
      :line line
@@ -236,9 +233,7 @@
                 column]}
         (-> exception-data
             exception->display-data)
-        msg (apply str messages
-                   #_(map #(str "<div>" (goog.string/htmlEscape %)
-                                             "</div>") messages))]
+        msg (apply str messages)]
     (display-heads-up {:backgroundColor "rgba(255, 161, 161, 0.95)"}
                       (str (close-link)
                            (heading head sub-head)

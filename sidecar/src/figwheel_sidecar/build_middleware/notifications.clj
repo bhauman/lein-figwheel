@@ -100,46 +100,38 @@
 (defn warning-message-handler [{:keys [build-config figwheel-server]} callback]
   (fn [warning-type env extra]
     (when (warning-type cljs.analyzer/*cljs-warnings*)
-      (try
-        (binding [cljs.repl/*repl-env*
-                  (repl-env-evaluate-callback
-                   #(server/send-message-with-callback
-                     figwheel-server
-                     (:id build-config)
-                     {:msg-name :repl-eval
-                      :code %}
-                     identity))
-                  cljs.env/*compiler* (:compiler-env build-config)]
-          (figcore/handle-warnings [{:warning-type warning-type
-                                     :env env
-                                     :extra extra
-                                     :path ana/*cljs-file*}]))
-        (catch Throwable t
-          (spit "help.log" (with-out-str
-                             (clojure.pprint/pprint (Throwable->map t)))
-                :append true)
-          )))
+      (binding [cljs.repl/*repl-env*
+                (repl-env-evaluate-callback
+                 #(server/send-message-with-callback
+                   figwheel-server
+                   (:id build-config)
+                   {:msg-name :repl-eval
+                    :code %}
+                   identity))
+                cljs.env/*compiler* (:compiler-env build-config)]
+        (figcore/handle-warnings [{:warning-type warning-type
+                                   :env env
+                                   :extra extra
+                                   ;; capture path
+                                   :path ana/*cljs-file*}]))
+      (debug-prn (cljs-ex/format-warning (cljs-ex/extract-warning-data warning-type env extra)))
+      (.flush *err*))))
 
+(defn handle-exceptions [figwheel-server {:keys [build-options exception id compiler-env] :as build}]
+  (when exception
+    (binding [cljs.repl/*repl-env*
+              (repl-env-evaluate-callback
+               #(server/send-message-with-callback
+                 figwheel-server
+                 id
+                 {:msg-name :repl-eval
+                  :code %}
+                 identity))
+              cljs.env/*compiler* compiler-env]
+      (figcore/handle-exception (Throwable->map exception)))
+    (cljs-ex/print-exception exception))
 
-    #_(when (warning-type cljs.analyzer/*cljs-warnings*)
-      (when-let [s (cljs.analyzer/error-message warning-type extra)]
-        (let [warning-data {:line   (:line env)
-                            :column (:column env)
-                            :ns     (-> env :ns :name)
-                            :file (if (= (-> env :ns :name) 'cljs.core)
-                                    "cljs/core.cljs"
-                                    ana/*cljs-file*)
-                            :message s
-                            :extra   extra}
-
-              parsed-warning (cljs-ex/parse-warning warning-data)
-              _ (swap! figcore/scratch update :parsed-warning conj parsed-warning)]
-
-          (debug-prn (cljs-ex/format-warning warning-data))
-          (callback parsed-warning))))))
-
-(defn handle-exceptions [figwheel-server {:keys [build-options exception id] :as build}]
-  (notify-compile-error figwheel-server build {:exception exception}))
+  #_(notify-compile-error figwheel-server build {:exception exception}))
 
 (defn print-hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]

@@ -15,11 +15,13 @@
         [cljs.analyzer :as ana]
         [cljs.build.api :as bapi]
         [clojure.data.json :as json]
-        [clojure.java.io :as io]]))
+        [clojure.java.io :as io]
+        [figwheel.tools.exceptions :as fig-ex]]))
   (:import #?@(:cljs [[goog]
                       [goog.async Deferred]
                       [goog Promise]
                       [goog.events EventTarget Event]])))
+
 ;; -------------------------------------------------
 ;; utils
 ;; -------------------------------------------------
@@ -129,22 +131,34 @@
 ;; Heads up display logic
 ;; ------------------------------------------------------------
 
+;; TODO could move the state atom and heads up display logic to heads-up display
+;; TODO could probably make it run completely off of events emitted here
+
 (let [last-reload-timestamp (atom 0)
       promise-chain (Promise. (fn [r _] (r true)))]
   (defn render-watcher [_ _ o n]
     ;; a new reload has arrived
-    #_(js/console.log @state)
     (if-let [ts (when-let [ts (get-in n [::reload-state :reload-started])]
                   (and (< @last-reload-timestamp ts) ts))]
-      (do
+      (let [warnings  (not-empty (get-in n [::reload-state :warnings]))
+            exception (get-in n [::reload-state :exception])]
         (reset! last-reload-timestamp ts)
-        (if-let [warnings (not-empty (get-in n [::reload-state :warnings]))]
-          (.then promise-chain (fn [] (let [warn (first warnings)]
-                                        (binding [*inline-code-message-max-column* 132]
-                                          (.then (heads-up/display-warning (assoc warn :error-inline (inline-message-display-data warn)))
-                                                 (fn []
-                                                   (doseq [w (rest warnings)]
-                                                     (heads-up/append-warning-message w))))))))
+        (cond
+          warnings
+          (.then promise-chain
+                 (fn [] (let [warn (first warnings)]
+                          (binding [*inline-code-message-max-column* 132]
+                            (.then (heads-up/display-warning (assoc warn :error-inline (inline-message-display-data warn)))
+                                   (fn []
+                                     (doseq [w (rest warnings)]
+                                       (heads-up/append-warning-message w))))))))
+          exception
+          (.then promise-chain
+                 (fn []
+                   (binding [*inline-code-message-max-column* 132]
+                     (heads-up/display-exception
+                      (assoc exception :error-inline (inline-message-display-data exception))))))
+          :else
           (.then promise-chain (fn [] (heads-up/flash-loaded))))))))
 
 (add-watch state ::render-watcher render-watcher)
@@ -194,6 +208,11 @@
 ;; use goog logging and make log configurable log level
 ;; make reloading conditional on warnings
 ;; have an interface that just take the current compiler env and returns a list of namespaces to reload
+
+;; ----------------------------------------------------------------
+;; reloading namespaces
+;; ----------------------------------------------------------------
+
 (defn ^:export reload-namespaces [namespaces figwheel-meta]
   ;; reconstruct serialized data
   (let [figwheel-meta (into {}
@@ -229,6 +248,10 @@
           (js/setTimeout after-reload-fn 100)))
       nil)))
 
+;; ----------------------------------------------------------------
+;; compiler warnings
+;; ----------------------------------------------------------------
+
 (defn ^:export compile-warnings [warnings]
   (when-not (empty? warnings)
     (js/setTimeout #(dispatch-event :figwheel.compile-warnings {:warnings warnings}) 0))
@@ -240,7 +263,28 @@
 (defn ^:export compile-warnings-remote [warnings-json]
   (compile-warnings (js->clj warnings-json :keywordize-keys true)))
 
+;; ----------------------------------------------------------------
+;; exceptions
+;; ----------------------------------------------------------------
 
+(defn ^:export handle-exception [{:keys [file type message] :as exception-data}]
+  (try
+    (js/setTimeout #(dispatch-event :figwheel.compile-exception exception-data) 0)
+    (swap! state #(-> %
+                      (assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
+                      (assoc-in [::reload-state :exception] exception-data)))
+    (utils/log :info "Figwheel: Compile Exception")
+    (when (or type message)
+      (utils/log :info (string/join " : "(filter some? [type message]))))
+    (when file
+      (utils/log :info (str "Error on " (file-line-column exception-data))))
+    (finally
+      (swap! state assoc-in [::reload-state] {})))
+
+  )
+
+(defn ^:export handle-exception-remote [exception-data]
+  (handle-exception (js->clj exception-data :keywordize-keys true)))
 
 ))
 
@@ -443,6 +487,10 @@
     (swap! last-compiler-env assoc env/*compiler* @env/*compiler*)
     ret))
 
+;; -------------------------------------------------------------
+;; reload clojure namespaces
+;; -------------------------------------------------------------
+
 ;; keep in mind that you need to reload clj namespaces before cljs compiling
 (defn reload-clj-namespaces [nses]
   (when (not-empty nses)
@@ -458,13 +506,6 @@
 ;; -------------------------------------------------------------
 ;; warnings
 ;; -------------------------------------------------------------
-
-#_(defn relativize-local [path]
-  (.getPath
-   (.relativize
-    (.toURI (io/file (.getCanonicalPath (io/file "."))))
-    ;; just in case we get a URL or some such let's change it to a string first
-    (.toURI (io/file (str path))))))
 
 (defn file-excerpt [file start length]
   {:start-line start
@@ -519,6 +560,29 @@
 
   )
 
+;; -------------------------------------------------------------
+;; exceptions
+;; -------------------------------------------------------------
+
+(defn exception-code [parsed-exception]
+  (format "figwheel.core.handle_exception_remote(%s);"
+          (json/write-str (update parsed-exception :tag #(string/join "/" ((juxt namespace name) %))))))
+
+(defn handle-exception [exception-o-throwable-map]
+  (let [{:keys [file line] :as parsed-ex} (fig-ex/parse-exception exception-o-throwable-map)
+        file-excerpt (when (and file line (.exists (io/file file)))
+                       (file-excerpt (io/file file) (max 1 (- line 10)) 20))
+        parsed-ex (cond-> parsed-ex
+                    file-excerpt (assoc :file-excerpt file-excerpt))]
+    (when parsed-ex
+      (client-eval
+       (exception-code parsed-ex)))))
+
+(comment
+  (require 'figwheel.tools.exceptions-test)
+
+  (handle-exception (figwheel.tools.exceptions-test/fetch-exception "(defn"))
+  )
 
 
 ;; -------------------------------------------------------------
