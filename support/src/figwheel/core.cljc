@@ -1,10 +1,10 @@
 (ns ^:figwheel-load figwheel.core
   (:require
    #?@(:cljs
-       [[figwheel.client.utils :as utils :refer-macros [dev-assert]]
-        [figwheel.client.heads-up :as heads-up]
+       [[figwheel.client.heads-up :as heads-up]
         [goog.object :as gobj]
-        [goog.string :as gstring]])
+        [goog.string :as gstring]
+        [goog.log :as glog]])
    [clojure.set :refer [difference]]
    [clojure.string :as string]
    #?@(:clj
@@ -18,9 +18,40 @@
         [clojure.java.io :as io]
         [figwheel.tools.exceptions :as fig-ex]]))
   (:import #?@(:cljs [[goog]
+                      [goog.debug Console]
                       [goog.async Deferred]
                       [goog Promise]
                       [goog.events EventTarget Event]])))
+
+;; -------------------------------------------------
+;; cljs logging
+;; -------------------------------------------------
+
+#?(:cljs
+   (do
+     ;; Logging
+     ;;
+     ;; Levels
+     ;; goog.debug.Logger.Level.SEVERE
+     ;; goog.debug.Logger.Level.WARNING
+     ;; goog.debug.Logger.Level.INFO
+     ;; goog.debug.Logger.Level.CONFIG
+     ;; goog.debug.Logger.Level.FINE
+     ;; goog.debug.Logger.Level.FINER
+     ;; goog.debug.Logger.Level.FINEST
+     ;;
+     ;; set level (.setLevel logger goog.debug.Logger.Level.INFO)
+     ;; disable   (.setCapturing log-console false)
+     (defonce logger (glog/getLogger "Figwheel"))
+     (defonce log-console (let [c (goog.debug.Console.)]
+                            ;; don't display time
+                            (doto (.getFormatter c)
+                              (gobj/set "showAbsoluteTime" false)
+                              (gobj/set "showRelativeTime" false))
+                            c))
+     (defonce init-logger (do (.setCapturing log-console true) true))
+
+     ))
 
 ;; -------------------------------------------------
 ;; utils
@@ -122,10 +153,10 @@
 (def config-defaults
   {;; this could also be done server side
    :load-warninged-code false
+   :heads-up-display (not (nil? goog/global.document))
    ::reload-state {}})
 
 (defonce state (atom config-defaults))
-
 
 ;; ------------------------------------------------------------
 ;; Heads up display logic
@@ -137,29 +168,30 @@
 (let [last-reload-timestamp (atom 0)
       promise-chain (Promise. (fn [r _] (r true)))]
   (defn render-watcher [_ _ o n]
-    ;; a new reload has arrived
-    (if-let [ts (when-let [ts (get-in n [::reload-state :reload-started])]
-                  (and (< @last-reload-timestamp ts) ts))]
-      (let [warnings  (not-empty (get-in n [::reload-state :warnings]))
-            exception (get-in n [::reload-state :exception])]
-        (reset! last-reload-timestamp ts)
-        (cond
-          warnings
-          (.then promise-chain
-                 (fn [] (let [warn (first warnings)]
-                          (binding [*inline-code-message-max-column* 132]
-                            (.then (heads-up/display-warning (assoc warn :error-inline (inline-message-display-data warn)))
-                                   (fn []
-                                     (doseq [w (rest warnings)]
-                                       (heads-up/append-warning-message w))))))))
-          exception
-          (.then promise-chain
-                 (fn []
-                   (binding [*inline-code-message-max-column* 132]
-                     (heads-up/display-exception
-                      (assoc exception :error-inline (inline-message-display-data exception))))))
-          :else
-          (.then promise-chain (fn [] (heads-up/flash-loaded))))))))
+    (when (:heads-up-display @state)
+      ;; a new reload has arrived
+      (if-let [ts (when-let [ts (get-in n [::reload-state :reload-started])]
+                    (and (< @last-reload-timestamp ts) ts))]
+        (let [warnings  (not-empty (get-in n [::reload-state :warnings]))
+              exception (get-in n [::reload-state :exception])]
+          (reset! last-reload-timestamp ts)
+          (cond
+            warnings
+            (.then promise-chain
+                   (fn [] (let [warn (first warnings)]
+                            (binding [*inline-code-message-max-column* 132]
+                              (.then (heads-up/display-warning (assoc warn :error-inline (inline-message-display-data warn)))
+                                     (fn []
+                                       (doseq [w (rest warnings)]
+                                         (heads-up/append-warning-message w))))))))
+            exception
+            (.then promise-chain
+                   (fn []
+                     (binding [*inline-code-message-max-column* 132]
+                       (heads-up/display-exception
+                        (assoc exception :error-inline (inline-message-display-data exception))))))
+            :else
+            (.then promise-chain (fn [] (heads-up/flash-loaded)))))))))
 
 (add-watch state ::render-watcher render-watcher)
 
@@ -201,12 +233,11 @@
 ;; TODOS
 ;; ----------------------------------------------------------------
 
+;; look at what metadata you are sending when you reload namespaces
+
+
 ;; don't unprovide for things with no-load meta data
-
 ;; look more closely at getting a signal for reloading from the env/compiler
-
-;; use goog logging and make log configurable log level
-;; make reloading conditional on warnings
 ;; have an interface that just take the current compiler env and returns a list of namespaces to reload
 
 ;; ----------------------------------------------------------------
@@ -235,9 +266,9 @@
             (fn []
               (try
                 (when (not-empty to-reload)
-                  (utils/log (str "Figwheel: loaded " (pr-str to-reload))))
+                  (glog/info logger (str "loaded " (pr-str to-reload))))
                 (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
-                  (utils/log (str "Figwheel: did not load " (pr-str not-loaded))))
+                  (glog/info logger (str "did not load " (pr-str not-loaded))))
                 (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
                 (finally
                   (swap! state assoc ::reload-state {}))))]
@@ -257,8 +288,8 @@
     (js/setTimeout #(dispatch-event :figwheel.compile-warnings {:warnings warnings}) 0))
   (swap! state update-in [::reload-state :warnings] concat warnings)
   (doseq [warning warnings]
-    (utils/log :warn (str "Figwheel: Compile Warning - " (:message warning) " in " (file-line-column warning))))
-  )
+    (glog/warning logger (str "Compile Warning - " (:message warning) " in " (file-line-column warning)))))
+
 
 (defn ^:export compile-warnings-remote [warnings-json]
   (compile-warnings (js->clj warnings-json :keywordize-keys true)))
@@ -273,15 +304,13 @@
     (swap! state #(-> %
                       (assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
                       (assoc-in [::reload-state :exception] exception-data)))
-    (utils/log :info "Figwheel: Compile Exception")
+    (glog/info logger "Compile Exception")
     (when (or type message)
-      (utils/log :info (string/join " : "(filter some? [type message]))))
+      (glog/info logger (string/join " : "(filter some? [type message]))))
     (when file
-      (utils/log :info (str "Error on " (file-line-column exception-data))))
+      (glog/info logger (str "Error on " (file-line-column exception-data))))
     (finally
-      (swap! state assoc-in [::reload-state] {})))
-
-  )
+      (swap! state assoc-in [::reload-state] {}))))
 
 (defn ^:export handle-exception-remote [exception-data]
   (handle-exception (js->clj exception-data :keywordize-keys true)))

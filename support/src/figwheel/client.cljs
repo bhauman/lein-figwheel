@@ -17,6 +17,9 @@
    [cljs.core.async.macros :refer [go go-loop]])
   (:import [goog]))
 
+;; ----------------------------------------
+;; This is quickly becoming a REPL client
+
 (def _figwheel-version_ "0.5.16-SNAPSHOT")
 
 (def default-on-jsload identity)
@@ -176,46 +179,6 @@
   (assert (or (true? b) (false? b)))
   (utils/persistent-config-set! :figwheel-autoload b))
 
-;; more flexible state management
-
-;; -------------------------------------------------------
-;; State machine
-;; -------------------------------------------------------
-;; TODO needs to go away
-
-(defn focus-msgs [name-set msg-hist]
-  (cons (first msg-hist) (filter (comp name-set :msg-name) (rest msg-hist))))
-
-(defn reload-file?* [msg-name opts]
-  (or (:load-warninged-code opts)
-      (not= msg-name :compile-warning)))
-
-(defn reload-file-state? [msg-names opts]
-  (and (= (first msg-names) :files-changed)
-       (reload-file?* (second msg-names) opts)))
-
-(defn block-reload-file-state? [msg-names opts]
-  (and (= (first msg-names) :files-changed)
-       (not (reload-file?* (second msg-names) opts))))
-
-(defn warning-append-state? [msg-names]
-  (= [:compile-warning :compile-warning] (take 2 msg-names)))
-
-(defn warning-state? [msg-names]
-  (= :compile-warning (first msg-names)))
-
-(defn rewarning-state? [msg-names]
-  (= [:compile-warning :files-changed :compile-warning] (take 3 msg-names)))
-
-(defn compile-fail-state? [msg-names]
-  (= :compile-failed (first msg-names)))
-
-(defn compile-refail-state? [msg-names]
-  (= [:compile-failed :compile-failed] (take 2 msg-names)))
-
-(defn css-loaded-state? [msg-names]
-  (= :css-files-changed (first msg-names)))
-
 ;; ----------------------------------------------
 ;; REPL eval needs to move to REPL client
 ;; ----------------------------------------------
@@ -296,56 +259,9 @@
 ;; Heads up display
 ;; --------------------------------------------------
 
-
 (defn auto-jump-to-error [opts error]
   (when (:auto-jump-to-source-on-error opts)
     (heads-up/auto-notify-source-file-line error)))
-
-;; this is seperate for live dev only
-(defn heads-up-plugin-msg-handler [opts msg-hist']
-  (let [msg-hist (focus-msgs #{:files-changed :compile-warning :compile-failed} msg-hist')
-        msg-names (map :msg-name msg-hist)
-        msg (first msg-hist)]
-    (cond
-      (reload-file-state? msg-names opts)
-      (if (and (autoload?)
-               (:autoload opts))
-        (heads-up/flash-loaded)
-        (heads-up/clear))
-
-      (compile-refail-state? msg-names)
-      (-> (heads-up/clear)
-          (.then (fn [_] (heads-up/display-exception (:exception-data msg))))
-          (.then (fn [_] (auto-jump-to-error opts (:exception-data msg)))))
-
-      (compile-fail-state? msg-names)
-      (-> (heads-up/display-exception (:exception-data msg))
-          (.then (fn [] (auto-jump-to-error opts (:exception-data msg)))))
-
-      (warning-append-state? msg-names)
-      (heads-up/append-warning-message (:message msg))
-
-      (rewarning-state? msg-names)
-      (-> (heads-up/clear)
-          (.then (fn [_] (heads-up/display-warning (:message msg))))
-          (.then (fn [_] (auto-jump-to-error opts (:message msg)))))
-
-      (warning-state? msg-names)
-      (-> (heads-up/display-warning (:message msg))
-          (.then (fn [_] (auto-jump-to-error opts (:message msg))) ))
-
-      (css-loaded-state? msg-names)
-      (heads-up/flash-loaded))))
-
-(defn heads-up-plugin [opts]
-  (let [ch (chan)]
-    (def heads-up-config-options** opts)
-    (go-loop []
-             (when-let [msg-hist' (<! ch)]
-               (heads-up-plugin-msg-handler opts msg-hist')
-               (recur)))
-    (heads-up/ensure-container)
-    (fn [msg-hist] (put! ch msg-hist) msg-hist)))
 
 ;; --------------------------------------------------
 ;; enforment plugins
@@ -358,11 +274,10 @@
       (socket/close!)
       (.error js/console "Figwheel: message received from different project. Shutting socket down.")
       (when (:heads-up-display opts)
-        (go
-         (<! (timeout 3000))
-         (heads-up/display-system-warning
-          "Connection from different project"
-          "Shutting connection down!!!!!"))))))
+        (js/setTimeout #(heads-up/display-system-warning
+                         "Connection from different project"
+                         "Shutting connection down!!!!!")
+                       3000)))))
 
 (defn enforce-figwheel-version-plugin [opts]
   (fn [msg-hist]
@@ -371,9 +286,8 @@
         (socket/close!)
         (.error js/console "Figwheel: message received from different version of Figwheel.")
         (when (:heads-up-display opts)
-          (go
-            (<! (timeout 2000))
-            (heads-up/display-system-warning
+          (js/setTimeout
+           #(heads-up/display-system-warning
              "Figwheel Client and Server have different versions!!"
              (str "Figwheel Client Version <strong>" _figwheel-version_ "</strong> is not equal to "
                   "Figwheel Sidecar Version <strong>" figwheel-version "</strong>"
@@ -381,9 +295,8 @@
                   "<h4>To fix try:</h4>"
                   "<ol><li>Reload this page and make sure you are not getting a cached version of the client.</li>"
                   "<li>You may have to clean (delete compiled assets) and rebuild to make sure that the new client code is being used.</li>"
-                  "<li>Also, make sure you have consistent Figwheel dependencies.</li></ol>"))))))))
-
-#_((enforce-figwheel-version-plugin {:heads-up-display true}) [{:figwheel-version "yeah"}])
+                  "<li>Also, make sure you have consistent Figwheel dependencies.</li></ol>"))
+           3000))))))
 
 ;; defaults and configuration
 
@@ -416,7 +329,6 @@
 (defn base-plugins [system-options]
   (let [base {:enforce-project-plugin enforce-project-plugin
               :enforce-figwheel-version-plugin enforce-figwheel-version-plugin
-              :comp-fail-warning-plugin compile-fail-warning-plugin
               :css-reloader-plugin      css-reloader-plugin
               :repl-plugin      repl-plugin}
         base  (if (not (utils/html-env?)) ;; we are in an html environment?
@@ -427,10 +339,7 @@
         base (if (false? (:autoload system-options))
                (dissoc base :file-reloader-plugin)
                base)]
-    (if (and (:heads-up-display system-options)
-             (utils/html-env?))
-      (assoc base :heads-up-display-plugin heads-up-plugin)
-      base)))
+    base))
 
 (defn add-message-watch [key callback]
   (add-watch
@@ -473,7 +382,6 @@
 ;; legacy interface
 (def watch-and-reload-with-opts start)
 (defn watch-and-reload [& {:keys [] :as opts}] (start opts))
-
 
 ;; --- Bad Initial Compilation Helper Application ---
 ;;
