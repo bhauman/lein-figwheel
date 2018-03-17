@@ -4,7 +4,6 @@
    [goog.userAgent.product :as product]
    [goog.object :as gobj]
    [cljs.reader :refer [read-string]]
-   [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [figwheel.core :as figcore]
    [figwheel.client.socket :as socket]
    [figwheel.client.utils :as utils]
@@ -13,8 +12,6 @@
    [clojure.string :as string]
    ;; to support repl doc
    [cljs.repl])
-  (:require-macros
-   [cljs.core.async.macros :refer [go go-loop]])
   (:import [goog]))
 
 ;; ----------------------------------------
