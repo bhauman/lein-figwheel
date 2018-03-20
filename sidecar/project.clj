@@ -35,6 +35,8 @@
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
 
+  :jvm-opts ^:replace ["-Xms256m" "-Xmx2g"]
+
   :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
                    :source-paths ["cljs_src" "src" "dev"]
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]

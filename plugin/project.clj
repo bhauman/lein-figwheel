@@ -10,6 +10,8 @@
          :url "https://github.com/bhauman/lein-figwheel"
          :dir ".."}
 
+  :jvm-opts ^:replace ["-Xms256m" "-Xmx2g"]
+
   :profiles {:dev {:dependencies [[leiningen "2.8.1"]
                                   [com.bhauman/rebel-readline-cljs "0.1.1"]
                                   [org.clojure/test.check "0.9.0"]]
