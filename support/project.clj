@@ -6,6 +6,7 @@
   :scm {:name "git"
         :url "https://github.com/bhauman/lein-figwheel"
         :dir ".."}
+  :jvm-opts ^:replace ["-Xms256m" "-Xmx2g"]
   :dependencies
   [[org.clojure/clojure "1.8.0"]
    [org.clojure/clojurescript "1.9.946"

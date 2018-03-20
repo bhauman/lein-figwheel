@@ -22,6 +22,7 @@
     :exclusions
     [org.clojure/tools.reader
      org.clojure/clojure]]
+   [co.deps/ring-etag-middleware "0.2.0"]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.16-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]
@@ -33,6 +34,8 @@
    [strictly-specking-standalone "0.1.1"]]
 
   :clean-targets ^{:protect false} ["dev-resources/public/js" "target"]
+
+  :jvm-opts ^:replace ["-Xms256m" "-Xmx2g"]
 
   :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
                    :source-paths ["cljs_src" "src" "dev"]
