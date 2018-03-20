@@ -22,6 +22,7 @@
     :exclusions
     [org.clojure/tools.reader
      org.clojure/clojure]]
+   [co.deps/ring-etag-middleware "0.2.0"]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.16-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]

@@ -15,6 +15,7 @@
    [ring.util.mime-type :as mime]
    [ring.middleware.cors :as cors]
    [ring.middleware.not-modified :as not-modified]
+   [co.deps.ring-etag-middleware :as etag]
    [org.httpkit.server :refer [run-server with-channel on-close on-receive send! open?]]
 
    [com.stuartsierra.component :as component]))
@@ -152,11 +153,30 @@
                        trace
                        "</pre>")}))))))
 
+;; File caching strategy:
+;;
+;; ClojureScript (as of March 2018) copies the last-modified date of Clojure
+;; source files to the compiled JavaScript target files. Closure compiled
+;; JavaScript (goog.base), it gets the time that it was compiled (i.e. now).
+;;
+;; Neither of these dates are particularly useful to use for caching. Closure
+;; compiled JavaScript doesn't change from run to run, so caching based on
+;; last modified date will not achieve as high a hit-rate as possible.
+;; ClojureScript files can consume macros that change from run to run, but
+;; will still get the same file modification date, so we would run the risk
+;; of using stale cached files.
+;;
+;; Instead, we provide a checksum based ETag. This is based solely on the file
+;; content, and so sidesteps both of the issues above. We remove the
+;; Last-Modified header from the response to avoid it busting the browser cache
+;; unnecessarily.
+
 (defn handle-index [handler root]
   (fn [request]
     (if (= [:get "/"] ((juxt :request-method :uri) request))
-      (if-let [resp (some-> (resource-response "index.html" {:root (or root "public")
+      (if-let [resp (some-> (resource-response "index.html" {:root root
                                                              :allow-symlinks? true})
+                            (utils/dissoc-in [:headers "Last-Modified"])
                             (response/content-type "text/html; charset=utf-8"))]
         resp
         (handler request))
@@ -169,8 +189,9 @@
                           response))]
     (fn [{:keys [request-method uri] :as request}]
       (if (= :get request-method)
-        (if-let [resp (some-> (resource-response uri {:root (or root "public")
+        (if-let [resp (some-> (resource-response uri {:root root
                                                       :allow-symlinks? true})
+                              (utils/dissoc-in [:headers "Last-Modified"])
                               (add-mime-type uri))]
           resp
           (handler request))
@@ -237,6 +258,7 @@
      (handle-figwheel-websocket server-state)
 
      (wrap-no-cache)
+     (etag/wrap-file-etag)
      (not-modified/wrap-not-modified)
      ;; adding cors to support @font-face which has a strange cors error
      ;; super promiscuous please don't uses figwheel as a production server :)
