@@ -1,7 +1,9 @@
 (ns figwheel.repl
   (:require
+   [clojure.string :as string]
    #?@(:cljs [[goog.object :as gobj]
-              [goog.storage.mechanism.mechanismfactory :as storage-factory]]
+              [goog.storage.mechanism.mechanismfactory :as storage-factory]
+              [goog.userAgent.product :as product]]
        :clj [[clojure.data.json :as json]
              [clojure.set :as set]
              [clojure.edn :as edn]
@@ -26,27 +28,77 @@
 
            (def state (atom {}))
            (def storage (storage-factory/createHTML5SessionStorage "figwheel.repl"))
+           (defn session-name []
+             (.get storage (str ::session-name)))
+
+           (defn response-for [{:keys [uuid]} response-body]
+             {:uuid uuid
+              :session-name (session-name)
+              :response response-body})
+
+           (defn respond-to [{:keys [websocket] :as old-msg} response-body]
+             (let [response (response-for old-msg response-body)]
+               (.send websocket (pr-str response))))
 
            (defmulti message :op)
            (defmethod message "naming" [msg]
              (.set storage (str ::session-name) (:session-name msg)))
 
+           (def ^:dynamic *eval-js* (fn [code] (js* "eval(~{code})")))
+
+           (let [ua-product-fn
+                 #(cond
+                    (not (nil? goog/nodeGlobalRequire)) :chrome
+                    product/SAFARI    :safari
+                    product/CHROME    :chrome
+                    product/FIREFOX   :firefox
+                    product/IE        :ie)]
+             (defn eval-javascript** [code]
+               (let [ua-product (ua-product-fn)]
+                 (try
+                   (let [sb (js/goog.string.StringBuffer.)]
+                     (binding [cljs.core/*print-newline* false
+                               cljs.core/*print-fn* (fn [x] (.append sb x))]
+                       (let [result-value (*eval-js* code)]
+                         {:status :success
+                          :out (str sb)
+                          :ua-product ua-product
+                          :value result-value})))
+                   (catch js/Error e
+                     {:status :exception
+                      :value (pr-str e)
+                      :ua-product ua-product
+                      :stacktrace (.-stack e)})
+                   (catch :default e
+                     {:status :exception
+                      :ua-product ua-product
+                      :value (pr-str e)
+                      :stacktrace "No stacktrace available."})))))
+
+           (defmethod message "eval" [{:keys [code] :as msg}]
+             (let [result (eval-javascript** code)]
+               (respond-to msg result)))
+
            (defn connect [websocket-url]
-             (doto (goog.net.WebSocket.)
-               (.addEventListener goog.net.WebSocket.EventType.MESSAGE
-                                  (fn [e]
-                                    (when-let [msg (gobj/get e "message")]
-                                      (try
-                                        (prn msg)
-                                        (message (js->clj (js/JSON.parse msg) :keywordize-keys true))
-                                        (catch js/Error e
-                                          (js/console.error e))))))
-               (.addEventListener goog.net.WebSocket.EventType.OPENED
-                                  (fn [e]
-                                    (js/console.log "OPENED")
-                                    (js/console.log e)))
-               (.open websocket-url)
-               ))
+             (let [websocket (goog.net.WebSocket.)]
+               (doto websocket
+                 (.addEventListener goog.net.WebSocket.EventType.MESSAGE
+                                    (fn [e]
+                                      (when-let [msg (gobj/get e "message")]
+                                        (try
+                                          (prn msg)
+                                          (js/console.log msg)
+                                          (message (assoc
+                                                    (js->clj (js/JSON.parse msg) :keywordize-keys true)
+                                                    :websocket websocket))
+                                          (catch js/Error e
+                                            (js/console.error e))))))
+                 (.addEventListener goog.net.WebSocket.EventType.OPENED
+                                    (fn [e]
+                                      (js/console.log "OPENED")
+                                      (js/console.log e)))
+                 (.open websocket-url)
+                 )))
            (js/console.log (.get storage (str ::session-name)))
            (js/console.log (nil? (.get storage (str ::session-name))))
            (connect (str "ws://localhost:9500/fargot" (when-let [n (.get storage (str ::session-name))]
@@ -138,16 +190,16 @@
 (defn send-for-eval [connections js]
   (let [prom (promise)]
     (doseq [[channel channel-data] connections]
-      (let [uuid (java.util.UUID/randomUUID)
+      (let [uuid (str (java.util.UUID/randomUUID))
             listener (fn listen [msg]
                        (when (= uuid (:uuid msg))
-                         (when-let [result (:result msg)]
+                         (when-let [result (:response msg)]
                            (deliver prom (vary-meta
                                           result
                                           assoc ::message msg)))
                          (remove-listener listen)))]
         (add-listener listener)
-        (hkit/send!
+        (hkit/send! ;; if we abstract this we can use other servers
          channel
          (json/write-str {:uuid uuid
                           :session-name (:session-name channel-data)
@@ -157,14 +209,13 @@
 
 (let [timeout-val (Object.)]
   (defn evaluate [{:keys [focus-session-name ;; just here for consideration
-                          last-session-name
                           repl-timeout
                           broadcast] :as repl-env} js]
     ;; TODO if focus session is set
     ;; if it is available send eval to it otherwise
     ;; choose next best session and send message to it
     ;; and the set the focus session to the new session name
-    (wait-for-connection)
+    (wait-for-connection repl-env)
     (let [connections (connections-available repl-env)
           youngest-connection (first connections)
           result (let [v (deref (send-for-eval (if broadcast
@@ -173,11 +224,6 @@
                                                js)
                                 (or repl-timeout 8000)
                                 timeout-val)]
-                   (some->> v
-                            meta
-                            ::message
-                            :session-name
-                            (reset! last-session-name))
                    (if (= timeout-val v)
                      {:status :exception
                       :value "Eval timed out!"
@@ -191,48 +237,52 @@
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
-    (binding [*connections* (:connections this)]
-      (wait-for-connection (get this :connection-filter))))
-  (-evaluate [this _ _  js] (evaluate this js))
+    (when (and
+           (or (not (bound? #'*server*))
+               (nil? *server*))
+           (nil? @(:server-kill this)))
+      (let [server-kill (hkit/run-server (bound-fn [ring-req] (async-handler ring-req))
+                                         (select-keys this [:ip :port :thread :worker-name-prefix :query-size :max-body :max-line]))]
+        (reset! (:server-kill this) server-kill)))
+    (wait-for-connection this))
+  (-evaluate [this _ _  js]
+    (evaluate this js))
   (-load [this provides url]
     ;; load a file into all the appropriate envs
     (when-let [js-content (try (slurp url) (catch Throwable t))]
-      (evaluate (assoc repl-env :broadcast true) js-content)))
-  (-tear-down [this])
+      (evaluate this js-content)))
+  (-tear-down [{:keys [server-kill]}]
+    (when-let [kill-fn @server-kill]
+      (reset! server-kill nil)
+      (kill-fn)))
   cljs.repl/IReplEnvOptions
   (-repl-options [this])
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [this st err opts]
     (cljs.stacktrace/parse-stacktrace this st err opts)))
 
-(defn repl-env* [{:keys [host port] :or {host "localhost" port 3449} :as opts}]
+(defn repl-env* [{:keys [port worker-name-prefix connection-filter ring-handler]
+                  :or {connection-filter identity
+                       port 9500
+                       worker-name-prefix "figwh-worker-"} :as opts}]
   (merge (FigwheelReplEnv.)
-         ;; TODO choose-connections not connection filter
-         {:connection-filter (atom (or connection-filter identity))
+         {:server-kill (atom nil)
+          :connection-filter (atom connection-filter)
           :focus-session-name (atom nil)
-          :last-session-name (atom nil)
-          :broadcast false}
+          :broadcast false
+          :port port
+          :worker-name-prefix worker-name-prefix}
          opts))
 
-;; these are only for development right now
-(defonce servers (atom []))
-
-(defn start-server []
-  (swap! servers conj (hkit/run-server async-handler {:port 9500})))
-
-(defn stop-server []
-  (doseq [srv @servers]
-    (srv :timeout 100))
-  (reset! servers []))
-
-
-
 (comment
-  (start-server)
-  (stop-server)
+  (def re (repl-env* {}))
+  (cljs.repl/-setup re {})
+  (cljs.repl/-tear-down re)
 
+  (connections-available re)
+
+  (evaluate re "1")
   *connections*
-  (mapv hkit/open? (keys @connections))
   )
 
 (def name-list
