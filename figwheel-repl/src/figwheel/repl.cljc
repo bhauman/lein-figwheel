@@ -216,6 +216,8 @@
 ;; Websocket REPL
 ;; --------------------------------------------------------------
 
+(goog-define websocket-url "ws://localhost:3449/figwheel-ws")
+
 (def state (atom {}))
 (def storage (storage-factory/createHTML5SessionStorage "figwheel.repl"))
 (defn ^:export session-name []
@@ -232,7 +234,8 @@
 
 (defmulti message :op)
 (defmethod message "naming" [msg]
-  (.set storage (str ::session-name) (:session-name msg)))
+  (.set storage (str ::session-name) (:session-name msg))
+  (glog/info logger (str "Session Name: " (.get storage (str ::session-name)))))
 
 (defmethod message "ping" [msg])
 
@@ -271,11 +274,12 @@
   (let [result (eval-javascript** code)]
     (respond-to msg result)))
 
-(defn connect [websocket-url]
+(defn connect [& [websocket-url']]
   ;; TODO take care of forwarding print output to the connection
   (let [websocket (goog.net.WebSocket.)
-        url (str websocket-url (when-let [n (session-name)]
-                                 (str "?figwheelReplSessionName=" n)))]
+        url (str (or websocket-url' websocket-url)
+                 (when-let [n (session-name)]
+                   (str "?figwheelReplSessionName=" n)))]
     (patch-goog-base)
     (doto websocket
       (.addEventListener goog.net.WebSocket.EventType.MESSAGE
@@ -292,18 +296,11 @@
                          (fn [e]
                            (js/console.log "OPENED")
                            (js/console.log e)))
-      (.open url)
-      )))
+      (.open url))))
 
 
-(js/console.log (.get storage (str ::session-name)))
-(js/console.log (nil? (.get storage (str ::session-name))))
 
-
-;; TODO think about what we need to
-(connect "ws://localhost:9500/figwheel-ws")
-
-           ))
+        ))
 
 #?(:clj (do
 
@@ -502,7 +499,7 @@
 ;; ------------------------------------------------------
 ;;  mostly for use from the REPL
 
-(defn list-connections* []
+(defn list-connections []
   (let [conns (map second (connections-available cljs.repl/*repl-env*))
         longest-name (apply max (cons (count "Session Name")
                                       (map (comp count :session-name) conns)))]
@@ -527,7 +524,7 @@
 
 (defn conns* []
   (will-eval-on)
-  (list-connections*))
+  (list-connections))
 
 (defmacro conns []
   (conns*))
@@ -549,12 +546,12 @@
 
   (connections-available re)
 
-  (evaluate re "1")
+  (evaluate re "44")
   *connections*
 
   (binding [cljs.repl/*repl-env* re]
     (conns*)
-    (focus* 'Krista))
+    (focus* 'Korey))
 
   )
 
