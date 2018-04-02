@@ -22,7 +22,7 @@
   (:import
    #?@(:cljs [goog.net.WebSocket
               goog.debug.Console
-
+              [goog.Uri QueryData]
               [goog Promise]
               [goog.storage.mechanism HTML5SessionStorage]]
        :clj [java.util.concurrent.ArrayBlockingQueue])))
@@ -219,7 +219,7 @@
 ;; Websocket REPL
 ;; --------------------------------------------------------------
 
-(goog-define websocket-url "ws://localhost:3449/figwheel-ws")
+(goog-define connect-url "ws://localhost:3449/figwheel-connect")
 
 (def state (atom {}))
 (def storage (storage-factory/createHTML5SessionStorage "figwheel.repl"))
@@ -303,19 +303,22 @@
     (message (cond-> (js->clj msg :keywordize-keys true)
                http-url (assoc :http-url http-url)))))
 
-(defn fill-url-template [websocket-url']
+(defn fill-url-template [connect-url']
   (if (= host-env :html)
-      (-> websocket-url'
+      (-> connect-url'
           (string/replace "[[client-hostname]]" js/location.hostname)
           (string/replace "[[client-port]]" js/location.port))
-      websocket-url'))
+      connect-url'))
+
+(defn make-url [connect-url']
+  (doto (guri/parse (fill-url-template (or connect-url' connect-url)))
+    (.setQueryData (cond-> (.add (QueryData.) "fwsid" (or (session-id) (random-uuid)))
+                     (session-name) (.add "fwsname" (session-name))))))
 
 (defn connect [& [websocket-url']]
   ;; TODO take care of forwarding print output to the connection
   (let [websocket (goog.net.WebSocket.)
-        url (str (fill-url-template (or websocket-url' websocket-url))
-                 (when-let [n (session-name)]
-                   (str "?figwheelReplSessionName=" n)))]
+        url (str (make-url websocket-url'))]
     (patch-goog-base)
     (doto websocket
       (.addEventListener goog.net.WebSocket.EventType.MESSAGE
@@ -345,25 +348,18 @@
 ;; TODO this has to try more than once
 ;; perhaps borrow exponential backoff from websocket?
 (defn http-connect [& [websocket-url']]
-  (let [url' (fill-url-template (or websocket-url' websocket-url))]
-    (js/setInterval
-     #(let [url (str url'
-                     (when (or (session-name) (session-id)) "?")
-                     (when-let [n (session-name)]
-                       (str "figwheelReplSessionName=" n))
-                     (when (session-name) "&")
-                     (when-let [id (session-id)]
-                       (str "figwheelReplSessionId=" id)))]
-        (-> (http-get url)
-            (.then
-             (fn [msg]
-               (try
-                 (glog/fine logger (pr-str msg))
-                 (message (assoc (js->clj msg :keywordize-keys true)
-                                 :http-url url))
-                 (catch js/Error e
-                   (glog/error logger e)))))))
-     1000)))
+  (js/setInterval
+   #(let [url (make-url websocket-url')]
+      (-> (http-get url)
+          (.then
+           (fn [msg]
+             (try
+               (glog/fine logger (pr-str msg))
+               (message (assoc (js->clj msg :keywordize-keys true)
+                               :http-url url))
+               (catch js/Error e
+                 (glog/error logger e)))))))
+   1000))
 
 ))
 
@@ -399,101 +395,99 @@
 (defn available-names [connections]
   (set/difference name-list (taken-names connections)))
 
-(defn negotiate-name [ring-request connections]
-  (let [query (parse-query-string (:query-string ring-request))]
-    (or (when-let [chosen-name (:figwheelReplSessionName query)]
-          (if (when-let [sid (:figwheelReplSessionId query)]
-                ((set (map :uuid (keys connections))) sid))
-            chosen-name ;; keep name if session exists
-            (when-not ((taken-names connections) chosen-name)
-              chosen-name)))
-        (rand-nth (seq (available-names connections))))))
+(defn negotiate-id [ring-request connections]
+  (let [query (parse-query-string (:query-string ring-request))
+        sid (:fwsid query (str (java.util.UUID/randomUUID)))
+        sname (or (some-> connections (get sid) :session-name)
+                  (when-let [chosen-name (:fwsname query)]
+                    (when-not ((taken-names connections) chosen-name)
+                      chosen-name))
+                  (rand-nth (seq (available-names connections))))]
+    [sid sname]))
+
+(defn create-connection! [ring-request options]
+  (let [[sess-id sess-name] (negotiate-id ring-request @*connections*)
+        conn (merge (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
+                    {:session-name sess-name
+                     :session-id sess-id
+                     :created-at (System/currentTimeMillis)}
+                    options)]
+    (swap! *connections* assoc sess-id conn)
+    conn))
+
+(defn remove-connection! [{:keys [session-id] :as conn}]
+  (swap! *connections* dissoc session-id))
+
+(defn receive-message! [data]
+  (when-let [data
+             (try (edn/read-string data)
+                  (catch Throwable t (binding [*out* *err*] (clojure.pprint/pprint (Throwable->map t)))))]
+    (doseq [f @listener-set]
+      (try (f data) (catch Throwable ex)))))
+
+(defn naming-response [{:keys [session-name session-id] :as conn}]
+  (json/write-str {:op :naming :session-name session-name :session-id session-id}))
 
 (defn websocket-handler [ring-request]
+  (swap! scratch assoc :ring-request ring-request)
   (hkit/with-channel ring-request channel
     (when (hkit/websocket? channel)
-      (do ;; TODO dev only
-          (swap! scratch assoc :ring-request ring-request)
-          (hkit/on-close
-           channel
-           (fn [status] (swap! *connections* dissoc channel)))
-          (hkit/on-receive
-           channel
-           (fn [data]
-             (when-let [data
-                        (try (edn/read-string data)
-                             (catch Throwable t (binding [*out* *err*] (clojure.pprint/pprint (Throwable->map t)))))]
-               (doseq [f @listener-set]
-                 (try (f (assoc data :channel channel)) (catch Throwable ex))))))
-          (let [session-name (negotiate-name ring-request @*connections*)]
-            (swap! *connections* assoc channel
-                   (assoc (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
-                          :session-name session-name
-                          :created-at (System/currentTimeMillis)))
-            (hkit/send! channel (json/write-str {:op :naming :session-name session-name}))
-            #_(doto (Thread. #(loop []
-                              (Thread/sleep 5000)
-                              (when (hkit/open? channel)
-                                (hkit/send! channel (json/write-str {:op :ping}))
-                                (recur))))
-              (.setDaemon true)
-              (.start)))))))
+      (let [conn (create-connection! ring-request
+                                  {:type :websocket
+                                   :send-fn (fn [conn data] (hkit/send! channel data))})]
+        (hkit/on-close channel (bound-fn [status] (remove-connection! conn)))
+        (hkit/on-receive channel (bound-fn [data] (receive-message! data)))
+        (hkit/send! channel (naming-response conn))))))
 
 (defn websocket-middleware [handler]
   (fn [r]
-    (if (and (:websocket? r) (.startsWith (:uri r) "/figwheel-ws"))
+    (if (and (:websocket? r) (.startsWith (:uri r) "/figwheel-connect"))
       (websocket-handler r)
       (handler r))))
 
-(defrecord HTTPChannel [uuid])
+;; ------------------------------------------------------------------
+;; http polling
+;; ------------------------------------------------------------------
+
+(defn http-polling-send [conn data]
+  (swap! *connections* update-in
+         [(get conn :session-id) ::messages]
+         (fnil conj []) data))
+
+(defn http-polling-connect [ring-request]
+  (let [sess-id (-> ring-request :query-string parse-query-string :fwsid)]
+    ;; new connection create the connection
+    (if-not (get @*connections* sess-id)
+      (let [conn (create-connection! ring-request
+                                     {:type :http-polling
+                                      :send-fn http-polling-send})]
+        {:status 200
+         :headers {"Content-Type" "application/json"}
+         :body (naming-response conn)})
+      ;; otherwise we are polling
+      (let [messages (volatile! [])]
+        (swap! *connections* update sess-id
+               #(-> %
+                    (update ::messages (fn [msgs] (vreset! messages (or msgs [])) []))
+                    (assoc ::alive-at (System/currentTimeMillis))))
+        {:status 200
+         :headers {"Content-Type" "application/json"}
+         ;; TODO fix this
+         :body (json/write-str {:op :messages
+                                :messages (mapv json/read-json @messages)})}))))
 
 (defn http-polling-middleware [handler]
   (fn [ring-request]
     (swap! scratch assoc :ring-request ring-request)
-    (cond
-      (and (not (:websocket? ring-request))
-           (= :get (:request-method ring-request))
-           (.startsWith (:uri ring-request) "/figwheel-connect")) ;; connection setup
-      (let [session-name (negotiate-name ring-request @*connections*)
-            uuid (or (-> ring-request :query-string parse-query-string :figwheelReplSessionId)
-                     (str (java.util.UUID/randomUUID)))
-            channel (HTTPChannel. uuid)]
-        (if-not (get @*connections* channel)
-          (do
-            (swap! *connections* assoc channel
-                   (assoc (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
-                          :session-name session-name
-                          :session-id uuid
-                          :created-at (System/currentTimeMillis)))
-            {:status 200
-             :headers {"Content-Type" "application/json"}
-             :body (json/write-str {:op :naming :session-name session-name :session-id uuid})})
-          (let [messages (volatile! [])]
-            (swap! *connections* update channel
-                   #(-> %
-                        (update ::messages (fn [msgs] (vreset! messages (or msgs [])) []))
-                        (assoc ::alive-at (System/currentTimeMillis))))
-            {:status 200
-             :headers {"Content-Type" "application/json"}
-             ;; TODO fix this
-             :body (json/write-str {:op :messages :messages (mapv json/read-json @messages)})})))
-      (and (not (:websocket? ring-request))
-           (= :post (:request-method ring-request))
-           (.startsWith (:uri ring-request) "/figwheel-connect"))
-      (do
-
-        (when-let [data
-                 (try (edn/read-string (slurp (:body ring-request)))
-                      (catch Throwable t (binding [*out* *err*] (clojure.pprint/pprint (Throwable->map t)))))]
-
-          (when-let [channel (first (filter #(= (:uuid %) (:session-id data)) (keys @*connections*)))]
-            ;; mark as alive (swap connections ...
-            (doseq [f @listener-set]
-              (try (f (assoc data :channel channel)) (catch Throwable ex)))))
-        {:status 200
-         :headers {"Content-Type" "text/html"}
-         :body "Received"})
-      :else (handler ring-request))))
+    (if-not (and (not (:websocket? ring-request))
+                 (.startsWith (:uri ring-request) "/figwheel-connect"))
+      (handler ring-request)
+      (condp = (:request-method ring-request)
+        :get (http-polling-connect ring-request)
+        :post (do (receive-message! (slurp (:body ring-request)))
+                  {:status 200
+                   :headers {"Content-Type" "text/html"}
+                   :body "Received"})))))
 
 (defn not-found [r]
   {:status 404
@@ -506,10 +500,10 @@
 
 (defn connections-available [repl-env]
   (sort-by
-   #(-> % second :created-at) >
+   :created-at >
    (filter (or (some-> repl-env :connection-filter deref)
                identity)
-           @*connections*)))
+           (vals @*connections*))))
 
 (defn wait-for-connection [repl-env]
   (loop []
@@ -517,17 +511,13 @@
       (Thread/sleep 500)
       (recur))))
 
-(defmulti channel-send (fn [c _] (class c)))
-
-(defmethod channel-send org.httpkit.server.AsyncChannel [channel data]
-  (hkit/send! channel data))
-
-(defmethod channel-send HTTPChannel [channel data]
-  (swap! *connections* update-in [channel ::messages] (fnil conj []) data))
+;; may turn this into a multi method
+(defn connection-send [{:keys [send-fn] :as conn} data]
+  (send-fn conn data))
 
 (defn send-for-eval [connections js]
   (let [prom (promise)]
-    (doseq [[channel channel-data] connections]
+    (doseq [conn connections]
       (let [uuid (str (java.util.UUID/randomUUID))
             listener (fn listen [msg]
                        (when (= uuid (:uuid msg))
@@ -537,14 +527,13 @@
                                           assoc ::message msg)))
                          (remove-listener listen)))]
         (add-listener listener)
-        (channel-send
-         channel
-         (json/write-str (cond-> {:uuid uuid
-                                  :session-name (:session-name channel-data)
-                                  :op :eval
-                                  :code js}
-                           (:session-id channel-data)
-                           (assoc :session-id (:session-id channel-data)))))))
+        (connection-send
+         conn
+         (json/write-str
+          (assoc (select-keys conn [:session-id :session-name])
+                 :uuid uuid
+                 :op :eval
+                 :code js)))))
     prom))
 
 (let [timeout-val (Object.)]
@@ -557,7 +546,7 @@
           ;; session focus
           connections (if-let [focus-conn
                                (and @focus-session-name
-                                    (first (filter (fn [[_ {:keys [session-name]}]]
+                                    (first (filter (fn [{:keys [session-name]}]
                                                      (= @focus-session-name
                                                         session-name))
                                                    connections)))]
@@ -584,8 +573,8 @@
 
 (def server-fn
   (-> not-found
-      (http-polling-middleware)
-      #_(websocket-middleware)
+      #_(http-polling-middleware)
+      (websocket-middleware)
       (cors/wrap-cors
        :access-control-allow-origin #".*"
        :access-control-allow-methods [:head :options :get :put :post :delete :patch])))
@@ -691,6 +680,7 @@
 ;; - make http polling connection as backup
 ;; - make http polling connection a ring handler
 
+
 (comment
 
   (def re (repl-env* {}))
@@ -700,6 +690,8 @@
   (connections-available re)
 
   (evaluate re "44")
+
+  (negotiate-id (:ring-request @scratch) @*connections*)
 
   scratch
   *connections*
