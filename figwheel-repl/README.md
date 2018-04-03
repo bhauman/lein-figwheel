@@ -5,8 +5,8 @@ ClojureScript.
 
 > Currently a work in progress.
 
-Figwheel-REPL is only a ClojureScript `repl-env` and doesn't do anything
-specific to aid help with automatic file reloading. As such it is more
+Figwheel-REPL is **only** a ClojureScript `repl-env` and doesn't do anything
+specific to help with automatic file reloading. As such, it is more
 similar to Weasel in function than to Figwheel.
 
 It is intended to be a single `repl-env` that will work on as many
@@ -16,9 +16,9 @@ It is also intended to handle multiple clients, think browser tabs,
 much more gracefully than the current Figwheel REPL.
 
 It is also different in that it only evaluates code on a single client
-by default. You will still be able to choose to broadcast an eval op
-to all connected clients if you prefer. You can also provide a filter
-function when you create the Figwheel repl-env, to filter the
+by default. You will still be able to choose to broadcast an eval
+operation to all connected clients if you prefer. You can also provide
+a filter function when you create the Figwheel repl-env, to filter the
 connections to the set of connected clients you want an eval op to be
 sent to.
 
@@ -51,12 +51,12 @@ console.
 
 The `Will Eval On: Darin` indicates that the `Darin` client is where
 the next eval op will be sent to because this is currently the
-youngest connected client.
+**youngest** connected client.
 
-This default client heuristic allows for a simple understanding of
-which REPL is the current target of eval operations. Open a new
-browser tab, or start an new node instance and that latest one will
-now be the current eval target.
+This **youngest client** heuristic for choosing which client to
+evaluate on, allows for a simple understanding of which REPL is the
+current target of eval operations. Open a new browser tab, or start an
+new node instance and that becomes the new eval target.
 
 If you want to focus on a specific client,
 
@@ -65,9 +65,9 @@ cljs.user> (figwheel.repl/focus Judson)
 Focused On: Judson
 ```
 
-From now on all evals will go to `Judson` unless the connection is
-lost in which case the behavior will return to selecting the youngest
-connection.
+From now on all evals will go to `Judson` unless the connection to
+`Judson` is lost in which case the behavior will revert to selecting
+the youngest connection.
 
 You can confirm that the repl is currently focused with:
 
