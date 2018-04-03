@@ -10,7 +10,8 @@ specific to help with automatic file reloading. As such, it is more
 similar to Weasel in function than to Figwheel.
 
 It is intended to be a single `repl-env` that will work on as many
-platforms as possible Browser, Node, Worker, ReactNative, etc.
+platforms as possible: including Browser, Node, Worker, ReactNative,
+etc.
 
 It is also intended to handle multiple clients, think browser tabs,
 much more gracefully than the current Figwheel REPL.
@@ -19,8 +20,8 @@ It is also different in that it only evaluates code on a single client
 by default. You will still be able to choose to broadcast an eval
 operation to all connected clients if you prefer. You can also provide
 a filter function when you create the Figwheel repl-env, to filter the
-connections to the set of connected clients you want an eval op to be
-sent to.
+connections to the set of connected clients you want an eval operation
+to be sent to.
 
 ## Multiple REPL behavior
 
@@ -50,7 +51,7 @@ your, through the REPL client feedback in the browsers dev-tool
 console.
 
 The `Will Eval On: Darin` indicates that the `Darin` client is where
-the next eval op will be sent to because this is currently the
+the next eval operation will be sent to because this is currently the
 **youngest** connected client.
 
 This **youngest client** heuristic for choosing which client to
