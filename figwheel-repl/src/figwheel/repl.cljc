@@ -51,6 +51,9 @@
                        c))
 (defonce init-logger (do (.setCapturing log-console true) true))
 
+;; dev
+(.setLevel logger goog.debug.Logger.Level.FINE)
+
 ;; --------------------------------------------------------------
 ;; Bootstrap goog require reloading
 ;; --------------------------------------------------------------
@@ -325,7 +328,7 @@
                          (fn [e]
                            (when-let [msg (gobj/get e "message")]
                              (try
-                               (glog/info logger msg)
+                               (glog/fine logger msg)
                                (message (assoc
                                          (js->clj (js/JSON.parse msg) :keywordize-keys true)
                                          :websocket websocket))
@@ -345,21 +348,24 @@
                                     (succ (.getResponseJson xhr))
                                     (err xhr))))))))
 
-;; TODO this has to try more than once
-;; perhaps borrow exponential backoff from websocket?
-(defn http-connect [& [websocket-url']]
-  (js/setInterval
-   #(let [url (make-url websocket-url')]
-      (-> (http-get url)
-          (.then
+(defn http-connect [& [connect-url']]
+  (let [url (make-url connect-url')
+        surl (str url)
+        msg-fn (fn [msg]
+                 (try
+                   (glog/fine logger (pr-str msg))
+                   (message (assoc (js->clj msg :keywordize-keys true)
+                                   :http-url surl))
+                   (catch js/Error e
+                     (glog/error logger e))))]
+    (doto (.getQueryData url)
+      (.add "fwinit" "true"))
+    (.then (http-get url)
            (fn [msg]
-             (try
-               (glog/fine logger (pr-str msg))
-               (message (assoc (js->clj msg :keywordize-keys true)
-                               :http-url url))
-               (catch js/Error e
-                 (glog/error logger e)))))))
-   1000))
+             (msg-fn msg)
+             (js/setInterval
+              #(.then (http-get (make-url connect-url')) msg-fn)
+              1000)))))
 
 ))
 
@@ -455,9 +461,9 @@
          (fnil conj []) data))
 
 (defn http-polling-connect [ring-request]
-  (let [sess-id (-> ring-request :query-string parse-query-string :fwsid)]
+  (let [{:keys [fwsid fwinit]} (-> ring-request :query-string parse-query-string)]
     ;; new connection create the connection
-    (if-not (get @*connections* sess-id)
+    (if-not (get @*connections* fwsid)
       (let [conn (create-connection! ring-request
                                      {:type :http-polling
                                       :send-fn http-polling-send})]
@@ -466,8 +472,8 @@
          :body (naming-response conn)})
       ;; otherwise we are polling
       (let [messages (volatile! [])]
-        (swap! *connections* update sess-id
-               #(-> %
+        (swap! *connections* update fwsid
+               #(-> (cond-> % fwinit (assoc :created-at (System/currentTimeMillis)))
                     (update ::messages (fn [msgs] (vreset! messages (or msgs [])) []))
                     (assoc ::alive-at (System/currentTimeMillis))))
         {:status 200
@@ -573,8 +579,8 @@
 
 (def server-fn
   (-> not-found
-      #_(http-polling-middleware)
       (websocket-middleware)
+      (http-polling-middleware)
       (cors/wrap-cors
        :access-control-allow-origin #".*"
        :access-control-allow-methods [:head :options :get :put :post :delete :patch])))
@@ -635,7 +641,7 @@
 ;;  mostly for use from the REPL
 
 (defn list-connections []
-  (let [conns (map second (connections-available cljs.repl/*repl-env*))
+  (let [conns (connections-available cljs.repl/*repl-env*)
         longest-name (apply max (cons (count "Session Name")
                                       (map (comp count :session-name) conns)))]
     (println (format (str "%-" longest-name "s %7s %s")
@@ -646,15 +652,13 @@
       (println (format (str "%-" longest-name "s %6sm %s")
                        session-name
                        (Math/round (/ (- (System/currentTimeMillis) created-at) 60000.0))
-                       (str uri (when query-string
-                                  (str "?" query-string))))))))
+                       uri)))))
 
 (defn will-eval-on []
   (if-let [n @(:focus-session-name cljs.repl/*repl-env*)]
     (println "Focused On: " n)
     (println "Will Eval On: " (->> (connections-available cljs.repl/*repl-env*)
                                   first
-                                  second
                                   :session-name))))
 
 (defn conns* []
@@ -665,7 +669,7 @@
   (conns*))
 
 (defn focus* [session-name]
-  (let [names (map :session-name (map second (connections-available cljs.repl/*repl-env*)))
+  (let [names (map :session-name (connections-available cljs.repl/*repl-env*))
         session-name (name session-name)]
     (if ((set names) session-name)
       (str "Focused On: " (reset! (:focus-session-name cljs.repl/*repl-env*) session-name))
@@ -680,7 +684,6 @@
 ;; - make http polling connection as backup
 ;; - make http polling connection a ring handler
 
-
 (comment
 
   (def re (repl-env* {}))
@@ -689,7 +692,7 @@
 
   (connections-available re)
 
-  (evaluate re "44")
+  (evaluate re "47")
 
   (negotiate-id (:ring-request @scratch) @*connections*)
 
@@ -701,7 +704,7 @@
 
   (binding [cljs.repl/*repl-env* re]
     (conns*)
-    #_(focus* 'Korey))
+    #_(focus* 'Judson))
 
   )
 
