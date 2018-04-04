@@ -1,6 +1,6 @@
 # figwheel-repl
 
-Figwheel-REPL is intended to provide a best of class repl-env for
+Figwheel-REPL is intended to provide a best of class `repl-env` for
 ClojureScript.
 
 > Currently a work in progress.

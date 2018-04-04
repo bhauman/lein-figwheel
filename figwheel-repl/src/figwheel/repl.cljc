@@ -16,9 +16,7 @@
              [clojure.java.browse :as browse]
              [cljs.repl]
              [cljs.stacktrace]
-             [ring.middleware.cors :as cors]
-             [clojure.string :as string]
-             [org.httpkit.server :as hkit]]))
+             [clojure.string :as string]]))
   (:import
    #?@(:cljs [goog.net.WebSocket
               goog.debug.Console
@@ -411,6 +409,9 @@
                   (rand-nth (seq (available-names connections))))]
     [sid sname]))
 
+;; TODO if connection exists ensure connection is open
+;; or perhaps filter all connections to list of open connections
+;; here
 (defn create-connection! [ring-request options]
   (let [[sess-id sess-name] (negotiate-id ring-request @*connections*)
         conn (merge (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
@@ -434,22 +435,30 @@
 (defn naming-response [{:keys [session-name session-id] :as conn}]
   (json/write-str {:op :naming :session-name session-name :session-id session-id}))
 
-(defn websocket-handler [ring-request]
-  (swap! scratch assoc :ring-request ring-request)
-  (hkit/with-channel ring-request channel
-    (when (hkit/websocket? channel)
-      (let [conn (create-connection! ring-request
-                                  {:type :websocket
-                                   :send-fn (fn [conn data] (hkit/send! channel data))})]
-        (hkit/on-close channel (bound-fn [status] (remove-connection! conn)))
-        (hkit/on-receive channel (bound-fn [data] (receive-message! data)))
-        (hkit/send! channel (naming-response conn))))))
+;; ------------------------------------------------------------------
+;; Websocket behavior
+;; ------------------------------------------------------------------
 
-(defn websocket-middleware [handler]
-  (fn [r]
-    (if (and (:websocket? r) (.startsWith (:uri r) "/figwheel-connect"))
-      (websocket-handler r)
-      (handler r))))
+(defn abstract-websocket-connection [connections]
+  (let [conn (volatile! nil)]
+    {:on-connect (fn [{:keys [request send-fn close-fn is-open-fn]
+                       :as connect-data}]
+                   ;; TODO remove dev only
+                   (swap! scratch assoc :ring-request request)
+                   (binding [*connections* connections]
+                     (let [conn' (create-connection!
+                                  request
+                                  {:type :websocket
+                                   :is-open-fn is-open-fn
+                                   :close-fn close-fn
+                                   :send-fn (fn [_ data]
+                                              (send-fn data))})]
+                       (vreset! conn conn')
+                       (send-fn (naming-response conn')))))
+     :on-close   (fn [status] (binding [*connections* connections]
+                                (remove-connection! @conn)))
+     :on-receive (fn [data] (binding [*connections* connections]
+                              (receive-message! data)))}))
 
 ;; ------------------------------------------------------------------
 ;; http polling
@@ -494,11 +503,6 @@
                   {:status 200
                    :headers {"Content-Type" "text/html"}
                    :body "Received"})))))
-
-(defn not-found [r]
-  {:status 404
-   :headers {"Content-Type" "text/html"}
-   :body "Not found"})
 
 ;; ---------------------------------------------------
 ;; ReplEnv implmentation
@@ -577,13 +581,13 @@
           (println (string/trim-newline out))))
       result)))
 
-(def server-fn
-  (-> not-found
-      (websocket-middleware)
-      (http-polling-middleware)
-      (cors/wrap-cors
-       :access-control-allow-origin #".*"
-       :access-control-allow-methods [:head :options :get :put :post :delete :patch])))
+(defn run-default-server [options connections]
+  (require 'figwheel.server)
+  (let [fw-server-run (resolve 'figwheel.server/run-server)
+        ring-stack (resolve 'figwheel.server/ring-stack)]
+    (fw-server-run ring-stack (assoc options
+                                     ::abstract-websocket-connection
+                                     (abstract-websocket-connection connections)))))
 
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
@@ -592,10 +596,11 @@
            (or (not (bound? #'*server*))
                (nil? *server*))
            (nil? @(:server-kill this)))
-      (let [server-kill (hkit/run-server (bound-fn [ring-req]
-                                           (server-fn ring-req))
-                                         (select-keys this [:ip :port :thread :worker-name-prefix :query-size :max-body :max-line]))]
-        (reset! (:server-kill this) server-kill)))
+      (let [server (run-default-server
+                    ;; TODO merge in options here for ring-handler
+                    {:port 9500 :join? false}
+                    *connections*)]
+        (reset! (:server-kill this) (fn [] (.stop server)))))
     (doseq [url (:open-urls this)]
       (try (browse/browse-url url)
            (catch Throwable e
@@ -685,6 +690,8 @@
 ;; - make http polling connection a ring handler
 
 (comment
+  (def serve (run-server not-found {:port 9500 :join? false}))
+  (.stop serve)
 
   (def re (repl-env* {}))
   (cljs.repl/-setup re {})
@@ -704,7 +711,7 @@
 
   (binding [cljs.repl/*repl-env* re]
     (conns*)
-    #_(focus* 'Judson))
+    (focus* 'Judson))
 
   )
 
