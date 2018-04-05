@@ -48,9 +48,11 @@
                          (gobj/set "showRelativeTime" false))
                        c))
 (defonce init-logger (do (.setCapturing log-console true) true))
+(defn debug [msg]
+  (glog/log logger goog.debug.Logger.Level.FINEST msg))
 
 ;; dev
-(.setLevel logger goog.debug.Logger.Level.FINE)
+(.setLevel logger goog.debug.Logger.Level.FINE #_ST )
 
 ;; --------------------------------------------------------------
 ;; Bootstrap goog require reloading
@@ -316,6 +318,9 @@
     (.setQueryData (cond-> (.add (QueryData.) "fwsid" (or (session-id) (random-uuid)))
                      (session-name) (.add "fwsname" (session-name))))))
 
+(defn exponential-backoff [attempt]
+  (* 1000 (min (js/Math.pow 2 attempt) 20)))
+
 (defn connect [& [websocket-url']]
   ;; TODO take care of forwarding print output to the connection
   (let [websocket (goog.net.WebSocket.)
@@ -326,7 +331,7 @@
                          (fn [e]
                            (when-let [msg (gobj/get e "message")]
                              (try
-                               (glog/fine logger msg)
+                               (debug msg)
                                (message (assoc
                                          (js->clj (js/JSON.parse msg) :keywordize-keys true)
                                          :websocket websocket))
@@ -338,6 +343,10 @@
                            (js/console.log e)))
       (.open url))))
 
+;; -----------------------------------------------------------
+;; HTTP simple and long polling
+;; -----------------------------------------------------------
+
 (defn http-get [url]
   (Promise. (fn [succ err]
               (xhrio/send url (fn [e]
@@ -346,12 +355,30 @@
                                     (succ (.getResponseJson xhr))
                                     (err xhr))))))))
 
-(defn http-connect [& [connect-url']]
+(declare http-connect http-connect*)
+
+(defn poll [msg-fn connect-url']
+  (.then (http-get (make-url connect-url'))
+         (fn [msg]
+           (msg-fn msg)
+           (js/setTimeout #(poll msg-fn connect-url') 500))
+         (fn [e] ;; lost connection
+           (http-connect connect-url'))))
+
+(defn long-poll [msg-fn connect-url']
+  (.then (http-get (make-url connect-url'))
+         (fn [msg]
+           (msg-fn msg)
+           (long-poll msg-fn connect-url'))
+         (fn [e] ;; lost connection
+           (http-connect connect-url'))))
+
+(defn http-connect* [attempt connect-url']
   (let [url (make-url connect-url')
         surl (str url)
         msg-fn (fn [msg]
                  (try
-                   (glog/fine logger (pr-str msg))
+                   (debug (pr-str msg))
                    (message (assoc (js->clj msg :keywordize-keys true)
                                    :http-url surl))
                    (catch js/Error e
@@ -360,23 +387,33 @@
       (.add "fwinit" "true"))
     (.then (http-get url)
            (fn [msg]
-             (msg-fn msg)
-             (js/setInterval
-              #(.then (http-get (make-url connect-url')) msg-fn)
-              1000)))))
+             (let [typ (gobj/get msg "connection-type")]
+               (glog/info logger (str "Connected: " typ))
+               (msg-fn msg)
+               (if (= typ "http-long-polling")
+                 (long-poll msg-fn connect-url')
+                 (poll msg-fn connect-url'))))
+           (fn [e];; didn't connect
+             (when (instance? js/Error e)
+               (glog/error logger e))
+             (when (and (instance? goog.net.XhrIo e) (.getResponseBody e))
+               (debug (.getResponseBody e)))
+             (let [wait-time (exponential-backoff attempt)]
+               (glog/info logger (str "HTTP Connection Error: next connection attempt in " (/ wait-time 1000) " seconds"))
+               (js/setTimeout #(http-connect* (inc attempt) connect-url')
+                              wait-time))))))
+
+(defn http-connect [& [connect-url']]
+  (http-connect* 0 connect-url'))
 
 ))
 
+
 #?(:clj (do
 
-#_(defonce server-id (subs (str (java.util.UUID/randomUUID)) 0 6))
-
-;; Copying the tap pattern from clojure.core
 (defonce ^:private listener-set (atom #{}))
-#_(defonce ^:private ^java.util.concurrent.ArrayBlockingQueue messageq (java.util.concurrent.ArrayBlockingQueue. 1024))
 (defn add-listener [f] (swap! listener-set conj f) nil)
 (defn remove-listener [f] (swap! listener-set disj f) nil)
-#_(defn message> [x] (.offer messageq x))
 
 (declare name-list)
 
@@ -385,13 +422,18 @@
 
 (defonce scratch (atom {}))
 
-(defonce ^:dynamic *connections* (atom {}))
 (def ^:dynamic *server* nil)
 
 (defn parse-query-string [qs]
   (when (string? qs)
     (into {} (for [[_ k v] (re-seq #"([^&=]+)=([^&]+)" qs)]
                [(keyword k) v]))))
+
+;; ------------------------------------------------------------------
+;; Connection management
+;; ------------------------------------------------------------------
+
+(defonce ^:dynamic *connections* (atom {}))
 
 (defn taken-names [connections]
   (set (mapv :session-name (vals connections))))
@@ -432,8 +474,11 @@
     (doseq [f @listener-set]
       (try (f data) (catch Throwable ex)))))
 
-(defn naming-response [{:keys [session-name session-id] :as conn}]
-  (json/write-str {:op :naming :session-name session-name :session-id session-id}))
+(defn naming-response [{:keys [session-name session-id type] :as conn}]
+  (json/write-str {:op :naming
+                   :session-name session-name
+                   :session-id session-id
+                   :connection-type type}))
 
 ;; ------------------------------------------------------------------
 ;; Websocket behavior
@@ -464,45 +509,141 @@
 ;; http polling
 ;; ------------------------------------------------------------------
 
+(defn json-response [json-body]
+  {:status 200
+   :headers {"Content-Type" "application/json"}
+   :body json-body})
+
+;; TODO reconnect should return naming response
+;; TODO perhaps all responses should return connection type
+;; TODO change messages to an atom and use similar capture method that long polling uses
+
+;; TODO figure out is-open-function for http long and short polling
+
 (defn http-polling-send [conn data]
-  (swap! *connections* update-in
-         [(get conn :session-id) ::messages]
-         (fnil conj []) data))
+  (swap! (::comm-atom conn) update :messages (fnil conj []) data))
 
 (defn http-polling-connect [ring-request]
   (let [{:keys [fwsid fwinit]} (-> ring-request :query-string parse-query-string)]
     ;; new connection create the connection
-    (if-not (get @*connections* fwsid)
+    (cond
+      (not (get @*connections* fwsid))
       (let [conn (create-connection! ring-request
                                      {:type :http-polling
+                                      ::comm-atom (atom {})
                                       :send-fn http-polling-send})]
-        {:status 200
-         :headers {"Content-Type" "application/json"}
-         :body (naming-response conn)})
+        (json-response (naming-response conn)))
+      fwinit
+      (let [conn (get @*connections* fwsid)]
+        (swap! *connections* assoc-in [fwsid :created-at] (System/currentTimeMillis))
+        (json-response (naming-response conn)))
+      :else
       ;; otherwise we are polling
-      (let [messages (volatile! [])]
-        (swap! *connections* update fwsid
-               #(-> (cond-> % fwinit (assoc :created-at (System/currentTimeMillis)))
-                    (update ::messages (fn [msgs] (vreset! messages (or msgs [])) []))
-                    (assoc ::alive-at (System/currentTimeMillis))))
-        {:status 200
-         :headers {"Content-Type" "application/json"}
-         ;; TODO fix this
-         :body (json/write-str {:op :messages
-                                :messages (mapv json/read-json @messages)})}))))
+      (let [messages (volatile! [])
+            comm-atom (get-in @*connections* [fwsid ::comm-atom])]
+        (swap! *connections* assoc-in [fwsid ::alive-at] (System/currentTimeMillis))
+        (swap! comm-atom update :messages (fn [msgs] (vreset! messages (or msgs [])) []))
+        (json-response
+         (json/write-str {:op :messages
+                          :messages (mapv json/read-json @messages)
+                          :connection-type :http-polling}))))))
 
-(defn http-polling-middleware [handler]
+(defn http-polling-endpoint [ring-request]
+  (condp = (:request-method ring-request)
+    :get (http-polling-connect ring-request)
+    :post (do (receive-message! (slurp (:body ring-request)))
+              {:status 200
+               :headers {"Content-Type" "text/html"}
+               :body "Received"})))
+
+;; simple http polling can be included in any ring middleware stack
+(defn http-polling-middleware [handler path connections]
   (fn [ring-request]
-    (swap! scratch assoc :ring-request ring-request)
-    (if-not (and (not (:websocket? ring-request))
-                 (.startsWith (:uri ring-request) "/figwheel-connect"))
+    (if-not (.startsWith (:uri ring-request) path)
       (handler ring-request)
-      (condp = (:request-method ring-request)
-        :get (http-polling-connect ring-request)
-        :post (do (receive-message! (slurp (:body ring-request)))
-                  {:status 200
-                   :headers {"Content-Type" "text/html"}
-                   :body "Received"})))))
+      (binding [*connections* connections]
+        (http-polling-endpoint ring-request)))))
+
+;; ------------------------------------------------------------------
+;; http async polling - long polling
+;; ------------------------------------------------------------------
+
+;; TODO explore shorter long polling timeouts
+;; TODO make long polling client reconnect when server isn't present
+;; TODO perhaps different endpoint for long polling?
+
+;; TODO probably better to base the simple polling on a similar pattern
+
+;; agents would be easier but heavier and agent clean up is harder
+(defn long-poll-send [comm-atom msg]
+  (let [data (volatile! nil)
+        add-message #(if msg
+                       (update % :messages (fnil conj []) msg)
+                       %)]
+    (swap! comm-atom
+           (fn [{:keys [respond messages] :as comm}]
+             (if (and respond (or (not-empty messages) msg))
+               ;; only reset in a send state
+               (do (vreset! data (add-message comm)) {})
+               (add-message comm))))
+    (when-let [{:keys [respond messages]} @data]
+      (respond {:status 200
+                :headers {"Content-Type" "application/json"}
+                ;; TODO fix this
+                :body (json/write-str {:op :messages
+                                       :messages (mapv json/read-json messages)})}))))
+
+(defn long-poll-capture-respond [comm-atom respond]
+  (let [has-messages (volatile! false)]
+    (swap! comm-atom (fn [{:keys [messages] :as comm}]
+                       (vreset! has-messages (not (empty? messages)))
+                       (assoc comm :respond respond)))
+    (when has-messages
+      (long-poll-send comm-atom nil))))
+
+(defn http-long-polling-connect [ring-request respond raise]
+  (let [{:keys [fwsid fwinit]} (-> ring-request :query-string parse-query-string)]
+    ;; new connection create the connection
+    (if (not (get @*connections* fwsid))
+      (let [conn (create-connection!
+                  ring-request
+                  {:type :http-long-polling
+                   ::comm-atom (atom {:messages []})
+                   :send-fn (fn [conn msg]
+                              (long-poll-send (::comm-atom conn) msg))})]
+        (respond {:status 200
+                  :headers {"Content-Type" "application/json"}
+                  :body (naming-response conn)}))
+      (let [conn (get @*connections* fwsid)]
+        (if fwinit
+          (do
+            ;; TODO place this after the response?
+            (swap! *connections* assoc-in [fwsid :created-at] (System/currentTimeMillis))
+            (respond {:status 200
+                      :headers {"Content-Type" "application/json"}
+                      :body (naming-response conn)}))
+          (do
+            (long-poll-capture-respond (::comm-atom conn) respond)
+            (swap! *connections* assoc-in [fwsid ::alive-at] (System/currentTimeMillis))))))))
+
+(defn http-long-polling-endpoint [ring-request send raise]
+  (condp = (:request-method ring-request)
+    :get (http-long-polling-connect ring-request send raise)
+    :post (do (receive-message! (slurp (:body ring-request)))
+              (send {:status 200
+                     :headers {"Content-Type" "text/html"}
+                     :body "Received"}))))
+
+(defn asyc-http-polling-middleware [handler path connections]
+  (fn [ring-request send raise]
+    (swap! scratch assoc :async-request ring-request)
+    (if-not (.startsWith (:uri ring-request) path)
+      (handler ring-request send raise)
+      (binding [*connections* connections]
+        (try
+          (http-long-polling-endpoint ring-request send raise)
+          (catch Throwable e
+            (raise e)))))))
 
 ;; ---------------------------------------------------
 ;; ReplEnv implmentation
@@ -584,10 +725,22 @@
 (defn run-default-server [options connections]
   (require 'figwheel.server)
   (let [fw-server-run (resolve 'figwheel.server/run-server)
-        ring-stack (resolve 'figwheel.server/ring-stack)]
-    (fw-server-run ring-stack (assoc options
-                                     ::abstract-websocket-connection
-                                     (abstract-websocket-connection connections)))))
+        ring-stack    (resolve 'figwheel.server/ring-stack)
+        wrap-cors     (resolve 'figwheel.server/wrap-async-cors)]
+    (fw-server-run (ring-stack #(http-polling-middleware % "/figwheel-connect" connections))
+                   (assoc options
+                          #_:async-handlers
+                          #_{"/figwheel-connect"
+                           (-> (fn [ring-request send raise]
+                                 (send  {:status 200
+                                         :headers {"Content-Type" "text/html"}
+                                         :body "Received Yep"}))
+                               (asyc-http-polling-middleware "/figwheel-connect" connections)
+                               (wrap-cors
+                                :access-control-allow-origin #".*"
+                                :access-control-allow-methods [:head :options :get :put :post :delete :patch]))}
+                          ::abstract-websocket-connection
+                          (abstract-websocket-connection connections)))))
 
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
@@ -627,8 +780,7 @@
 (defn repl-env* [{:keys [host port worker-name-prefix connection-filter ring-handler]
                   :or {connection-filter identity
                        port 9500
-                       host "localhost"
-                       worker-name-prefix "figwh-worker-"} :as opts}]
+                       host "localhost"} :as opts}]
   (merge (FigwheelReplEnv.)
          {:server-kill (atom nil)
           :open-urls nil
@@ -636,8 +788,7 @@
           :focus-session-name (atom nil)
           :broadcast false
           :port port
-          :host host
-          :worker-name-prefix worker-name-prefix}
+          :host host}
          opts))
 
 ;; ------------------------------------------------------
@@ -699,9 +850,17 @@
 
   (connections-available re)
 
-  (evaluate re "47")
+  (evaluate re "33")
+
+  (mapv #(do #_(Thread/sleep 1)
+             (evaluate re (str %)))
+        (range 10))
 
   (negotiate-id (:ring-request @scratch) @*connections*)
+
+  (def channel (:body (:async-request @scratch)))
+
+  (.isReady channel)
 
   scratch
   *connections*
@@ -711,7 +870,7 @@
 
   (binding [cljs.repl/*repl-env* re]
     (conns*)
-    (focus* 'Judson))
+    #_(focus* 'Judson))
 
   )
 
