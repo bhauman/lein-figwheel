@@ -132,7 +132,7 @@
    :send-fn (fn [string-message]
               (.. websocket-adaptor getRemote (sendString string-message)))
    :close-fn (fn [] (.. websocket-adaptor getSession close))
-   :is-open-fn (fn [] (.. websocket-adaptor getSession isOpen))})
+   :is-open-fn (fn [conn] (.. websocket-adaptor getSession isOpen))})
 
 ;; TODO translate on close status's
 ;; TODO translate receiving bytes to on-receive

@@ -249,7 +249,7 @@
       (.send websocket (pr-str response))
       http-url
       (xhrio/send http-url
-                  (fn [e] (glog/info logger (.isSuccess (.-target e))))
+                  (fn [e] (debug "Response Posted"))
                   "POST"
                   (pr-str response)))))
 
@@ -264,7 +264,7 @@
   (glog/info logger (str "Session ID: "   (.get storage (str ::session-id))))
   (glog/info logger (str "Session Name: " (.get storage (str ::session-name)))))
 
-(defmethod message "ping" [msg])
+(defmethod message "ping" [msg] (respond-to msg true))
 
 (def ^:dynamic *eval-js* js/eval)
 
@@ -406,6 +406,9 @@
 (defn http-connect [& [connect-url']]
   (http-connect* 0 connect-url'))
 
+;; TODO single connect function that switches on schema
+;; TODO make sure that make url preserves QueryData
+
 ))
 
 
@@ -459,6 +462,7 @@
         conn (merge (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
                     {:session-name sess-name
                      :session-id sess-id
+                     ::alive-at (System/currentTimeMillis)
                      :created-at (System/currentTimeMillis)}
                     options)]
     (swap! *connections* assoc sess-id conn)
@@ -514,11 +518,9 @@
    :headers {"Content-Type" "application/json"}
    :body json-body})
 
-;; TODO reconnect should return naming response
 ;; TODO perhaps all responses should return connection type
-;; TODO change messages to an atom and use similar capture method that long polling uses
-
 ;; TODO figure out is-open-function for http long and short polling
+;; TODO long polling timeout
 
 (defn http-polling-send [conn data]
   (swap! (::comm-atom conn) update :messages (fnil conj []) data))
@@ -531,6 +533,10 @@
       (let [conn (create-connection! ring-request
                                      {:type :http-polling
                                       ::comm-atom (atom {})
+                                      :is-open-fn (fn [conn]
+                                                    (< (- (System/currentTimeMillis)
+                                                          (::alive-at conn))
+                                                       3000))
                                       :send-fn http-polling-send})]
         (json-response (naming-response conn)))
       fwinit
@@ -577,51 +583,81 @@
 ;; agents would be easier but heavier and agent clean up is harder
 (defn long-poll-send [comm-atom msg]
   (let [data (volatile! nil)
-        add-message #(if msg
-                       (update % :messages (fnil conj []) msg)
-                       %)]
+        add-message #(if-not msg % (update % :messages (fnil conj []) msg))]
     (swap! comm-atom
            (fn [{:keys [respond messages] :as comm}]
              (if (and respond (or (not-empty messages) msg))
-               ;; only reset in a send state
                (do (vreset! data (add-message comm)) {})
                (add-message comm))))
     (when-let [{:keys [respond messages]} @data]
-      (respond {:status 200
-                :headers {"Content-Type" "application/json"}
-                ;; TODO fix this
-                :body (json/write-str {:op :messages
-                                       :messages (mapv json/read-json messages)})}))))
+      ;; when this fails?
+      (respond
+       (json-response
+        (json/write-str {:op :messages
+                         :messages (mapv json/read-json messages)
+                         :connection-type :http-long-polling}))))))
 
 (defn long-poll-capture-respond [comm-atom respond]
   (let [has-messages (volatile! false)]
     (swap! comm-atom (fn [{:keys [messages] :as comm}]
                        (vreset! has-messages (not (empty? messages)))
                        (assoc comm :respond respond)))
-    (when has-messages
-      (long-poll-send comm-atom nil))))
+    (when @has-messages (long-poll-send comm-atom nil))))
+
+;; TODO this si an abstract part of sending a message and getting a
+;; response
+(defn ping [conn]
+  (let [prom (promise)
+        uuid (str (java.util.UUID/randomUUID))
+        listener (fn listen [msg]
+                   (when (= uuid (:uuid msg))
+                     (deliver prom true)
+                     (remove-listener listen)))]
+    (add-listener listener)
+    ((:send-fn conn) conn (json/write-str {:uuid uuid :op :ping}))
+    prom))
 
 (defn http-long-polling-connect [ring-request respond raise]
   (let [{:keys [fwsid fwinit]} (-> ring-request :query-string parse-query-string)]
-    ;; new connection create the connection
     (if (not (get @*connections* fwsid))
       (let [conn (create-connection!
                   ring-request
                   {:type :http-long-polling
                    ::comm-atom (atom {:messages []})
+                   :is-open-fn (fn [conn]
+                                 (not (> (- (System/currentTimeMillis)
+                                            (::alive-at conn))
+                                         20000)))
                    :send-fn (fn [conn msg]
                               (long-poll-send (::comm-atom conn) msg))})]
-        (respond {:status 200
-                  :headers {"Content-Type" "application/json"}
-                  :body (naming-response conn)}))
+        (respond (json-response (naming-response conn)))
+        ;; keep alive
+        ;; TODO this behavior should be configurable
+        ;; this might not be needed at all
+        (doto (Thread.
+               (let [connections *connections*]
+                 (fn []
+                   (let [msg (json/write-str {:op :ping :alive-check true})]
+                     (loop []
+                       (Thread/sleep 15000)
+                       (when-let [conn (get @connections fwsid)]
+                         (if-not (try
+                                   ;; TODO this short timeout could be a problem if an
+                                   ;; env has a long running eval
+                                   ;; this could reuse the eval timeout
+                                   (deref (ping conn) 2000 false)
+                                   (catch Throwable e
+                                     false))
+                           (swap! connections dissoc fwsid)
+                           (recur))))))))
+          (.setDaemon true)
+          (.start)))
       (let [conn (get @*connections* fwsid)]
         (if fwinit
           (do
             ;; TODO place this after the response?
             (swap! *connections* assoc-in [fwsid :created-at] (System/currentTimeMillis))
-            (respond {:status 200
-                      :headers {"Content-Type" "application/json"}
-                      :body (naming-response conn)}))
+            (respond (json-response (naming-response conn))))
           (do
             (long-poll-capture-respond (::comm-atom conn) respond)
             (swap! *connections* assoc-in [fwsid ::alive-at] (System/currentTimeMillis))))))))
@@ -649,14 +685,21 @@
 ;; ReplEnv implmentation
 ;; ---------------------------------------------------
 
+(defn open-connections []
+  (filter (fn [{:keys [is-open-fn] :as conn}]
+            (or (nil? is-open-fn) (is-open-fn conn)))
+          (vals @*connections*)))
+
 (defn connections-available [repl-env]
   (sort-by
    :created-at >
    (filter (or (some-> repl-env :connection-filter deref)
                identity)
-           (vals @*connections*))))
+           (open-connections))))
 
 (defn wait-for-connection [repl-env]
+  ;; TODO ensure all connections are open here
+  ;; end remove closed connections
   (loop []
     (when (empty? (connections-available repl-env))
       (Thread/sleep 500)
@@ -727,10 +770,10 @@
   (let [fw-server-run (resolve 'figwheel.server/run-server)
         ring-stack    (resolve 'figwheel.server/ring-stack)
         wrap-cors     (resolve 'figwheel.server/wrap-async-cors)]
-    (fw-server-run (ring-stack #(http-polling-middleware % "/figwheel-connect" connections))
+    (fw-server-run (ring-stack) #_(ring-stack #(http-polling-middleware % "/figwheel-connect" connections))
                    (assoc options
-                          #_:async-handlers
-                          #_{"/figwheel-connect"
+                          :async-handlers
+                          {"/figwheel-connect"
                            (-> (fn [ring-request send raise]
                                  (send  {:status 200
                                          :headers {"Content-Type" "text/html"}
@@ -854,7 +897,9 @@
 
   (mapv #(do #_(Thread/sleep 1)
              (evaluate re (str %)))
-        (range 10))
+        (range 100))
+
+(def x (ping (first (vals @*connections*))))
 
   (negotiate-id (:ring-request @scratch) @*connections*)
 
@@ -862,8 +907,17 @@
 
   (.isReady channel)
 
+  (ping (first (vals @*connections*))
+
+        )
+
   scratch
   *connections*
+  (deref
+
+
+   )
+  (swap! *connections* dissoc "d9ffc9ac-b2ec-4660-93c1-812afd1cb032")
   (parse-query-string (:query-string (:ring-request @scratch)))
   (negotiate-name (:ring-request @scratch) @*connections*)
   (reset! *connections* (atom {}))
