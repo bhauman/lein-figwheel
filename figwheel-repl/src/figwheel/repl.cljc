@@ -393,12 +393,15 @@
 ;; -----------------------------------------------------------
 
 (defn http-get [url]
-  (Promise. (fn [succ err]
-              (xhrio/send url (fn [e]
-                                (let [xhr (gobj/get e "target")]
-                                  (if (.isSuccess xhr)
-                                    (succ (.getResponseJson xhr))
-                                    (err xhr))))))))
+  (Promise.
+   (fn [succ err]
+     (xhrio/send
+      url
+      (fn [e]
+        (let [xhr (gobj/get e "target")]
+          (if (.isSuccess xhr)
+            (succ (.getResponseJson xhr))
+            (err xhr))))))))
 
 (declare http-connect http-connect*)
 
