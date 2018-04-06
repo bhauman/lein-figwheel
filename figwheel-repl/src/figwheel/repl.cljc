@@ -313,9 +313,10 @@
       connect-url'))
 
 (defn make-url [connect-url']
-  (doto (guri/parse (fill-url-template (or connect-url' connect-url)))
-    (.setQueryData (cond-> (.add (QueryData.) "fwsid" (or (session-id) (random-uuid)))
-                     (session-name) (.add "fwsname" (session-name))))))
+  (let [uri (guri/parse (fill-url-template (or connect-url' connect-url)))]
+    (cond-> (.add (.getQueryData uri) "fwsid" (or (session-id) (random-uuid)))
+      (session-name) (.add "fwsname" (session-name)))
+    uri))
 
 (defn exponential-backoff [attempt]
   (* 1000 (min (js/Math.pow 2 attempt) 20)))
