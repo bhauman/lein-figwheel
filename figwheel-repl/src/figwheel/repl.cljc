@@ -320,7 +320,7 @@
 (defn exponential-backoff [attempt]
   (* 1000 (min (js/Math.pow 2 attempt) 20)))
 
-(defn connect [& [websocket-url']]
+(defn ws-connect [& [websocket-url']]
   ;; TODO take care of forwarding print output to the connection
   (let [websocket (goog.net.WebSocket.)
         url (str (make-url websocket-url'))]
@@ -405,8 +405,11 @@
 (defn http-connect [& [connect-url']]
   (http-connect* 0 connect-url'))
 
-;; TODO single connect function that switches on schema
-;; TODO make sure that make url preserves QueryData
+(defn connect [& [connect-url']]
+  (let [url (string/trim (or connect-url' connect-url))]
+    (cond
+      (gstring/startsWith url "ws")   (ws-connect url)
+      (gstring/startsWith url "http") (http-connect url))))
 
 ))
 
