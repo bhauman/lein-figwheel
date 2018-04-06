@@ -223,14 +223,19 @@
 (goog-define connect-url "ws://localhost:3449/figwheel-connect")
 
 (def state (atom {}))
+
+;; returns nil if not available
 (def storage (storage-factory/createHTML5SessionStorage "figwheel.repl"))
 
-;; TODO make this work when session storage doesn't exist
-(defn ^:export session-name []
-  (.get storage (str ::session-name)))
+(defn set-state [k v]
+  (swap! state assoc k v)
+  (when storage (.set storage (str k) v)))
 
-(defn ^:export session-id []
-  (.get storage (str ::session-id)))
+(defn get-state [k]
+  (if storage (.get storage (str k)) (get @state k)))
+
+(defn ^:export session-name [] (get-state ::session-name))
+(defn ^:export session-id [] (get-state ::session-id))
 
 (defn response-for [{:keys [uuid websocket]} response-body]
   (cond->
@@ -253,14 +258,10 @@
 
 (defmulti message :op)
 (defmethod message "naming" [msg]
-  (when-let [sn (:session-name msg)]
-    (swap! state assoc :session-name sn)
-    (.set storage (str ::session-name) sn))
-  (when-let [sid (:session-id msg)]
-    (swap! state assoc :session-id sid)
-    (.set storage (str ::session-id) sid))
-  (glog/info logger (str "Session ID: "   (.get storage (str ::session-id))))
-  (glog/info logger (str "Session Name: " (.get storage (str ::session-name)))))
+  (when-let [sn  (:session-name msg)] (set-state ::session-name sn))
+  (when-let [sid (:session-id msg)]   (set-state ::session-id sid))
+  (glog/info logger (str "Session ID: "   (session-id)))
+  (glog/info logger (str "Session Name: " (session-name))))
 
 (defmethod message "ping" [msg] (respond-to msg true))
 
