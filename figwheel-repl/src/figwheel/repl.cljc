@@ -880,8 +880,7 @@
 ;; TODOS
 ;; - learn more about https
 ;; - make work on node and other platforms
-;; - make http polling connection as backup
-;; - make http polling connection a ring handler
+;; - make complete dev webserver stack
 
 (comment
   (def serve (run-server not-found {:port 9500 :join? false}))
@@ -895,9 +894,9 @@
 
   (evaluate re "33")
 
-  (mapv #(do #_(Thread/sleep 1)
-             (evaluate re (str %)))
-        (range 100))
+  (= (mapv #(:value (evaluate re (str %)))
+           (range 100))
+     (range 100))
 
 (def x (ping (first (vals @*connections*))))
 
