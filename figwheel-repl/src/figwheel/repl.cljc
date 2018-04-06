@@ -54,7 +54,7 @@
   (glog/log logger goog.debug.Logger.Level.FINEST msg))
 
 ;; TODO dev
-(.setLevel logger goog.debug.Logger.Level.FINE #_ST )
+(.setLevel logger goog.debug.Logger.Level.FINEST )
 
 ;; --------------------------------------------------------------
 ;; Bootstrap goog require reloading
@@ -292,7 +292,7 @@
   (glog/info logger (str "Session ID: "   (session-id)))
   (glog/info logger (str "Session Name: " (session-name))))
 
-(defmethod message "ping" [msg] (respond-to msg true))
+(defmethod message "ping" [msg] (respond-to msg {:pong true}))
 
 (def ^:dynamic *eval-js* js/eval)
 
@@ -619,6 +619,30 @@
 ;; ------------------------------------------------------------------
 ;; http async polling - long polling
 ;; ------------------------------------------------------------------
+;; long polling is a bit complex - but this currently appears to work as well
+;; as websockets, it is heavier overall and much harder to determine when it is closed
+
+(defn ping [conn] (send-for-response [conn] {:op :ping}))
+
+;; could make no-response behavior configurable
+(defn ping-thread [connections fwsid {:keys [interval
+                                             ping-timeout]
+                                      :or {interval 15000
+                                           ping-timeout 2000}}]
+  (doto (Thread.
+         (fn []
+           (loop []
+             (Thread/sleep interval)
+             (when-let [conn (get @connections fwsid)]
+               (if-not (try
+                         ;; TODO consider re-trying a couple times on failure
+                         (deref (ping conn) ping-timeout false)
+                         (catch Throwable e
+                           false))
+                 (swap! connections dissoc fwsid)
+                 (recur))))))
+    (.setDaemon true)
+    (.start)))
 
 ;; agents would be easier but heavier and agent clean up is harder
 (defn long-poll-send [comm-atom msg]
@@ -644,17 +668,31 @@
                        (assoc comm :respond respond)))
     (when @has-messages (long-poll-send comm-atom nil))))
 
-;; TODO this is an abstract part of sending a message and getting a
-;; response
-(defn ping [conn]
-  (let [prom (promise)
-        uuid (str (java.util.UUID/randomUUID))
-        listener (fn listen [msg]
-                   (when (= uuid (:uuid msg))
-                     (deliver prom true)
-                     (remove-listener listen)))]
-    (add-listener listener)
-    ((:send-fn conn) conn (json/write-str {:uuid uuid :op :ping}))
+;; may turn this into a multi method
+(defn connection-send [{:keys [send-fn] :as conn} data]
+  (send-fn conn data))
+
+(defn send-for-response [connections msg]
+  ;; TODO remove all listeners after single response?
+  ;; or have one listener and one uuid
+  (let [prom (promise)]
+    (doseq [conn connections]
+      (let [uuid (str (java.util.UUID/randomUUID))
+            listener (fn listen [msg]
+                       (when (= uuid (:uuid msg))
+                         (when-let [result (:response msg)]
+                           (deliver prom
+                                    (if (instance? clojure.lang.IMeta result)
+                                      (vary-meta result assoc ::message msg)
+                                      result)))
+                         (remove-listener listen)))]
+        (add-listener listener)
+        (connection-send
+         conn
+         (json/write-str
+          (-> (select-keys conn [:session-id :session-name])
+              (merge msg)
+              (assoc :uuid uuid))))))
     prom))
 
 (defn http-long-polling-connect [ring-request respond raise]
@@ -671,34 +709,23 @@
                    :send-fn (fn [conn msg]
                               (long-poll-send (::comm-atom conn) msg))})]
         (respond (json-response (naming-response conn)))
-        ;; keep alive
-        ;; TODO this behavior should be configurable
-        ;; this might not be needed at all
-        ;; TODO abstract this to a fn
-        (doto (Thread.
-               (let [connections *connections*]
-                 (fn []
-                   (let [msg (json/write-str {:op :ping :alive-check true})]
-                     (loop []
-                       (Thread/sleep 15000)
-                       (when-let [conn (get @connections fwsid)]
-                         (if-not (try
-                                   ;; TODO this short timeout could be a problem if an
-                                   ;; env has a long running eval
-                                   ;; this could reuse the eval timeout
-                                   (deref (ping conn) 2000 false)
-                                   (catch Throwable e
-                                     false))
-                           (swap! connections dissoc fwsid)
-                           (recur))))))))
-          (.setDaemon true)
-          (.start)))
+
+        ;; keep alive with ping thread
+        ;; This behavior is much more subtle that it appears, it is far better
+        ;; than webserver triggered async timeout because it doesn't
+        ;; leave behind an orphaned respond-fn
+        ;; also it helps us remove lost connections, as I haven't found
+        ;; a way to discover if an HTTPChannel is closed on the remote endpoint
+
+        ;; TODO a short ping-timeout could be a problem if an
+        ;; env has a long running eval
+        ;; this could reuse the eval timeout
+        (ping-thread *connections* fwsid {:interval 15000 :ping-timeout 2000}))
       (let [conn (get @*connections* fwsid)]
         (if fwinit
           (do
-            ;; TODO place this after the response?
-            (swap! *connections* assoc-in [fwsid :created-at] (System/currentTimeMillis))
-            (respond (json-response (naming-response conn))))
+            (respond (json-response (naming-response conn)))
+            (swap! *connections* assoc-in [fwsid :created-at] (System/currentTimeMillis)))
           (do
             (long-poll-capture-respond (::comm-atom conn) respond)
             (swap! *connections* assoc-in [fwsid ::alive-at] (System/currentTimeMillis))))))))
@@ -744,30 +771,8 @@
       (Thread/sleep 500)
       (recur))))
 
-;; may turn this into a multi method
-(defn connection-send [{:keys [send-fn] :as conn} data]
-  (send-fn conn data))
-
 (defn send-for-eval [connections js]
-  (let [prom (promise)]
-    (doseq [conn connections]
-      (let [uuid (str (java.util.UUID/randomUUID))
-            listener (fn listen [msg]
-                       (when (= uuid (:uuid msg))
-                         (when-let [result (:response msg)]
-                           (deliver prom (vary-meta
-                                          result
-                                          assoc ::message msg)))
-                         (remove-listener listen)))]
-        (add-listener listener)
-        (connection-send
-         conn
-         (json/write-str
-          (assoc (select-keys conn [:session-id :session-name])
-                 :uuid uuid
-                 :op :eval
-                 :code js)))))
-    prom))
+  (send-for-response connections {:op :eval :code js}))
 
 (defn eval-connections [{:keys [focus-session-name
                                 broadcast] :as repl-env}]
@@ -785,16 +790,37 @@
                         connections))]
     (if broadcast connections (take 1 connections))))
 
+(defn trim-last-newline [args]
+  (if-let [args (not-empty (filter string? args))]
+    (conj (vec (butlast args))
+          (string/trim-newline (last args)))
+    args))
+
+(defn print-to-stream [stream args]
+  (condp = stream
+    :out (apply println args)
+    :err (binding [*out* *err*]
+           (apply println args))))
+
+(defn repl-env-print [repl-env stream args]
+  (when-let [args (not-empty (filter string? args))]
+    (when (and (:out-print-fn repl-env) (= :out stream))
+      (apply (:out-print-fn repl-env) args))
+    (when (and (:err-print-fn repl-env) (= :err stream))
+      (apply (:err-print-fn repl-env) args))
+    (let [args (trim-last-newline args)]
+      (when (:print-to-output-streams repl-env)
+        (if-let [bprinter @(:bound-printer repl-env)]
+          (bprinter stream args)
+          (print-to-stream stream args))))))
+
 (let [timeout-val (Object.)]
   (defn evaluate [{:keys [focus-session-name ;; just here for consideration
                           repl-timeout
                           broadcast] :as repl-env} js]
     (reset! (:bound-printer repl-env)
             (bound-fn [stream args]
-              (condp = stream
-                :out (apply println args)
-                :err (binding [*out* *err*]
-                       (apply println args)))))
+              (print-to-stream stream args)))
     (wait-for-connection repl-env)
     (let [ev-connections (eval-connections repl-env)
           result (let [v (deref (send-for-eval ev-connections js)
@@ -807,7 +833,7 @@
                      v))]
       (when-let [out (:out result)]
         (when (not (string/blank? out))
-          (println (string/trim-newline out))))
+          (repl-env-print repl-env :out [(string/trim-newline out)])))
       result)))
 
 (defn run-default-server [options connections]
@@ -852,18 +878,7 @@
                     (let [args (if-not (= 1 (count session-ids))
                                  (cons (str "[Session:-----:" session-name "]\n") args)
                                  args)]
-                      ;; first handle out-print-fn
-                      (when (and (:out-print-fn repl-env) (= :out stream))
-                        (apply (:out-print-fn repl-env) args))
-                      (when (and (:err-print-fn repl-env) (= :err stream))
-                        (apply (:err-print-fn repl-env) args))
-                      (when (:print-to-output-streams repl-env)
-                        (if-let [bprinter @(:bound-printer repl-env)]
-                          (bprinter stream args)
-                          (condp = stream
-                            :out (apply println args)
-                            :err (binding [*out* *err*]
-                                   (apply println args))))))))))))]
+                      (repl-env-print repl-env stream args))))))))]
     (reset! (:printing-listener repl-env) print-listener)
     (add-listener print-listener))
   ;; not sure about this yet
@@ -903,6 +918,7 @@
                        port 9500
                        host "localhost"} :as opts}]
   (merge (FigwheelReplEnv.)
+         ;; TODO move to one atom
          {:server-kill (atom nil)
           :printing-listener (atom nil)
           :bound-printer (atom nil)
@@ -916,6 +932,8 @@
           ;; :last-eval-session-ids (atom nil)
           :focus-session-name (atom nil)
           :broadcast false
+          :ring-handler nil
+          :ring-stack nil
           :port port
           :host host}
          opts))
@@ -977,7 +995,7 @@
   (cljs.repl/-tear-down re)
 
   (connections-available re)
-
+  (open-connections)
   (evaluate re "33")
 
   (evaluate re "setTimeout(function() {cljs.core.prn(\"hey hey\")}, 1000);")
@@ -994,11 +1012,12 @@
 
   (.isReady channel)
 
-  (ping (first (vals @*connections*))
+  (ping ( (vals @*connections*))
 
         )
+  (swap! *connections* dissoc "99785176-1793-4814-938a-93bf071acd2f")
 
-  (swap! scratch dissoc :print-msg?)
+  (swap! scratch dissoc :print-msg)
   scratch
   *connections*
   (deref
