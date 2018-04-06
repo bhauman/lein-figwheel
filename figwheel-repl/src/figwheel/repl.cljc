@@ -213,7 +213,6 @@
                                             (r true))))))))]
      (swap! reload-promise-chain next-promise-fn))))
 
-;; TODO fix figwheel-core to use this
 (defn ^:export after-reloads [f]
   (swap! reload-promise-chain #(.then % (fn [_] (Promise. f)))))
 

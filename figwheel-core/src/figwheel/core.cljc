@@ -262,10 +262,9 @@
                 (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
                 (finally
                   (swap! state assoc ::reload-state {}))))]
-        (if (and (exists? js/figwheel.client)
-                 (exists? js/figwheel.client.file_reloading)
-                 (exists? js/figwheel.client.file_reloading.after_reloads))
-          (js/figwheel.client.file_reloading.after_reloads after-reload-fn)
+        (if (and (exists? js/figwheel.repl)
+                 (exists? js/figwheel.repl.after_reloads))
+          (js/figwheel.repl.after_reloads after-reload-fn)
           (js/setTimeout after-reload-fn 100)))
       nil)))
 
