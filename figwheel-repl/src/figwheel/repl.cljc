@@ -8,6 +8,8 @@
               [goog.net.jsloader :as loader]
               [goog.net.XhrIo :as xhrio]
               [goog.log :as glog]
+              [goog.array :as garray]
+              [goog.json :as gjson]
               [goog.html.legacyconversions :as conv]
               [goog.userAgent.product :as product]]
        :clj [[clojure.data.json :as json]
@@ -217,6 +219,34 @@
   (swap! reload-promise-chain #(.then % (fn [_] (Promise. f)))))
 
 ;; --------------------------------------------------------------
+;; REPL print forwarding
+;; --------------------------------------------------------------
+
+(goog-define print-output "console,repl")
+
+(defn print-receivers [outputs]
+  (->> (string/split outputs #",")
+       (map string/trim)
+       (filter (complement string/blank?))
+       (map keyword)
+       distinct))
+
+(defmulti out-print (fn [k args] k))
+(defmethod out-print :console [_ args]
+  (.apply (.-log js/console) js/console (garray/clone (to-array args))))
+
+(defmulti err-print (fn [k args] k))
+(defmethod err-print :console [_ args]
+  (.apply (.-error js/console) js/console (garray/clone (to-array args))))
+
+(defn setup-printing! []
+  (let [printers (print-receivers print-output)]
+    (set-print-fn! (fn [& args] (doseq [p printers] (out-print p args))))
+    (set-print-err-fn! (fn [& args] (doseq [p printers] (err-print p args))))))
+
+#_ (printing-receivers "console,repl")
+
+;; --------------------------------------------------------------
 ;; Websocket REPL
 ;; --------------------------------------------------------------
 
@@ -237,13 +267,12 @@
 (defn ^:export session-name [] (get-state ::session-name))
 (defn ^:export session-id [] (get-state ::session-id))
 
-(defn response-for [{:keys [uuid websocket]} response-body]
+(defn response-for [{:keys [uuid]} response-body]
   (cond->
-        {:uuid uuid
-         :session-name (session-name)
-         :response response-body}
-    (and (nil? websocket) (session-id))
-    (assoc :session-id (session-id))))
+      {:session-id   (session-id)
+       :session-name (session-name)
+       :response response-body}
+    uuid (assoc :uuid uuid)))
 
 (defn respond-to [{:keys [websocket http-url] :as old-msg} response-body]
   (let [response (response-for old-msg response-body)]
@@ -268,6 +297,7 @@
 (def ^:dynamic *eval-js* js/eval)
 
 (let [ua-product-fn
+      ;; TODO make sure this works on other platforms
       #(cond
          (not (nil? goog/nodeGlobalRequire)) :chrome
          product/SAFARI    :safari
@@ -278,6 +308,7 @@
     (let [ua-product (ua-product-fn)]
       (try
         (let [sb (js/goog.string.StringBuffer.)]
+          ;; TODO capture err as well?
           (binding [cljs.core/*print-newline* false
                     cljs.core/*print-fn* (fn [x] (.append sb x))]
             (let [result-value (*eval-js* code)]
@@ -321,8 +352,21 @@
 (defn exponential-backoff [attempt]
   (* 1000 (min (js/Math.pow 2 attempt) 20)))
 
+(defn hook-repl-printing-output! [respond-msg]
+  (defmethod out-print :repl [_ args]
+    (glog/info logger (str "Printing" (pr-str args)))
+    (respond-to respond-msg
+                {:output true
+                 :stream :out
+                 :args (mapv #(if (string? %) % (gjson/serialize %)) args)}))
+  (defmethod err-print :repl [_ args]
+    (respond-to respond-msg
+                {:output true
+                 :stream :err
+                 :args (mapv #(if (string? %) % (gjson/serialize %)) args)}))
+  (setup-printing!))
+
 (defn ws-connect [& [websocket-url']]
-  ;; TODO take care of forwarding print output to the connection
   (let [websocket (goog.net.WebSocket.)
         url (str (make-url websocket-url'))]
     (patch-goog-base)
@@ -339,6 +383,7 @@
                                  (glog/error logger e))))))
       (.addEventListener goog.net.WebSocket.EventType.OPENED
                          (fn [e]
+                           (hook-repl-printing-output! {:websocket websocket})
                            (js/console.log "OPENED")
                            (js/console.log e)))
       (.open url))))
@@ -390,6 +435,8 @@
              (let [typ (gobj/get msg "connection-type")]
                (glog/info logger (str "Connected: " typ))
                (msg-fn msg)
+               ;; after connecting setup printing redirects
+               (hook-repl-printing-output! {:http-url surl})
                (if (= typ "http-long-polling")
                  (long-poll msg-fn connect-url')
                  (poll msg-fn connect-url'))))
