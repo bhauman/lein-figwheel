@@ -51,7 +51,7 @@
 (defn debug [msg]
   (glog/log logger goog.debug.Logger.Level.FINEST msg))
 
-;; dev
+;; TODO dev
 (.setLevel logger goog.debug.Logger.Level.FINE #_ST )
 
 ;; --------------------------------------------------------------
@@ -215,8 +215,7 @@
 
 ;; TODO fix figwheel-core to use this
 (defn ^:export after-reloads [f]
-  ;; TODO simplify and verify it works
-  (swap! reload-promise-chain #(.then % (fn [_] (Promise. (fn [r _] (f) (r true)))))))
+  (swap! reload-promise-chain #(.then % (fn [_] (Promise. f)))))
 
 ;; --------------------------------------------------------------
 ;; Websocket REPL
@@ -454,9 +453,6 @@
                   (rand-nth (seq (available-names connections))))]
     [sid sname]))
 
-;; TODO if connection exists ensure connection is open
-;; or perhaps filter all connections to list of open connections
-;; here
 (defn create-connection! [ring-request options]
   (let [[sess-id sess-name] (negotiate-id ring-request @*connections*)
         conn (merge (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
@@ -518,10 +514,6 @@
    :headers {"Content-Type" "application/json"}
    :body json-body})
 
-;; TODO perhaps all responses should return connection type
-;; TODO figure out is-open-function for http long and short polling
-;; TODO long polling timeout
-
 (defn http-polling-send [conn data]
   (swap! (::comm-atom conn) update :messages (fnil conj []) data))
 
@@ -574,12 +566,6 @@
 ;; http async polling - long polling
 ;; ------------------------------------------------------------------
 
-;; TODO explore shorter long polling timeouts
-;; TODO make long polling client reconnect when server isn't present
-;; TODO perhaps different endpoint for long polling?
-
-;; TODO probably better to base the simple polling on a similar pattern
-
 ;; agents would be easier but heavier and agent clean up is harder
 (defn long-poll-send [comm-atom msg]
   (let [data (volatile! nil)
@@ -604,7 +590,7 @@
                        (assoc comm :respond respond)))
     (when @has-messages (long-poll-send comm-atom nil))))
 
-;; TODO this si an abstract part of sending a message and getting a
+;; TODO this is an abstract part of sending a message and getting a
 ;; response
 (defn ping [conn]
   (let [prom (promise)
@@ -634,6 +620,7 @@
         ;; keep alive
         ;; TODO this behavior should be configurable
         ;; this might not be needed at all
+        ;; TODO abstract this to a fn
         (doto (Thread.
                (let [connections *connections*]
                  (fn []
@@ -698,8 +685,6 @@
            (open-connections))))
 
 (defn wait-for-connection [repl-env]
-  ;; TODO ensure all connections are open here
-  ;; end remove closed connections
   (loop []
     (when (empty? (connections-available repl-env))
       (Thread/sleep 500)
