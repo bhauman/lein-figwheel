@@ -769,29 +769,35 @@
                  :code js)))))
     prom))
 
+(defn eval-connections [{:keys [focus-session-name
+                                broadcast] :as repl-env}]
+  (let [connections (connections-available repl-env)
+          ;; session focus
+        connections (if-let [focus-conn
+                             (and @focus-session-name
+                                  (first (filter (fn [{:keys [session-name]}]
+                                                   (= @focus-session-name
+                                                      session-name))
+                                                 connections)))]
+                      [focus-conn]
+                      (do
+                        (reset! focus-session-name nil)
+                        connections))]
+    (if broadcast connections (take 1 connections))))
+
 (let [timeout-val (Object.)]
   (defn evaluate [{:keys [focus-session-name ;; just here for consideration
                           repl-timeout
                           broadcast] :as repl-env} js]
+    (reset! (:bound-printer repl-env)
+            (bound-fn [stream args]
+              (condp = stream
+                :out (apply println args)
+                :err (binding [*out* *err*]
+                       (apply println args)))))
     (wait-for-connection repl-env)
-    ;; get the correct connection
-    (let [connections (connections-available repl-env)
-          ;; session focus
-          connections (if-let [focus-conn
-                               (and @focus-session-name
-                                    (first (filter (fn [{:keys [session-name]}]
-                                                     (= @focus-session-name
-                                                        session-name))
-                                                   connections)))]
-                        [focus-conn]
-                        (do
-                          (reset! focus-session-name nil)
-                          connections))
-          youngest-connection (first connections)
-          result (let [v (deref (send-for-eval (if broadcast
-                                                 connections
-                                                 [youngest-connection])
-                                               js)
+    (let [ev-connections (eval-connections repl-env)
+          result (let [v (deref (send-for-eval ev-connections js)
                                 (or repl-timeout 8000)
                                 timeout-val)]
                    (if (= timeout-val v)
@@ -824,35 +830,68 @@
                           ::abstract-websocket-connection
                           (abstract-websocket-connection connections)))))
 
+(defn setup [repl-env opts]
+  (when (and
+         (or (not (bound? #'*server*))
+             (nil? *server*))
+         (nil? @(:server-kill repl-env)))
+    (let [server (run-default-server
+                  ;; TODO merge in options here for ring-handler
+                  {:port 9500 :join? false}
+                  *connections*)]
+      (reset! (:server-kill repl-env) (fn [] (.stop server)))))
+  ;; printing
+  (let [print-listener
+        (bound-fn [{:keys [session-id session-name uuid response] :as msg}]
+          (when (and session-id (not uuid) (get response :output))
+            (let [session-ids (set (map :session-id (eval-connections repl-env)))]
+              (when (session-ids session-id)
+                (let [{:keys [stream args]} response]
+                  (when (and stream (not-empty args))
+                    ;; when printing a result from several sessions mark it
+                    (let [args (if-not (= 1 (count session-ids))
+                                 (cons (str "[Session:-----:" session-name "]\n") args)
+                                 args)]
+                      ;; first handle out-print-fn
+                      (when (and (:out-print-fn repl-env) (= :out stream))
+                        (apply (:out-print-fn repl-env) args))
+                      (when (and (:err-print-fn repl-env) (= :err stream))
+                        (apply (:err-print-fn repl-env) args))
+                      (when (:print-to-output-streams repl-env)
+                        (if-let [bprinter @(:bound-printer repl-env)]
+                          (bprinter stream args)
+                          (condp = stream
+                            :out (apply println args)
+                            :err (binding [*out* *err*]
+                                   (apply println args))))))))))))]
+    (reset! (:printing-listener repl-env) print-listener)
+    (add-listener print-listener))
+  ;; not sure about this yet
+    #_(doseq [url (:open-urls this)]
+        (try (browse/browse-url url)
+             (catch Throwable e
+               (->> (str (when-let [m (.getMessage e)] (str ": " m)))
+                    (format "Failed to open url %s %s" url)
+                    println)))))
+
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
   (-setup [this opts]
-    (when (and
-           (or (not (bound? #'*server*))
-               (nil? *server*))
-           (nil? @(:server-kill this)))
-      (let [server (run-default-server
-                    ;; TODO merge in options here for ring-handler
-                    {:port 9500 :join? false}
-                    *connections*)]
-        (reset! (:server-kill this) (fn [] (.stop server)))))
-    (doseq [url (:open-urls this)]
-      (try (browse/browse-url url)
-           (catch Throwable e
-             (->> (str (when-let [m (.getMessage e)] (str ": " m)))
-                  (format "Failed to open url %s %s" url)
-                  println))))
+    (setup this opts)
     #_(wait-for-connection this))
   (-evaluate [this _ _  js]
+    ;; print where eval occurs
     (evaluate this js))
   (-load [this provides url]
     ;; load a file into all the appropriate envs
     (when-let [js-content (try (slurp url) (catch Throwable t))]
       (evaluate this js-content)))
-  (-tear-down [{:keys [server-kill]}]
+  (-tear-down [{:keys [server-kill printing-listener]}]
     (when-let [kill-fn @server-kill]
       (reset! server-kill nil)
-      (kill-fn)))
+      (kill-fn))
+    (when-let [listener @printing-listener]
+      (remove-listener listener)))
   cljs.repl/IReplEnvOptions
   (-repl-options [this])
   cljs.repl/IParseStacktrace
@@ -865,8 +904,16 @@
                        host "localhost"} :as opts}]
   (merge (FigwheelReplEnv.)
          {:server-kill (atom nil)
+          :printing-listener (atom nil)
+          :bound-printer (atom nil)
+          ;; helpful for nrepl so you can easily
+          ;; translate output into messages
+          :out-print-fn nil
+          :err-print-fn nil
+          :print-to-output-streams true
           :open-urls nil
           :connection-filter (atom connection-filter)
+          ;; :last-eval-session-ids (atom nil)
           :focus-session-name (atom nil)
           :broadcast false
           :port port
@@ -933,6 +980,8 @@
 
   (evaluate re "33")
 
+  (evaluate re "setTimeout(function() {cljs.core.prn(\"hey hey\")}, 1000);")
+
   (= (mapv #(:value (evaluate re (str %)))
            (range 100))
      (range 100))
@@ -949,6 +998,7 @@
 
         )
 
+  (swap! scratch dissoc :print-msg?)
   scratch
   *connections*
   (deref
