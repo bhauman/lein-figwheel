@@ -622,6 +622,8 @@
 ;; long polling is a bit complex - but this currently appears to work as well
 ;; as websockets, it is heavier overall and much harder to determine when it is closed
 
+(declare send-for-response)
+
 (defn ping [conn] (send-for-response [conn] {:op :ping}))
 
 ;; could make no-response behavior configurable
