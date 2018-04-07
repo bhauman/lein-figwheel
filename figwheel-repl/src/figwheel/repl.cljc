@@ -840,23 +840,27 @@
 
 (defn run-default-server [options connections]
   (require 'figwheel.server)
-  (let [fw-server-run (resolve 'figwheel.server/run-server)
-        ring-stack    (resolve 'figwheel.server/ring-stack)
-        wrap-cors     (resolve 'figwheel.server/wrap-async-cors)]
-    (fw-server-run (ring-stack) #_(ring-stack #(http-polling-middleware % "/figwheel-connect" connections))
-                   (assoc options
-                          :async-handlers
-                          {"/figwheel-connect"
-                           (-> (fn [ring-request send raise]
-                                 (send  {:status 200
-                                         :headers {"Content-Type" "text/html"}
-                                         :body "Received Yep"}))
-                               (asyc-http-polling-middleware "/figwheel-connect" connections)
-                               (wrap-cors
-                                :access-control-allow-origin #".*"
-                                :access-control-allow-methods [:head :options :get :put :post :delete :patch]))}
-                          ::abstract-websocket-connection
-                          (abstract-websocket-connection connections)))))
+  (require 'figwheel.server.ring)
+  (let [default-run-server (resolve 'figwheel.server/run-server)
+        default-ring-stack (resolve 'figwheel.server.ring/default-stack)
+        wrap-async-cors    (resolve 'figwheel.server.ring/wrap-async-cors)]
+    (default-run-server
+     (get options :ring-stack
+          (default-ring-stack (:ring-handler options)
+                              (:ring.middleware.defaults/wrap-defaults options)))
+     (assoc options
+            :async-handlers
+            {"/figwheel-connect"
+             (-> (fn [ring-request send raise]
+                   (send  {:status 200
+                           :headers {"Content-Type" "text/html"}
+                           :body "Received Yep"}))
+                 (asyc-http-polling-middleware "/figwheel-connect" connections)
+                 (wrap-async-cors
+                  :access-control-allow-origin #".*"
+                  :access-control-allow-methods [:head :options :get :put :post :delete :patch]))}
+            ::abstract-websocket-connection
+            (abstract-websocket-connection connections)))))
 
 (defn setup [repl-env opts]
   (when (and

@@ -5,6 +5,8 @@
 
   :profiles {:dev {:dependencies [[ring "1.6.3"]
                                   [ring-cors "0.1.11"]
+                                  [ring/ring-defaults "0.3.1"]
+                                  [co.deps/ring-etag-middleware "0.2.0"]
                                   [org.eclipse.jetty.websocket/websocket-servlet "9.2.21.v20170120"]
                                   [org.eclipse.jetty.websocket/websocket-server "9.2.21.v20170120"]]}}
   )

@@ -1,77 +1,13 @@
 (ns figwheel.server
   (:require
    [clojure.string :as string]
-   [ring.middleware.cors :as cors]
+   [ring.middleware.stacktrace :refer [wrap-stacktrace]]
+   [clojure.java.browse :refer [browse-url]]
    [figwheel.server.jetty-websocket :as jtw]))
-
-;; ---------------------------------------------------
-;; Async CORS
-;; ---------------------------------------------------
-
-(defn handle-async-cors [handler request respond' raise' access-control response-handler]
-  (if (and (cors/preflight? request) (cors/allow-request? request access-control))
-    (let [blank-response {:status 200
-                          :headers {}
-                          :body "preflight complete"}]
-      (respond' (response-handler request access-control blank-response)))
-    (if (cors/origin request)
-      (if (cors/allow-request? request access-control)
-        (handler request (fn [response]
-                           (respond' (response-handler request access-control response)))
-                 raise')
-        (handler request respond' raise'))
-      (handler request respond' raise'))))
-
-(defn wrap-async-cors
-  "Middleware that adds Cross-Origin Resource Sharing headers.
-  (def handler
-    (-> routes
-        (wrap-cors
-         :access-control-allow-origin #\"http://example.com\"
-         :access-control-allow-methods [:get :put :post :delete])))
-  "
-  [handler & access-control]
-  (let [access-control (cors/normalize-config access-control)]
-    (fn [request respond' raise']
-      (handle-async-cors handler request respond' raise' access-control cors/add-access-control))))
-
-#_((wrap-async-cors
- (fn [request resp' rais']
-   (resp' {:status 200
-           :headers {}
-           :body "result"})
-   )
- :access-control-allow-origin #".*"
- :access-control-allow-methods [:head :options :get :put :post :delete :patch])
- request
- (fn [res]
-   (prn res))
- identity)
-
-;; ---------------------------------------------------
-;; Default server
-;; ---------------------------------------------------
-
-;; TODO send a fun default html from resources with inline images
-(defn not-found [r]
-  {:status 404
-   :headers {"Content-Type" "text/html"}
-   :body "Figwheel Server: Route Not found"})
-
-;; TODO have to fill this out with default server functionality
-;; TODO have to consider the cleint supplying this function and or a
-;; ring handler to run inside of it
-(defn ring-stack [& [ring-middleware]]
-  (-> not-found
-      ((or ring-middleware (fn [h] (fn [r] (h r)))))
-      #_(http-polling-middleware)
-      (cors/wrap-cors
-       :access-control-allow-origin #".*"
-       :access-control-allow-methods [:head :options :get :put :post :delete :patch])))
 
 ;; TODO this could be smarter and introspect the environment
 ;; to see what server is available??
-(defn run-server [handler options]
+(defn run-server* [handler options]
   (jtw/run-jetty
    handler
    (cond-> options
@@ -81,34 +17,84 @@
                (jtw/adapt-figwheel-ws
                 (:figwheel.repl/abstract-websocket-connection options))))))
 
+;; taken from ring server
+(defn try-port
+  "Try running a server under one port or a list of ports. If a list of ports
+  is supplied, try each port until it succeeds or runs out of ports."
+  [port run-server]
+  (if-not (sequential? port)
+    (run-server port)
+    (try (run-server (first port))
+         (catch java.net.BindException ex
+           (if-let [port (next port)]
+             (try-port port run-server)
+             (throw ex))))))
 
+(defn add-stacktraces [handler options]
+  (if (get options :stacktraces? true)
+    ((or (:stacktrace-middleware options)
+         wrap-stacktrace) handler)
+    handler))
+
+(defn server-port
+  "Get the port the server is listening on."
+  [server]
+  (-> (.getConnectors server)
+      (first)
+      (.getPort)))
+
+(defn server-host
+  "Get the host the server is bound to."
+  [server]
+  (-> (.getConnectors server)
+      (first)
+      (.getHost)
+      (or "localhost")))
+
+(defn- open-browser-to [server options]
+  (browse-url
+   (str "http://" (server-host server) ":" (server-port server) (:browser-uri options))))
+
+#_((meta #'ring.jetty.adapter/run-jetty))
+
+(defn run-server
+  "Start a web server to run a handler.
+   Takes all of the ring.jetty.adapter/run-jetty options
+
+   Additional options:
+    :port                  - the port or ports to try to run the server on
+    :init                  - a function to run before the server starts
+    :open-browser?         - if true, open a web browser after the server starts
+    :browser-uri           - the path to browse to when opening a browser
+    :stacktraces?          - if true, display stacktraces when an exception is thrown
+    :stacktrace-middleware - a middleware that handles stacktraces"
+  {:arglists '([handler] [handler options])}
+  [handler & [{:keys [init destroy join? port] :as options}]]
+  (let [options (assoc options :join? false) ;; join needs to be false
+        destroy (if destroy (memoize destroy))
+        handler (add-stacktraces handler options)]
+    (if init (init))
+    (try-port port
+      (fn [port']
+        (let [options (assoc options :port port')
+              server  (run-server* handler options)]
+          (println "Figwheel REPL: Started server on port" (server-port server))
+          (if (:open-browser? options)
+            (open-browser-to server options))
+          server)))))
 
 (comment
-  (def request-data
-    {:ssl-client-cert nil,
-    :protocol "HTTP/1.1",
-    :remote-addr "0:0:0:0:0:0:0:1",
-    :headers
-    {"cache-control" "max-age=0",
-     "accept"
-     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-     "upgrade-insecure-requests" "1",
-     "connection" "keep-alive",
-     "user-agent"
-     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
-     "host" "localhost:9500",
-     "accept-encoding" "gzip, deflate, br",
-     "accept-language" "en-US,en;q=0.9,fr;q=0.8,la;q=0.7"},
-    :server-port 9500,
-     :content-length nil,
-     :content-type nil,
-    :character-encoding nil,
-    :uri "/figwheel-connect",
-     :server-name "localhost",
-    :query-string nil,
-     :body "hey"
-     :scheme :http,
-     :request-method :get})
+  (require 'figwheel.server.ring)
+
+  (def scratch (atom {}))
+
+  (def serve (jtw/run-jetty
+              (figwheel.server.ring/default-stack not-found {})
+              {:port 9500 :join? false}))
+
+  (.stop serve)
+
+
 
 
   )
