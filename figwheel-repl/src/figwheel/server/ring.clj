@@ -5,6 +5,7 @@
    [ring.middleware.cors :as cors]
    [ring.middleware.defaults]
    [ring.middleware.head :as head]
+   [ring.middleware.stacktrace]   
    [ring.middleware.not-modified :as not-modified]
    [ring.util.mime-type :as mime]
    [ring.util.response :refer [resource-response] :as response]))
@@ -41,26 +42,8 @@
       (handle-async-cors handler request respond' raise' access-control cors/add-access-control))))
 
 ;; ---------------------------------------------------
-;; Default server
+;; Default Ring Stack
 ;; ---------------------------------------------------
-
-#_(defn log-output-to-figwheel-server-log [handler log-writer]
-  (fn [request]
-    (bind-logging
-     log-writer
-     (try
-       (handler request)
-       (catch Throwable e
-         (let [message (.getMessage e)
-               trace (with-out-str (stack/print-cause-trace e))]
-           (println message)
-           (println trace)
-           {:status 400
-            :headers {"Content-Type" "text/html"}
-            :body (str "<h1>" message "</h1>"
-                       "<pre>"
-                       trace
-                       "</pre>")}))))))
 
 ;; File caching strategy:
 ;;
@@ -113,7 +96,6 @@
 
 (defn wrap-figwheel-defaults [ring-handler]
   (-> ring-handler
-      fix-index-mime-type
       (wrap-no-cache)
       (etag/wrap-file-etag)
       (not-modified/wrap-not-modified)
@@ -146,25 +128,55 @@
           (handler request))
         (handler request)))))
 
-(defn stack [ring-handler config]
-  (-> (handle-first ring-handler not-found)
-      (resource-root-index (get-in config [:static :resources]))
-      (ring.middleware.defaults/wrap-defaults config)
-      wrap-figwheel-defaults))
+(defn stack [ring-handler {:keys [::dev responses] :as config}]
+  (let [{:keys [:co.deps.ring-etag-middleware/wrap-file-etag
+                :ring.middleware.cors/wrap-cors
+                :ring.middleware.not-modified/wrap-not-modified
+                :ring.middleware.stacktrace/wrap-stacktrace]} dev]
+    (cond-> (handle-first ring-handler not-found)
+      (::resource-root-index dev) (resource-root-index (get-in config [:static :resources]))
+      true                        (ring.middleware.defaults/wrap-defaults config)
+      (dev ::fix-index-mime-type) fix-index-mime-type
+      (dev ::wrap-no-cache)       wrap-no-cache
+      wrap-file-etag              etag/wrap-file-etag
+      wrap-not-modified           not-modified/wrap-not-modified
+      wrap-cors                   (cors/wrap-cors
+                                   :access-control-allow-origin #".*"
+                                   :access-control-allow-methods
+                                   [:head :options :get :put :post :delete :patch])
+      wrap-stacktrace             ring.middleware.stacktrace/wrap-stacktrace)
+    ;; to verify logic
+    #_(cond-> [] 
+        (::resource-root-index dev) (conj resource-root-index) 
+        true                        (conj ring.middleware.defaults/wrap-defaults)
+        (dev ::fix-index-mime-type) (conj fix-index-mime-type)
+        (dev ::wrap-no-cache)       (conj wrap-no-cache)
+        wrap-file-etag              (conj etag/wrap-file-etag)
+        wrap-not-modified           (conj not-modified/wrap-not-modified)
+        wrap-cors                   (conj cors/wrap-cors)
+        wrap-stacktrace             (conj ring.middleware.stacktrace/wrap-stacktrace))
+    ))
 
-(def default-config
+(def default-options
   (-> ring.middleware.defaults/site-defaults
+      (update ::dev #(merge {::fix-index-mime-type true
+                             ::resource-root-index true
+                             ::wrap-no-cache true
+                             :ring.middleware.not-modified/wrap-not-modified true
+                             :co.deps.ring-etag-middleware/wrap-file-etag true
+                             :ring.middleware.cors/wrap-cors true
+                             :ring.middleware.stacktrace/wrap-stacktrace true
+                             }
+                            %))
       (dissoc :security)
-      ;; TODO dev
-      #_(assoc-in [:static :files] "out")
       (update :responses dissoc :not-modified-responses :absolute-redirects)))
 
-(defn default-stack [handler config]
+(defn default-stack [handler options]
   (stack handler
          (merge-with
           (fn [& args]
             (if (every? #(or (nil? %) (map? %)) args)
               (apply merge args)
               (last args)))
-          default-config
-          config)))
+          default-options
+          options)))

@@ -99,18 +99,23 @@
            async-handlers)
           contexts (doto (HandlerList.)
                      (.setHandlers
-                      (into-array Handler (reverse (conj (concat ws-proxy-handlers
-                                                                 async-proxy-handlers)
-                                                         existing-handler)))))
-          ;; good to know about this other pattern
-          #_contexts #_(doto (ContextHandlerCollection.)
-                         (.setHandlers (into-array [(doto (ContextHandler. path)
-                                                      (.setAllowNullPathInfo true)
-                                                      (.setHandler ws-handler))
-
-                                                    (doto (ContextHandler. "/")
-                                                      (.setHandler existing-handler))])))]
+                      (into-array Handler
+                                  (concat
+                                   ws-proxy-handlers
+                                   async-proxy-handlers
+                                   [existing-handler]))))]
       (.setHandler server contexts))))
+
+(defn run-jetty [handler {:keys [websockets async-handlers] :as options}]
+  (jt/run-jetty
+   handler
+   (cond-> options
+     (or (not-empty websockets) (not-empty async-handlers))
+     (assoc :configurator (async-websocket-configurator
+                           (select-keys options
+                                        [:websockets :async-handlers]))))))
+
+;; Figwheel REPL adapter
 
 (defn build-request-map [request]
   {:uri (.getPath (.getRequestURI request))
@@ -127,6 +132,8 @@
                    {}
                    (.getHeaders request))})
 
+;; TODO translate on close status's
+;; TODO translate receiving bytes to on-receive
 (defn websocket-connection-data [^WebSocketAdapter websocket-adaptor]
   {:request (build-request-map (.. websocket-adaptor getSession getUpgradeRequest))
    :send-fn (fn [string-message]
@@ -134,30 +141,36 @@
    :close-fn (fn [] (.. websocket-adaptor getSession close))
    :is-open-fn (fn [conn] (.. websocket-adaptor getSession isOpen))})
 
-;; TODO translate on close status's
-;; TODO translate receiving bytes to on-receive
 (defn adapt-figwheel-ws [{:keys [on-connect on-receive on-close] :as ws-fns}]
   (assert on-connect on-receive)
   (-> ws-fns
-      (dissoc :on-connect :on-receive)
-      (assoc :on-connect (fn [websocket-adaptor]
+      (dissoc :on-connect :on-receive :on-close)
+      (assoc  :on-connect (fn [websocket-adaptor]
                            (on-connect (websocket-connection-data websocket-adaptor)))
-             :on-text (fn [_ data] (on-receive data)))))
+              :on-text (fn [_ data] (on-receive data))
+              :on-close (fn [_ status reason] (on-close status)))))
 
-(defn run-jetty [handler {:keys [websockets async-handlers] :as options}]
-  (jt/run-jetty
+;; these default options assume the context of starting a server in development-mode
+;; from the figwheel repl
+(def default-options {:join? false})
+
+(defn run-server [handler options]
+  (run-jetty
    handler
-   (cond-> options
-     (or (not-empty websockets) (not-empty async-handlers))
-     (assoc :configurator (async-websocket-configurator
-                           (select-keys options
-                                        [:websockets :async-handlers]))))))
+   (cond-> (merge default-options options)
+     (:figwheel.repl/abstract-websocket-connections options)
+     ;; TODO make figwheel-path configurable
+     (update :websockets
+             merge
+             (into {}
+                   (map (fn [[path v]]
+                          [path (adapt-figwheel-ws v)])
+                        (:figwheel.repl/abstract-websocket-connections options)))))))
 
 (comment
   (defonce scratch (atom {}))
   (-> @scratch :adaptor (.. getSession getUpgradeRequest) build-request-map)
   )
-
 
 #_(def server (run-jetty
                (fn [ring-request]

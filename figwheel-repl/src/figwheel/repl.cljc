@@ -18,7 +18,8 @@
              [clojure.java.browse :as browse]
              [cljs.repl]
              [cljs.stacktrace]
-             [clojure.string :as string]]))
+             [clojure.string :as string]
+             [figwheel.server.ring]]))
   (:import
    #?@(:cljs [goog.net.WebSocket
               goog.debug.Console
@@ -838,29 +839,68 @@
           (repl-env-print repl-env :out [(string/trim-newline out)])))
       result)))
 
-(defn run-default-server [options connections]
-  (require 'figwheel.server)
-  (require 'figwheel.server.ring)
-  (let [default-run-server (resolve 'figwheel.server/run-server)
-        default-ring-stack (resolve 'figwheel.server.ring/default-stack)
-        wrap-async-cors    (resolve 'figwheel.server.ring/wrap-async-cors)]
-    (default-run-server
-     (get options :ring-stack
-          (default-ring-stack (:ring-handler options)
-                              (:ring.middleware.defaults/wrap-defaults options)))
-     (assoc options
+(defn require-resolve [symbol-str]
+  (let [sym (symbol symbol-str)]
+    (when-let [ns (namespace sym)]
+      (try
+        (require (symbol ns))
+        (resolve sym)
+        (catch Throwable e
+          nil)))))
+
+#_(require-resolve 'figwheel.server.jetty-websocket/run-server)
+
+;; TODO more precise error when loaded but fn doesn't exist
+(defn dynload [ns-sym-str]
+  (let [resolved (require-resolve ns-sym-str)]
+    (if resolved
+      resolved
+      (throw (ex-info (str "Figwheel: Unable to dynamicly load " ns-sym-str)
+                      {:not-loaded ns-sym-str})))))
+
+;; taken from ring server
+(defn try-port
+  "Try running a server under one port or a list of ports. If a list of ports
+  is supplied, try each port until it succeeds or runs out of ports."
+  [port server-fn]
+  (if-not (sequential? port)
+    (server-fn port)
+    (try (server-fn (first port))
+         (catch java.net.BindException ex
+           (if-let [port (next port)]
+             (try-port port server-fn)
+             (throw ex))))))
+
+(defn run-default-server*
+  [options connections]
+  ;; require and run figwheel server
+  (let [server-fn (dynload (get options :ring-server
+                                'figwheel.server.jetty-websocket/run-server))
+        figwheel-connect-path (get options :figwheel-connect-path "/figwheel-connect")]
+    (server-fn
+     ((dynload (get options :ring-stack 'figwheel.server.ring/default-stack))
+      (:ring-handler options)
+      (:ring-stack-options options))
+     (assoc (get options :ring-server-options)
             :async-handlers
-            {"/figwheel-connect"
+            {figwheel-connect-path
              (-> (fn [ring-request send raise]
-                   (send  {:status 200
-                           :headers {"Content-Type" "text/html"}
-                           :body "Received Yep"}))
-                 (asyc-http-polling-middleware "/figwheel-connect" connections)
-                 (wrap-async-cors
+                   (send {:status 404
+                          :headers {"Content-Type" "text/html"}
+                          :body "Not found: figwheel http-async-polling"}))
+                 (asyc-http-polling-middleware figwheel-connect-path connections)
+                 (figwheel.server.ring/wrap-async-cors
                   :access-control-allow-origin #".*"
-                  :access-control-allow-methods [:head :options :get :put :post :delete :patch]))}
-            ::abstract-websocket-connection
-            (abstract-websocket-connection connections)))))
+                  :access-control-allow-methods
+                  [:head :options :get :put :post :delete :patch]))}
+            ::abstract-websocket-connections
+            {figwheel-connect-path
+             (abstract-websocket-connection connections)}))))
+
+(defn run-default-server [options connections]
+  (run-default-server* (update options :ring-server-options
+                               #(merge (select-keys options [:host :port]) %))
+                       connections))
 
 (defn setup [repl-env opts]
   (when (and
@@ -869,7 +909,7 @@
          (nil? @(:server-kill repl-env)))
     (let [server (run-default-server
                   ;; TODO merge in options here for ring-handler
-                  {:port 9500 :join? false}
+                  {:port 9500}
                   *connections*)]
       (reset! (:server-kill repl-env) (fn [] (.stop server)))))
   ;; printing
@@ -992,9 +1032,23 @@
 ;; - make work on node and other platforms
 ;; - make complete dev webserver stack
 
+
+;; TODO NPE that occurs in open-connections when websocket isn't cleared
+;; happens on eval
 (comment
-  (def serve (run-server not-found {:port 9500 :join? false}))
+
+  (def serve (run-default-server {:ring-handler
+                                  (fn [r]
+                                    (throw (ex-info "Testing" {}))
+                                    #_{:status 404
+                                       :headers {"Content-Type" "text/html"}
+                                       :body "Yeppers now"})
+                                  :port 9500}
+                                 *connections*))
+
   (.stop serve)
+
+  scratch
 
   (def re (repl-env* {}))
   (cljs.repl/-setup re {})
