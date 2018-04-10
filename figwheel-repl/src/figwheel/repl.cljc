@@ -629,8 +629,9 @@
 ;; ------------------------------------------------------------------
 ;; http async polling - long polling
 ;; ------------------------------------------------------------------
-;; long polling is a bit complex - but this currently appears to work as well
-;; as websockets, it is heavier overall and much harder to determine when it is closed
+;; long polling is a bit complex - but this currently appears to work
+;; as well as websockets in terms of connectivity, it is slower and heavier
+;; overall and much harder to determine when it is closed
 
 (declare send-for-response)
 
@@ -918,7 +919,13 @@
          (nil? @(:server-kill repl-env)))
     (let [server (run-default-server
                   ;; TODO merge in options here for ring-handler
-                  {:port 9500}
+                  (select-keys repl-env [:port
+                                         :host
+                                         :ring-handler
+                                         :ring-server
+                                         :ring-server-options
+                                         :ring-stack
+                                         :ring-stack-options])
                   *connections*)]
       (reset! (:server-kill repl-env) (fn [] (.stop server)))))
   ;; printing
@@ -963,15 +970,38 @@
     (when-let [listener @printing-listener]
       (remove-listener listener)))
   cljs.repl/IReplEnvOptions
-  (-repl-options [this])
+  (-repl-options [this]
+    {;:browser-repl true
+     :preloads '[[figwheel.repl.preload]]
+     :cljs.cli/commands
+     {:groups {::repl {:desc "Figwheel REPL options"}}
+      :init
+      {["-H" "--host"]
+       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :host] %2)
+        :arg "address"
+        :doc "Address to bind"}
+       ["-p" "--port"]
+       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :port] (Integer/parseInt %2))
+        :arg "number"
+        :doc "Port to bind"}
+       ["-rrh" "--repl-ring-handler"]
+       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-handler]
+                                     (when %2
+                                       (dynload %2)))
+        :arg "string"
+        :doc "Ring Handler for default REPL server EX. \"example.server/handler\" "}
+       ["-rrso" "--repl-ring-stack-options"]
+       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-stack-options]
+                                     (read-string %2))
+         :arg "EDN"
+         :doc "Set of options to configure default ring stack"}}}})
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [this st err opts]
     (cljs.stacktrace/parse-stacktrace this st err opts)))
 
-(defn repl-env* [{:keys [host port worker-name-prefix connection-filter ring-handler]
+(defn repl-env* [{:keys [port connection-filter]
                   :or {connection-filter identity
-                       port 9500
-                       host "localhost"} :as opts}]
+                       port 9500} :as opts}]
   (merge (FigwheelReplEnv.)
          ;; TODO move to one atom
          {:server-kill (atom nil)
@@ -987,10 +1017,7 @@
           ;; :last-eval-session-ids (atom nil)
           :focus-session-name (atom nil)
           :broadcast false
-          :ring-handler nil
-          :ring-stack nil
-          :port port
-          :host host}
+          :port port}
          opts))
 
 ;; ------------------------------------------------------
@@ -1037,10 +1064,14 @@
   (focus* session-name))
 
 ;; TODOS
-;; - learn more about https
+;; - try https setup
 ;; - make work on node and other platforms
-;; - make complete dev webserver stack
+;; - find open port
+;; - repl args from main
 
+;; TODO exponential backoff for websocket should max out at 20 or lower
+;; TODO figwheel-repl-core package
+;; TODO figwheel-repl package that includes default server
 
 ;; TODO NPE that occurs in open-connections when websocket isn't cleared
 ;; happens on eval
