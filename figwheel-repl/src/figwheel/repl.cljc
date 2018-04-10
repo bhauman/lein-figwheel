@@ -44,13 +44,22 @@
 ;; disable   (.setCapturing log-console false)
 
 (defonce logger (glog/getLogger "Figwheel REPL"))
-(defonce log-console (let [c (goog.debug.Console.)]
-                       ;; don't display time
-                       (doto (.getFormatter c)
-                         (gobj/set "showAbsoluteTime" false)
-                         (gobj/set "showRelativeTime" false))
-                       c))
-(defonce init-logger (do (.setCapturing log-console true) true))
+
+(defn ^:export console-logging []
+  (when-not (gobj/get goog.debug.Console "instance")
+    (let [c (goog.debug.Console.)]
+      ;; don't display time
+      (doto (.getFormatter c)
+        (gobj/set "showAbsoluteTime" false)
+        (gobj/set "showRelativeTime" false))
+      (gobj/set goog.debug.Console "instance" c)
+      c))
+  (when-let [console-instance (gobj/get goog.debug.Console "instance")]
+    (.setCapturing console-instance true)
+    true))
+
+(defonce log-console (console-logging))
+
 (defn debug [msg]
   (glog/log logger goog.debug.Logger.Level.FINEST msg))
 
