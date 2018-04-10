@@ -50,3 +50,5 @@ DESIGN_THOUGHTS.md
 example/checkouts/figwheel
 
 example/checkouts/figwheel-sidecar
+
+figwheel-repl/compile.sh
