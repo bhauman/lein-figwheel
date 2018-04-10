@@ -19,6 +19,7 @@
         [clojure.java.io :as io]
         [clojure.edn :as edn]
         [figwheel.tools.exceptions :as fig-ex]]))
+  #?(:cljs (:require-macros [figwheel.core]))
   (:import #?@(:cljs [[goog]
                       [goog.debug Console]
                       [goog.async Deferred]
