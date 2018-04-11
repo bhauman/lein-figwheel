@@ -226,7 +226,7 @@
      (swap! reload-promise-chain next-promise-fn))))
 
 (defn ^:export after-reloads [f]
-  (swap! reload-promise-chain #(.then % (f))))
+  (swap! reload-promise-chain #(.then % f)))
 
 ;; --------------------------------------------------------------
 ;; REPL print forwarding
