@@ -890,7 +890,15 @@
     (server-fn
      ((dynload (get options :ring-stack 'figwheel.server.ring/default-stack))
       (:ring-handler options)
-      (:ring-stack-options options))
+      ;; TODO this should only work for the default target of browser
+      (cond-> (:ring-stack-options options)
+          (and
+           (contains? #{nil :browser} (:target options))
+           (:output-to options)
+           (not (get-in (:ring-stack-options options) [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html])))
+          (assoc-in
+           [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html]
+           (figwheel.server.ring/index-html (select-keys options [:output-to])))))
      (assoc (get options :ring-server-options)
             :async-handlers
             {figwheel-connect-path
@@ -912,44 +920,55 @@
                                #(merge (select-keys options [:host :port]) %))
                        connections))
 
+(defn fill-server-url-template [url-str {:keys [host port]}]
+  (-> url-str
+      (string/replace "[[server-hostname]]" (or host "localhost"))
+      (string/replace "[[server-port]]" (str port))))
+
+;; when doing a port search
+;; - what needs to know the port afterwards?
+;; - auto open the browser, this is easy enough.
+;; - the connect-url needs to know, but it can use browser port
+;; - the default index.html needs to find the main.js (it can inline it)
+
 (defn setup [repl-env opts]
   (when (and
          (or (not (bound? #'*server*))
              (nil? *server*))
          (nil? @(:server-kill repl-env)))
     (let [server (run-default-server
-                  ;; TODO merge in options here for ring-handler
-                  (select-keys repl-env [:port
-                                         :host
-                                         :ring-handler
-                                         :ring-server
-                                         :ring-server-options
-                                         :ring-stack
-                                         :ring-stack-options])
+                  (merge (select-keys repl-env [:port
+                                                :host
+                                                :output-to
+                                                :ring-handler
+                                                :ring-server
+                                                :ring-server-options
+                                                :ring-stack
+                                                :ring-stack-options])
+                         (select-keys opts [:target]))
                   *connections*)]
       (reset! (:server-kill repl-env) (fn [] (.stop server)))))
   ;; printing
-  (let [print-listener
-        (bound-fn [{:keys [session-id session-name uuid response] :as msg}]
-          (when (and session-id (not uuid) (get response :output))
-            (let [session-ids (set (map :session-id (eval-connections repl-env)))]
-              (when (session-ids session-id)
-                (let [{:keys [stream args]} response]
-                  (when (and stream (not-empty args))
-                    ;; when printing a result from several sessions mark it
-                    (let [args (if-not (= 1 (count session-ids))
-                                 (cons (str "[Session:-----:" session-name "]\n") args)
-                                 args)]
-                      (repl-env-print repl-env stream args))))))))]
-    (reset! (:printing-listener repl-env) print-listener)
-    (add-listener print-listener))
-  ;; not sure about this yet
-    #_(doseq [url (:open-urls this)]
-        (try (browse/browse-url url)
-             (catch Throwable e
-               (->> (str (when-let [m (.getMessage e)] (str ": " m)))
-                    (format "Failed to open url %s %s" url)
-                    println)))))
+  (when-not @(:printing-listener repl-env)
+    (let [print-listener
+          (bound-fn [{:keys [session-id session-name uuid response] :as msg}]
+            (when (and session-id (not uuid) (get response :output))
+              (let [session-ids (set (map :session-id (eval-connections repl-env)))]
+                (when (session-ids session-id)
+                  (let [{:keys [stream args]} response]
+                    (when (and stream (not-empty args))
+                      ;; when printing a result from several sessions mark it
+                      (let [args (if-not (= 1 (count session-ids))
+                                   (cons (str "[Session:-----:" session-name "]\n") args)
+                                   args)]
+                        (repl-env-print repl-env stream args))))))))]
+      (reset! (:printing-listener repl-env) print-listener)
+      (add-listener print-listener)))
+
+  ;; open a url
+  (when-let [open-url (:open-url repl-env)]
+    (let [url (fill-server-url-template open-url (select-keys repl-env [:host :port]))]
+      (browse/browse-url url))))
 
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
@@ -999,22 +1018,22 @@
   (-parse-stacktrace [this st err opts]
     (cljs.stacktrace/parse-stacktrace this st err opts)))
 
-(defn repl-env* [{:keys [port connection-filter]
+(defn repl-env* [{:keys [port open-url connection-filter]
                   :or {connection-filter identity
+                       open-url "http://[[server-hostname]]:[[server-port]]"
                        port 9500} :as opts}]
   (merge (FigwheelReplEnv.)
          ;; TODO move to one atom
          {:server-kill (atom nil)
           :printing-listener (atom nil)
           :bound-printer (atom nil)
+          :open-url open-url
           ;; helpful for nrepl so you can easily
           ;; translate output into messages
           :out-print-fn nil
           :err-print-fn nil
           :print-to-output-streams true
-          :open-urls nil
           :connection-filter (atom connection-filter)
-          ;; :last-eval-session-ids (atom nil)
           :focus-session-name (atom nil)
           :broadcast false
           :port port}
@@ -1063,6 +1082,7 @@
 (defmacro focus [session-name]
   (focus* session-name))
 
+
 ;; TODOS
 ;; - try https setup
 ;; - make work on node and other platforms
@@ -1090,9 +1110,12 @@
 
   scratch
 
-  (def re (repl-env* {}))
-  (cljs.repl/-setup re {})
-  (cljs.repl/-tear-down re)
+
+  (do
+    (cljs.repl/-tear-down re)
+    (def re (repl-env* {:output-to "dev-resources/public/out/main.js"}))
+    (cljs.repl/-setup re {}))
+
 
   (connections-available re)
   (open-connections)
