@@ -699,6 +699,7 @@
 ;; building
 ;; -------------------------------------------------------------
 
+;; TODO should handle case of already having changed files
 (let [cljs-build cljs.closure/build]
   (defn build
     ([src opts] (with-redefs [cljs.closure/build build]

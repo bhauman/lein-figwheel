@@ -260,7 +260,7 @@
 ;; Websocket REPL
 ;; --------------------------------------------------------------
 
-(goog-define connect-url "ws://localhost:3449/figwheel-connect")
+(goog-define connect-url "ws://[[client-host]]:[[client-port]]/figwheel-connect")
 
 (def state (atom {}))
 
