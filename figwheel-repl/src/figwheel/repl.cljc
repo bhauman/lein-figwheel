@@ -319,7 +319,7 @@
       (try
         (let [sb (js/goog.string.StringBuffer.)]
           ;; TODO capture err as well?
-          (binding [cljs.core/*print-newline* false
+          (binding [cljs.core/*print-newline* true
                     cljs.core/*print-fn* (fn [x] (.append sb x))]
             (let [result-value (*eval-js* code)]
               {:status :success

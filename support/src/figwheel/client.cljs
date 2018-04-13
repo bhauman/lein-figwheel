@@ -193,7 +193,7 @@
   (defn eval-javascript** [code opts result-handler]
     (try
       (let [sb (js/goog.string.StringBuffer.)]
-        (binding [cljs.core/*print-newline* false
+        (binding [cljs.core/*print-newline* true
                   cljs.core/*print-fn* (fn [x] (.append sb x))]
           (let [result-value (utils/eval-helper code opts)]
             (result-handler
