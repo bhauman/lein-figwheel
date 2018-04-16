@@ -511,9 +511,12 @@ For :optimization :none, a :main option must be specified for defines
 to work, and only goog-define defines are affected. :closure-defines
 currently does not have any effect with :optimization :whitespace.")
 
-(def-key ::npm-deps (s/map-of ::string-or-named string?)
-  "Please see:
-https://anmonteiro.com/2017/03/requiring-node-js-modules-from-clojurescript-namespaces/
+(def-key ::npm-deps (s/or :map   (s/map-of ::string-or-named string?)
+                          :false false?)
+  "Declare NPM dependencies. A map of NPM package names to the desired
+versions or the Boolean value false. If false then any existing
+node_modules directory will not be indexed nor used. See also
+:install-deps.
 
   :npm-deps {:left-pad \"1.1.3\" }")
 
