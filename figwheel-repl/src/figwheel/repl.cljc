@@ -28,6 +28,8 @@
               [goog.storage.mechanism HTML5SessionStorage]]
        :clj [java.util.concurrent.ArrayBlockingQueue])))
 
+(def default-port 9500)
+
 #?(:cljs (do
 
 ;; TODO dev only
@@ -1021,7 +1023,7 @@
 (defn repl-env* [{:keys [port open-url connection-filter]
                   :or {connection-filter identity
                        open-url "http://[[server-hostname]]:[[server-port]]"
-                       port 9500} :as opts}]
+                       port default-port} :as opts}]
   (merge (FigwheelReplEnv.)
          ;; TODO move to one atom
          {:server-kill (atom nil)
