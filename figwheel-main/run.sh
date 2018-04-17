@@ -1,0 +1,2 @@
+#!/bin/bash
+clojure -Adev -e "(require 'figwheel.core)(figwheel.core/hook-cljs-closure-build)" -m cljs.main -co "{:aot-cache false :asset-path \"out\" :preloads [figwheel.repl.preload figwheel.core] :closure-defines {figwheel.repl/connect-url \"ws://localhost:[[client-port]]/figwheel-connect\"}}" -re figwheel --port 9501 -w src -d target/public/out -o target/public/out/mainer.js -e "(figwheel.core/start-from-repl)"  -c exproj.core -r
