@@ -687,27 +687,62 @@
 (defn connection-send [{:keys [send-fn] :as conn} data]
   (send-fn conn data))
 
+(defn send-for-response* [prom conn msg]
+  (let [uuid (str (java.util.UUID/randomUUID))
+        listener (fn listen [msg]
+                   (when (= uuid (:uuid msg))
+                     (when-let [result (:response msg)]
+                       (deliver prom
+                                (if (instance? clojure.lang.IMeta result)
+                                  (vary-meta result assoc ::message msg)
+                                  result)))
+                     (remove-listener listen)))]
+    (add-listener listener)
+    (try
+      (connection-send
+       conn
+       (json/write-str
+        (-> (select-keys conn [:session-id :session-name])
+            (merge msg)
+            (assoc :uuid uuid))))
+      (catch Throwable t
+        (remove-listener listener)
+        (throw t)))))
+
+(def no-connection-result
+  (vary-meta
+   {:status :exception
+    :value "Expected REPL Connections Evaporated!"
+    :stacktrace "No stacktrace available."}
+   assoc ::no-connection-made true))
+
+(defn broadcast-for-response [connections msg]
+  (let [prom (promise)
+        cnt  (->> connections
+                  (mapv #(try
+                           (send-for-response* prom % msg)
+                           true
+                           (catch Throwable t
+                             nil)))
+                  (filter some?)
+                  count)]
+    (when (zero? cnt)
+      (deliver prom no-connection-result))
+    prom))
+
 (defn send-for-response [connections msg]
-  ;; TODO remove all listeners after single response?
-  ;; or have one listener and one uuid
-  (let [prom (promise)]
-    (doseq [conn connections]
-      (let [uuid (str (java.util.UUID/randomUUID))
-            listener (fn listen [msg]
-                       (when (= uuid (:uuid msg))
-                         (when-let [result (:response msg)]
-                           (deliver prom
-                                    (if (instance? clojure.lang.IMeta result)
-                                      (vary-meta result assoc ::message msg)
-                                      result)))
-                         (remove-listener listen)))]
-        (add-listener listener)
-        (connection-send
-         conn
-         (json/write-str
-          (-> (select-keys conn [:session-id :session-name])
-              (merge msg)
-              (assoc :uuid uuid))))))
+  (let [prom (promise)
+        sent (loop [[conn & xc] connections]
+               (when conn
+                 (if-not (try
+                           (send-for-response* prom conn msg)
+                           true
+                           (catch Throwable t
+                             false))
+                   (recur xc)
+                   true)))]
+    (when-not sent
+      (deliver prom no-connection-result))
     prom))
 
 (defn http-long-polling-connect [ring-request respond raise]
@@ -770,7 +805,9 @@
 
 (defn open-connections []
   (filter (fn [{:keys [is-open-fn] :as conn}]
-            (or (nil? is-open-fn) (is-open-fn conn)))
+            (try (or (nil? is-open-fn) (is-open-fn conn))
+                 (catch Throwable t
+                   false)))
           (vals @*connections*)))
 
 (defn connections-available [repl-env]
@@ -786,11 +823,17 @@
       (Thread/sleep 500)
       (recur))))
 
-(defn send-for-eval [connections js]
-  (send-for-response connections {:op :eval :code js}))
 
-(defn eval-connections [{:keys [focus-session-name
-                                broadcast] :as repl-env}]
+
+
+
+(defn send-for-eval [{:keys [focus-session-name ;; just here for consideration
+                             broadcast] :as repl-env} connections js]
+  (if broadcast
+    (broadcast-for-response connections {:op :eval :code js})
+    (send-for-response connections {:op :eval :code js})))
+
+(defn eval-connections [{:keys [focus-session-name] :as repl-env}]
   (let [connections (connections-available repl-env)
           ;; session focus
         connections (if-let [focus-conn
@@ -803,7 +846,7 @@
                       (do
                         (reset! focus-session-name nil)
                         connections))]
-    (if broadcast connections (take 1 connections))))
+    connections))
 
 (defn trim-last-newline [args]
   (if-let [args (not-empty (filter string? args))]
@@ -838,14 +881,22 @@
               (print-to-stream stream args)))
     (wait-for-connection repl-env)
     (let [ev-connections (eval-connections repl-env)
-          result (let [v (deref (send-for-eval ev-connections js)
+          result (let [v (deref (send-for-eval repl-env ev-connections js)
                                 (or repl-timeout 8000)
                                 timeout-val)]
-                   (if (= timeout-val v)
-                     {:status :exception
-                      :value "Eval timed out!"
-                      :stacktrace "No stacktrace available."}
-                     v))]
+                   (cond (= timeout-val v)
+                     (do
+                       (when @focus-session-name
+                         (reset! focus-session-name nil))
+                       {:status :exception
+                        :value "Eval timed out!"
+                        :stacktrace "No stacktrace available."})
+                     (::no-connection-made (meta v))
+                     (do
+                       (when @focus-session-name
+                         (reset! focus-session-name nil))
+                       v)
+                     :else v))]
       (when-let [out (:out result)]
         (when (not (string/blank? out))
           (repl-env-print repl-env :out [(string/trim-newline out)])))
@@ -1113,16 +1164,15 @@
 
   scratch
 
-
   (do
     (cljs.repl/-tear-down re)
     (def re (repl-env* {:output-to "dev-resources/public/out/main.js"}))
     (cljs.repl/-setup re {}))
 
-
   (connections-available re)
   (open-connections)
-  (evaluate re "33")
+  (evaluate (assoc re :broadcast true)
+            "88")
 
   (evaluate re "setTimeout(function() {cljs.core.prn(\"hey hey\")}, 1000);")
 
