@@ -15,28 +15,6 @@
   (:import
    [java.io StringReader]))
 
-
-;; TODO
-;; builds
-;; build config
-
-;; isolate a build by ID for each repl
-;; identify a notion of identity(i.e. build-id) at the connection level perhaps a fn
-
-;; better watcher build connection
-;; load changed clj files
-
-;; bind connections and verify that it works
-
-;; opening files in editor
-;; CSS watching
-
-;; project generation?
-
-;; Watching we want to allow the specification of multiple directories to watch
-
-;; repl-env is assumed to be figwheel
-
 ;; ------------------------------------------------------------
 ;; Watching
 ;; ------------------------------------------------------------
@@ -178,8 +156,6 @@
 
         opts     (as->
                    (merge
-                     #_(select-keys env-opts
-                                    (cond-> [:target] repl? (conj :browser-repl)))
                      options
                      (when main-ns
                        {:main main-ns})) opts
@@ -234,12 +210,12 @@
             ;; I don't think so
             (when figwheel-mode?
               (cljs.repl/evaluate-form renv
-                                       "<cljs repl>"
                                        (assoc (ana/empty-env)
                                               :ns (ana/get-namespace ana/*cljs-ns*))
+                                       "<cljs repl>"
                                        ;; todo allow opts to be added here
-                                       (ana-api/forms-seq (StringReader. "(figwheel.core/start-from-repl)"))))
-            (when-let [server @(:server repl-env)]
+                                       (first (ana-api/forms-seq (StringReader. "(figwheel.core/start-from-repl)")))))
+            (when-let [server @(:server renv)]
               (.join server))))))))
 
 (def server (atom nil))
