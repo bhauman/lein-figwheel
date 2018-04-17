@@ -10,5 +10,7 @@
   ;; for figwheel jetty server server
   :profiles {:dev {:dependencies [[ring "1.6.3"]
                                   [org.eclipse.jetty.websocket/websocket-servlet "9.2.21.v20170120"]
-                                  [org.eclipse.jetty.websocket/websocket-server "9.2.21.v20170120"]]}}
+                                  [org.eclipse.jetty.websocket/websocket-server "9.2.21.v20170120"]]
+                   :resource-paths ["resources" "dev-resources"]}
+             }
   )
