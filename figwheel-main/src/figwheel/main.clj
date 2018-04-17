@@ -6,6 +6,8 @@
    [figwheel.core :as fw-core]
    [cljs.main :as cm]
    [cljs.cli :as cli]
+   [cljs.repl]
+   [cljs.env]
    [cljs.build.api :as bapi]
    [hawk.core :as hawk]))
 
@@ -87,19 +89,26 @@
           {:cljs.main/error :invalid-arg}))))
   (update-in cfg [:options :watch] (fnil conj []) path))
 
-(defn auto-load-opt [cfg bl]
-  (assoc-in cfg [::options-meta :auto-load] (not= bl "false")))
+(defn figwheel-opt [cfg bl]
+  (assoc-in cfg [::options-meta :figwheel] (not= bl "false")))
+
+(defn build-opt [cfg bn]
+  (assoc-in cfg [::options-meta :build-name] )
+
+  )
 
 (def figwheel-commands
-  {:init {
-          ["-w" "--watch"]
+  {:init {["-w" "--watch"]
           {:group :cljs.cli/compile :fn watch-opt
            :arg "path"
            :doc "Continuously build, only effective with the --compile main option"}
-          ["-al" "--auto-load"]
-          {:group :cljs.cli/compile :fn auto-load-opt
+          ["-fw" "--figwheel"]
+          {:group :cljs.cli/compile :fn figwheel-opt
            :arg "bool"
-           :doc "Use Figwheel to auto reload. Defaults to true."}}})
+           :doc (str "Use Figwheel to auto reload and report compile info.\n"
+                     "Only takes effect when watching is happening and the\n"
+                     "optimizations level is :none or nil.\n"
+                     "Defaults to true.")}}})
 
 (alter-var-root #'cli/default-commands cli/add-commands
                 figwheel-commands)
@@ -108,94 +117,205 @@
 ;; CLJS Main Argument manipulation
 ;; ------------------------------------------------------------
 
-(def test-args ["-co" "{:aot-cache false :asset-path \"out\" :preloads [figwheel.repl.preload figwheel.core] :closure-defines {figwheel.repl/connect-url \"ws://localhost:[[client-port]]/figwheel-connect\"}}" #_"-re" #_"figwheel" "--port" "9501" "--watch" "src" "--watch" "wow" "-d" "target/public/out" "-o" "target/public/out/mainer.js" "-e" "(figwheel.core/start-from-repl)"  "-c" "exproj.core" "-r"])
+;; let's just insert a processing step at the end of inits only
 
-(def canonical-arg
-  (->> cli/default-commands
-       ((juxt :init :main))
-       (apply merge)
-       keys
-       (filter #(= 2 (count %)))
-       (map (comp vec reverse))
-       (into {})))
+(defn main-arg? [[arg val]]
+  (cli/dispatch? cli/default-commands :main arg))
 
-(defn canonicalize [args]
-  (map (fn [[k v :as arg]]
-         (if-let [ck  (canonical-arg k)]
-           (if v [ck v] [ck])
-           arg))
-       (partition-all 2 args)))
+;; TODO test this thoroughly
 
-(def arg->coerce
-  {"-co" read-string
-   "--compile-opts" read-string})
+(defn split-main-cli [args]
+  (if-let [args
+           (re-matches
+            #"(?i)(-c|--compile)\s(\S+)\s(?:(-r|--repl)|(-s|--serve)\s(\S+))\s(.*)"
+            (string/join " " (flatten args)))]
+    [(partition-all 2 (filter some? (take 5 (rest args))))
+     (string/split (last args) #"\s")]
+    (if (#{"-r" "--repl" "-h" "--help" "-?"} (ffirst args)) ;; no arg main flag
+      [[[(ffirst args)]]
+       (rest (flatten args))]
+      (let [[main-arg r] (split-with main-arg? args)]
+        [main-arg (flatten r)]))))
 
-(def arg->coerce-str
-  {"-co" pr-str
-   "--compile-opts" pr-str})
+#_(split-main-cli (partition-all 2 (string/split "-m a b c"  #"\s")))
 
-(defn coerce [f pairs]
-  (mapv (fn [[k v]]
-          (if-let [f (f k)]
-            [k (f v)]
-            [k v]))
-        pairs))
+#_(cljs.main/-main)
+;; TODO need to allow for things that take no args instead of partition 2
+(defn split-args [normalized]
+  (let [main-arg? #(cli/dispatch? cli/default-commands :main (first %))
+        [init-args args] (split-with (complement main-arg?) (partition-all 2 normalized))
+        [main-args cli-args] (split-main-cli args)]
+    {:init (vec init-args)
+     :main (vec main-args)
+     :app-main-cli  cli-args}))
 
-;; TODO have to handle order better
-(defn args->map [args]
-  (let [arged (map vec (canonicalize args))
-        grouped (into {}
-                      (map (fn [[k v]]
-                             [k (if (> (count v) 1)
-                                  (vary-meta (mapv second v) assoc ::multi true)
-                                  (-> v first second))]))
-                      (group-by first arged))]
-    (into {} (coerce arg->coerce grouped))))
+(defn assemble-args [{:keys [init main app-main-cli]}]
+  (concat (flatten init) (flatten main) app-main-cli))
 
-(defn map->args [m]
-  (filter some?
-          (apply concat
-                 (reduce (fn [a [k v]]
-                           (concat a (if (and (vector? v) #_(-> v meta ::multi))
-                                       (map vector (repeat k) v)
-                                       [[k v]])))
-                         []
-                         (coerce arg->coerce-str m)))))
+(defn default-repl-env [{:keys [init] :as args}]
+  (if-let [[f v] (first (filter #(#{"-re" "--repl-env"} (first %))
+                                init))]
+    (cond-> args
+      (= v "figwheel")
+      (assoc ::figwheel-repl true))
+    (-> args
+        (update :init #(cons ["-re" "figwheel"] %))
+        (assoc ::figwheel-repl true))))
 
-(defn update-compiler-options [arg-map f]
-  (let [opt-name (or (first (filter arg-map ["-co" "--compile-opts"]))
-                     "-co")]
-    (update arg-map opt-name f)))
+(defn index-of-compiler-options [{:keys [init]}]
+  (let [[pre post] (split-with (complement #(#{"-co" "--compile"} (first %)))
+                               init)]
+    (if (empty? post) nil (count pre))))
 
-(defn add-preload [arg-map preload]
-  (update-compiler-options arg-map
-   (fn [opts] (update opts :preloads
-                      #(-> (vec %)
-                           (conj preload)
-                           distinct
-                           vec)))))
+#_(index-of-compiler-option (split-args test-args))
 
-(defn add-to-multi [arg-map k v]
-  (update arg-map k (fn [e]
-                      (vec
-                       (distinct
-                        (if (string? e)
-                          [e v]
-                          (conj (vec e) v)))))))
+(defn get-options [sargs]
+  (when-let [idx (index-of-compiler-options sargs)]
+    (read-string (second ((vec (:init sargs)) idx)))))
 
-(defn default-repl-env [arg-map]
-  (if (not (or (get arg-map "-re")
-               (get arg-map "--repl-env")))
-    (-> arg-map
-        (assoc "-re" "figwheel")
-        (add-to-multi "-e" "(figwheel.core/start-from-repl)")
-        (add-preload 'figwheel.repl.preload)
-        (add-preload 'figwheel.core))
-    arg-map))
+(defn update-options [sargs f]
+  (update sargs :init
+          (fn [inits]
+            (if-let [idx (index-of-compiler-options sargs)]
+              (update (vec inits)
+                      idx (fn [[flag options]]
+                            [flag (pr-str (f (read-string options)))]))
+              (vec (cons ["-co" (pr-str (f {}))]
+                         inits))))))
 
-;; TODO when do we add REPL preloads and figwheel preloads??
-;; THERE is a lot of work to do here to setup the compiler options
-;; the default output-dir and output-to
+#_(update-options (split-args test-args) (fn [options]
+                                         (assoc options :hi 1)))
+
+#_(get-options (split-args test-args))
+
+(defn has-arg? [init-or-main-arg-list flag]
+  (->> init-or-main-arg-list
+       reverse
+       (filter #(flag (first %)))
+       first))
+
+(defn get-arg [init-or-main-arg-list flag]
+  (second (has-arg? init-or-main-arg-list flag)))
+
+(defn figwheel-adjust-options [sargs]
+  (update-options
+   sargs
+   #(update % :preloads
+            (fn [p]
+              (vec (distinct (concat p '[figwheel.repl.preload figwheel.core])))))))
+
+(defn opt-none? [{:keys [init] :as sargs}]
+  (let [opt (first (filter some? [(get-arg init #{"-O" "--optimizations"})
+                                 (:optimizations (get-options sargs))]))]
+    (or (nil? opt) (#{"none" :none} opt))))
+
+(defn output-to [{:keys [init] :as sargs}]
+  (first (filter some? [(get-arg init #{"-o" "--output-to"})
+                        (:output-to (get-options sargs))])))
+
+(defn target [{:keys [init] :as sargs}]
+  (first (filter some? [(get-arg init #{"-t" "--target"})
+                        (:target (get-options sargs))])))
+
+(defn figwheel-mode? [sargs]
+  (boolean
+   (and (not= "false" (get-arg (:init sargs) #{"-fw" "--figwheel"}))
+       (opt-none? sargs)
+       (get-arg (:init sargs) #{"-w" "--watch"})
+       (get-arg (:main sargs) #{"-c" "--compile"}))))
+
+
+
+
+;; -b build
+;; defaults to watch and compile with repl
+;; output-to
+
+
+#_(assemble-args (process-args test-args))
+
+#_(opt-none? (split-args test-args))
+#_(figwheel-mode? (split-args test-args))
+
+#_(has-arg? (:init (split-args test-args))
+            #{"-re" "--repl-env"})
+;; TODO --figwheel true
+
+;; figwheel mode
+;; :and
+;; - not --figwheel false
+;; - build opt is nil or :none
+;; - watching is enabled
+
+;; adjustments for figwheel mode
+
+
+
+;; figwheel server is started
+;; :or
+;; - in figwheel-mode
+;; - -r and figwheel repl env
+;; - -serve
+
+;; when server is started always remove serve
+
+;; where to call figwheel.core/start
+;; when figwheel-mode call start with seperate repl-env
+
+(defn start-server? [sargs]
+  (or (figwheel-mode? sargs)
+      (get-arg (:init sargs) #{"-r" "--repl"})
+      (get-arg (:init sargs) #{"-s" "--serve"})))
+
+;; figwheel server gets its port from repl config or serve config, or default
+;; if -r arg repl config if --serve arg server config, or default
+(defn server-host-port [sargs]
+  (let [{:keys [host port] :as res}
+        (if-let [host-port (get-arg (:main sargs) #{"-s" "--serve"})]
+          (let [[host port] (string/split host-port #":")
+                host (if (string/blank? host) nil host)
+                port (Integer/parseInt port)]
+            {:host host :port port})
+          (if (and (has-arg? (:main sargs) #{"-r" "--repl"})
+                   (::figwheel-repl sargs))
+            (let [host (get-arg (:init sargs) #{"-H" "--host"})
+                  port (get-arg (:init sargs) #{"-p" "--port"})]
+              (cond-> {}
+                host (assoc :host host)
+                port (assoc :port (Integer/parseInt port))))))]
+    (cond-> {:port figwheel.repl/default-port}
+      host (assoc :host host)
+      port (assoc :port port))))
+
+(defn- norm [args] (cljs.main/normalize (cli/normalize cli/default-commands args)))
+
+(defn process-args [args]
+  (-> args
+      norm
+      split-args
+      default-repl-env
+      (#(if (figwheel-mode? %) (assoc % ::figwheel-mode? true) %))
+      (#(if (opt-none? %) (assoc % ::opt-none? true) %))
+      (#(if (start-server? %) (assoc % ::start-server? true) %))
+      (#(if (::figwheel-mode? %) (figwheel-adjust-options %) %))
+      (#(if (and (::figwheel-mode? %)
+                 (has-arg? (:main %) #{"-r" "--repl"}))
+          (update % :init (fn [init] (conj (vec init) ["-e" "(figwheel.core/start-from-repl)"])))
+          %))
+      (#(if (::start-server? %) (assoc % ::host-port (server-host-port %)) %))
+      ))
+
+#_(process-args test-args)
+
+;; TODO
+;; -b build flag
+;; -bb background-build flag
+
+;; TODO dev only
+(def test-args [#_"--wow" #_"1" "-co" "{:aot-cache false :asset-path \"out\" :preloads [figwheel.repl.preload figwheel.core] :closure-defines {figwheel.repl/connect-url \"ws://localhost:[[client-port]]/figwheel-connect\"}}" #_"-re" #_"figwheel" "--port" "9501" "--watch" "src" "--watch" "wow" "-d" "target/public/out" "-o" "target/public/out/mainer.js"  "-e" "(figwheel.core/start-from-repl)" "-c" "exproj.core" "-r" "-s"  "a" "b" "c" "d"])
+
+
+#_(figwheel-mode? (split-args test-args))
 
 (defn file-suffix [file]
   (last (string/split (.getName (io/file file)) #"\.")))
@@ -221,20 +341,92 @@
                            (let [inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
                              (figwheel.core/build inputs opts cenv))))}))
 
-(defn setup-args [args]
-  (let [norm #(cljs.main/normalize (cli/normalize cli/default-commands %))]
-    (-> args
-        norm
-        args->map
-        default-repl-env
-        map->args
-        norm)))
+(def default-output-dir (.getPath (io/file "target" "public" "out")))
+(def default-output-to  (.getPath (io/file "target" "public" "out" "main.js")))
 
-(setup-args test-args)
-#_(map->args (args->map test-args))
+(defn default-compile
+  [repl-env {:keys [ns args options ::options-meta] :as cfg}]
+  (println "Default compile")
+  (let [rfs      #{"-r" "--repl"}
+        sfs      #{"-s" "--serve"}
+        env-opts (cljs.repl/repl-options (repl-env))
+        repl?    (boolean (or (rfs ns) (rfs (first args))))
+        serve?   (boolean (or (sfs ns) (sfs (first args))))
+        main-ns  (if (and ns (not ((into rfs sfs) ns)))
+                   (symbol ns)
+                   (:main options))
+        figwheel-mode? (and (:figwheel options-meta true)
+                            (:watch opts)
+                            (= :none (:optimizations opts :none)))
+        opts     (as->
+                   (merge
+                     #_(select-keys env-opts
+                                    (cond-> [:target] repl? (conj :browser-repl)))
+                     options
+                     (when main-ns
+                       {:main main-ns})) opts
+                   (cond-> opts
+                     (not (:output-to opts))
+                     (assoc :output-to default-output-to)
+                     (= :advanced (:optimizations opts))
+                     (dissoc :browser-repl)
+                     (not (:output-dir opts))
+                     (assoc :output-dir default-output-dir)
+                     figwheel-mode?
+                     (update :preloads
+                             (fn [p]
+                               (vec (distinct
+                                     (concat p '[figwheel.repl.preload figwheel.core])))))
+                     #_(not (contains? opts :aot-cache))
+                     #_(assoc :aot-cache true)))
+        convey   (into [:output-dir] cljs.repl/known-repl-opts)
+        cfg      (update cfg :options merge (select-keys opts convey))
+        cfg      (update cfg :options dissoc :watch)
+        source   (when (and (= :none (:optimizations opts :none)) main-ns)
+                   (:uri (bapi/ns->location main-ns)))
+        cenv     (cljs.env/default-compiler-env)]
+    (cljs.env/with-compiler-env cenv
+      [opts options-meta]
+      #_(if-let [path (:watch opts)]
+        (do
+          (bapi/build (if (coll? path)
+                        (apply bapi/inputs path)
+                        path)
+                      (dissoc opts :watch)
+                      cenv)
+          (watch path
+                 (dissoc opts :watch)
+                 cenv))
+        (bapi/build source opts cenv))
+      #_(when repl?
+        (#'cli/repl-opt repl-env args cfg))
+      #_(when serve?
+        (#'cli/serve-opt repl-env args cfg)))))
 
+#_(merge (select-keys repl-env [:port
+                                :host
+                                :output-to
+                                :ring-handler
+                                :ring-server
+                                :ring-server-options
+                                :ring-stack
+                                :ring-stack-options])
+         (select-keys opts [:target
+                            :output-to]))
+
+(def server (atom nil))
+
+;; TODO figwheel.core start when not --repl
 (defn -main [& args]
-  (let [args (setup-args args)]
-    (with-redefs [bapi/watch watch]
-      (prn args)
-      #_(cljs.main/-main args))))
+  (let [sargs (process-args args)
+        forward-args (assemble-args sargs)]
+    (clojure.pprint/pprint forward-args)
+    (with-redefs [cljs.cli/default-compile default-compile]
+      (apply cljs.main/-main forward-args))))
+
+(def args
+  (concat ["-co" "{:aot-cache false :asset-path \"out\"}" "--figwheel" "false"]
+          (string/split "-w src -d target/public/out -o target/public/out/mainer.js -c exproj.core -r" #"\s")))
+
+#_(apply -main args)
+#_(.stop @server)
