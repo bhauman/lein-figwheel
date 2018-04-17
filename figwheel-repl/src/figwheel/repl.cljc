@@ -262,7 +262,7 @@
 ;; Websocket REPL
 ;; --------------------------------------------------------------
 
-(goog-define connect-url "ws://[[client-host]]:[[client-port]]/figwheel-connect")
+(goog-define connect-url "ws://[[client-hostname]]:[[client-port]]/figwheel-connect")
 
 (def state (atom {}))
 
@@ -947,7 +947,8 @@
                                                 :ring-server-options
                                                 :ring-stack
                                                 :ring-stack-options])
-                         (select-keys opts [:target]))
+                         (select-keys opts [:target
+                                            :output-to]))
                   *connections*)]
       (reset! (:server-kill repl-env) (fn [] (.stop server)))))
   ;; printing
