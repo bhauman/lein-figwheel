@@ -937,7 +937,7 @@
   (when (and
          (or (not (bound? #'*server*))
              (nil? *server*))
-         (nil? @(:server-kill repl-env)))
+         (nil? @(:server repl-env)))
     (let [server (run-default-server
                   (merge (select-keys repl-env [:port
                                                 :host
@@ -950,7 +950,7 @@
                          (select-keys opts [:target
                                             :output-to]))
                   *connections*)]
-      (reset! (:server-kill repl-env) (fn [] (.stop server)))))
+      (reset! (:server repl-env) server)))
   ;; printing
   (when-not @(:printing-listener repl-env)
     (let [print-listener
@@ -985,10 +985,10 @@
     ;; load a file into all the appropriate envs
     (when-let [js-content (try (slurp url) (catch Throwable t))]
       (evaluate this js-content)))
-  (-tear-down [{:keys [server-kill printing-listener]}]
-    (when-let [kill-fn @server-kill]
-      (reset! server-kill nil)
-      (kill-fn))
+  (-tear-down [{:keys [server printing-listener]}]
+    (when-let [svr @server]
+      (reset! server nil)
+      (.stop svr))
     (when-let [listener @printing-listener]
       (remove-listener listener)))
   cljs.repl/IReplEnvOptions
@@ -1027,7 +1027,7 @@
                        port default-port} :as opts}]
   (merge (FigwheelReplEnv.)
          ;; TODO move to one atom
-         {:server-kill (atom nil)
+         {:server (atom nil)
           :printing-listener (atom nil)
           :bound-printer (atom nil)
           :open-url open-url
