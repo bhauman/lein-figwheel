@@ -813,7 +813,7 @@
 (defn connections-available [repl-env]
   (sort-by
    :created-at >
-   (filter (or (some-> repl-env :connection-filter deref)
+   (filter (or (some-> repl-env :connection-filter)
                identity)
            (open-connections))))
 
@@ -1087,7 +1087,7 @@
           :out-print-fn nil
           :err-print-fn nil
           :print-to-output-streams true
-          :connection-filter (atom connection-filter)
+          :connection-filter connection-filter
           :focus-session-name (atom nil)
           :broadcast false
           :port port}
