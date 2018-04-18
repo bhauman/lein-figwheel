@@ -165,6 +165,12 @@
   [_ figwheel-env]
   (try
     (cond
+      (and (require? 'cider.piggieback)
+           (when-let [present-var (resolve 'cider.piggieback/*cljs-repl-env*)]
+             (thread-bound? present-var)))
+      (let [cljs-repl (resolve 'cider.piggieback/cljs-repl)
+            opts' (:repl-opts figwheel-env)]
+        (apply cljs-repl figwheel-env (apply concat opts')))
       (and (require? 'cemerick.piggieback)
            (when-let [present-var (resolve 'cemerick.piggieback/*cljs-repl-env*)]
              (thread-bound? present-var)))
@@ -181,11 +187,11 @@ This is commonly caused by
 
 example profile.clj code:
 -----
-:profiles {:dev {:dependencies [[com.cemerick/piggieback <current-version>]
+:profiles {:dev {:dependencies [[cider/piggieback <current-version>]
                                 [org.clojure/tools.nrepl  <current-version>]]
-                 :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}}}
+                 :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}}}
 -----
-Please see the documentation for piggieback here https://github.com/cemerick/piggieback#installation
+Please see the documentation for piggieback here https://github.com/clojure-emacs/piggieback#installation
 
 Note: Cider will inject this config into your project.clj.
 This can cause confusion when your are not using Cider."]
