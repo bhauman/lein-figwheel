@@ -1021,7 +1021,9 @@
 
   ;; open a url
   (when-let [open-url (:open-url repl-env)]
-    (let [url (fill-server-url-template open-url (select-keys repl-env [:host :port]))]
+    ;; TODO the host port thing needs to be fixed ealier
+    (let [url (fill-server-url-template open-url (merge (select-keys repl-env [:host :port])
+                                                        (select-keys (:ring-server-options repl-env) [:host :port])))]
       (browse/browse-url url))))
 
 (defrecord FigwheelReplEnv []

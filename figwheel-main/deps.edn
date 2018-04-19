@@ -9,5 +9,5 @@
 
         hawk {:mvn/version "0.2.11"}}
 
- :paths ["src" "target" "dev_resources"]
+ :paths ["src" "target" "dev_resources" "devel"]
  }
