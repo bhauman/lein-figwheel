@@ -270,31 +270,31 @@
           (bapi/build (apply bapi/inputs paths) opts cenv)
           (watch paths opts cenv))
         (bapi/build source opts cenv))
-      (when (and repl?
-                 (not build-once?) (not serve?))
-        (#'cli/repl-opt repl-env args cfg))
-      (when (and (not build-once?) (or serve? figwheel-mode?))
-        ;; what to do when the repl isn't a figwheel repl here?
-        ;; in the case where it isn't the repl we will need to start the server
-        ;; directly, so perhaps start the server directly regardless
+      (when-not build-once?
+        (when (and repl? (not serve?))
+          (#'cli/repl-opt repl-env args cfg))
+        (when (or serve? figwheel-mode?)
+          ;; what to do when the repl isn't a figwheel repl here?
+          ;; in the case where it isn't the repl we will need to start the server
+          ;; directly, so perhaps start the server directly regardless
 
-        ;; use repl to start server and setup environment for figwheel to operate in
-        (let [re-opts (merge (:repl-env-options cfg)
-                             (select-keys opts [:output-dir :output-to]))
-              renv (apply repl-env (mapcat identity re-opts))]
-          (binding [cljs.repl/*repl-env* renv]
-            (cljs.repl/-setup renv (:options cfg))
-            ;; TODO is this better than a direct call?
-            ;; I don't think so
-            (when figwheel-mode?
-              (cljs.repl/evaluate-form renv
-                                       (assoc (ana/empty-env)
-                                              :ns (ana/get-namespace ana/*cljs-ns*))
-                                       "<cljs repl>"
-                                       ;; todo allow opts to be added here
-                                       (first (ana-api/forms-seq (StringReader. "(figwheel.core/start-from-repl)")))))
-            (when-let [server @(:server renv)]
-              (.join server))))))))
+          ;; use repl to start server and setup environment for figwheel to operate in
+          (let [re-opts (merge (:repl-env-options cfg)
+                               (select-keys opts [:output-dir :output-to]))
+                renv (apply repl-env (mapcat identity re-opts))]
+            (binding [cljs.repl/*repl-env* renv]
+              (cljs.repl/-setup renv (:options cfg))
+              ;; TODO is this better than a direct call?
+              ;; I don't think so
+              (when figwheel-mode?
+                (cljs.repl/evaluate-form renv
+                                         (assoc (ana/empty-env)
+                                                :ns (ana/get-namespace ana/*cljs-ns*))
+                                         "<cljs repl>"
+                                         ;; todo allow opts to be added here
+                                         (first (ana-api/forms-seq (StringReader. "(figwheel.core/start-from-repl)")))))
+              (when-let [server @(:server renv)]
+                (.join server)))))))))
 
 (def server (atom nil))
 
