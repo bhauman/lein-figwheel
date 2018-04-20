@@ -322,6 +322,8 @@
 (defn config-clean [cfg]
   (update cfg :options dissoc :watch))
 
+;; TODO create connection
+
 #_(defn config-repl-connection [cfg]
   (if-not (or (::repl? cfg) (::figwheel-mode? cfg))
 
@@ -365,7 +367,7 @@
       (cond
         source
         (bapi/build source options cenv)
-        ;; TODO need compile paths
+        ;; TODO need :compile-paths config param
         (not-empty watch-dirs)
         (bapi/build (apply bapi/inputs watch-dirs) options cenv)))))
 
@@ -394,6 +396,14 @@
       (when-let [server @(:server renv)]
         (.join server)))))
 
+(defn update-server-host-port [repl-env-options [f address-port & args]]
+  (if (and (#{"-s" "--serve"} f) address-port)
+    (let [[_ host port] (re-matches #"(.*):(\d*)" address-port)]
+      (cond-> repl-env-options
+        (not (string/blank? host)) (assoc-in [:ring-server-options :host] host)
+        (not (string/blank? port)) (assoc-in [:ring-server-options :port] (Integer/parseInt port))))
+    repl-env-options))
+
 ;; TODO make this into a figwheel-start that
 ;; takes the correct config
 ;; and make an adapter function that produces the correct args for this fn
@@ -409,10 +419,12 @@
           (when-not (= mode :build-once)
             (cond
               (= mode :repl)
+              ;; this forwards command line args
               (repl repl-env repl-env-options (get-repl-options cfg))
               (or (= mode :serve) fw-mode?)
+              ;; we need to get the server host:port args
               (serve repl-env
-                     repl-env-options
+                     (update-server-host-port repl-env-options)
                      (get-repl-options cfg)
                      (when fw-mode? "(figwheel.core/start-from-repl)")))))))))
 
