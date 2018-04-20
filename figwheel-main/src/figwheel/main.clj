@@ -15,7 +15,9 @@
   (:import
    [java.io StringReader]
    [java.net.URI]
-   [java.nio.file.Paths]))
+   [java.nio.file.Paths]
+   [java.net.URLEncoder]
+   [java.net.InetAddress]))
 
 ;; ------------------------------------------------------------
 ;; Watching
@@ -157,7 +159,7 @@
         (update-in [::config :watch-dirs] (comp distinct concat) watch-dirs)
         ;; TODO handle merge smarter
         (update ::config merge (dissoc (meta options) :watch-dirs))
-        (assoc-in  [::build :id] bn))))
+        (assoc-in [::build-name] bn))))
 
 (defn build-once-opt [cfg bn]
   (let [cfg (build-opt cfg bn)]
@@ -191,8 +193,15 @@
 ;; Config
 ;; ----------------------------------------------------------------------------
 
-(def default-output-dir (.getPath (io/file "target" "public" "cljs-out")))
-(def default-output-to  (.getPath (io/file "target" "public" "cljs-out" "main.js")))
+(defn default-output-dir [& [scope]]
+  (->> (cond-> ["target" "public" "cljs-out"]
+         scope (conj scope))
+       (apply io/file)
+       (.getPath)))
+
+(defn default-output-to [& [scope]]
+  (.getPath (io/file "target" "public" "cljs-out" (cond->> "main.js"
+                                                    scope (str scope "-")))))
 
 (let [rgx (if
             (= (System/getProperty "file.separator") "\\")
@@ -201,11 +210,11 @@
   (defn file-path-parts [path]
     (string/split (str path) rgx)))
 
-(defn figure-default-asset-path [{:keys [figwheel-options options] :as cfg}]
+(defn figure-default-asset-path [{:keys [figwheel-options options ::build-name] :as cfg}]
   (let [{:keys [output-dir]} options]
     ;; if you have configured your static resources you are on your own
     (when-not (contains? (:ring-stack-options figwheel-options) :static)
-      (let [parts (relativized-path-parts (or output-dir default-output-dir))]
+      (let [parts (relativized-path-parts (or output-dir (default-output-dir build-name)))]
         (when-let [asset-path
                    (->> parts
                         (split-with (complement #{"public"}))
@@ -257,12 +266,12 @@
                   (vec (distinct
                         (concat p '[figwheel.repl.preload figwheel.core]))))))))
 
-(defn- config-default-dirs [{:keys [options] :as cfg}]
+(defn- config-default-dirs [{:keys [options ::build-name] :as cfg}]
   (cond-> cfg
     (nil? (:output-to options))
-    (assoc-in [:options :output-to] default-output-to)
+    (assoc-in [:options :output-to] (default-output-to build-name))
     (nil? (:output-dir options))
-    (assoc-in [:options :output-dir] default-output-dir)))
+    (assoc-in [:options :output-dir] (default-output-dir build-name))))
 
 (defn- config-default-asset-path [{:keys [options] :as cfg}]
   (cond-> cfg
@@ -324,12 +333,71 @@
 
 ;; TODO create connection
 
-#_(defn config-repl-connection [cfg]
-  (if-not (or (::repl? cfg) (::figwheel-mode? cfg))
+(let [localhost (promise)]
+  ;; this call takes a very long time to complete so lets get in in parallel
+  (doto (Thread. #(deliver localhost (java.net.InetAddress/getLocalHost)))
+    (.setDaemon true)
+    (.start))
+  (defn fill-connect-url-template [url host server-port]
+    (cond-> url
+      (.contains url "[[config-hostname]]")
+      (string/replace "[[config-hostname]]" (or host "localhost"))
 
-    )
-  ;; modify of create new connect-url and add
-  )
+      (.contains url "[[server-hostname]]")
+      (string/replace "[[server-hostname]]" (.getHostName @localhost))
+
+      (.contains url "[[server-ip]]")
+      (string/replace "[[server-ip]]"       (.getHostAddress @localhost))
+
+      (.contains url "[[server-port]]")
+      (string/replace "[[server-port]]"     (str server-port)))))
+
+
+(defn add-to-query [uri query-map]
+  (let [[pre query] (string/split uri #"\?")]
+    (str pre
+         (when (or query (not-empty query-map))
+             (str "?"
+              (string/join "&"
+                           (map (fn [[k v]]
+                                  (str (name k)
+                                       "="
+                                  (java.net.URLEncoder/encode (str v) "UTF-8")))
+                                query-map))
+              (when (not (string/blank? query))
+                (str "&" query)))))))
+
+#_(add-to-query "ws://localhost:9500/figwheel-connect?hey=5" {:ab 'ab})
+
+(defn config-connect-url [{:keys [::config repl-env-options] :as cfg} connect-id]
+  (let [port (get-in repl-env-options [:ring-server-options :port] figwheel.repl/default-port)
+        host (get-in repl-env-options [:ring-server-options :host] "localhost")
+        connect-url
+        (fill-connect-url-template
+         (:connect-url config "ws://[[config-hostname]]:[[server-port]]/figwheel-connect")
+         host
+         port)]
+    (add-to-query connect-url connect-id)))
+
+#_(config-connect-url {} {:abb 1})
+
+(defn config-repl-connect [{:keys [::config options ::build-name] :as cfg}]
+  (let [connect-id (:connect-id config
+                                (cond-> {:fwprocess process-unique}
+                                  build-name (assoc :fwbuild build-name)))
+        conn-url (config-connect-url cfg connect-id)
+        fw-mode? (figwheel-mode? config options)]
+    (cond-> cfg
+      fw-mode?
+      (update-in [:options :closure-defines] assoc 'figwheel.repl/connect-url conn-url)
+      (and fw-mode? (not-empty connect-id))
+      (assoc-in [:repl-env-options :connection-filter]
+                (let [kys (keys connect-id)]
+                  (fn [{:keys [query]}]
+                    (= (select-keys query kys)
+                       connect-id)))))))
+
+#_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
   (->> cfg
@@ -341,6 +409,7 @@
        config-default-dirs
        config-default-asset-path
        config-default-aot-cache-false
+       config-repl-connect
        config-clean))
 
 (defn get-repl-options [{:keys [options args inits repl-options] :as cfg}]
@@ -424,7 +493,7 @@
               (or (= mode :serve) fw-mode?)
               ;; we need to get the server host:port args
               (serve repl-env
-                     (update-server-host-port repl-env-options)
+                     (update-server-host-port repl-env-options args)
                      (get-repl-options cfg)
                      (when fw-mode? "(figwheel.core/start-from-repl)")))))))))
 

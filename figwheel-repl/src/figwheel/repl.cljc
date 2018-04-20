@@ -26,7 +26,8 @@
               [goog.Uri QueryData]
               [goog Promise]
               [goog.storage.mechanism HTML5SessionStorage]]
-       :clj [java.util.concurrent.ArrayBlockingQueue])))
+       :clj [java.util.concurrent.ArrayBlockingQueue
+             java.net.URLDecoder])))
 
 (def default-port 9500)
 
@@ -495,7 +496,7 @@
 (defn parse-query-string [qs]
   (when (string? qs)
     (into {} (for [[_ k v] (re-seq #"([^&=]+)=([^&]+)" qs)]
-               [(keyword k) v]))))
+               [(keyword k) (java.net.URLDecoder/decode v)]))))
 
 ;; ------------------------------------------------------------------
 ;; Connection management
@@ -522,10 +523,12 @@
 (defn create-connection! [ring-request options]
   (let [[sess-id sess-name] (negotiate-id ring-request @*connections*)
         conn (merge (select-keys ring-request [:server-port :scheme :uri :server-name :query-string :request-method])
-                    {:session-name sess-name
-                     :session-id sess-id
-                     ::alive-at (System/currentTimeMillis)
-                     :created-at (System/currentTimeMillis)}
+                    (cond-> {:session-name sess-name
+                             :session-id sess-id
+                             ::alive-at (System/currentTimeMillis)
+                             :created-at (System/currentTimeMillis)}
+                      (:query-string ring-request)
+                      (assoc :query (parse-query-string (:query-string ring-request))))
                     options)]
     (swap! *connections* assoc sess-id conn)
     conn))
