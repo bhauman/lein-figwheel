@@ -347,9 +347,6 @@ and then marks any cljs namespaces that depend on the clj file for
 recompilation and then notifies the figwheel client that these
 namespaces have changed.
 
-If there is no macro in the clj/cljc namespace figwheel marks all cljs files
-for recompilation.
-
 If you want to disable this behavior:
 
   :reload-clj-files false
