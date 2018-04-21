@@ -101,8 +101,17 @@
 (defmethod source-file :tools.reader/reader-exception [tm]
   (first-file-source tm))
 
+(defn correct-file-path [file]
+  (cond
+    (nil? file) file
+    (not (.exists (io/file file)))
+    (if-let [f (io/resource file)]
+      (relativize-local (.getPath f))
+      file)
+    :else (relativize-local file)))
+
 (defmethod source-file :clj/compiler-exception [tm]
-  (some->> tm :via first :message (re-matches #"(?s).*\(([^:]*)\:.*") second relativize-local))
+  (some->> tm :via first :message (re-matches #"(?s).*\(([^:]*)\:.*") second correct-file-path))
 
 (defn data [tm]
   (or (:data tm) (->> tm :via reverse (keep :data) first)))
