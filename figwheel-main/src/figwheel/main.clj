@@ -74,17 +74,34 @@
 
 #_((suffix-filter #{"clj"}) nil {:file (io/file "project.clj")})
 
+;; config :reload-clj-files false
+;; :reload-clj-files {:clj true :cljc false}
+
 (defn watch [inputs opts cenv]
-  (prn "Called Watch!!!")
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
     (add-watch! (-> opts meta :build-id (or :dev))
                 {:paths inputs
-                 :filter (suffix-filter #{"cljs" "clj" "cljc"})
+                 :filter (suffix-filter #{"cljs" "clj" "cljc" "js"})
                  :handler (throttle
                            50
-                           (fn [evts]
-                           (let [inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
-                             (figwheel.core/build inputs opts cenv))))})))
+                           (bound-fn [evts]
+                             (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
+                                   inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
+                               (try
+                                 (when-let [clj-files
+                                            (not-empty
+                                             (filter
+                                              #(or (.endsWith % ".clj")
+                                                   (.endsWith % ".cljc"))
+                                              files))]
+                                   (figwheel.core/reload-clj-files clj-files))
+                                 (figwheel.core/build inputs opts cenv files)
+                                 (catch Throwable t
+                                   #_(clojure.pprint/pprint
+                                      (Throwable->map t))
+                                   (figwheel.core/notify-on-exception
+                                    cljs.env/*compiler* t {})
+                                   false)))))})))
 
 ;; ----------------------------------------------------------------------------
 ;; Additional cli options
