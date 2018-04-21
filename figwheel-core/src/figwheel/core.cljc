@@ -669,8 +669,11 @@
                    (not (:exception compile-data)))
               (binding [env/*compiler* compiler-env
                         cljs.repl/*repl-env* repl-env]
-                (let [modified-sources (sources-modified! @compiler-env last-modified)
-                      namespaces (sources->namespaces-to-reload modified-sources)]
+                (let [namespaces
+                      (if (contains? compile-data :changed-files)
+                        (paths->namespaces-to-reload (:changed-files compile-data))
+                        (->> (sources-modified! @compiler-env last-modified)
+                             (sources->namespaces-to-reload)))]
                   (when-let [warnings (:warnings compile-data)]
                     (handle-warnings warnings))
                   (reload-namespaces namespaces)))
@@ -699,12 +702,24 @@
 ;; building
 ;; -------------------------------------------------------------
 
+(defn notify-on-exception [compiler-env e extra-data]
+  (doto compiler-env
+    (swap! vary-meta assoc ::compile-data
+           {:started (System/currentTimeMillis)})
+    (swap! vary-meta update ::compile-data
+           (fn [x]
+             (merge (select-keys x [:started])
+                    extra-data
+                    {:exception e
+                     :finished (System/currentTimeMillis)})))))
+
 ;; TODO should handle case of already having changed files
 (let [cljs-build cljs.closure/build]
   (defn build
-    ([src opts] (with-redefs [cljs.closure/build build]
-                  (cljs-build src opts)))
-    ([src opts compiler-env]
+    ([src opts]
+     (with-redefs [cljs.closure/build build]
+       (cljs-build src opts)))
+    ([src opts compiler-env & [changed-files]]
      (let [local-data (volatile! {})]
        (binding [cljs.analyzer/*cljs-warning-handlers*
                  (conj cljs.analyzer/*cljs-warning-handlers*
@@ -724,7 +739,9 @@
                   (fn [x]
                     (merge (select-keys x [:started])
                            @local-data
-                           {:finished (System/currentTimeMillis)})))
+                           (cond-> {:finished (System/currentTimeMillis)}
+                             (some? changed-files) ;; accept empty list here
+                             (assoc :changed-files changed-files)))))
            (vreset! local-data {})
            (catch Throwable e
              (swap! compiler-env
