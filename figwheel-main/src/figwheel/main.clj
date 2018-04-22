@@ -77,11 +77,17 @@
 ;; config :reload-clj-files false
 ;; :reload-clj-files {:clj true :cljc false}
 
-(defn watch [inputs opts cenv]
+(defn watch [inputs opts cenv & [reload-config]]
+  (prn reload-config)
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
     (add-watch! (-> opts meta :build-id (or :dev))
                 {:paths inputs
-                 :filter (suffix-filter #{"cljs" "clj" "cljc" "js"})
+                 :filter (suffix-filter (into #{"cljs" "js"}
+                                              (cond
+                                                (coll? (:reload-clj-files reload-config))
+                                                (mapv name (:reload-clj-files reload-config))
+                                                (false? (:reload-clj-files reload-config)) []
+                                                :else ["clj" "cljc"])))
                  :handler (throttle
                            50
                            (bound-fn [evts]
@@ -107,10 +113,11 @@
   (if (try
           (require 'clojure.spec.alpha)
           (require 'expound.alpha)
-          (require 'figwheel.schema.config)
+          (require 'figwheel.main.schema)
           true
           (catch Throwable t false))
-    (resolve 'figwheel.schema.config/validate-config!)
+    (resolve 'figwheel.main.schema/validate-config!)
+    ;; TODO pring informative message about config validation
     (fn [a b])))
 
 ;; ----------------------------------------------------------------------------
@@ -464,7 +471,7 @@
     (if-let [paths (and (not= mode :build-once) (not-empty watch-dirs))]
       (do
         (bapi/build (apply bapi/inputs paths) options cenv)
-        (watch paths options cenv))
+        (watch paths options cenv (select-keys config [:reload-clj-files])))
       (cond
         source
         (bapi/build source options cenv)

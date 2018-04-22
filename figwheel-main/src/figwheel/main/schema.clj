@@ -1,4 +1,4 @@
-(ns figwheel.schema.config
+(ns figwheel.main.schema
   (:require
    [clojure.java.io :as io]
    [clojure.string :as string]
