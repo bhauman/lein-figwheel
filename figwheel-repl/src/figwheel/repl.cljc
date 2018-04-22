@@ -298,6 +298,9 @@
                   "POST"
                   (pr-str response)))))
 
+(defn respond-to-connection [response-body]
+  (respond-to (:connection @state) response-body))
+
 (defmulti message :op)
 (defmethod message "naming" [msg]
   (when-let [sn  (:session-name msg)] (set-state ::session-name sn))
@@ -396,6 +399,7 @@
                                  (glog/error logger e))))))
       (.addEventListener goog.net.WebSocket.EventType.OPENED
                          (fn [e]
+                           (swap! state assoc :connection {:websocket websocket})
                            (hook-repl-printing-output! {:websocket websocket})
                            (js/console.log "OPENED")
                            (js/console.log e)))
@@ -452,6 +456,7 @@
                (glog/info logger (str "Connected: " typ))
                (msg-fn msg)
                ;; after connecting setup printing redirects
+               (swap! state assoc :connection {:http-url surl})
                (hook-repl-printing-output! {:http-url surl})
                (if (= typ "http-long-polling")
                  (long-poll msg-fn connect-url')

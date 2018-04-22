@@ -21,6 +21,7 @@
                       ::ring-stack-options
                       ::mode
                       ::pprint-config
+                      ::open-file-command
                       ]))
 
 (s/def ::pprint-config boolean?)
@@ -36,6 +37,8 @@
 
 (s/def ::reload-clj-files (s/or :bool boolean?
                                 :extension-coll (s/coll-of #{:clj :cljc})))
+
+(s/def ::open-file-command non-blank-string?)
 
 #_(exp/expound ::edn {:watch-dirs ["src"]
                       :ring-handler "asdfasdf/asdfasdf"

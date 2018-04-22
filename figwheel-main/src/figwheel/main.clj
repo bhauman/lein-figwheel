@@ -78,7 +78,6 @@
 ;; :reload-clj-files {:clj true :cljc false}
 
 (defn watch [inputs opts cenv & [reload-config]]
-  (prn reload-config)
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
     (add-watch! (-> opts meta :build-id (or :dev))
                 {:paths inputs
@@ -104,7 +103,7 @@
                                  (figwheel.core/build inputs opts cenv files)
                                  (catch Throwable t
                                    #_(clojure.pprint/pprint
-                                      (Throwable->map t))
+                                    (Throwable->map t))
                                    (figwheel.core/notify-on-exception
                                     cljs.env/*compiler* t {})
                                    false)))))})))
@@ -436,6 +435,15 @@
                     (= (select-keys query kys)
                        connect-id)))))))
 
+(defn config-open-file-command [{:keys [::config options] :as cfg}]
+  (if-let [setup (and (:open-file-command config)
+                      (figwheel-mode? config options)
+                      (require-resolve-handler 'figwheel.main.editor/setup))]
+    (do (setup (:open-file-command config))
+        (update-in cfg [:options :preloads]
+                   (fn [p] (distinct (conj p 'figwheel.main.editor)))))
+    cfg))
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
@@ -449,6 +457,7 @@
        config-default-asset-path
        config-default-aot-cache-false
        config-repl-connect
+       config-open-file-command
        config-clean))
 
 (defn get-repl-options [{:keys [options args inits repl-options] :as cfg}]
