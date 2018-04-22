@@ -103,6 +103,16 @@
                                     cljs.env/*compiler* t {})
                                    false)))))})))
 
+(def validate-config!
+  (if (try
+          (require 'clojure.spec.alpha)
+          (require 'expound.alpha)
+          (require 'figwheel.schema.config)
+          true
+          (catch Throwable t false))
+    (resolve 'figwheel.schema.config/validate-config!)
+    (fn [a b])))
+
 ;; ----------------------------------------------------------------------------
 ;; Additional cli options
 ;; ----------------------------------------------------------------------------
@@ -126,11 +136,18 @@
   (assoc-in cfg [::config :figwheel] (not= bl "false")))
 
 (defn get-build [bn]
-  (try (read-string (slurp (str bn ".cljs.edn")))
-             (catch Throwable t
-               (throw
-                (ex-info (str "Couldn't read the build file: " (str bn ".cljs.edn"))
-                         {:cljs.main/error :invalid-arg})))))
+  (let [fname (str bn ".cljs.edn")
+        build (try (read-string (slurp fname))
+                   (catch Throwable t
+                     ;; TODO use error parsing here to create better error message
+                     (throw
+                      (ex-info (str "Couldn't read the build file: " fname " : " (.getMessage t))
+                               {:cljs.main/error :invalid-arg}
+                               t))))]
+    (when (meta build)
+      (validate-config! (meta build)
+                        (str "Configuration error in " fname)))
+    build))
 
 ;; TODO util
 (defn path-parts [uri]
@@ -202,9 +219,6 @@
           {:group :cljs.cli/compile :fn build-once-opt
            :arg "build-name"
            :doc (str "The name of a build config to build once.")}}})
-
-(alter-var-root #'cli/default-commands cli/add-commands
-                figwheel-commands)
 
 ;; ----------------------------------------------------------------------------
 ;; Config
@@ -322,6 +336,7 @@
               handler-var)))))))
 
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
+  (validate-config! main-edn "Configuration error in figwheel-main.edn")
   (let [handler (and ring-handler (require-resolve-handler ring-handler))]
     (when (and ring-handler (not handler))
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
@@ -590,11 +605,20 @@
 
 ;; TODO figwheel.core start when not --repl
 (defn -main [& args]
-  (let [[pre post] (split-with (complement #{"-re" "--repl-env"}) args)
-        args (if (empty? post) (concat ["-re" "figwheel"] args) args)
-        args (handle-build-opt args)]
-    (with-redefs [cljs.cli/default-compile default-compile]
-      (apply cljs.main/-main args))))
+  (alter-var-root #'cli/default-commands cli/add-commands
+                  figwheel-commands)
+  (try
+    (let [[pre post] (split-with (complement #{"-re" "--repl-env"}) args)
+          args (if (empty? post) (concat ["-re" "figwheel"] args) args)
+          args (handle-build-opt args)]
+      (with-redefs [cljs.cli/default-compile default-compile]
+        (apply cljs.main/-main args)))
+    (catch Throwable e
+      (let [d (ex-data e)]
+        (if (or (:figwheel.schema.config/error d)
+                (:cljs.main/error d))
+          (println (.getMessage e))
+          (throw e))))))
 
 (def args
   (concat ["-co" "{:aot-cache false :asset-path \"out\"}" "-b" "dev" "-e" "(figwheel.core/start-from-repl)"]
