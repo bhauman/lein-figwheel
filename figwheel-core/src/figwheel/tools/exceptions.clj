@@ -30,7 +30,7 @@
   (some #(.startsWith % "failed compiling file:") (keep :message (:via tm))))
 
 (defn clj-compiler-ex? [tm]
-  (-> tm :via first :type (= clojure.lang.Compiler$CompilerException)))
+  (-> tm :via first :type pr-str (= (pr-str 'clojure.lang.Compiler$CompilerException))))
 
 (defn exception-type? [tm]
   (cond
@@ -117,7 +117,7 @@
   (or (:data tm) (->> tm :via reverse (keep :data) first)))
 
 (defn ex-type [tm]
-  (-> tm :via last :type))
+  (some-> tm :via last :type pr-str symbol))
 
 (defn parse-exception [e]
   (let [tm     (if (instance? Throwable e) (Throwable->map e) e)

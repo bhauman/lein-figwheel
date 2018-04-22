@@ -13,6 +13,7 @@
 ;; -----------------------------
 
 (defn example-test-file! [p code]
+  (io/make-parents (io/file p))
   (spit p (str (prn-str '(ns example.except)) code)))
 
 (defn fetch-exception [code]
@@ -33,12 +34,11 @@
         (Throwable->map e)))))
 
 (deftest exception-parsing-test
-
   (is (= {:tag :cljs/analysis-error,
           :line 2,
           :column 1,
           :file "dev/example/except.cljs",
-          :type clojure.lang.ArityException,
+          :type 'clojure.lang.ArityException,
           :data
           {:file "dev/example/except.cljs",
            :line 2,
@@ -59,12 +59,12 @@
           :line 2,
           :column 1,
           :file "dev/example/except.cljs",
-          :type clojure.lang.ExceptionInfo,
+          :type 'clojure.lang.ExceptionInfo,
           :data
           {:type :reader-exception,
            :ex-kind :eof,
            :file
-           "/Users/bhauman/workspace/lein-figwheel/support/dev/example/except.cljs",
+           "/Users/bhauman/workspace/lein-figwheel/figwheel-core/dev/example/except.cljs",
            :line 2,
            :col 7}}
          (parse-exception (fetch-exception "(defn "))))
@@ -74,12 +74,12 @@
           :line 2,
           :column 2,
           :file "dev/example/except.cljs",
-          :type clojure.lang.ExceptionInfo,
+          :type 'clojure.lang.ExceptionInfo,
           :data
           {:type :reader-exception,
            :ex-kind :reader-error,
            :file
-           "/Users/bhauman/workspace/lein-figwheel/support/dev/example/except.cljs",
+           (.getCanonicalPath (io/file "dev/example/except.cljs",))
            :line 2,
            :col 2}}
          (parse-exception (fetch-exception "))"))))
@@ -89,22 +89,24 @@
           :line 2,
           :column 6,
           :file "dev/example/except.cljs",
-          :type clojure.lang.ExceptionInfo,
+          :type 'clojure.lang.ExceptionInfo,
           :data
           {:type :reader-exception,
            :ex-kind :reader-error,
-           :file
-           "/Users/bhauman/workspace/lein-figwheel/support/dev/example/except.cljs",
+           :file (.getCanonicalPath (io/file "dev/example/except.cljs",))
            :line 2,
            :col 6}}
          (parse-exception (fetch-exception "#asdf {}"))))
+
+
 
   (is (= {:tag :clj/compiler-exception,
           :message "No reader function for tag asdf",
           :line 2,
           :column 9,
           :file "dev/example/except.clj",
-          :type java.lang.RuntimeException}
+          :type 'java.lang.RuntimeException
+          }
          (parse-exception (fetch-clj-exception "#asdf {}"))))
 
   (is (= {:tag :clj/compiler-exception,
@@ -112,7 +114,20 @@
           :line 2,
           :column 1,
           :file "dev/example/except.clj",
-          :type java.lang.RuntimeException}
+          :type 'java.lang.RuntimeException}
        (parse-exception (fetch-clj-exception "      (defn"))))
+
+
+  )
+
+
+;; TODO work on spec exceptions
+#_(def clj-version
+  (read-string (string/join "."
+                            (take 2 (string/split (clojure-version) #"\.")))))
+
+#_(when (>= clj-version 1.9)
+
+  #_(parse-exception (fetch-clj-exception "(defn)"))
 
   )

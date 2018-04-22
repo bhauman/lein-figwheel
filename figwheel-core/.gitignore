@@ -1,2 +1,5 @@
 .cpcache
 out/*
+test_out
+target
+dev/example/except*
