@@ -242,7 +242,7 @@
        (map string/trim)
        (filter (complement string/blank?))
        (map keyword)
-       distinct))
+       set))
 
 (defmulti out-print (fn [k args] k))
 (defmethod out-print :console [_ args]
@@ -319,7 +319,8 @@
          product/SAFARI    :safari
          product/CHROME    :chrome
          product/FIREFOX   :firefox
-         product/IE        :ie)]
+         product/IE        :ie)
+      print-to-console? ((print-receivers print-output) :console)]
   (defn eval-javascript** [code]
     (let [ua-product (ua-product-fn)]
       (try
@@ -327,9 +328,12 @@
           ;; TODO capture err as well?
           (binding [cljs.core/*print-newline* true
                     cljs.core/*print-fn* (fn [x] (.append sb x))]
-            (let [result-value (*eval-js* code)]
+            (let [result-value (*eval-js* code)
+                  output-str (str sb)]
+              (when print-to-console?
+                (js/setTimeout #(out-print :console output-str) 0))
               {:status :success
-               :out (str sb)
+               :out output-str
                :ua-product ua-product
                :value result-value})))
         (catch js/Error e
