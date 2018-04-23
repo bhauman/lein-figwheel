@@ -429,6 +429,11 @@
         (not-empty watch-dirs)
         (bapi/build (apply bapi/inputs watch-dirs) options cenv)))))
 
+(defn repl [repl-env repl-options]
+  (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
+                    cljs.repl/repl*)]
+    (repl-fn repl-env repl-options)))
+
 (defn serve [repl-env repl-options & [eval-str]]
   (cljs.repl/-setup repl-env repl-options)
   (when eval-str
@@ -476,7 +481,7 @@
               (cond
                 (= mode :repl)
                 ;; this forwards command line args
-                (cljs.repl/repl* repl-env (get-repl-options cfg))
+                (repl repl-env (get-repl-options cfg))
                 (or (= mode :serve) fw-mode?)
                 ;; we need to get the server host:port args
                 (serve (update-server-host-port repl-env args)

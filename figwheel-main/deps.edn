@@ -3,11 +3,17 @@
         figwheel-repl {:local/root "../figwheel-repl"}
         figwheel-core {:local/root "../figwheel-core"}
 
+        ;; server
         ring {:mvn/version "1.6.3"}
         org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.2.21.v20170120"}
         org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.2.21.v20170120"}
 
+        ;; file watching
         hawk {:mvn/version "0.2.11"}
+
+        ;; possibly external
+
+        ;; com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}
 
         ;; going to make validation seperate?
         expound {:mvn/version "0.5.0"}
