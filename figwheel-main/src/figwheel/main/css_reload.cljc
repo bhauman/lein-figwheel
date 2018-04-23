@@ -127,6 +127,12 @@
                                                   (conj files f)
                                                   files)))))))))
 
+(defn dispatch-on-css-load [files]
+  (.dispatchEvent
+   js/document.body
+   (doto (js/Event. "figwheel.after-css-load" js/document.body)
+     (gobj/add "data" {:css-files files}))))
+
 (defn reload-css-files* [files on-cssload]
   (doseq [file files]
     (swap! reload-css-deferred-chain conj-reload-prom file))
@@ -135,12 +141,10 @@
            (.then prom
                   (fn [loaded-files]
                     (when (not-empty loaded-files)
-                      (glog/info logger (str "loaded " (pr-str loaded-files))))
+                      (glog/info logger (str "loaded " (pr-str loaded-files)))
+                      (dispatch-on-css-load loaded-files))
                     (when-let [not-loaded (not-empty (remove (set loaded-files) (set files)))]
                       (glog/warning logger (str "Unable to reload " (pr-str not-loaded))))
-                    #_(on-cssload-custom-event loaded-f-datas)
-                    #_(when (fn? on-cssload)
-                        (on-cssload loaded-f-datas))
                     ;; reset
                     [])))))
 

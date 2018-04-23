@@ -227,12 +227,23 @@
        (not-empty (:watch-dirs config))
        (= :none (:optimizations options :none))))
 
+;; TODO this is a no-op right now
+(defn prep-client-config [config]
+  (let [cl-config (select-keys config [])]
+    cl-config))
+
+(defn start-figwheel-code [config]
+  (let [client-config (prep-client-config config)]
+    (if (not-empty client-config)
+      (str "(figwheel.core/start-from-repl " (pr-str client-config)  ")")
+      "(figwheel.core/start-from-repl)")))
+
 (defn- config-figwheel-mode? [{:keys [::config options] :as cfg}]
   (cond-> cfg
     ;; check for a main??
     (figwheel-mode? config options)
     (->
-     (#'cljs.cli/eval-opt "(figwheel.core/start-from-repl)")
+     (#'cljs.cli/eval-opt (start-figwheel-code config))
      (update-in [:options :preloads]
                 (fn [p]
                   (vec (distinct
@@ -471,7 +482,7 @@
                 (serve (update-server-host-port repl-env args)
                        (get-repl-options cfg)
                        ;; TODO need to iterate through the inits
-                       (when fw-mode? "(figwheel.core/start-from-repl)"))))))))))
+                       (when fw-mode? (start-figwheel-code config)))))))))))
 
 ;; TODO still searching for an achitecture here
 ;; we need a better overall plan for config data

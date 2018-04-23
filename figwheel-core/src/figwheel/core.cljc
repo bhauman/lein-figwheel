@@ -116,10 +116,10 @@
 ;; --------------------------------------------------
 ;; Cross Platform event dispatch
 ;; --------------------------------------------------
-(def event-target (if (and (exists? js/document)
-                           (exists? js/document.body))
-                    js/document.body
-                    (EventTarget.)))
+(def ^:export event-target (if (and (exists? js/document)
+                                    (exists? js/document.body))
+                             js/document.body
+                             (EventTarget.)))
 
 (defonce listener-key-map (atom {}))
 
@@ -253,7 +253,7 @@
                         namespaces)]
     (swap! state assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
     (when-not (empty? namespaces)
-      (js/setTimeout #(dispatch-event :figwheel.before-js-reload {:namespaces namespaces}) 0))
+      (js/setTimeout #(dispatch-event :figwheel.before-load {:namespaces namespaces}) 0))
     (let [to-reload
           (when-not (and (false? (:load-warninged-code @state))
                          (not-empty (get-in @state [::reload-state :warnings])))
@@ -268,7 +268,7 @@
                   (glog/info logger (str "loaded " (pr-str to-reload))))
                 (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
                   (glog/info logger (str "did not load " (pr-str not-loaded))))
-                (dispatch-event :figwheel.js-reload {:reloaded-namespaces to-reload})
+                (dispatch-event :figwheel.after-load {:reloaded-namespaces to-reload})
                 (finally
                   (swap! state assoc ::reload-state {}))))]
         (if (and (exists? js/figwheel.repl)
