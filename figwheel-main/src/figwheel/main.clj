@@ -378,6 +378,13 @@
     (update-in [:options :preloads]
                (fn [p] (vec (distinct (conj p 'figwheel.main.css-reload)))))))
 
+(defn config-client-print-to [{:keys [::config] :as cfg}]
+  (cond-> cfg
+    (:client-print-to config)
+    (update-in [:options :closure-defines] assoc
+               'figwheel.repl/print-output
+               (string/join "," (distinct (map name (:client-print-to config)))))))
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
@@ -391,6 +398,7 @@
        config-default-asset-path
        config-default-aot-cache-false
        config-repl-connect
+       config-client-print-to
        config-open-file-command
        config-watch-css
        config-clean))
@@ -573,7 +581,7 @@
         (apply cljs.main/-main args)))
     (catch Throwable e
       (let [d (ex-data e)]
-        (if (or (:figwheel.schema.config/error d)
+        (if (or (:figwheel.main.schema/error d)
                 (:cljs.main/error d))
           (println (.getMessage e))
           (throw e))))))

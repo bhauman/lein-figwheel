@@ -22,6 +22,7 @@
                       ::mode
                       ::pprint-config
                       ::open-file-command
+                      ::client-print-to
                       ]))
 
 (s/def ::pprint-config boolean?)
@@ -42,6 +43,8 @@
                                 :extension-coll (s/coll-of #{:clj :cljc})))
 
 (s/def ::open-file-command non-blank-string?)
+
+(s/def ::client-print-to (s/coll-of #{:console :repl}))
 
 #_(exp/expound ::edn {:watch-dirs ["src"]
                       :ring-handler "asdfasdf/asdfasdf"
