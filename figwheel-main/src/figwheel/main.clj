@@ -1,76 +1,26 @@
 (ns figwheel.main
   (:require
-   [clojure.string :as string]
-   [clojure.java.io :as io]
-   [figwheel.repl :as fw-repl]
-   [figwheel.core :as fw-core]
-   [cljs.main :as cm]
-   [cljs.cli :as cli]
-   [cljs.repl]
-   [cljs.env]
    [cljs.analyzer :as ana]
    [cljs.analyzer.api :as ana-api]
    [cljs.build.api :as bapi]
-   [hawk.core :as hawk])
+   [cljs.cli :as cli]
+   [cljs.env]
+   [cljs.main :as cm]
+   [cljs.repl]
+   [clojure.java.io :as io]
+   [clojure.string :as string]
+   [figwheel.core :as fw-core]
+   [figwheel.main.watching :as fww]
+   [figwheel.main.util :as fw-util]
+   [figwheel.repl :as fw-repl])
   (:import
    [java.io StringReader]
+   [java.net.InetAddress]
    [java.net.URI]
-   [java.nio.file.Paths]
    [java.net.URLEncoder]
-   [java.net.InetAddress]))
-
-;; ------------------------------------------------------------
-;; Watching
-;; ------------------------------------------------------------
-
-(def ^:dynamic *watcher* (atom {:watcher nil :watches {}}))
+   [java.nio.file.Paths]))
 
 (defonce process-unique (subs (str (java.util.UUID/randomUUID)) 0 6))
-
-(defn alter-watches [{:keys [watcher watches]} f]
-  (when watcher (hawk/stop! watcher))
-  (let [watches (f watches)
-        watcher (apply hawk/watch! (map vector (vals watches)))]
-    {:watcher watcher :watches watches}))
-
-(defn add-watch! [watch-key watch]
-  (swap! *watcher* alter-watches #(assoc % watch-key watch)))
-
-(defn remove-watch! [watch-key]
-  (swap! *watcher* alter-watches #(dissoc % watch-key)))
-
-(defn reset-watch! []
-  (let [{:keys [watcher]} @*watcher*]
-    (when watcher (hawk/stop! watcher))
-    (reset! *watcher* {})))
-
-(defn throttle [millis f]
-  (fn [{:keys [collector] :as ctx} e]
-    (let [collector (or collector (atom {}))
-          {:keys [collecting? events]} (deref collector)]
-      (if collecting?
-        (swap! collector update :events (fnil conj []) e)
-        (do
-          (swap! collector assoc :collecting? true)
-          (future (Thread/sleep millis)
-                  (let [events (volatile! nil)]
-                    (swap! collector
-                           #(-> %
-                                (assoc :collecting? false)
-                                (update :events (fn [evts] (vreset! events evts) nil))))
-                    (f (cons e @events))))))
-      (assoc ctx :collector collector))))
-
-(defn file-suffix [file]
-  (last (string/split (.getName (io/file file)) #"\.")))
-
-(defn suffix-filter [suffixes]
-  (fn [_ {:keys [file]}]
-    (and file
-         (.isFile file)
-         (not (.isHidden file))
-         (suffixes (file-suffix file))
-         (not (#{\. \#} (first (.getName file)))))))
 
 #_((suffix-filter #{"clj"}) nil {:file (io/file "project.clj")})
 
@@ -79,15 +29,15 @@
 
 (defn watch [inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
-    (add-watch! (-> opts meta :build-id (or :dev))
+    (fww/add-watch! (-> opts meta :build-id (or :dev))
                 {:paths inputs
-                 :filter (suffix-filter (into #{"cljs" "js"}
+                 :filter (fww/suffix-filter (into #{"cljs" "js"}
                                               (cond
                                                 (coll? (:reload-clj-files reload-config))
                                                 (mapv name (:reload-clj-files reload-config))
                                                 (false? (:reload-clj-files reload-config)) []
                                                 :else ["clj" "cljc"])))
-                 :handler (throttle
+                 :handler (fww/throttle
                            50
                            (bound-fn [evts]
                              (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
@@ -155,23 +105,11 @@
                         (str "Configuration error in " fname)))
     build))
 
-;; TODO util
-(defn path-parts [uri]
-  (map str (java.nio.file.Paths/get uri)))
-
-;; TODO util
-(defn relativized-path-parts [path]
-  (let [local-dir-parts (path-parts (java.net.URI/create (str "file:" (System/getProperty "user.dir"))))
-        parts (path-parts (java.net.URI/create (str "file:" (.getCanonicalPath (io/file path)))))]
-    [local-dir-parts parts]
-    (when (= local-dir-parts (take (count local-dir-parts) parts))
-      (drop (count local-dir-parts) parts))))
-
 (defn watch-dir-from-ns [main-ns]
   (let [source (bapi/ns->location main-ns)]
     (when-let [f (:uri source)]
-      (let [res (relativized-path-parts (.getPath f))
-            end-parts (path-parts (java.net.URI/create (str "file:/" (:relative-path source))))]
+      (let [res (fw-util/relativized-path-parts (.getPath f))
+            end-parts (fw-util/path-parts (:relative-path source))]
         (when (= end-parts (take-last (count end-parts) res))
           (str (apply io/file (drop-last (count end-parts) res))))))))
 
@@ -237,21 +175,18 @@
        (.getPath)))
 
 (defn default-output-to [& [scope]]
-  (.getPath (io/file "target" "public" "cljs-out" (cond->> "main.js"
-                                                    scope (str scope "-")))))
-
-(let [rgx (if
-            (= (System/getProperty "file.separator") "\\")
-            (java.util.regex.Pattern/compile "\\\\")
-            (java.util.regex.Pattern/compile (System/getProperty "file.separator")))]
-  (defn file-path-parts [path]
-    (string/split (str path) rgx)))
+  (.getPath (io/file "target" "public" "cljs-out"
+                     (cond->> "main.js"
+                       scope (str scope "-")))))
 
 (defn figure-default-asset-path [{:keys [figwheel-options options ::build-name] :as cfg}]
   (let [{:keys [output-dir]} options]
-    ;; if you have configured your static resources you are on your own
+    ;; TODO could discover the resource root if there is only one
+    ;; or if ONLY static file serving can probably do something with that
+    ;; as well
+    ;; UNTIL THEN if you have configured your static resources no default asset-path
     (when-not (contains? (:ring-stack-options figwheel-options) :static)
-      (let [parts (relativized-path-parts (or output-dir (default-output-dir build-name)))]
+      (let [parts (fw-util/relativized-path-parts (or output-dir (default-output-dir build-name)))]
         (when-let [asset-path
                    (->> parts
                         (split-with (complement #{"public"}))
@@ -320,30 +255,9 @@
     (not (contains? options :aot-cache))
     (assoc-in [:options :aot-cache] false)))
 
-;; TODO util
-(defn require? [symbol]
-  (try
-    (require symbol)
-    true
-    (catch Exception e
-      #_(println (.getMessage e))
-      #_(.printStackTrace e)
-      false)))
-
-;; TODO util
-(defn require-resolve-handler [handler]
-  (when handler
-    (if (fn? handler)
-      handler
-      (let [h (symbol handler)]
-        (when-let [ns (namespace h)]
-          (when (require? (symbol ns))
-            (when-let [handler-var (resolve h)]
-              handler-var)))))))
-
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
   (validate-config! main-edn "Configuration error in figwheel-main.edn")
-  (let [handler (and ring-handler (require-resolve-handler ring-handler))]
+  (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
     (when (and ring-handler (not handler))
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
     (cond-> main-edn
@@ -435,14 +349,23 @@
                     (= (select-keys query kys)
                        connect-id)))))))
 
+;; hmmm could add init thunks into the config to be called once everything is initialized?
+
 (defn config-open-file-command [{:keys [::config options] :as cfg}]
   (if-let [setup (and (:open-file-command config)
                       (figwheel-mode? config options)
-                      (require-resolve-handler 'figwheel.main.editor/setup))]
+                      (fw-util/require-resolve-var 'figwheel.main.editor/setup))]
     (do (setup (:open-file-command config))
         (update-in cfg [:options :preloads]
-                   (fn [p] (distinct (conj p 'figwheel.main.editor)))))
+                   (fn [p] (vec (distinct (conj p 'figwheel.main.editor))))))
     cfg))
+
+(defn config-watch-css [{:keys [::config options] :as cfg}]
+  (cond-> cfg
+    (and (not-empty (:css-dirs config))
+         (figwheel-mode? config options))
+    (update-in [:options :preloads]
+               (fn [p] (vec (distinct (conj p 'figwheel.main.css-reload)))))))
 
 #_(config-connect-url {::build-name "dev"})
 
@@ -458,6 +381,7 @@
        config-default-aot-cache-false
        config-repl-connect
        config-open-file-command
+       config-watch-css
        config-clean))
 
 (defn get-repl-options [{:keys [options args inits repl-options] :as cfg}]
@@ -469,6 +393,12 @@
             :forms (when-not (empty? args)
                      [`(set! *command-line-args* (list ~@args))])}]
           inits)))
+
+(defn get-repl-env-options [{:keys [repl-env-options] :as cfg}]
+  (let [repl-options (get-repl-options cfg)]
+    (merge
+     repl-env-options
+     (select-keys repl-options [:output-to :output-dir]))))
 
 ;; ----------------------------------------------------------------------------
 ;; Main action
@@ -488,64 +418,60 @@
         (not-empty watch-dirs)
         (bapi/build (apply bapi/inputs watch-dirs) options cenv)))))
 
-(defn repl [repl-env-fn repl-env-options repl-options]
-  (cljs.repl/repl* (->> (select-keys repl-options [:output-to :output-dir])
-                        (merge repl-env-options)
-                        (mapcat identity)
-                        (apply repl-env-fn))
-                   repl-options))
+(defn serve [repl-env repl-options & [eval-str]]
+  (cljs.repl/-setup repl-env repl-options)
+  (when eval-str
+    (cljs.repl/evaluate-form repl-env
+                             (assoc (ana/empty-env)
+                                    :ns (ana/get-namespace ana/*cljs-ns*))
+                             "<cljs repl>"
+                             ;; todo allow opts to be added here
+                             (first (ana-api/forms-seq (StringReader. eval-str)))))
+  (when-let [server @(:server repl-env)]
+    (.join server)))
 
-(defn serve [repl-env-fn repl-env-options repl-options & [eval-str]]
-  (let [re-opts (merge repl-env-options
-                       (select-keys repl-options [:output-dir :output-to]))
-        renv (apply repl-env-fn (mapcat identity re-opts))]
-    (binding [cljs.repl/*repl-env* renv]
-      (cljs.repl/-setup renv repl-options)
-      ;; TODO is this better than a direct call?
-      ;; I don't think so
-      (when eval-str
-        (cljs.repl/evaluate-form renv
-                                 (assoc (ana/empty-env)
-                                        :ns (ana/get-namespace ana/*cljs-ns*))
-                                 "<cljs repl>"
-                                 ;; todo allow opts to be added here
-                                 (first (ana-api/forms-seq (StringReader. eval-str)))))
-      (when-let [server @(:server renv)]
-        (.join server)))))
-
-(defn update-server-host-port [repl-env-options [f address-port & args]]
+(defn update-server-host-port [repl-env [f address-port & args]]
   (if (and (#{"-s" "--serve"} f) address-port)
     (let [[_ host port] (re-matches #"(.*):(\d*)" address-port)]
-      (cond-> repl-env-options
+      (cond-> repl-env
         (not (string/blank? host)) (assoc-in [:ring-server-options :host] host)
         (not (string/blank? port)) (assoc-in [:ring-server-options :port] (Integer/parseInt port))))
-    repl-env-options))
+    repl-env))
+
+(defn watch-css [css-dirs]
+  (when-let [css-dirs (not-empty css-dirs)]
+    (when-let [start-css (fw-util/require-resolve-var 'figwheel.main.css-reload/start*)]
+      (start-css css-dirs))))
+
+;; TODO what happens to inits like --init and --eval in all cases
 
 ;; TODO make this into a figwheel-start that
 ;; takes the correct config
 ;; and make an adapter function that produces the correct args for this fn
-(defn default-compile [repl-env cfg]
+(defn default-compile [repl-env-fn cfg]
   (let [{:keys [ns args options repl-env-options ::config] :as cfg} (update-config cfg)
         {:keys [mode pprint-config]} config
+        repl-env (apply repl-env-fn (mapcat identity (get-repl-env-options cfg)))
         cenv (cljs.env/default-compiler-env)]
     (cljs.env/with-compiler-env cenv
       (if pprint-config
         (do (clojure.pprint/pprint cfg) cfg)
-        (let [fw-mode? (figwheel-mode? config options)]
-          (build config options cenv)
-          (when-not (= mode :build-once)
-            (cond
-              (= mode :repl)
-              ;; this forwards command line args
-              (repl repl-env repl-env-options (get-repl-options cfg))
-              (or (= mode :serve) fw-mode?)
-              ;; we need to get the server host:port args
-              (serve repl-env
-                     (update-server-host-port repl-env-options args)
-                     (get-repl-options cfg)
-                     (when fw-mode? "(figwheel.core/start-from-repl)")))))))))
-
-
+        (binding [cljs.repl/*repl-env* repl-env]
+          (let [fw-mode? (figwheel-mode? config options)]
+            (build config options cenv)
+            (when-not (= mode :build-once)
+              ;; TODO move this to an list of ::init fns
+              (watch-css (:css-dirs config))
+              (cond
+                (= mode :repl)
+                ;; this forwards command line args
+                (cljs.repl/repl* repl-env (get-repl-options cfg))
+                (or (= mode :serve) fw-mode?)
+                ;; we need to get the server host:port args
+                (serve (update-server-host-port repl-env args)
+                       (get-repl-options cfg)
+                       ;; TODO need to iterate through the inits
+                       (when fw-mode? "(figwheel.core/start-from-repl)"))))))))))
 
 ;; TODO still searching for an achitecture here
 ;; we need a better overall plan for config data

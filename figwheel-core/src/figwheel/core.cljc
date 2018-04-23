@@ -696,7 +696,7 @@
 
 (defn stop
   ([] (stop env/*compiler*))
-  ([compiler-env] (remove-watch ::watch-hook compiler-env)))
+  ([compiler-env] (remove-watch compiler-env ::watch-hook)))
 
 ;; -------------------------------------------------------------
 ;; building

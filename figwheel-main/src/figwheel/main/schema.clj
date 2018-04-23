@@ -31,6 +31,9 @@
 (s/def ::watch-dirs (s/coll-of (s/and string?
                                       directory-exists?)))
 
+(s/def ::css-dirs (s/coll-of (s/and string?
+                                    directory-exists?)))
+
 ;; TODO make this verify that the handler exists
 (s/def ::ring-handler (s/or :non-blank-string non-blank-string?
                             :symbol symbol?))
