@@ -28,36 +28,52 @@
 ;; config :reload-clj-files false
 ;; :reload-clj-files {:clj true :cljc false}
 
+;; simple protection against printing the compiler env
+(defrecord WatchInfo [id paths options compiler-env reload-config])
+(defmethod print-method WatchInfo [wi ^java.io.Writer writer]
+  (.write writer (pr-str
+                  (cond-> (merge {} wi)
+                    (:compiler-env wi) (assoc :compiler-env 'compiler-env...)))))
+
 (defn watch-build [id inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
-    (fww/add-watch! id
-                {:paths inputs
-                 :filter (fww/suffix-filter (into #{"cljs" "js"}
-                                              (cond
-                                                (coll? (:reload-clj-files reload-config))
-                                                (mapv name (:reload-clj-files reload-config))
-                                                (false? (:reload-clj-files reload-config)) []
-                                                :else ["clj" "cljc"])))
-                 :handler (fww/throttle
-                           50
-                           (fn [evts]
-                             (binding [cljs.env/*compiler* cenv]
-                               (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
-                                     inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
-                                 (try
-                                   (when-let [clj-files
-                                              (not-empty
-                                               (filter
-                                                #(or (.endsWith % ".clj")
-                                                     (.endsWith % ".cljc"))
-                                                files))]
-                                     (figwheel.core/reload-clj-files clj-files))
-                                   (figwheel.core/build inputs opts cenv files)
-                                   (catch Throwable t
-                                     #_(clojure.pprint/pprint
-                                        (Throwable->map t))
-                                     (figwheel.core/notify-on-exception cenv t {})
-                                     false))))))})))
+    (fww/add-watch!
+     id
+     (merge
+      {::watch-info (merge
+                     (:extra-info reload-config)
+                     {:id id
+                      :paths inputs
+                      :options opts
+                      :compiler-env cenv
+                      :reload-config reload-config})}
+      {:paths inputs
+       :filter (fww/suffix-filter (into #{"cljs" "js"}
+                                        (cond
+                                          (coll? (:reload-clj-files reload-config))
+                                          (mapv name (:reload-clj-files reload-config))
+                                          (false? (:reload-clj-files reload-config)) []
+                                          :else ["clj" "cljc"])))
+       :handler (fww/throttle
+                 50
+                 (fn [evts]
+                   (binding [cljs.env/*compiler* cenv]
+                     (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
+                           inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
+                       (try
+                         (when-let [clj-files
+                                    (not-empty
+                                     (filter
+                                      #(or (.endsWith % ".clj")
+                                           (.endsWith % ".cljc"))
+                                      files))]
+                           (figwheel.core/reload-clj-files clj-files))
+                         (figwheel.core/build inputs opts cenv files)
+                         (catch Throwable t
+                           #_(clojure.pprint/pprint
+                              (Throwable->map t))
+                           (figwheel.core/notify-on-exception cenv t {})
+                           false))))))}))))
 
 (def validate-config!
   (if (try
@@ -144,6 +160,12 @@
   (let [cfg (build-opt cfg bn)]
     (assoc-in cfg [::config :mode] :build-once)))
 
+(defn background-build-opt [cfg bn]
+  (let [{:keys [options ::build]} (build-opt {} bn)]
+    (update cfg ::background-builds
+            (fnil conj [])
+            (assoc build :options options))))
+
 (def figwheel-commands
   {:init {["-w" "--watch"]
           {:group :cljs.cli/compile :fn watch-opt
@@ -163,7 +185,11 @@
           ["-bo" "--build-once"]
           {:group :cljs.cli/compile :fn build-once-opt
            :arg "build-name"
-           :doc (str "The name of a build config to build once.")}}})
+           :doc (str "The name of a build config to build once.")}
+          ["-bb" "--background-build"]
+          {:group :cljs.cli/compile :fn background-build-opt
+           :arg "build-name"
+           :doc (str "The name of a build config to watch and build in the background.")}}})
 
 ;; ----------------------------------------------------------------------------
 ;; Config
@@ -211,13 +237,6 @@
     (let [config-edn (process-figwheel-main-edn
                       (fetch-figwheel-main-edn cfg))]
       (-> cfg
-          (update :repl-env-options
-                  merge (select-keys config-edn
-                                     [:ring-server
-                                      :ring-server-options
-                                      :ring-stack
-                                      :ring-stack-options
-                                      :ring-handler]))
           (update ::config merge config-edn)))))
 
 (defn- config-merge-current-build-conf [{:keys [::extra-config ::build] :as cfg}]
@@ -226,13 +245,16 @@
                      (merge-with (fn [a b] (if b b a)) % (:config build))
                      extra-config)))
 
-;; targets local config
-(defn- config-repl-serve? [{:keys [ns args] :as cfg}]
-  (let [rfs      #{"-r" "--repl"}
-        sfs      #{"-s" "--serve"}]
-    (cond-> cfg
-      (boolean (or (rfs ns) (rfs (first args)))) (assoc-in [::config :mode] :repl)
-      (boolean (or (sfs ns) (sfs (first args)))) (assoc-in [::config :mode] :serve))))
+(defn host-port-arg? [arg]
+  (and arg (re-matches #"(.*):(\d*)" arg)))
+
+(defn update-server-host-port [config [f address-port & args]]
+  (if (and (#{"-s" "--serve"} f) address-port)
+    (let [[_ host port] (host-port-arg? address-port)]
+      (cond-> config
+        (not (string/blank? host)) (assoc-in [:ring-server-options :host] host)
+        (not (string/blank? port)) (assoc-in [:ring-server-options :port] (Integer/parseInt port))))
+    config))
 
 ;; targets options
 (defn- config-main-ns [{:keys [ns options] :as cfg}]
@@ -242,6 +264,24 @@
     (cond-> cfg
       main-ns (assoc :ns main-ns)       ;; TODO not needed?
       main-ns (assoc-in [:options :main] main-ns))))
+
+;; targets local config
+(defn- config-repl-serve? [{:keys [ns args] :as cfg}]
+  (let [rfs      #{"-r" "--repl"}
+        sfs      #{"-s" "--serve"}]
+    (cond-> cfg
+      (boolean (or (rfs ns) (rfs (first args))))
+      (assoc-in [::config :mode] :repl)
+      (boolean (or (sfs ns) (sfs (first args))))
+      (->
+       (assoc-in [::config :mode] :serve)
+       (update ::config update-server-host-port args))
+      (rfs (first args))
+      (update :args rest)
+      (sfs (first args))
+      (update :args rest)
+      (and (sfs (first args)) (host-port-arg? (second args)))
+      (update :args rest))))
 
 ;; targets local config
 (defn- config-update-watch-dirs [{:keys [options ::config] :as cfg}]
@@ -361,8 +401,8 @@
 #_(add-to-query "ws://localhost:9500/figwheel-connect?hey=5" {:ab 'ab})
 
 (defn config-connect-url [{:keys [::config repl-env-options] :as cfg} connect-id]
-  (let [port (get-in repl-env-options [:ring-server-options :port] figwheel.repl/default-port)
-        host (get-in repl-env-options [:ring-server-options :host] "localhost")
+  (let [port (get-in config [:ring-server-options :port] figwheel.repl/default-port)
+        host (get-in config [:ring-server-options :host] "localhost")
         connect-url
         (fill-connect-url-template
          (:connect-url config "ws://[[config-hostname]]:[[server-port]]/figwheel-connect")
@@ -419,6 +459,35 @@
                'figwheel.repl/print-output
                (string/join "," (distinct (map name (:client-print-to config)))))))
 
+(defn get-repl-options [{:keys [options args inits repl-options] :as cfg}]
+  (assoc (merge (dissoc options :main)
+                repl-options)
+         :inits
+         (into
+          [{:type :init-forms
+            :forms (when-not (empty? args)
+                     [`(set! *command-line-args* (list ~@args))])}]
+          inits)))
+
+(defn get-repl-env-options [{:keys [repl-env-options ::config] :as cfg}]
+  (let [repl-options (get-repl-options cfg)]
+    (merge
+     (select-keys config
+                  [:ring-server
+                   :ring-server-options
+                   :ring-stack
+                   :ring-stack-options
+                   :ring-handler])
+     repl-env-options ;; from command line
+     (select-keys repl-options [:output-to :output-dir]))))
+
+(defn config-finalize-repl-options [cfg]
+  (let [repl-options (get-repl-options cfg)
+        repl-env-options (get-repl-env-options cfg)]
+    (assoc cfg
+           :repl-options repl-options
+           :repl-env-options repl-env-options)))
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
@@ -436,23 +505,8 @@
        config-client-print-to
        config-open-file-command
        config-watch-css
+       config-finalize-repl-options
        config-clean))
-
-(defn get-repl-options [{:keys [options args inits repl-options] :as cfg}]
-  (assoc (merge (dissoc options :main)
-                repl-options)
-         :inits
-         (into
-          [{:type :init-forms
-            :forms (when-not (empty? args)
-                     [`(set! *command-line-args* (list ~@args))])}]
-          inits)))
-
-(defn get-repl-env-options [{:keys [repl-env-options] :as cfg}]
-  (let [repl-options (get-repl-options cfg)]
-    (merge
-     repl-env-options
-     (select-keys repl-options [:output-to :output-dir]))))
 
 ;; ----------------------------------------------------------------------------
 ;; Main action
@@ -493,13 +547,30 @@
   (when-let [server (and join? @(:server repl-env))]
     (.join server)))
 
-(defn update-server-host-port [repl-env [f address-port & args]]
-  (if (and (#{"-s" "--serve"} f) address-port)
-    (let [[_ host port] (re-matches #"(.*):(\d*)" address-port)]
-      (cond-> repl-env
-        (not (string/blank? host)) (assoc-in [:ring-server-options :host] host)
-        (not (string/blank? port)) (assoc-in [:ring-server-options :port] (Integer/parseInt port))))
-    repl-env))
+(defn background-build [cfg {:keys [id config options]}]
+  (let [{:keys [::build ::config repl-env-options] :as cfg}
+        (-> (select-keys cfg [::start-figwheel-options])
+            (assoc :options options
+                   ::build {:id id :config config})
+            update-config)
+        cenv (cljs.env/default-compiler-env)]
+    (println "Figwheel: Starting background autobuild for build: " (:id build))
+    (binding [cljs.env/*compiler* cenv]
+      (bapi/build (apply bapi/inputs (:watch-dirs config)) (:options cfg) cenv)
+      (watch-build (:id build)
+                   (:watch-dirs config)
+                   (:options cfg)
+                   cenv
+                   (select-keys config [:reload-clj-files]))
+      (when (figwheel-mode? cfg)
+        (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
+                                        (select-keys repl-env-options
+                                                     [:connection-filter]))]
+          (figwheel.core/start*))))))
+
+(defn start-background-builds [{:keys [::background-builds] :as cfg}]
+  (doseq [build background-builds]
+    (background-build cfg build)))
 
 ;; TODO what happens to inits like --init and --eval in all cases
 
@@ -507,29 +578,30 @@
 ;; takes the correct config
 ;; and make an adapter function that produces the correct args for this fn
 (defn default-compile [repl-env-fn cfg]
-  (let [{:keys [ns args options repl-env-options ::config] :as cfg} (update-config cfg)
+  (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg} (update-config cfg)
         {:keys [mode pprint-config]} config
-        repl-env (apply repl-env-fn (mapcat identity (get-repl-env-options cfg)))
+        repl-env (apply repl-env-fn (mapcat identity repl-env-options))
         cenv (cljs.env/default-compiler-env)]
     (cljs.env/with-compiler-env cenv
       (if pprint-config
-        (do (clojure.pprint/pprint cfg) cfg)
+        (do (clojure.pprint/pprint b-cfg) b-cfg)
         (binding [cljs.repl/*repl-env* repl-env]
-          (let [fw-mode? (figwheel-mode? cfg)]
+          (let [fw-mode? (figwheel-mode? b-cfg)]
             (build config options cenv)
             (when-not (= mode :build-once)
-              (doseq [init-fn (::initializers cfg)] (init-fn))
+              (start-background-builds cfg)
+              (doseq [init-fn (::initializers b-cfg)] (init-fn))
               (cond
                 (= mode :repl)
                 ;; this forwards command line args
-                (repl repl-env (get-repl-options cfg))
+                (repl repl-env repl-options)
                 (or (= mode :serve) fw-mode?)
                 ;; we need to get the server host:port args
-                (serve {:repl-env (update-server-host-port repl-env args)
-                        :repl-options (get-repl-options cfg)
+                (serve {:repl-env repl-env
+                        :repl-options repl-options
                         ;; TODO need to iterate through the inits
                         :eval-str (when fw-mode? (start-figwheel-code config))
-                        :join? (get cfg ::join-server? true)})))))))))
+                        :join? (get b-cfg ::join-server? true)})))))))))
 
 (defn start [{:keys [figwheel-options build join-server?]}]
   (let [[build-id build-options] (if (map? build)
@@ -638,7 +710,7 @@
           (println (.getMessage e))
           (throw e))))))
 
-(def args
+#_(def test-args
   (concat ["-co" "{:aot-cache false :asset-path \"out\"}" "-b" "dev" "-e" "(figwheel.core/start-from-repl)"]
           (string/split "-w src -d target/public/out -o target/public/out/mainer.js -c exproj.core -r" #"\s")))
 
