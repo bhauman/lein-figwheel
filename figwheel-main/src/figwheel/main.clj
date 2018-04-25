@@ -38,7 +38,7 @@
 (defn watch-build [id inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
     (fww/add-watch!
-     id
+     [::autobuild id]
      (merge
       {::watch-info (merge
                      (:extra-info reload-config)
@@ -520,7 +520,7 @@
     (if-let [paths (and (not= mode :build-once) (not-empty watch-dirs))]
       (do
         (bapi/build (apply bapi/inputs paths) options cenv)
-        (watch-build (keyword (:id build "dev"))
+        (watch-build (:id build "dev")
                      paths options cenv (select-keys config [:reload-clj-files])))
       (cond
         source
@@ -554,23 +554,27 @@
                    ::build {:id id :config config})
             update-config)
         cenv (cljs.env/default-compiler-env)]
-    (println "Figwheel: Starting background autobuild for build: " (:id build))
-    (binding [cljs.env/*compiler* cenv]
-      (bapi/build (apply bapi/inputs (:watch-dirs config)) (:options cfg) cenv)
-      (watch-build (:id build)
-                   (:watch-dirs config)
-                   (:options cfg)
-                   cenv
-                   (select-keys config [:reload-clj-files]))
-      (when (figwheel-mode? cfg)
-        (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
-                                        (select-keys repl-env-options
-                                                     [:connection-filter]))]
-          (figwheel.core/start*))))))
+    (when (not-empty (:watch-dirs config))
+      (println "Figwheel: Starting background autobuild for build: " (:id build))
+      (binding [cljs.env/*compiler* cenv]
+        (bapi/build (apply bapi/inputs (:watch-dirs config)) (:options cfg) cenv)
+        (watch-build (:id build)
+                     (:watch-dirs config)
+                     (:options cfg)
+                     cenv
+                     (select-keys config [:reload-clj-files]))
+        ;; TODO need to move to this pattern instead of repl evals
+        (when (first (filter #{'figwheel.core} (:preloads (:options cfg))))
+          (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
+                                          (select-keys repl-env-options
+                                                       [:connection-filter]))]
+            (figwheel.core/start*)))))))
 
 (defn start-background-builds [{:keys [::background-builds] :as cfg}]
   (doseq [build background-builds]
     (background-build cfg build)))
+
+(def ^:dynamic *config*)
 
 ;; TODO what happens to inits like --init and --eval in all cases
 
@@ -582,34 +586,35 @@
         {:keys [mode pprint-config]} config
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))
         cenv (cljs.env/default-compiler-env)]
-    (cljs.env/with-compiler-env cenv
-      (if pprint-config
-        (do (clojure.pprint/pprint b-cfg) b-cfg)
-        (binding [cljs.repl/*repl-env* repl-env]
-          (let [fw-mode? (figwheel-mode? b-cfg)]
-            (build config options cenv)
-            (when-not (= mode :build-once)
-              (start-background-builds cfg)
-              (doseq [init-fn (::initializers b-cfg)] (init-fn))
-              (cond
-                (= mode :repl)
-                ;; this forwards command line args
-                (repl repl-env repl-options)
-                (or (= mode :serve) fw-mode?)
-                ;; we need to get the server host:port args
-                (serve {:repl-env repl-env
-                        :repl-options repl-options
-                        ;; TODO need to iterate through the inits
-                        :eval-str (when fw-mode? (start-figwheel-code config))
-                        :join? (get b-cfg ::join-server? true)})))))))))
+    (binding [*config* b-cfg]
+      (cljs.env/with-compiler-env cenv
+        (if pprint-config
+          (do (clojure.pprint/pprint b-cfg) b-cfg)
+          (binding [cljs.repl/*repl-env* repl-env]
+            (let [fw-mode? (figwheel-mode? b-cfg)]
+              (build config options cenv)
+              (when-not (= mode :build-once)
+                (start-background-builds cfg)
+                (doseq [init-fn (::initializers b-cfg)] (init-fn))
+                (cond
+                  (= mode :repl)
+                  ;; this forwards command line args
+                  (repl repl-env repl-options)
+                  (or (= mode :serve) fw-mode?)
+                  ;; we need to get the server host:port args
+                  (serve {:repl-env repl-env
+                          :repl-options repl-options
+                          ;; TODO need to iterate through the inits
+                          :eval-str (when fw-mode? (start-figwheel-code config))
+                          :join? (get b-cfg ::join-server? true)}))))))))))
 
 (defn start [{:keys [figwheel-options build join-server?]}]
   (let [[build-id build-options] (if (map? build)
                                    [(:id build) (:options build)]
                                    [build])
-        build-id (or build-id "dev")
+        build-id (name (or build-id "dev"))
         options  (or (and (not build-options)
-                          (get-build (name build-id)))
+                          (get-build build-id))
                      build-options
                      {})
         cfg
@@ -621,17 +626,114 @@
           true        (update-in [::start-figwheel-options :mode] #(if-not % :repl %)))]
     (default-compile cljs.repl.figwheel/repl-env cfg)))
 
-;; TODO still searching for an achitecture here
-;; we need a better overall plan for config data
-;; we need to be aiming towards concrete config for the actions to be taken
-;; :repl-env-options :repl-options and compiler :options
-;; :watcher options
-;; :background builds need their own options
+;; ----------------------------------------------------------------------------
+;; REPL api
+;; ----------------------------------------------------------------------------
 
+(defn clean-build [{:keys [output-to output-dir]}]
+  (when (and output-to output-dir)
+    (doseq [file (cons (io/file output-to)
+                       (reverse (file-seq (io/file output-dir))))]
+      (when (.exists file) (.delete file)))))
 
-(def server (atom nil))
+(defn select-autobuild-watches [ids]
+  (->> ids
+       (map #(vector ::autobuild %))
+       (select-keys (:watches @fww/*watcher*))
+       vals))
 
-(def ^:dynamic *config*)
+(defn currently-watched-ids []
+  (set (map second (filter
+               #(and (coll? %) (= (first %) ::autobuild))
+               (keys (:watches @fww/*watcher*))))))
+
+(defn warn-on-bad-id [ids]
+  (when-let [bad-ids (not-empty (remove (currently-watched-ids) ids))]
+    (doseq [bad-id bad-ids]
+      (println "No autobuild currently has id:" bad-id))))
+
+;; TODO should this default to cleaning all builds??
+;; I think yes
+(defn clean* [ids]
+  (let [ids (->> ids (map name) distinct)]
+    (warn-on-bad-id ids)
+    (doseq [watch' (select-autobuild-watches ids)]
+      #_(prn watch')
+      (when-let [options (-> watch' ::watch-info :options)]
+        (println "Cleaning build id:" (-> watch' ::watch-info :id))
+        (clean-build options)))))
+
+(defmacro clean [& ids]
+  (clean* (map name ids))
+  nil)
+
+(defn status* []
+  (println "------- Figwheel Main Status -------")
+  (if-let [ids (not-empty (currently-watched-ids))]
+    (println "Currently building:" (string/join ", " ids))
+    (println "No builds are currently being built.")))
+
+(defmacro status []
+  (status*) nil)
+
+(defn stop-builds* [ids]
+  (let [ids (->> ids (map name) distinct)]
+    (warn-on-bad-id ids)
+    (doseq [k (map #(vector ::autobuild %) ids)]
+      (when (-> fww/*watcher* deref :watches (get k))
+        (println "Stopped building id:" (last k))
+        (fww/remove-watch! k)))))
+
+;; TODO should this default to stopping all builds??
+;; I think yes
+(defmacro stop-builds [& ids]
+  (stop-builds* ids)
+  nil)
+
+(defn main-build? [id]
+  (and *config* (= (name id) (-> *config* ::build :id))))
+
+(defn hydrate-all-background-builds [cfg ids]
+  (reduce background-build-opt (dissoc cfg ::background-builds) ids))
+
+(defn start-builds* [ids]
+  (let [ids (->> ids (map name) distinct)
+        already-building (not-empty (filter (currently-watched-ids) ids))
+        ids (filter (complement (currently-watched-ids)) ids)]
+    (when (not-empty already-building)
+      (doseq [i already-building]
+        (println "Already building id: " i)))
+    (let [main-build-id     (first (filter main-build? ids))
+          bg-builds (remove main-build? ids)]
+      #_(prn main-build-id bg-builds)
+      (when main-build-id
+        (let [{:keys [options repl-env-options ::config]} *config*
+              {:keys [watch-dirs]} config]
+          (println "Starting build id:" main-build-id)
+          ;; TODO these fns should provide feedback internally
+          (bapi/build (apply bapi/inputs watch-dirs) options cljs.env/*compiler*)
+          (watch-build main-build-id
+                       watch-dirs options
+                       cljs.env/*compiler*
+                       (select-keys config [:reload-clj-files]))
+          (when (first (filter #{'figwheel.core} (:preloads options)))
+            (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
+                                            (select-keys repl-env-options
+                                                         [:connection-filter]))]
+              (figwheel.core/start*)))))
+      (when (not-empty bg-builds)
+        (let [cfg (hydrate-all-background-builds
+                   {::start-figwheel-options (::config *config*)}
+                   bg-builds)]
+          (start-background-builds cfg))))))
+
+;; TODO should this default to stopping all builds??
+;; I think yes
+(defmacro start-builds [& ids]
+  (start-builds* ids)
+  nil)
+
+;; TODO reset, build-once
 
 ;; we should add a compile directory option
 
@@ -653,6 +755,12 @@
 ;; in default compile
 ;; takes care of default watch and default repl
 ;; merges build-options with provided options
+
+;; ----------------------------------------------------------------------------
+;; Main
+;; ----------------------------------------------------------------------------
+
+(def server (atom nil))
 
 (defn split-at-opt [opt-set args]
     (split-with (complement opt-set) args))
