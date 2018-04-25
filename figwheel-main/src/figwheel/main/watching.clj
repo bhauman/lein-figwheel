@@ -43,10 +43,13 @@
 (defn file-suffix [file]
   (last (string/split (.getName (io/file file)) #"\.")))
 
+(defn real-file? [file]
+  (and file
+       (.isFile file)
+       (not (.isHidden file))
+       (not (#{\. \#} (first (.getName file))))))
+
 (defn suffix-filter [suffixes]
   (fn [_ {:keys [file]}]
-    (and file
-         (.isFile file)
-         (not (.isHidden file))
-         (suffixes (file-suffix file))
-         (not (#{\. \#} (first (.getName file)))))))
+    (and (real-file? file)
+         (suffixes (file-suffix file)))))

@@ -29,6 +29,7 @@
 ;; :reload-clj-files {:clj true :cljc false}
 
 ;; simple protection against printing the compiler env
+;; TODO this doesn't really work when it needs to
 (defrecord WatchInfo [id paths options compiler-env reload-config])
 (defmethod print-method WatchInfo [wi ^java.io.Writer writer]
   (.write writer (pr-str
@@ -226,16 +227,16 @@
       handler (assoc :ring-handler handler))))
 
 (defn fetch-figwheel-main-edn [cfg]
-  (or (::start-figwheel-options cfg)
-      (try (read-string (slurp (io/file "figwheel-main.edn")))
-           (catch Throwable t
-             (throw (ex-info "Problem reading figwheel-main.edn" ))))))
+  (try (read-string (slurp (io/file "figwheel-main.edn")))
+       (catch Throwable t
+         (throw (ex-info "Problem reading figwheel-main.edn" )))))
 
 (defn- config-figwheel-main-edn [cfg]
   (if-not (.exists (io/file "figwheel-main.edn"))
     cfg
-    (let [config-edn (process-figwheel-main-edn
-                      (fetch-figwheel-main-edn cfg))]
+    (let [config-edn (or (::start-figwheel-options cfg)
+                         (process-figwheel-main-edn
+                          (fetch-figwheel-main-edn cfg)))]
       (-> cfg
           (update ::config merge config-edn)))))
 
@@ -574,6 +575,7 @@
   (doseq [build background-builds]
     (background-build cfg build)))
 
+(def ^:dynamic *base-config*)
 (def ^:dynamic *config*)
 
 ;; TODO what happens to inits like --init and --eval in all cases
@@ -586,7 +588,8 @@
         {:keys [mode pprint-config]} config
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))
         cenv (cljs.env/default-compiler-env)]
-    (binding [*config* b-cfg]
+    (binding [*base-config* cfg
+              *config* b-cfg]
       (cljs.env/with-compiler-env cenv
         (if pprint-config
           (do (clojure.pprint/pprint b-cfg) b-cfg)
@@ -630,6 +633,20 @@
 ;; REPL api
 ;; ----------------------------------------------------------------------------
 
+(defn currently-watched-ids []
+  (set (map second (filter
+               #(and (coll? %) (= (first %) ::autobuild))
+               (keys (:watches @fww/*watcher*))))))
+
+(defn currently-available-ids []
+  (into (currently-watched-ids)
+        (map second (keep #(when (fww/real-file? %)
+                 (re-matches #"(.+)\.cljs\.edn" (.getName %)))
+                          (file-seq (io/file "."))))))
+
+(defn config-for-id [id]
+  (update-config (build-opt *base-config* "dev")))
+
 (defn clean-build [{:keys [output-to output-dir]}]
   (when (and output-to output-dir)
     (doseq [file (cons (io/file output-to)
@@ -642,16 +659,12 @@
        (select-keys (:watches @fww/*watcher*))
        vals))
 
-(defn currently-watched-ids []
-  (set (map second (filter
-               #(and (coll? %) (= (first %) ::autobuild))
-               (keys (:watches @fww/*watcher*))))))
-
 (defn warn-on-bad-id [ids]
   (when-let [bad-ids (not-empty (remove (currently-watched-ids) ids))]
     (doseq [bad-id bad-ids]
       (println "No autobuild currently has id:" bad-id))))
 
+;; TODO this should clean ids that are not currently running as well
 ;; TODO should this default to cleaning all builds??
 ;; I think yes
 (defn clean* [ids]
@@ -731,6 +744,46 @@
 ;; I think yes
 (defmacro start-builds [& ids]
   (start-builds* ids)
+  nil)
+
+(defn reload-config* []
+  (println "Reloading config!")
+  (set! *config* (update-config *base-config*)))
+
+(defn reset* [ids]
+  (let [ids (->> ids (map name) distinct)
+        ids (or (not-empty ids) (currently-watched-ids))]
+    (clean* ids)
+    (stop-builds* ids)
+    (reload-config*)
+    (start-builds* ids)
+    nil))
+
+(defmacro reset [& ids]
+  (reset* ids))
+
+(defn build-once* [ids]
+  (let [ids (->> ids (map name) distinct)
+        bad-ids (filter (complement (currently-available-ids)) ids)
+        good-ids (filter (currently-available-ids) ids)]
+    (when (not-empty bad-ids)
+      (doseq [i bad-ids]
+        (println "Build id not found:" i)))
+    (when (not-empty good-ids)
+      ;; clean?
+      (doseq [i good-ids]
+        (let [{:keys [options ::config]} (config-for-id i)
+              input (if-let [paths (not-empty (:watch-dirs config))]
+                      (apply bapi/inputs paths)
+                      (when-let [source (when (:main options)
+                                          (:uri (bapi/ns->location (symbol (:main options)))))]
+                        source))]
+          (when input
+            (println "Building once:" i)
+            (bapi/build input options (cljs.env/default-compiler-env))))))))
+
+(defmacro build-once [& ids]
+  (build-once* ids)
   nil)
 
 ;; TODO reset, build-once
