@@ -1,25 +1,32 @@
 (ns figwheel.main
-  (:require
-   [cljs.analyzer :as ana]
-   [cljs.analyzer.api :as ana-api]
-   [cljs.build.api :as bapi]
-   [cljs.cli :as cli]
-   [cljs.env]
-   [cljs.main :as cm]
-   [cljs.repl]
-   [clojure.java.io :as io]
-   [clojure.string :as string]
-   [figwheel.core :as fw-core]
-   [figwheel.main.watching :as fww]
-   [figwheel.main.util :as fw-util]
-   [figwheel.repl :as fw-repl]
-   [cljs.repl.figwheel])
-  (:import
-   [java.io StringReader]
-   [java.net.InetAddress]
-   [java.net.URI]
-   [java.net.URLEncoder]
-   [java.nio.file.Paths]))
+  #?(:clj
+       (:require
+        [cljs.analyzer :as ana]
+        [cljs.analyzer.api :as ana-api]
+        [cljs.build.api :as bapi]
+        [cljs.cli :as cli]
+        [cljs.env]
+        [cljs.main :as cm]
+        [cljs.repl]
+        [clojure.java.io :as io]
+        [clojure.string :as string]
+        [figwheel.core :as fw-core]
+        [figwheel.main.watching :as fww]
+        [figwheel.main.util :as fw-util]
+        [figwheel.repl :as fw-repl]
+        [cljs.repl.figwheel]))
+  #?(:clj
+     (:import
+      [java.io StringReader]
+      [java.net.InetAddress]
+      [java.net.URI]
+      [java.net.URLEncoder]
+      [java.nio.file.Paths]))
+  #?(:cljs
+     (:require-macros [figwheel.main])))
+
+#?(:clj
+   (do
 
 (defonce process-unique (subs (str (java.util.UUID/randomUUID)) 0 6))
 
@@ -322,7 +329,7 @@
      (update-in [:options :preloads]
                 (fn [p]
                   (vec (distinct
-                        (concat p '[figwheel.repl.preload figwheel.core]))))))))
+                        (concat p '[figwheel.repl.preload figwheel.core figwheel.main]))))))))
 
 ;; targets options
 (defn- config-default-dirs [{:keys [options ::build] :as cfg}]
@@ -870,6 +877,8 @@
                 (:cljs.main/error d))
           (println (.getMessage e))
           (throw e))))))
+
+))
 
 #_(def test-args
   (concat ["-co" "{:aot-cache false :asset-path \"out\"}" "-b" "dev" "-e" "(figwheel.core/start-from-repl)"]
