@@ -127,10 +127,11 @@
 (defmethod data :default [tm]
   (or (:data tm) (->> tm :via reverse (keep :data) first)))
 
-(defmethod data :clj/spec-based-syntax-error [tm] nil)
+#_(defmethod data :clj/spec-based-syntax-error [tm] nil)
 
 (defn ex-type [tm]
   (some-> tm :via last :type pr-str symbol))
+
 
 (defn parse-exception [e]
   (let [tm     (if (instance? Throwable e) (Throwable->map e) e)

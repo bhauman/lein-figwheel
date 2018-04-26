@@ -600,12 +600,18 @@
 ;; -------------------------------------------------------------
 
 (defn exception-code [parsed-exception]
-  (format "figwheel.core.handle_exception_remote(%s);"
-          (json/write-str
-           (-> parsed-exception
-               (update :tag #(string/join "/" ((juxt namespace name) %)))
-               pr-str
-               edn/read-string))))
+  (let [parsable-data?
+        (try (some-> parsed-exception :data pr-str edn/read-string)
+             (catch Throwable t
+               false))
+        parsed-exception' (cond-> parsed-exception
+                            (not parsable-data?) (dissoc :data))]
+    (format "figwheel.core.handle_exception_remote(%s);"
+            (json/write-str
+             (-> parsed-exception'
+                 (update :tag #(string/join "/" ((juxt namespace name) %)))
+                 pr-str
+                 edn/read-string)))))
 
 (defn handle-exception [exception-o-throwable-map]
   (let [{:keys [file line] :as parsed-ex} (fig-ex/parse-exception exception-o-throwable-map)
