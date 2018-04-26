@@ -20,7 +20,8 @@
      x)))
 
 (defn ansi-code [code]
-  (when *use-color* (str \u001b code)))
+  (when (and *use-color* code)
+    (str \u001b code)))
 
 (defn ansi-fn* [code]
   (fn [s] (str (ansi-code code) s (ansi-code "[0m"))))
@@ -66,6 +67,12 @@
    :bg-cyan    "[46m"})
 
 (defn ansi-fn [k]
-  (ansi-fn* (get ANSI-CODES k)))
+  (ansi-fn* (get ANSI-CODES k "[0m")))
+
+(defn style* [s & codes]
+  (str (apply str (map ansi-code codes)) s (ansi-code "[0m")))
+
+(defn style [s & codes]
+  (apply style* s (map ANSI-CODES codes)))
 
 (alter-var-root #'*formatters* merge (setup-ansi-table ANSI-CODES))
