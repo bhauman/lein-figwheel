@@ -22,4 +22,4 @@
 (defmacro feature?
   [obj feature]
   `(and (cljs.core/exists? ~obj)
-        (cljs.core/exists? (cljs.core/aget ~obj ~feature))))
+        (cljs.core/exists? (goog.object/get ~obj ~feature))))
