@@ -14,6 +14,7 @@
         [figwheel.main.watching :as fww]
         [figwheel.main.util :as fw-util]
         [figwheel.repl :as fw-repl]
+        [figwheel.main.logging :as log]
         [cljs.repl.figwheel]))
   #?(:clj
      (:import
@@ -28,12 +29,40 @@
 #?(:clj
    (do
 
+;; TODO put this in figwheel config
+#_(.setLevel log/*logger* java.util.logging.Level/ALL)
+
 (defonce process-unique (subs (str (java.util.UUID/randomUUID)) 0 6))
 
-#_((suffix-filter #{"clj"}) nil {:file (io/file "project.clj")})
+(defn- time-elapsed [started-at]
+  (let [elapsed-us (- (System/currentTimeMillis) started-at)]
+    (with-precision 2
+      (str (/ (double elapsed-us) 1000) " seconds"))))
 
-;; config :reload-clj-files false
-;; :reload-clj-files {:clj true :cljc false}
+(defn- wrap-with-build-logging [build-fn]
+  (fn [id? & args]
+    (let [started-at (System/currentTimeMillis)
+          {:keys [output-to output-dir]} (second args)]
+      ;; print start message
+      (log/info (str "Compiling build"
+                     (when id? (str " " id?))
+                     " to \""
+                     (or output-to output-dir)))
+      (try
+        (apply build-fn args)
+        (log/info (str "Successfully compiled build"
+                       (when id? (str " " id?))
+                       " to \""
+                       (or output-to output-dir)
+                       "\" in " (time-elapsed started-at) "."))
+        (catch Throwable e
+          (log/warn (str
+                     "Failed to compile build" (when id? (str " " id?))
+                     " in " (time-elapsed started-at) "."))
+          (throw e))))))
+
+(def build-cljs (wrap-with-build-logging bapi/build))
+(def fig-core-build (wrap-with-build-logging figwheel.core/build))
 
 ;; simple protection against printing the compiler env
 ;; TODO this doesn't really work when it needs to
@@ -45,6 +74,7 @@
 
 (defn watch-build [id inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
+    (log/info "Watching build - " id)
     (fww/add-watch!
      [::autobuild id]
      (merge
@@ -75,8 +105,10 @@
                                       #(or (.endsWith % ".clj")
                                            (.endsWith % ".cljc"))
                                       files))]
+                           (log/debug "Reloading clj files: " (pr-str (map str clj-files)))
                            (figwheel.core/reload-clj-files clj-files))
-                         (figwheel.core/build inputs opts cenv files)
+                         (log/debug "Detected changed cljs files: " (pr-str (map str files)))
+                         (fig-core-build id inputs opts cenv files)
                          (catch Throwable t
                            #_(clojure.pprint/pprint
                               (Throwable->map t))
@@ -93,6 +125,8 @@
     (resolve 'figwheel.main.schema/validate-config!)
     ;; TODO pring informative message about config validation
     (fn [a b])))
+
+
 
 ;; ----------------------------------------------------------------------------
 ;; Additional cli options
@@ -126,6 +160,7 @@
                                {:cljs.main/error :invalid-arg}
                                t))))]
     (when (meta build)
+      (log/debug "Validating metadata in build: " fname)
       (validate-config! (meta build)
                         (str "Configuration error in " fname)))
     build))
@@ -226,6 +261,7 @@
               a' b'))
 
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
+  (log/info "Validating figwheel-main.edn")
   (validate-config! main-edn "Configuration error in figwheel-main.edn")
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
     (when (and ring-handler (not handler))
@@ -527,23 +563,33 @@
     ;; if watch-dirs is empty
     (if-let [paths (and (not= mode :build-once) (not-empty watch-dirs))]
       (do
-        (bapi/build (apply bapi/inputs paths) options cenv)
+        (build-cljs (:id build "dev") (apply bapi/inputs paths) options cenv)
         (watch-build (:id build "dev")
                      paths options cenv (select-keys config [:reload-clj-files])))
       (cond
         source
-        (bapi/build source options cenv)
+        (build-cljs (:id build "dev") source options cenv)
         ;; TODO need :compile-paths config param
         (not-empty watch-dirs)
-        (bapi/build (apply bapi/inputs watch-dirs) options cenv)))))
+        (build-cljs (:id build "dev") (apply bapi/inputs watch-dirs) options cenv)))))
+
+(defn starting-server-log [repl-env]
+  (let [host (get-in repl-env [:ring-server-options :host] "localhost")
+        port (get-in repl-env [:ring-server-options :port] figwheel.repl/default-port)
+        scheme (if (get-in repl-env [:ring-server-options :ssl?])
+                 "https" "http")]
+    (log/info "Starting Server at " scheme "://" host ":" port )))
 
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
+  (starting-server-log repl-env)
+  (log/info "Starting REPL")
   (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
                     cljs.repl/repl*)]
     (repl-fn repl-env repl-options)))
 
 (defn serve [{:keys [repl-env repl-options eval-str join?]}]
+  (starting-server-log repl-env)
   (cljs.repl/-setup repl-env repl-options)
   (when eval-str
     (cljs.repl/evaluate-form repl-env
@@ -552,6 +598,7 @@
                              "<cljs repl>"
                              ;; todo allow opts to be added here
                              (first (ana-api/forms-seq (StringReader. eval-str)))))
+
   (when-let [server (and join? @(:server repl-env))]
     (.join server)))
 
@@ -563,9 +610,9 @@
             update-config)
         cenv (cljs.env/default-compiler-env)]
     (when (not-empty (:watch-dirs config))
-      (println "Figwheel: Starting background autobuild for build: " (:id build))
+      (log/info "Starting background autobuild - " (:id build))
       (binding [cljs.env/*compiler* cenv]
-        (bapi/build (apply bapi/inputs (:watch-dirs config)) (:options cfg) cenv)
+        (build-cljs (:id build) (apply bapi/inputs (:watch-dirs config)) (:options cfg) cenv)
         (watch-build (:id build)
                      (:watch-dirs config)
                      (:options cfg)
@@ -594,7 +641,7 @@
   (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg} (update-config cfg)
         {:keys [mode pprint-config]} config
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))
-        cenv (cljs.env/default-compiler-env)]
+        cenv (cljs.env/default-compiler-env options)]
     (binding [*base-config* cfg
               *config* b-cfg]
       (cljs.env/with-compiler-env cenv
@@ -604,7 +651,9 @@
             (let [fw-mode? (figwheel-mode? b-cfg)]
               (build config options cenv)
               (when-not (= mode :build-once)
-                (start-background-builds cfg)
+                (start-background-builds (assoc cfg
+                                                ::start-figwheel-options
+                                                config))
                 (doseq [init-fn (::initializers b-cfg)] (init-fn))
                 (cond
                   (= mode :repl)
@@ -786,8 +835,8 @@
                                           (:uri (bapi/ns->location (symbol (:main options)))))]
                         source))]
           (when input
-            (println "Building once:" i)
-            (bapi/build input options (cljs.env/default-compiler-env))))))))
+            (build-cljs i input options
+                         (cljs.env/default-compiler-env options))))))))
 
 (defmacro build-once [& ids]
   (build-once* ids)
