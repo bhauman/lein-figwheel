@@ -1,4 +1,7 @@
 (ns figwheel.main.logging
+  (:require
+   [clojure.string :as string]
+   [figwheel.main.ansi-party :refer [format-str]])
   (:import [java.util.logging Logger Level ConsoleHandler Formatter]))
 
 (defprotocol Log
@@ -51,19 +54,25 @@
 (.getLevel *logger*)
 
 (defn info [& msg]
-  (fwlog! *logger* :info (apply str msg) nil))
+  (fwlog! *logger* :info (string/join " " msg) nil))
 
 (defn warn [& msg]
-  (fwlog! *logger* :warn (apply str msg) nil))
+  (fwlog! *logger* :warn (string/join " " msg) nil))
 
 (defn error [msg e]
   (fwlog! *logger* :error msg e))
 
 (defn debug [& msg]
-  (fwlog! *logger* :debug (apply str msg) nil))
+  (fwlog! *logger* :debug (string/join " " msg) nil))
 
 (defn trace [& msg]
-  (fwlog! *logger* :trace (apply str msg) nil))
+  (fwlog! *logger* :trace (string/join " " msg) nil))
+
+(defn succeed [& msg]
+  (info (format-str [:green (string/join " " msg)])))
+
+(defn failure [& msg]
+  (info (format-str [:red (string/join " " msg)])))
 
 #_ (error "hey" (ex-info "hey" {}))
 

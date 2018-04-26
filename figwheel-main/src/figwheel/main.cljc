@@ -50,15 +50,15 @@
                      (or output-to output-dir)))
       (try
         (apply build-fn args)
-        (log/info (str "Successfully compiled build"
+        (log/succeed (str "Successfully compiled build"
                        (when id? (str " " id?))
                        " to \""
                        (or output-to output-dir)
                        "\" in " (time-elapsed started-at) "."))
         (catch Throwable e
-          (log/warn (str
-                     "Failed to compile build" (when id? (str " " id?))
-                     " in " (time-elapsed started-at) "."))
+          (log/failure (str
+                        "Failed to compile build" (when id? (str " " id?))
+                        " in " (time-elapsed started-at) "."))
           (throw e))))))
 
 (def build-cljs (wrap-with-build-logging bapi/build))
@@ -263,6 +263,7 @@
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
   (log/info "Validating figwheel-main.edn")
   (validate-config! main-edn "Configuration error in figwheel-main.edn")
+  (log/succeed "figwheel-main.edn is valid!")
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
     (when (and ring-handler (not handler))
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
@@ -578,7 +579,7 @@
         port (get-in repl-env [:ring-server-options :port] figwheel.repl/default-port)
         scheme (if (get-in repl-env [:ring-server-options :ssl?])
                  "https" "http")]
-    (log/info "Starting Server at " scheme "://" host ":" port )))
+    (log/info (str "Starting Server at " scheme "://" host ":" port ))))
 
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
