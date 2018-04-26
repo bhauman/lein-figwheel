@@ -61,9 +61,18 @@
   (if (> (+ column (count message)) *inline-code-message-max-column*)
     (->> (wrap-line message (- *inline-code-message-max-column* 10))
          (map #(cross-format (str "%" *inline-code-message-max-column* "s") %))
-         (cons (cross-format (str "%" (dec column) "s%s") "" "^---"))
+         (cons (cross-format (let [col (dec column)]
+                               (str "%"
+                                    (when-not (zero? col) col)
+                                    "s%s"))
+                             "" "^---"))
          (mapv #(vec (concat [:error-message nil] [%]))))
-    [[:error-message nil (cross-format (str "%" (dec column) "s%s %s") "" "^---" message)]]))
+    [[:error-message nil (cross-format
+                          (let [col (dec column)]
+                            (str "%"
+                                 (when-not (zero? col) col)
+                                 "s%s %s" ))
+                          "" "^---" message)]]))
 
 (defn inline-message-display-data [{:keys [message line column file-excerpt] :as message-data}]
   (let [{:keys [start-line path excerpt]} file-excerpt
@@ -732,17 +741,17 @@
                                   :path ana/*cljs-file*})))]
          (try
            (swap! compiler-env vary-meta assoc ::compile-data {:started (System/currentTimeMillis)})
-           (cljs-build src opts compiler-env)
-           (swap! compiler-env
-                  vary-meta
-                  update ::compile-data
-                  (fn [x]
-                    (merge (select-keys x [:started])
-                           @local-data
-                           (cond-> {:finished (System/currentTimeMillis)}
-                             (some? changed-files) ;; accept empty list here
-                             (assoc :changed-files changed-files)))))
-           (vreset! local-data {})
+           (let [res (cljs-build src opts compiler-env)]
+             (swap! compiler-env
+                    vary-meta
+                    update ::compile-data
+                    (fn [x]
+                      (merge (select-keys x [:started])
+                             @local-data
+                             (cond-> {:finished (System/currentTimeMillis)}
+                               (some? changed-files) ;; accept empty list here
+                               (assoc :changed-files changed-files)))))
+             res)
            (catch Throwable e
              (swap! compiler-env
                     vary-meta
@@ -751,7 +760,8 @@
                       (merge (select-keys x [:started])
                              @local-data
                              {:exception e
-                              :finished (System/currentTimeMillis)}))))
+                              :finished (System/currentTimeMillis)})))
+             (throw e))
            (finally
              (swap! compiler-env vary-meta assoc ::compile-data {})))))))
 

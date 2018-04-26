@@ -52,3 +52,5 @@ example/checkouts/figwheel
 example/checkouts/figwheel-sidecar
 
 figwheel-repl/compile.sh
+
+figwheel-main/dev/example/except.cljs
