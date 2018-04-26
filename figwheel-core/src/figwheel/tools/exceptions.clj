@@ -32,14 +32,20 @@
 (defn clj-compiler-ex? [tm]
   (-> tm :via first :type pr-str (= (pr-str 'clojure.lang.Compiler$CompilerException))))
 
+(defn clj-spec-error? [tm]
+  (-> tm :data :clojure.spec.alpha/problems))
+
 (defn exception-type? [tm]
   (cond
     (cljs-analysis-ex? tm) :cljs/analysis-error
     (eof-reader-ex? tm)    :tools.reader/eof-reader-exception
     (reader-ex? tm)        :tools.reader/reader-exception
     (cljs-failed-compiling? tm) :cljs/general-compile-failure
+    (clj-spec-error? tm)   :clj/spec-based-syntax-error
     (clj-compiler-ex? tm)  :clj/compiler-exception
     :else nil))
+
+(derive :clj/spec-based-syntax-error :clj/compiler-exception)
 
 (derive :tools.reader/eof-reader-exception :tools.reader/reader-exception)
 
@@ -51,6 +57,9 @@
   (or
    (some-> tm :cause (string/split #"\[line.*\]") second string/trim)
    (:cause tm)))
+
+(defmethod message :clj/spec-based-syntax-error [tm]
+  (first (string/split-lines (:cause tm))))
 
 (defmulti blame-pos exception-type?)
 
