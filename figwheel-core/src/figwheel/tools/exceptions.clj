@@ -122,8 +122,12 @@
 (defmethod source-file :clj/compiler-exception [tm]
   (some->> tm :via first :message (re-matches #"(?s).*\(([^:]*)\:.*") second correct-file-path))
 
-(defn data [tm]
+(defmulti data exception-type?)
+
+(defmethod data :default [tm]
   (or (:data tm) (->> tm :via reverse (keep :data) first)))
+
+(defmethod data :clj/spec-based-syntax-error [tm] nil)
 
 (defn ex-type [tm]
   (some-> tm :via last :type pr-str symbol))
@@ -143,3 +147,5 @@
       file   (assoc :file file)
       ex-typ (assoc :type ex-typ)
       data'  (assoc :data data'))))
+
+#_(parse-exception (figwheel.tools.exceptions-test/fetch-clj-exception "(defn [])"))

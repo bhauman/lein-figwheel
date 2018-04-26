@@ -1,7 +1,10 @@
 (ns figwheel.main.logging
   (:require
    [clojure.string :as string]
-   [figwheel.main.ansi-party :refer [format-str]])
+   [clojure.java.io :as io]
+   [figwheel.core]
+   [figwheel.tools.exceptions :as fig-ex]
+   [figwheel.main.ansi-party :as ap :refer [format-str]])
   (:import [java.util.logging Logger Level ConsoleHandler Formatter]))
 
 (defprotocol Log
@@ -74,8 +77,55 @@
 (defn failure [& msg]
   (info (format-str [:red (string/join " " msg)])))
 
-#_ (error "hey" (ex-info "hey" {}))
+;; --------------------------------------------------------------------------------
+;; Logging Syntax errors
+;; --------------------------------------------------------------------------------
 
-#_ (debug "hey")
+(defn exception-title [{:keys [tag]}]
+  (condp = tag
+    :clj/compiler-exception            "Couldn't load Clojure file"
+    :cljs/analysis-error               "Could not Analyze"
+    :tools.reader/eof-reader-exception "Could not Read"
+    :tools.reader/reader-exception     "Could not Read"
+    :cljs/general-compile-failure      "Could not Compile"
+    "Compile Exception"))
 
-#_ (info "hey")
+(defn exception-message [{:keys [line column file] :as ex}]
+  [:cyan (exception-title ex) "   " (when file (str file  "   "))
+   (when line (str "line:" line "  "))
+   (when column (str "column:" column))])
+
+(defn exception-with-excerpt [e]
+  (let [{:keys [file line] :as parsed-ex} (fig-ex/parse-exception e)
+        file-excerpt (when (and file line (.exists (io/file file)))
+                       (figwheel.core/file-excerpt (io/file file) (max 1 (- line 10)) 20))]
+    (cond-> parsed-ex
+      file-excerpt (assoc :file-excerpt file-excerpt))))
+
+(defn except-data->format-lines-data [except-data]
+  (let [data (figwheel.core/inline-message-display-data except-data)
+        longest-number (->> data (keep second) (reduce max 0) str count)
+        number-fn  #(format (str "  %" (when-not (zero? longest-number)
+                                         longest-number)
+                                 "s  ") %)]
+    (apply vector :lines
+           (map
+            (fn [[k n s]]
+              (condp = k
+                :code-line [:yellow (number-fn n) s "\n"]
+                :error-in-code [:line [:yellow (number-fn n) ] [:bright s] "\n"]
+                :error-message [:yellow (number-fn "") (first (string/split s #"\^---")) "^---\n"]))
+            data))))
+
+(defn except-data->format-data [{:keys [message] :as except-data}]
+  [:exception
+   (when message [:yellow "  " message "\n"])
+   "\n"
+   (except-data->format-lines-data except-data)])
+
+(defn syntax-exception [e]
+  (let [data (exception-with-excerpt e)]
+    (info
+     (format-str
+      [:lines (exception-message data) "\n\n"
+       (except-data->format-data data)]))))

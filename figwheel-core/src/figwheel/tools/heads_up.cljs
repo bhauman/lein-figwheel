@@ -197,7 +197,7 @@
              "tools.reader/eof-reader-exception" "Could not Read"
              "tools.reader/reader-exception"     "Could not Read"
              "cljs/general-compile-failure"      "Could not Compile"
-             :else "Compile Exception")
+             "Compile Exception")
      :sub-head file
      :messages (concat
                 (map

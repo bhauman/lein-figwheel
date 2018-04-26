@@ -59,6 +59,7 @@
           (log/failure (str
                         "Failed to compile build" (when id? (str " " id?))
                         " in " (time-elapsed started-at) "."))
+          (log/syntax-exception e)
           (throw e))))))
 
 (def build-cljs (wrap-with-build-logging bapi/build))
@@ -110,8 +111,7 @@
                          (log/debug "Detected changed cljs files: " (pr-str (map str files)))
                          (fig-core-build id inputs opts cenv files)
                          (catch Throwable t
-                           #_(clojure.pprint/pprint
-                              (Throwable->map t))
+                           (log/syntax-exception t)
                            (figwheel.core/notify-on-exception cenv t {})
                            false))))))}))))
 
@@ -123,10 +123,8 @@
           true
           (catch Throwable t false))
     (resolve 'figwheel.main.schema/validate-config!)
-    ;; TODO pring informative message about config validation
+    ;; TODO print informative message about config validation
     (fn [a b])))
-
-
 
 ;; ----------------------------------------------------------------------------
 ;; Additional cli options
