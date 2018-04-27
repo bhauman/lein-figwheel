@@ -81,19 +81,25 @@
 ;; Logging Syntax errors
 ;; --------------------------------------------------------------------------------
 
-(defn exception-title [{:keys [tag]}]
-  (condp = tag
-    :clj/compiler-exception            "Couldn't load Clojure file"
-    :cljs/analysis-error               "Could not Analyze"
-    :tools.reader/eof-reader-exception "Could not Read"
-    :tools.reader/reader-exception     "Could not Read"
-    :cljs/general-compile-failure      "Could not Compile"
-    "Compile Exception"))
+(defn exception-title [{:keys [tag warning-type]}]
+  (if warning-type
+    "Compile Warning"
+    (condp = tag
+      :clj/compiler-exception            "Couldn't load Clojure file"
+      :cljs/analysis-error               "Could not Analyze"
+      :tools.reader/eof-reader-exception "Could not Read"
+      :tools.reader/reader-exception     "Could not Read"
+      :cljs/general-compile-failure      "Could not Compile"
+      "Compile Exception")))
 
-(defn exception-message [{:keys [line column file] :as ex}]
-  [:cyan (exception-title ex) "   " (when file (str file  "   "))
+(defn file-line-col [{:keys [line column file] :as ex}]
+  [:file-line-col
+   (when file (str file  "   "))
    (when line (str "line:" line "  "))
    (when column (str "column:" column))])
+
+(defn exception-message [ex]
+  [:cyan (exception-title ex) "   " (file-line-col ex)])
 
 (defn exception-with-excerpt [e]
   (let [{:keys [file line] :as parsed-ex} (fig-ex/parse-exception e)
@@ -123,9 +129,26 @@
    "\n"
    (except-data->format-lines-data except-data)])
 
+(defn format-exception-warning [data]
+  [:lines (exception-message data) "\n\n"
+   (except-data->format-data data)])
+
 (defn syntax-exception [e]
-  (let [data (exception-with-excerpt e)]
+  (-> (exception-with-excerpt e)
+      format-exception-warning
+      format-str
+      info))
+
+(defn cljs-syntax-warning [warning]
+  (-> (figwheel.core/warning-info warning)
+      format-exception-warning
+      format-str
+      info))
+
+(defn cljs-syntax-warning-message [warning]
+  (let [{:keys [message] :as data} (figwheel.core/warning-info warning)]
     (info
      (format-str
-      [:lines (exception-message data) "\n\n"
-       (except-data->format-data data)]))))
+      [:lines
+       (when message [:yellow message "  "])
+       [:cyan (file-line-col data)]]))))

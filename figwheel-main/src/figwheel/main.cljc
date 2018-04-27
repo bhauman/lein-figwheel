@@ -49,7 +49,20 @@
                      " to \""
                      (or output-to output-dir)))
       (try
-        (apply build-fn args)
+        (let [warnings (volatile! [])]
+          (binding [cljs.analyzer/*cljs-warning-handlers*
+                    (conj cljs.analyzer/*cljs-warning-handlers*
+                          (fn [warning-type env extra]
+                            (when (get cljs.analyzer/*cljs-warnings* warning-type)
+                              (let [warn {:warning-type warning-type
+                                          :env env
+                                          :extra extra
+                                          :path ana/*cljs-file*}]
+                                (if (<= (count @warnings) 2)
+                                  (log/cljs-syntax-warning warn)
+                                  (log/cljs-syntax-warning-message warn))
+                                (vswap! warnings conj warn)))))]
+            (apply build-fn args)))
         (log/succeed (str "Successfully compiled build"
                        (when id? (str " " id?))
                        " to \""
