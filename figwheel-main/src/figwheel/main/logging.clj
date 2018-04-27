@@ -105,7 +105,7 @@
 
 (defn set-level [lvl-key]
   (fwsetlevel! *logger* lvl-key))
-(d)
+
 (defn info [& msg]
   (fwlog! *logger* :info (string/join " " msg) nil))
 

@@ -52,6 +52,8 @@
 
 (s/def ::log-file non-blank-string?)
 
+(s/def ::ansi-color-output boolean?)
+
 #_(exp/expound ::edn {:watch-dirs ["src"]
                       :ring-handler "asdfasdf/asdfasdf"
                       :reload-clj-files [:cljss :clj]})

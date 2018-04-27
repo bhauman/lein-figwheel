@@ -12,6 +12,7 @@
         [clojure.string :as string]
         [figwheel.core :as fw-core]
         [figwheel.main.watching :as fww]
+        [figwheel.main.ansi-party :as ansip]
         [figwheel.main.util :as fw-util]
         [figwheel.repl :as fw-repl]
         [figwheel.main.logging :as log]
@@ -277,7 +278,8 @@
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
   (log/info "Validating figwheel-main.edn")
   (validate-config! main-edn "Configuration error in figwheel-main.edn")
-  (log/succeed "figwheel-main.edn is valid!")
+  (binding [ansip/*use-color* (:ansi-color-output main-edn true)]
+    (log/succeed "figwheel-main.edn is valid!"))
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
     (when (and ring-handler (not handler))
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
@@ -552,12 +554,18 @@
     (log/set-level log-level))
   cfg)
 
+(defn config-ansi-color-output! [{:keys [::config] :as cfg}]
+  (when (some? (:ansi-color-output config))
+    (alter-var-root #'ansip/*use-color* (fn [_] (:ansi-color-output config))))
+  cfg)
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
   (->> cfg
        config-figwheel-main-edn
        config-merge-current-build-conf
+       config-ansi-color-output!
        config-set-log-level!
        config-repl-serve?
        config-main-ns
@@ -606,7 +614,6 @@
     (log/info "Redirecting log ouput to file:" log-fname)
     (io/make-parents log-fname)
     (log/switch-to-file-handler! log-fname)))
-
 
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
