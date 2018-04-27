@@ -68,7 +68,8 @@
                                       (log/cljs-syntax-warning warn))))
                                 (vswap! warnings conj warn))))]
           (binding [cljs.analyzer/*cljs-warning-handlers*
-                    (conj cljs.analyzer/*cljs-warning-handlers*
+                    (conj (remove #{cljs.analyzer/default-warning-handler}
+                                  cljs.analyzer/*cljs-warning-handlers*)
                           warning-fn)]
             (apply build-fn args)))
         (log/succeed (str "Successfully compiled build"
