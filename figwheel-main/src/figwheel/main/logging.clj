@@ -62,21 +62,18 @@
 
 ;; this supports rebel-readline better
 ;; TODO need to determine the best thing to do here
-(defn writer-handler [print-writer-var]
+(defn writer-handler []
   (proxy [Handler] []
     (close [])
-    (flush []
-      (binding [*out* @print-writer-var]
-        (flush)))
+    (flush [] (flush))
     (publish [^LogRecord record]
-      (binding [*out* @print-writer-var]
-        (if-let [formatter (.getFormatter this)]
-          (println (string/trim-newline (.format formatter record)))
-          (println (string/trim-newline (.getMessage record))))))))
+      (if-let [formatter (.getFormatter this)]
+        (println (string/trim-newline (.format formatter record)))
+        (println (string/trim-newline (.getMessage record)))))))
 
 (defn default-logger
   ([n] (default-logger n (if (util/rebel-readline?)
-                           (writer-handler #'*out*)
+                           (writer-handler)
                            (ConsoleHandler.))))
   ([n handler]
    (let [l (Logger/getLogger n)]
@@ -131,6 +128,8 @@
 ;; Logging Syntax errors
 ;; --------------------------------------------------------------------------------
 
+(def ^:dynamic *syntax-error-style* :verbose)
+
 (defn exception-title [{:keys [tag warning-type]}]
   (if warning-type
     "Compile Warning"
@@ -183,22 +182,25 @@
   [:lines (exception-message data) "\n\n"
    (except-data->format-data data)])
 
+(defn format-exception-warning-concise [{:keys [message] :as data}]
+  [:lines
+   [:cyan (exception-title data) ": "]
+   (when message [:yellow message "  "])
+   [:cyan (file-line-col data)]])
+
+(defn format-ex [data]
+  (if (= *syntax-error-style* :concise)
+    (format-exception-warning-concise data)
+    (format-exception-warning data)))
+
 (defn syntax-exception [e]
   (-> (exception-with-excerpt e)
-      format-exception-warning
+      format-ex
       format-str
       info))
 
 (defn cljs-syntax-warning [warning]
   (-> (figwheel.core/warning-info warning)
-      format-exception-warning
+      format-ex
       format-str
       info))
-
-(defn cljs-syntax-warning-message [warning]
-  (let [{:keys [message] :as data} (figwheel.core/warning-info warning)]
-    (info
-     (format-str
-      [:lines
-       (when message [:yellow message "  "])
-       [:cyan (file-line-col data)]]))))

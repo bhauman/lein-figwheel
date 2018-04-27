@@ -52,6 +52,8 @@
 
 (s/def ::log-file non-blank-string?)
 
+(s/def ::log-syntax-error-style #{:verbose :concise})
+
 (s/def ::ansi-color-output boolean?)
 
 #_(exp/expound ::edn {:watch-dirs ["src"]

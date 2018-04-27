@@ -53,19 +53,23 @@
                      " to \""
                      (or output-to output-dir)))
       (try
-        (let [warnings (volatile! [])]
-          (binding [cljs.analyzer/*cljs-warning-handlers*
-                    (conj cljs.analyzer/*cljs-warning-handlers*
-                          (fn [warning-type env extra]
+        (let [warnings (volatile! [])
+              out *out*
+              warning-fn (fn [warning-type env extra]
                             (when (get cljs.analyzer/*cljs-warnings* warning-type)
                               (let [warn {:warning-type warning-type
                                           :env env
                                           :extra extra
                                           :path ana/*cljs-file*}]
-                                (if (<= (count @warnings) 2)
-                                  (log/cljs-syntax-warning warn)
-                                  (log/cljs-syntax-warning-message warn))
-                                (vswap! warnings conj warn)))))]
+                                (binding [*out* out]
+                                  (if (<= (count @warnings) 2)
+                                    (log/cljs-syntax-warning warn)
+                                    (binding [log/*syntax-error-style* :concise]
+                                      (log/cljs-syntax-warning warn))))
+                                (vswap! warnings conj warn))))]
+          (binding [cljs.analyzer/*cljs-warning-handlers*
+                    (conj cljs.analyzer/*cljs-warning-handlers*
+                          warning-fn)]
             (apply build-fn args)))
         (log/succeed (str "Successfully compiled build"
                        (when id? (str " " id?))
@@ -559,6 +563,11 @@
     (alter-var-root #'ansip/*use-color* (fn [_] (:ansi-color-output config))))
   cfg)
 
+(defn config-log-syntax-error-style! [{:keys [::config] :as cfg}]
+  (when (some? (:log-syntax-error-style config))
+    (alter-var-root #'log/*syntax-error-style* (fn [_] (:log-syntax-error-style config))))
+  cfg)
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
@@ -567,6 +576,7 @@
        config-merge-current-build-conf
        config-ansi-color-output!
        config-set-log-level!
+       config-log-syntax-error-style!
        config-repl-serve?
        config-main-ns
        config-update-watch-dirs
