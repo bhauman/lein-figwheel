@@ -1,9 +1,10 @@
 (defproject figwheel-repl "0.1.0-SNAPSHOT"
-  :description  "Figwheel REPL provides a stable multiplexing REPL for clojurescript"
+  :description  "Figwheel REPL provides a stable multiplexing REPL for ClojureScript"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.10.238"]
                  [ring/ring-core "1.6.3"]
                  [ring/ring-defaults "0.3.1"]
+                 [ring/ring-devel "1.6.3"]
                  [co.deps/ring-etag-middleware "0.2.0"]
                  [ring-cors "0.1.12"]]
 

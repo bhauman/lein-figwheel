@@ -22,4 +22,5 @@
 ;; idempotent with stable reference
 (.addEventListener js/document.body "figwheel.after-css-load" after-css-load)
 
-#_(d )
+#_(defn)
+#_(d d d d d d d)

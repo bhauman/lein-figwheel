@@ -8,4 +8,4 @@
         :dir ".."}
   :dependencies
   [[org.clojure/clojure "1.8.0"]
-   [org.clojure/clojurescript "1.10.191"]])
+   [org.clojure/clojurescript "1.10.238"]])

@@ -1051,11 +1051,14 @@
     (when-let [js-content (try (slurp url) (catch Throwable t))]
       (evaluate this js-content)))
   (-tear-down [{:keys [server printing-listener]}]
-    (when-let [svr @server]
-      (reset! server nil)
-      (.stop svr))
-    (when-let [listener @printing-listener]
-      (remove-listener listener)))
+    ;; don't shut things down in nrepl
+    (when-not (when-let [v (resolve 'clojure.tools.nrepl.middleware.interruptible-eval/*msg*)]
+                (thread-bound? v))
+      (when-let [svr @server]
+        (reset! server nil)
+        (.stop svr))
+      (when-let [listener @printing-listener]
+        (remove-listener listener))))
   cljs.repl/IReplEnvOptions
   (-repl-options [this]
     {;:browser-repl true

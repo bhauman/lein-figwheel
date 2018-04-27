@@ -626,15 +626,43 @@
     (io/make-parents log-fname)
     (log/switch-to-file-handler! log-fname)))
 
+;; ------------------------------
+;; REPL
+;; ------------------------------
+
+(defn bound-var? [sym]
+  (when-let [v (resolve sym)]
+    (thread-bound? v)))
+
+(defn in-nrepl? [] (bound-var? 'clojure.tools.nrepl.middleware.interruptible-eval/*msg*))
+
+(defn nrepl-repl [repl-env repl-options]
+  (if-let [piggie-repl (or (and (bound-var? 'cider.piggieback/*cljs-repl-env*)
+                                (resolve 'cider.piggieback/cljs-repl))
+                           (and (bound-var? 'cemerick.piggieback/*cljs-repl-env*)
+                                (resolve 'cemerick.piggieback/cljs-repl)))]
+    (apply piggie-repl repl-env (mapcat identity repl-options))
+    (throw (ex-info "Failed to launch Figwheel CLJS REPL: nREPL connection found but unable to load piggieback.
+This is commonly caused by
+ A) not providing piggieback as a dependency and/or
+ B) not adding piggieback middleware into your nrepl middleware chain.
+Please see the documentation for piggieback here https://github.com/clojure-emacs/piggieback#installation
+
+Note: Cider will inject this config into your project.clj.
+This can cause confusion when your are not using Cider."
+                    {::error :no-cljs-nrepl-middleware}))))
+
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
   (log-server-start repl-env)
   (log/info "Starting REPL")
   ;; when we have a logging file start log here
   (start-file-logger)
-  (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
-                    cljs.repl/repl*)]
-    (repl-fn repl-env repl-options)))
+  (if (in-nrepl?)
+    (nrepl-repl repl-env repl-options)
+    (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
+                      cljs.repl/repl*)]
+      (repl-fn repl-env repl-options))))
 
 (defn serve [{:keys [repl-env repl-options eval-str join?]}]
   (log-server-start repl-env)
@@ -727,7 +755,8 @@
           figwheel-options (assoc ::start-figwheel-options figwheel-options)
           build-id    (assoc ::build {:id  build-id
                                       :config (meta options)})
-          true        (update-in [::start-figwheel-options :mode] #(if-not % :repl %)))]
+          (not (get figwheel-options :mode))
+          (assoc-in [::config :mode] :repl))]
     (default-compile cljs.repl.figwheel/repl-env cfg)))
 
 ;; ----------------------------------------------------------------------------
@@ -968,7 +997,8 @@
     (catch Throwable e
       (let [d (ex-data e)]
         (if (or (:figwheel.main.schema/error d)
-                (:cljs.main/error d))
+                (:cljs.main/error d)
+                (::error d))
           (println (.getMessage e))
           (throw e))))))
 
