@@ -29,6 +29,9 @@
 #?(:clj
    (do
 
+(def ^:dynamic *base-config*)
+(def ^:dynamic *config*)
+
 ;; TODO put this in figwheel config
 #_(.setLevel log/*logger* java.util.logging.Level/ALL)
 
@@ -108,7 +111,7 @@
                                           :else ["clj" "cljc"])))
        :handler (fww/throttle
                  50
-                 (fn [evts]
+                 (bound-fn [evts]
                    (binding [cljs.env/*compiler* cenv]
                      (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
                            inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
@@ -544,12 +547,18 @@
            :repl-options repl-options
            :repl-env-options repl-env-options)))
 
+(defn config-set-log-level! [{:keys [::config] :as cfg}]
+  (when-let [log-level (:log-level config)]
+    (log/set-level log-level))
+  cfg)
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
   (->> cfg
        config-figwheel-main-edn
        config-merge-current-build-conf
+       config-set-log-level!
        config-repl-serve?
        config-main-ns
        config-update-watch-dirs
@@ -585,23 +594,32 @@
         (not-empty watch-dirs)
         (build-cljs (:id build "dev") (apply bapi/inputs watch-dirs) options cenv)))))
 
-(defn starting-server-log [repl-env]
+(defn log-server-start [repl-env]
   (let [host (get-in repl-env [:ring-server-options :host] "localhost")
         port (get-in repl-env [:ring-server-options :port] figwheel.repl/default-port)
         scheme (if (get-in repl-env [:ring-server-options :ssl?])
                  "https" "http")]
     (log/info (str "Starting Server at " scheme "://" host ":" port ))))
 
+(defn start-file-logger []
+  (when-let [log-fname (and (bound? #'*config*) (get-in *config* [::config :log-file]))]
+    (log/info "Redirecting log ouput to file:" log-fname)
+    (io/make-parents log-fname)
+    (log/switch-to-file-handler! log-fname)))
+
+
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
-  (starting-server-log repl-env)
+  (log-server-start repl-env)
   (log/info "Starting REPL")
+  ;; when we have a logging file start log here
+  (start-file-logger)
   (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
                     cljs.repl/repl*)]
     (repl-fn repl-env repl-options)))
 
 (defn serve [{:keys [repl-env repl-options eval-str join?]}]
-  (starting-server-log repl-env)
+  (log-server-start repl-env)
   (cljs.repl/-setup repl-env repl-options)
   (when eval-str
     (cljs.repl/evaluate-form repl-env
@@ -640,9 +658,6 @@
 (defn start-background-builds [{:keys [::background-builds] :as cfg}]
   (doseq [build background-builds]
     (background-build cfg build)))
-
-(def ^:dynamic *base-config*)
-(def ^:dynamic *config*)
 
 ;; TODO what happens to inits like --init and --eval in all cases
 

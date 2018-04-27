@@ -54,3 +54,5 @@ example/checkouts/figwheel-sidecar
 figwheel-repl/compile.sh
 
 figwheel-main/dev/example/except.cljs
+
+figwheel-main/.rebel_readline_history

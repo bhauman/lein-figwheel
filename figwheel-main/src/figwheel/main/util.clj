@@ -37,3 +37,6 @@
           (when (require? (symbol ns))
             (when-let [handler-var (resolve h)]
               handler-var)))))))
+
+(defn rebel-readline? []
+  (require-resolve-var 'rebel-readline.core/read-line))

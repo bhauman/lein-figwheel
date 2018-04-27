@@ -8,7 +8,9 @@
 (defonce ^:dynamic *spec-meta* (atom {}))
 (defn spec-doc [k doc] (swap! *spec-meta* assoc-in [k :doc] doc))
 
-(defn directory-exists? [s] (.exists (io/file s)))
+(defn file-exists? [s] (and s (.isFile (io/file s))))
+(defn directory-exists? [s] (and s (.isDirectory (io/file s))))
+
 (defn non-blank-string? [x] (and (string? x) (not (string/blank? x))))
 
 (s/def ::edn (s/keys :opt-un
@@ -29,10 +31,10 @@
 
 (s/def ::mode #{:build-once :repl :serve})
 
-(s/def ::watch-dirs (s/coll-of (s/and string?
+(s/def ::watch-dirs (s/coll-of (s/and non-blank-string?
                                       directory-exists?)))
 
-(s/def ::css-dirs (s/coll-of (s/and string?
+(s/def ::css-dirs (s/coll-of (s/and non-blank-string?
                                     directory-exists?)))
 
 ;; TODO make this verify that the handler exists
@@ -45,6 +47,10 @@
 (s/def ::open-file-command non-blank-string?)
 
 (s/def ::client-print-to (s/coll-of #{:console :repl}))
+
+(s/def ::log-level #{:error :info :debug :trace :all :off})
+
+(s/def ::log-file non-blank-string?)
 
 #_(exp/expound ::edn {:watch-dirs ["src"]
                       :ring-handler "asdfasdf/asdfasdf"

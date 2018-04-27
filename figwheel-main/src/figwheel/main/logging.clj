@@ -1,68 +1,118 @@
 (ns figwheel.main.logging
   (:require
-   [clojure.string :as string]
    [clojure.java.io :as io]
+   [clojure.string :as string]
    [figwheel.core]
-   [figwheel.tools.exceptions :as fig-ex]
-   [figwheel.main.ansi-party :as ap :refer [format-str]])
-  (:import [java.util.logging Logger Level ConsoleHandler Formatter]))
+   [figwheel.main.ansi-party :as ap :refer [format-str]]
+   [figwheel.main.util :as util]
+   [figwheel.tools.exceptions :as fig-ex])
+  (:import [java.util.logging
+            Logger Level LogRecord
+            Handler
+            ConsoleHandler
+            FileHandler
+            Formatter]))
 
 (defprotocol Log
-  (fwlog! [logger level msg throwable]))
+  (fwlog! [logger level msg throwable])
+  (fwsetlevel! [logger level]))
+
+(def levels-map
+  {:error  Level/SEVERE
+   :fatal  Level/SEVERE
+   :warn   Level/WARNING
+   :info   Level/INFO
+   :config Level/CONFIG
+   :debug  Level/FINE
+   :trace  Level/FINEST})
 
 (extend java.util.logging.Logger
   Log
   {:fwlog!
    (fn [^java.util.logging.Logger logger level msg ^Throwable throwable]
      (let [^java.util.logging.Level lvl
-           (get {:error  Level/SEVERE
-                 :fatal  Level/SEVERE
-                 :warn   Level/WARNING
-                 :info   Level/INFO
-                 :config Level/CONFIG
-                 :debug  Level/FINE
-                 :trace  Level/FINEST} level Level/INFO)]
+           (get levels-map level Level/INFO)]
        (when (.isLoggable logger lvl)
          (if throwable
            (.log logger lvl msg throwable)
-           (.log logger lvl msg)))))})
+           (.log logger lvl msg)))))
+   :fwsetlevel!
+   (let [levels-map* (merge levels-map {:all Level/ALL :off Level/OFF})]
+     (fn [^java.util.logging.Logger logger level]
+       (some->>
+        level
+        (get levels-map*)
+        (.setLevel logger))))})
 
-(def fig-formatter (proxy [Formatter] []
-                     (format [record]
-                       (let [lvl (.getLevel record)]
-                         (str "[Figwheel"
-                              (when-not (= lvl Level/INFO)
-                                (str ":" (.getName lvl)))
-                              "] "
-                              (.getMessage record) "\n"
-                              (when-let [m (.getThrown record)]
-                                (with-out-str
-                                  (clojure.pprint/pprint (Throwable->map m)))))))))
+(defn format-log-record [^LogRecord record]
+  (let [lvl (.getLevel record)]
+    (str "[Figwheel"
+         (when-not (= lvl Level/INFO)
+           (str ":" (.getName lvl)))
+         "] "
+         (.getMessage record) "\n"
+         (when-let [m (.getThrown record)]
+           (with-out-str
+             (clojure.pprint/pprint (Throwable->map m)))))))
+
+(def fig-formatter
+  (proxy [Formatter] []
+    (format [^LogRecord record]
+      (format-log-record record))))
+
+;; this supports rebel-readline better
+;; TODO need to determine the best thing to do here
+(defn writer-handler [print-writer-var]
+  (proxy [Handler] []
+    (close [])
+    (flush []
+      (binding [*out* @print-writer-var]
+        (flush)))
+    (publish [^LogRecord record]
+      (binding [*out* @print-writer-var]
+        (if-let [formatter (.getFormatter this)]
+          (println (string/trim-newline (.format formatter record)))
+          (println (string/trim-newline (.getMessage record))))))))
 
 (defn default-logger
-  ([n] (default-logger n (ConsoleHandler.)))
+  ([n] (default-logger n (if (util/rebel-readline?)
+                           (writer-handler #'*out*)
+                           (ConsoleHandler.))))
   ([n handler]
    (let [l (Logger/getLogger n)]
      (when (empty? (.getHandlers l))
        (.addHandler l (doto handler
                         (.setFormatter fig-formatter)
+                        ;; set level ALL here
                         (.setLevel java.util.logging.Level/ALL))))
      (.setUseParentHandlers l false)
      l)))
 
-(def ^:dynamic *logger* (default-logger "figwheel.loggggg"))
+(def ^:dynamic *logger* (default-logger "figwheel.logg"))
 
-#_(.setLevel *logger* java.util.logging.Level/INFO)
+(defn remove-handlers [logger]
+  (doseq [h (.getHandlers logger)]
+    (.removeHandler logger h)))
 
-(.getLevel *logger*)
+(defn switch-to-file-handler! [fname]
+  (alter-var-root #'ap/*use-color* (fn [_] false))
+  (remove-handlers *logger*)
+  (.addHandler
+   *logger*
+   (doto (FileHandler. fname)
+     (.setFormatter fig-formatter)
+     (.setLevel java.util.logging.Level/ALL))))
 
+(defn set-level [lvl-key]
+  (fwsetlevel! *logger* lvl-key))
+(d)
 (defn info [& msg]
   (fwlog! *logger* :info (string/join " " msg) nil))
 
 (defn warn [& msg]
   (fwlog! *logger* :warn (string/join " " msg) nil))
 
-(defn error [msg e]
+(defn error [msg & [e]]
   (fwlog! *logger* :error msg e))
 
 (defn debug [& msg]
