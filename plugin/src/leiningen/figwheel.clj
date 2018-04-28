@@ -291,11 +291,13 @@
   "Get source paths for all of the lein projects in the checkouts directory."
   [project]
   (let [checkout-project-maps (lproject/read-checkouts project)
-        checkout-sources (for [co-project checkout-project-maps
-                               source-path (:source-paths co-project)]
-                           ;; Make the checkout source path pretty, e.g. checkouts/utils-lib/src
-                           (str (.relativize (.toPath (io/file (:root project))) ;; Note, root of the parent project, not the checkout project
-                                             (.toPath (io/file source-path)))))]
+        parent-project-root-path (.toPath (io/file (:root project)))
+        checkout-sources      (for [co-project  checkout-project-maps
+                                    source-path-str (:source-paths co-project)
+                                    :let [source-path (.toPath (io/file source-path-str))]]
+                                ;; Make the checkout source path pretty, e.g. ../utils-lib/src
+                                ;; NOTE: this follows the symlink at checkouts/utils-lib
+                                (str (.relativize parent-project-root-path source-path)))]
     (distinct checkout-sources)))
 
 (defn map-vals
