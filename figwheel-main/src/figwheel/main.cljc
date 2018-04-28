@@ -138,16 +138,20 @@
                            (figwheel.core/notify-on-exception cenv t {})
                            false))))))}))))
 
-(def validate-config!
-  (if (try
+(def validate-config!*
+  (when (try
           (require 'clojure.spec.alpha)
           (require 'expound.alpha)
           (require 'figwheel.main.schema)
           true
           (catch Throwable t false))
-    (resolve 'figwheel.main.schema/validate-config!)
-    ;; TODO print informative message about config validation
-    (fn [a b])))
+    (resolve 'figwheel.main.schema/validate-config!)))
+
+(defn validate-config! [edn fail-msg & [succ-msg]]
+  (when validate-config!*
+    (validate-config!* edn fail-msg)
+    (when succ-msg
+      (log/succeed succ-msg))))
 
 ;; ----------------------------------------------------------------------------
 ;; Additional cli options
@@ -201,8 +205,17 @@
         main-ns-dir (and main (watch-dir-from-ns (symbol main)))]
     (not-empty (filter #(.exists (io/file %)) (cons main-ns-dir watch-dirs)))))
 
+(def default-main-repl-index-body
+  (str
+   "<p>Welcome to the Figwheel REPL page.</p>"
+   "<p>This page is served when you launch <code>figwheel.main</code> without any command line arguments.</p>"
+   "<p>This page is currently hosting your REPL and application evaluation environment. "
+   "Validate the connection by typing <code>(js/alert&nbsp;\"Hello&nbsp;Figwheel!\")</code> in the REPL.</p>"))
+
 (defn build-opt [cfg bn]
-  (when-not (.exists (io/file (str bn ".cljs.edn")))
+  (when-not (or
+             (= bn "figwheel-default-repl-build")
+             (.exists (io/file (str bn ".cljs.edn"))))
     (if (or (string/starts-with? bn "-")
             (string/blank? bn))
       (throw
@@ -213,12 +226,19 @@
         (ex-info
           (str "Build " (str bn ".cljs.edn") " does not exist")
           {:cljs.main/error :invalid-arg}))))
-  (let [options (get-build bn)]
+  (if (= bn "figwheel-default-repl-build")
     (-> cfg
-        (update :options merge options)
-        (assoc-in [::build] (cond-> {:id bn}
-                              (meta options)
-                              (assoc :config (meta options)))))))
+        (update :options merge {:main 'figwheel.repl.preload})
+        (assoc-in [:repl-env-options :open-url]
+                  "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
+        (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
+        (assoc-in [::build] {:id bn}))
+    (let [options (get-build bn)]
+      (-> cfg
+          (update :options merge options)
+          (assoc-in [::build] (cond-> {:id bn}
+                                (meta options)
+                                (assoc :config (meta options))))))))
 
 (defn build-once-opt [cfg bn]
   (let [cfg (build-opt cfg bn)]
@@ -283,9 +303,8 @@
 
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
   (log/info "Validating figwheel-main.edn")
-  (validate-config! main-edn "Configuration error in figwheel-main.edn")
-  (binding [ansip/*use-color* (:ansi-color-output main-edn true)]
-    (log/succeed "figwheel-main.edn is valid!"))
+  (validate-config! main-edn "Configuration error in figwheel-main.edn"
+                    "figwheel-main.edn is valid!")
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
     (when (and ring-handler (not handler))
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
@@ -357,9 +376,11 @@
   (update-in cfg [::config :watch-dirs]
             #(not-empty
               (distinct
-               (cond-> %
-                 (:watch options) (conj (:watch options))
-                 (:main options) (conj (watch-dir-from-ns (:main options))))))))
+               (let [ns-watch-dir (and (:main options)
+                                       (watch-dir-from-ns (:main options)))]
+                 (cond-> %
+                   (:watch options) (conj (:watch options))
+                   ns-watch-dir (conj ns-watch-dir)))))))
 
 ;; needs local config
 (defn figwheel-mode? [{:keys [::config options]}]
@@ -1031,10 +1052,16 @@ This can cause confusion when your are not using Cider."
                   figwheel-commands)
   (try
     (let [[pre post] (split-with (complement #{"-re" "--repl-env"}) args)
-          args (if (empty? post) (concat ["-re" "figwheel"] args) args)
-          args (handle-build-opt args)]
+          args' (if (empty? post) (concat ["-re" "figwheel"] args) args)
+          args' (handle-build-opt args')
+          ;; no args
+          args' (if (empty? args) (concat args' ["-b" "figwheel-default-repl-build"
+                                                 "-c" "figwheel.repl.preload"
+                                                 "-r"])
+                    args')]
       (with-redefs [cljs.cli/default-compile default-compile]
-        (apply cljs.main/-main args)))
+        #_(println args')
+        (apply cljs.main/-main args')))
     (catch Throwable e
       (let [d (ex-data e)]
         (if (or (:figwheel.main.schema/error d)

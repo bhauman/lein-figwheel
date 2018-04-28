@@ -1,5 +1,6 @@
 (ns figwheel.main.util
   (:require
+   [clojure.string :as string]
    [clojure.java.io :as io])
   (:import
    [java.nio.file.Paths]))
@@ -40,3 +41,12 @@
 
 (defn rebel-readline? []
   (require-resolve-var 'rebel-readline.core/read-line))
+
+(defn classpath []
+  (string/split (System/getProperty "java.class.path")
+                (java.util.regex.Pattern/compile (System/getProperty "path.separator"))))
+
+(defn dir-on-classpath? [dir]
+  ((set (classpath)) (.getCanonicalPath (io/file dir))))
+
+#_(on-classpath? "target")

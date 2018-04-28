@@ -129,24 +129,46 @@
           (handler request))
         (handler request)))))
 
-(defn index-html [{:keys [output-to]}]
-  (str
-   "<!DOCTYPE html><html>"
-   "<head>"
-   "<meta charset=\"UTF-8\">"
-   "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" >"
-   "<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"cljs-logo-icon-32.png\"/>"
-   "</head>"
-   "<body>"
-   "<div id=\"app\">"
-   "<style>"
-   "body { padding: 40px; margin: auto; max-width: 38em; "
-   "font-family: \"Open Sans\", sans-serif; }"
-   "code { color: #4165a2; font-size: 17px; }"
-   "pre  { color: #4165a2; font-size: 15px; white-space: pre-wrap; }"
-   "</style>"
-   "<center>"
-   "<svg width=\"200\" height=\"200\" version=\"1.1\" id=\"Layer_1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" x=\"0px\" y=\"0px\"
+(defn index-html [{:keys [output-to body]}]
+  (let [body' (or body
+                  (str "<p>Welcome to the Figwheel default index page.</p>"
+
+                       "<p>You are seeing this because the webserver was unable to locate an index page for your application.</p>"
+
+                       "<p>This page is currently hosting your REPL and application evaluation environment. "
+                       "Validate the connection by typing <code>(js/alert&nbsp;\"Hello&nbsp;Figwheel!\")</code> in the REPL.</p>"
+                       "<p>To provide your own custom page, place an <code>index.html</code> file on the server path.</p>"
+                       "<pre>"
+                       "&lt;!DOCTYPE html&gt;\n"
+                       "&lt;html&gt;\n"
+                       "  &lt;head&gt;\n"
+                       "    &lt;meta charset=\"UTF-8\"&gt;\n"
+                       "  &lt;/head&gt;\n"
+                       "  &lt;body&gt;\n"
+                       "    &lt;script src=\"[correct-path-to "
+                       (or output-to "main.js file")
+                       "]\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
+                       "  &lt;/body&gt;\n"
+                       "&lt;/html&gt;\n"
+                       "</pre>"
+                       "</div></div>"))]
+    (str
+     "<!DOCTYPE html><html>"
+     "<head>"
+     "<meta charset=\"UTF-8\">"
+     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" >"
+     "<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"cljs-logo-icon-32.png\"/>"
+     "</head>"
+     "<body>"
+     "<div id=\"app\">"
+     "<style>"
+     "body { padding: 40px; margin: auto; max-width: 38em; "
+     "font-family: \"Open Sans\", sans-serif; }"
+     "code { color: #4165a2; font-size: 17px; }"
+     "pre  { color: #4165a2; font-size: 15px; white-space: pre-wrap; }"
+     "</style>"
+     "<center>"
+     "<svg width=\"200\" height=\"200\" version=\"1.1\" id=\"Layer_1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" x=\"0px\" y=\"0px\"
 	 viewBox=\"0 0 428 426\" enable-background=\"new 0 0 428 426\" xml:space=\"preserve\">
 <g>
 	<path fill=\"#96CA4B\" d=\"M122,266.6c-12.7,0-22.3-3.7-28.9-11.1c-6.6-7.4-9.9-18-9.9-31.8c0-14.1,3.4-24.9,10.3-32.5
@@ -170,42 +192,35 @@
 	s-71.8,170.2-163,178.3v20.1c102.3-8.2,183-94,183-198.4S331.3,24.3,229,16.1z\"/>
 </svg>"
 
-   "</center>"
-   "<p>Welcome to the Figwheel default index page.</p>"
-
-   "<p>You are seeing this because the webserver was unable to locate an index page for your application.</p>"
-
-   "<p>This page is currently hosting your REPL and application evaluation environment. "
-   "Validate the connection by typing <code>(js/alert&nbsp;\"Hello&nbsp;Figwheel!\")</code> in the REPL.</p>"
-   "<p>To provide your own custom page, place an <code>index.html</code> file on the server path.</p>"
-   "<pre>"
-   "&lt;!DOCTYPE html&gt;\n"
-   "&lt;html&gt;\n"
-   "  &lt;head&gt;\n"
-   "    &lt;meta charset=\"UTF-8\"&gt;\n"
-   "  &lt;/head&gt;\n"
-   "  &lt;body&gt;\n"
-   "    &lt;script src=\"[correct-path-to " output-to "]\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
-   "  &lt;/body&gt;\n"
-   "&lt;/html&gt;\n"
-   "</pre>"
-   "</div></div>"
-   "<script type=\"text/javascript\">"
-   (-> (slurp output-to)
-    (string/replace #"<\/script" "<\\\\/script"))
-   "</script>"
-   "</body></html>"))
+     "</center>"
+     "<!-- body start -->"
+     body'
+     "<!-- body end -->"
+     (when output-to
+       (str
+        "<script type=\"text/javascript\">"
+        (-> (slurp output-to)
+            (string/replace #"<\/script" "<\\\\/script"))
+        "</script>"))
+     "</body></html>")))
 
 (defn default-index-html [handler html]
   (fn [r]
-    (let [res (handler r)]
-      (if (and (= [:get "/"] ((juxt :request-method :uri) r))
-               (= 404 (:status res))
-               html)
+    (let [res           (handler r)
+          method-uri    ((juxt :request-method :uri) r)
+          root-request? (= [:get "/"] method-uri)
+          force-index? (= "figwheel-server-force-default-index=true"
+                           (:query-string r))]
+      (cond
+        (and force-index? html)
         {:status 200
          :headers {"Content-Type" "text/html"}
          :body html}
-        res))))
+        (and root-request? (= 404 (:status res)) html)
+        {:status 200
+         :headers {"Content-Type" "text/html"}
+         :body html}
+        :else res))))
 
 (defn stack [ring-handler {:keys [::dev responses] :as config}]
   (let [{:keys [:co.deps.ring-etag-middleware/wrap-file-etag

@@ -963,7 +963,9 @@
            (not (get-in (:ring-stack-options options) [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html])))
           (assoc-in
            [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html]
-           (figwheel.server.ring/index-html (select-keys options [:output-to])))))
+           (figwheel.server.ring/index-html (cond-> (select-keys options [:output-to])
+                                              (:default-index-body options)
+                                              (assoc :body (:default-index-body options)))))))
      (assoc (get options :ring-server-options)
             :async-handlers
             {figwheel-connect-path
@@ -1002,16 +1004,18 @@
              (nil? *server*))
          (nil? @(:server repl-env)))
     (let [server (run-default-server
-                  (merge (select-keys repl-env [:port
-                                                :host
-                                                :output-to
-                                                :ring-handler
-                                                :ring-server
-                                                :ring-server-options
-                                                :ring-stack
-                                                :ring-stack-options])
-                         (select-keys opts [:target
-                                            :output-to]))
+                  (merge
+                   (select-keys repl-env [:default-index-body
+                                          :port
+                                          :host
+                                          :output-to
+                                          :ring-handler
+                                          :ring-server
+                                          :ring-server-options
+                                          :ring-stack
+                                          :ring-stack-options])
+                   (select-keys opts [:target
+                                      :output-to]))
                   *connections*)]
       (reset! (:server repl-env) server)))
   ;; printing
@@ -1032,11 +1036,15 @@
       (add-listener print-listener)))
 
   ;; open a url
-  (when-let [open-url (:open-url repl-env)]
-    ;; TODO the host port thing needs to be fixed ealier
-    (let [url (fill-server-url-template open-url (merge (select-keys repl-env [:host :port])
-                                                        (select-keys (:ring-server-options repl-env) [:host :port])))]
-      (browse/browse-url url))))
+  (when-let [open-url
+             (when-let [url (:open-url repl-env)]
+               ;; TODO the host port thing needs to be fixed ealier
+               (fill-server-url-template
+                url
+                (merge (select-keys repl-env [:host :port])
+                       (select-keys (:ring-server-options repl-env) [:host :port]))))]
+    (println "Opening URL" open-url)
+    (browse/browse-url open-url)))
 
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
