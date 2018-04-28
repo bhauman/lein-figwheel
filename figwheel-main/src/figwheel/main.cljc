@@ -8,15 +8,16 @@
         [cljs.env]
         [cljs.main :as cm]
         [cljs.repl]
+        [cljs.repl.figwheel]
         [clojure.java.io :as io]
         [clojure.string :as string]
         [figwheel.core :as fw-core]
-        [figwheel.main.watching :as fww]
         [figwheel.main.ansi-party :as ansip]
-        [figwheel.main.util :as fw-util]
-        [figwheel.repl :as fw-repl]
         [figwheel.main.logging :as log]
-        [cljs.repl.figwheel]))
+        [figwheel.main.util :as fw-util]
+        [figwheel.main.watching :as fww]
+        [figwheel.repl :as fw-repl]
+        [figwheel.tools.exceptions :as fig-ex]))
   #?(:clj
      (:import
       [java.io StringReader]
@@ -652,17 +653,57 @@ Note: Cider will inject this config into your project.clj.
 This can cause confusion when your are not using Cider."
                     {::error :no-cljs-nrepl-middleware}))))
 
+(defn root-source->file-excerpt [{:keys [source-form] :as root-source-info} except-data]
+  (let [{:keys [source column]} (when (instance? clojure.lang.IMeta source-form)
+                                  (meta source-form))]
+    (cond-> except-data
+      (and column (> column 1) (= (:line except-data) 1) (:column except-data))
+      (update :column  #(max 1 (- % (dec column))))
+      source (assoc :file-excerpt {:start-line 1 :excerpt source}))))
+
+(defn repl-caught [err repl-env repl-options]
+  (let [root-source-info (some-> err ex-data :root-source-info)]
+    (if (and (instance? clojure.lang.IExceptionInfo err)
+             (#{:js-eval-error :js-eval-exception} (:type (ex-data err))))
+      (cljs.repl/repl-caught err repl-env repl-options)
+      (let [except-data (root-source->file-excerpt
+                         root-source-info
+                         (fig-ex/parse-exception err))]
+        ;; TODO strange ANSI color error when printing this inside rebel-readline
+        (println (binding [ansip/*use-color* (if (resolve 'rebel-readline.cljs.repl/repl*)
+                                               false
+                                               ansip/*use-color*)]
+                   (ansip/format-str (log/format-ex except-data))))
+        (flush)))))
+
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
   (log-server-start repl-env)
   (log/info "Starting REPL")
   ;; when we have a logging file start log here
   (start-file-logger)
-  (if (in-nrepl?)
-    (nrepl-repl repl-env repl-options)
-    (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
-                      cljs.repl/repl*)]
-      (repl-fn repl-env repl-options))))
+  (binding [cljs.analyzer/*cljs-warning-handlers*
+            (conj (remove #{cljs.analyzer/default-warning-handler}
+                          cljs.analyzer/*cljs-warning-handlers*)
+                  (fn [warning-type env extra]
+                    (when (get cljs.analyzer/*cljs-warnings* warning-type)
+                      (->> {:warning-type warning-type
+                            :env env
+                            :extra extra
+                            :path ana/*cljs-file*}
+                           figwheel.core/warning-info
+                           (root-source->file-excerpt (:root-source-info env))
+                           log/format-ex
+                           ansip/format-str
+                           string/trim-newline
+                           println)
+                      (flush))))]
+    (let [repl-options (assoc repl-options :caught (:caught repl-options repl-caught))]
+      (if (in-nrepl?)
+        (nrepl-repl repl-env repl-options)
+        (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
+                          cljs.repl/repl*)]
+          (repl-fn repl-env repl-options))))))
 
 (defn serve [{:keys [repl-env repl-options eval-str join?]}]
   (log-server-start repl-env)

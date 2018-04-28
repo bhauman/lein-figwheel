@@ -189,7 +189,7 @@
    [:cyan (file-line-col data)]])
 
 (defn format-ex [data]
-  (if (= *syntax-error-style* :concise)
+  (if (or (= *syntax-error-style* :concise) (not (:file-excerpt data)))
     (format-exception-warning-concise data)
     (format-exception-warning data)))
 

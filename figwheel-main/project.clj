@@ -18,7 +18,7 @@
    ;; possibly external
    [com.bhauman/rebel-readline-cljs "0.1.2"]
    [expound "0.5.0"]]
-  :profiles {:dev {:dependencies [[cider/piggieback "0.3.1"]]
+  :profiles {:dev {:dependencies [[cider/piggieback "0.3.2-SNAPSHOT"]]
                    :source-paths ["src" "devel"]
                    :resource-paths ["dev_resources" "target"]
                    :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}}})
