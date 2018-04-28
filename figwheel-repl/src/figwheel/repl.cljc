@@ -1082,16 +1082,16 @@
        {:group ::repl :fn #(assoc-in %1 [:repl-env-options :port] (Integer/parseInt %2))
         :arg "number"
         :doc "Port to bind"}
-       ["-rrh" "--repl-ring-handler"]
+       ["-rh" "--ring-handler"]
        {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-handler]
                                      (when %2
                                        (dynload %2)))
         :arg "string"
         :doc "Ring Handler for default REPL server EX. \"example.server/handler\" "}
-       ["-rrso" "--repl-ring-stack-options"]
+       ["-rrso" "--ring-stack-opt"]
        {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-stack-options]
                                      (read-string %2))
-         :arg "EDN"
+         :arg "edn"
          :doc "Set of options to configure default ring stack"}}}})
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [this st err opts]

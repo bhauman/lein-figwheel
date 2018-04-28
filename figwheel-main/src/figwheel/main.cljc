@@ -258,21 +258,21 @@
           ["-fw" "--figwheel"]
           {:group :cljs.cli/compile :fn figwheel-opt
            :arg "bool"
-           :doc (str "Use Figwheel to auto reload and report compile info.\n"
-                     "Only takes effect when watching is happening and the\n"
-                     "optimizations level is :none or nil.\n"
+           :doc (str "Use Figwheel to auto reload and report compile info. "
+                     "Only takes effect when watching is happening and the "
+                     "optimizations level is :none or nil. "
                      "Defaults to true.")}
           ["-b" "--build"]
           {:group :cljs.cli/compile :fn build-opt
-           :arg "build-name"
+           :arg "string"
            :doc (str "The name of a build config to build.")}
           ["-bo" "--build-once"]
           {:group :cljs.cli/compile :fn build-once-opt
-           :arg "build-name"
+           :arg "string"
            :doc (str "The name of a build config to build once.")}
           ["-bb" "--background-build"]
           {:group :cljs.cli/compile :fn background-build-opt
-           :arg "build-name"
+           :arg "str"
            :doc (str "The name of a build config to watch and build in the background.")}}})
 
 ;; ----------------------------------------------------------------------------
@@ -1048,8 +1048,8 @@ This can cause confusion when your are not using Cider."
 
 ;; TODO figwheel.core start when not --repl
 (defn -main [& args]
-  (alter-var-root #'cli/default-commands cli/add-commands
-                  figwheel-commands)
+  (alter-var-root #'cli/default-commands #(cli/add-commands %
+                                           figwheel-commands))
   (try
     (let [[pre post] (split-with (complement #{"-re" "--repl-env"}) args)
           args' (if (empty? post) (concat ["-re" "figwheel"] args) args)
