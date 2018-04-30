@@ -1,5 +1,5 @@
-(defproject figwheel-core "0.1.0-SNAPSHOT"
-  :description "Figwheel core provides code reloading facilities for clojurescript."
+(defproject com.bhauman/figwheel-core "0.1.0-SNAPSHOT"
+  :description "Figwheel core provides code reloading facilities for ClojureScript."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
