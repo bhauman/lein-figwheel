@@ -42,12 +42,21 @@
 (defn rebel-readline? []
   (require-resolve-var 'rebel-readline.core/read-line))
 
-(defn classpath []
-  (string/split (System/getProperty "java.class.path")
-                (java.util.regex.Pattern/compile (System/getProperty "path.separator"))))
+(defn static-classpath []
+  (mapv
+   #(.getCanonicalPath (io/file %))
+   (string/split (System/getProperty "java.class.path")
+                 (java.util.regex.Pattern/compile (System/getProperty "path.separator")))))
+
+#_(defn dynamic-classpath []
+    (mapv
+     #(.getCanonicalPath (io/file (.getFile %)))
+     (mapcat
+      #(seq (.getURLs %))
+      (take-while some? (iterate #(.getParent %) (.getContextClassLoader (Thread/currentThread)))))))
 
 (defn dir-on-classpath? [dir]
-  ((set (classpath)) (.getCanonicalPath (io/file dir))))
+  ((set (static-classpath)) (.getCanonicalPath (io/file dir))))
 
 (defn add-classpath! [url]
   (assert (instance? java.net.URL url))
