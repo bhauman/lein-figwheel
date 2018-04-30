@@ -49,4 +49,9 @@
 (defn dir-on-classpath? [dir]
   ((set (classpath)) (.getCanonicalPath (io/file dir))))
 
-#_(on-classpath? "target")
+(defn add-classpath! [url]
+  (assert (instance? java.net.URL url))
+  (let [cl (.getContextClassLoader (Thread/currentThread))]
+    (when-not (instance? clojure.lang.DynamicClassLoader cl)
+      (.setContextClassLoader (Thread/currentThread) (clojure.lang.DynamicClassLoader. cl))))
+  (.addURL (.getContextClassLoader (Thread/currentThread)) url))

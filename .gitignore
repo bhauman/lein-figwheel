@@ -58,3 +58,7 @@ figwheel-main/dev/example/except.cljs
 figwheel-main/.rebel_readline_history
 
 figwheel-main/dev/example/except.clj
+
+figwheel-main/figwheel.log.lck
+
+figwheel-main/output.log.lck

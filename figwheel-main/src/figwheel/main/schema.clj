@@ -8,6 +8,8 @@
 (defonce ^:dynamic *spec-meta* (atom {}))
 (defn spec-doc [k doc] (swap! *spec-meta* assoc-in [k :doc] doc))
 
+
+
 (defn file-exists? [s] (and s (.isFile (io/file s))))
 (defn directory-exists? [s] (and s (.isDirectory (io/file s))))
 
@@ -55,6 +57,8 @@
 (s/def ::log-syntax-error-style #{:verbose :concise})
 
 (s/def ::ansi-color-output boolean?)
+
+(s/def ::target-dir non-blank-string?)
 
 #_(exp/expound ::edn {:watch-dirs ["src"]
                       :ring-handler "asdfasdf/asdfasdf"

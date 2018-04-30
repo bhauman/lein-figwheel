@@ -323,14 +323,14 @@
 ;; Config
 ;; ----------------------------------------------------------------------------
 
-(defn default-output-dir [& [scope]]
-  (->> (cond-> ["target" "public" "cljs-out"]
+(defn default-output-dir [target & [scope]]
+  (->> (cond-> [(or target "target") "public" "cljs-out"]
          scope (conj scope))
        (apply io/file)
        (.getPath)))
 
-(defn default-output-to [& [scope]]
-  (.getPath (io/file "target" "public" "cljs-out"
+(defn default-output-to [target & [scope]]
+  (.getPath (io/file (or target "target") "public" "cljs-out"
                      (cond->> "main.js"
                        scope (str scope "-")))))
 
@@ -456,21 +456,29 @@
                         (concat p '[figwheel.repl.preload figwheel.core figwheel.main]))))))))
 
 ;; targets options
-(defn- config-default-dirs [{:keys [options ::build] :as cfg}]
+;; TODO needs to consider case where one or the other is specified???
+(defn- config-default-dirs [{:keys [options ::config ::build] :as cfg}]
   (cond-> cfg
     (nil? (:output-to options))
-    (assoc-in [:options :output-to] (default-output-to (:id build)))
+    (assoc-in [:options :output-to] (default-output-to
+                                     (:target-dir config)
+                                     (:id build)))
     (nil? (:output-dir options))
-    (assoc-in [:options :output-dir] (default-output-dir (:id build)))))
+    (assoc-in [:options :output-dir] (default-output-dir
+                                      (:target-dir config)
+                                      (:id build)))))
 
-(defn figure-default-asset-path [{:keys [figwheel-options options ::build] :as cfg}]
+(defn figure-default-asset-path [{:keys [figwheel-options options ::config ::build] :as cfg}]
   (let [{:keys [output-dir]} options]
     ;; TODO could discover the resource root if there is only one
     ;; or if ONLY static file serving can probably do something with that
     ;; as well
     ;; UNTIL THEN if you have configured your static resources no default asset-path
     (when-not (contains? (:ring-stack-options figwheel-options) :static)
-      (let [parts (fw-util/relativized-path-parts (or output-dir (default-output-dir (:id build))))]
+      (let [parts (fw-util/relativized-path-parts (or output-dir
+                                                      (default-output-dir
+                                                       (:target-dir config)
+                                                       (:id build))))]
         (when-let [asset-path
                    (->> parts
                         (split-with (complement #{"public"}))
@@ -811,16 +819,41 @@ This can cause confusion when your are not using Cider."
   (doseq [build background-builds]
     (background-build cfg build)))
 
-;; TODO what happens to inits like --init and --eval in all cases
+(defn validate-fix-target-classpath! [{:keys [::config options]}]
+  (when-not (contains? (:ring-stack-options config) :static)
+    (when-let [output-to (:output-to options)]
+      (let [parts (fw-util/path-parts output-to)
+            target-dir (first (split-with (complement #{"public"}) parts))]
+        (when-not (empty? target-dir)
+          (let [target-dir (apply io/file target-dir)]
+            (when-not (fw-util/dir-on-classpath? target-dir)
+              (log/warn (ansip/format-str
+                         [:yellow "Target directory " (pr-str (str target-dir))
+                          " is not on the classpath"]))
+              (log/warn "Please fix this by adding" (pr-str (str target-dir))
+                        "to your classpath\n"
+                        "I.E.\n"
+                        "For Clojure CLI Tools\n"
+                        "   ensure " (pr-str (str target-dir))
+                        "is in your :paths key"
+                        "in your deps.edn file\n\n"
+                        "For leiningen:\n"
+                        "   either set your :target key to" (pr-str (str target-dir))
+                        "or add it to the :resource-paths key\n"
+                        "   in your project.clj\n")
+              (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
+              (fw-util/add-classpath! (.toURL (.toURI target-dir))))))))))
 
-;; TODO make this into a figwheel-start that
-;; takes the correct config
-;; and make an adapter function that produces the correct args for this fn
+#_(validate-fix-classpath! {:options {:output-to (default-output-to "targ")}})
+
+#_(io/resource "public/cljs-out/figwheel-default-repl-build-main.js")
+
 (defn default-compile [repl-env-fn cfg]
   (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg} (update-config cfg)
         {:keys [mode pprint-config]} config
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))
         cenv (cljs.env/default-compiler-env options)]
+    (validate-fix-target-classpath! b-cfg)
     (binding [*base-config* cfg
               *config* b-cfg]
       (cljs.env/with-compiler-env cenv
