@@ -196,7 +196,8 @@
      "<!-- body start -->"
      body'
      "<!-- body end -->"
-     (when output-to
+     (when (and output-to
+                (.isFile (io/file output-to)))
        (str
         "<script type=\"text/javascript\">"
         (-> (slurp output-to)

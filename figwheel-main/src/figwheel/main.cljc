@@ -190,16 +190,15 @@
                         (str "Configuration error in " fname)))
     build))
 
-;; TODO this needs to be done later
 (defn watch-dir-from-ns [main-ns]
   (let [source (bapi/ns->location main-ns)]
     (when-let [f (:uri source)]
-      (let [res (fw-util/relativized-path-parts (.getPath f))
-            end-parts (fw-util/path-parts (:relative-path source))]
-        (when (= end-parts (take-last (count end-parts) res))
-          (str (apply io/file (drop-last (count end-parts) res))))))))
+      (when (= "file" (.getScheme (.toURI f)))
+        (let [res (fw-util/relativized-path-parts (.getPath f))
+              end-parts (fw-util/path-parts (:relative-path source))]
+          (when (= end-parts (take-last (count end-parts) res))
+            (str (apply io/file (drop-last (count end-parts) res)))))))))
 
-;; TODO this needs to be done later
 (defn watch-dirs-from-build [{:keys [main] :as build-options}]
   (let [watch-dirs (-> build-options meta :watch-dirs)
         main-ns-dir (and main (watch-dir-from-ns (symbol main)))]
@@ -213,9 +212,7 @@
    "Validate the connection by typing <code>(js/alert&nbsp;\"Hello&nbsp;Figwheel!\")</code> in the REPL.</p>"))
 
 (defn build-opt [cfg bn]
-  (when-not (or
-             (= bn "figwheel-default-repl-build")
-             (.exists (io/file (str bn ".cljs.edn"))))
+  (when-not (.exists (io/file (str bn ".cljs.edn")))
     (if (or (string/starts-with? bn "-")
             (string/blank? bn))
       (throw
@@ -226,19 +223,12 @@
         (ex-info
           (str "Build " (str bn ".cljs.edn") " does not exist")
           {:cljs.main/error :invalid-arg}))))
-  (if (= bn "figwheel-default-repl-build")
+  (let [options (get-build bn)]
     (-> cfg
-        (update :options merge {:main 'figwheel.repl.preload})
-        (assoc-in [:repl-env-options :open-url]
-                  "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
-        (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
-        (assoc-in [::build] {:id bn}))
-    (let [options (get-build bn)]
-      (-> cfg
-          (update :options merge options)
-          (assoc-in [::build] (cond-> {:id bn}
-                                (meta options)
-                                (assoc :config (meta options))))))))
+        (update :options merge options)
+        (assoc-in [::build] (cond-> {:id bn}
+                              (meta options)
+                              (assoc :config (meta options)))))))
 
 (defn build-once-opt [cfg bn]
   (let [cfg (build-opt cfg bn)]
@@ -249,6 +239,51 @@
     (update cfg ::background-builds
             (fnil conj [])
             (assoc build :options options))))
+
+;; TODO move these down to main action section
+
+(declare default-compile)
+
+(defn build-main-opt [repl-env-fn [_ build-name & args] cfg]
+  (default-compile repl-env-fn
+                   (merge (build-opt cfg build-name)
+                          {:args args})))
+
+(defn build-once-main-opt [repl-env-fn [_ build-name & args] cfg]
+  (default-compile repl-env-fn
+                   (merge (build-once-opt cfg build-name)
+                          {:args args})))
+
+(defn repl-main-opt [repl-env-fn [_ & args] cfg]
+  (default-compile
+   repl-env-fn
+   (-> cfg
+       (assoc :args args)
+       (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
+       (assoc-in [:repl-env-options :open-url]
+                 "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
+       ;; TODO :default-index-body should be a function that takes the build options as an arg
+       (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
+       (assoc-in [::config :mode] :repl)
+       (assoc-in [::build] {:id "figwheel-default-repl-build"}))))
+
+(declare serve update-config)
+
+(defn serve-main-opt [repl-env-fn args b-cfg]
+  (let [{:keys [::config repl-env-options repl-options] :as cfg}
+        (-> b-cfg
+            (assoc :args args)
+            update-config
+            (assoc-in [:repl-env-options :default-index-body]
+                      ;; TODO helpful instructions on where to put index.html
+                      "<center><h3 style=\"color:red;\">index.html not found</h3></center>"))
+        {:keys [pprint-config]} config
+        repl-env (apply repl-env-fn (mapcat identity repl-env-options))]
+    (if pprint-config
+      (clojure.pprint/pprint cfg)
+      (serve {:repl-env repl-env
+              :repl-options repl-options
+              :join? true}))))
 
 (def figwheel-commands
   {:init {["-w" "--watch"]
@@ -262,18 +297,27 @@
                      "Only takes effect when watching is happening and the "
                      "optimizations level is :none or nil. "
                      "Defaults to true.")}
-          ["-b" "--build"]
-          {:group :cljs.cli/compile :fn build-opt
-           :arg "string"
-           :doc (str "The name of a build config to build.")}
-          ["-bo" "--build-once"]
-          {:group :cljs.cli/compile :fn build-once-opt
-           :arg "string"
-           :doc (str "The name of a build config to build once.")}
           ["-bb" "--background-build"]
           {:group :cljs.cli/compile :fn background-build-opt
            :arg "str"
-           :doc (str "The name of a build config to watch and build in the background.")}}})
+           :doc (str "The name of a build config to watch and build in the background.")}}
+   :main {["-b" "--build"]
+          {:fn build-main-opt
+           :arg "string"
+           :doc (str "The name of a build config to build.")}
+          ["-bo" "--build-once"]
+          {:fn build-once-main-opt
+           :arg "string"
+           :doc "The name of a build config to build once."}
+          ["-r" "--repl"]
+          {:fn repl-main-opt
+           :doc "Run a REPL"}
+          ["-s" "--serve"]
+          {:fn serve-main-opt
+           :arg "host:port"
+           :doc "Run a server based on the figwheel-main configuration options"}
+
+          }})
 
 ;; ----------------------------------------------------------------------------
 ;; Config
@@ -798,7 +842,6 @@ This can cause confusion when your are not using Cider."
                   ;; we need to get the server host:port args
                   (serve {:repl-env repl-env
                           :repl-options repl-options
-                          ;; TODO need to iterate through the inits
                           :eval-str (when fw-mode? (start-figwheel-code config))
                           :join? (get b-cfg ::join-server? true)}))))))))))
 
@@ -863,7 +906,6 @@ This can cause confusion when your are not using Cider."
   (let [ids (->> ids (map name) distinct)]
     (warn-on-bad-id ids)
     (doseq [watch' (select-autobuild-watches ids)]
-      #_(prn watch')
       (when-let [options (-> watch' ::watch-info :options)]
         (println "Cleaning build id:" (-> watch' ::watch-info :id))
         (clean-build options)))))
@@ -910,12 +952,10 @@ This can cause confusion when your are not using Cider."
         (println "Already building id: " i)))
     (let [main-build-id     (first (filter main-build? ids))
           bg-builds (remove main-build? ids)]
-      #_(prn main-build-id bg-builds)
       (when main-build-id
         (let [{:keys [options repl-env-options ::config]} *config*
               {:keys [watch-dirs]} config]
           (println "Starting build id:" main-build-id)
-          ;; TODO these fns should provide feedback internally
           (bapi/build (apply bapi/inputs watch-dirs) options cljs.env/*compiler*)
           (watch-build main-build-id
                        watch-dirs options
@@ -978,89 +1018,17 @@ This can cause confusion when your are not using Cider."
   (build-once* ids)
   nil)
 
-;; TODO reset, build-once
-
-;; we should add a compile directory option
-
-;; build option
-;; adds -c option if not available, and no other main options
-;; adds -c (:main build options) fail if no -c option and c main is not available
-;; when other main options merge with other -co options
-;; adds -c option if -r or -s option is present
-
-;; adds -c option
-;; and
-;; - (:main build options is present
-;; - -c option not present and -r or -s option and not other main option
-
-;; else option just adds options
-
-;; interesting case for handling when there is no main function but there is a watch
-
-;; in default compile
-;; takes care of default watch and default repl
-;; merges build-options with provided options
-
 ;; ----------------------------------------------------------------------------
 ;; Main
 ;; ----------------------------------------------------------------------------
 
-(def server (atom nil))
-
-(defn split-at-opt [opt-set args]
-    (split-with (complement opt-set) args))
-
-(defn split-at-main-opt [args]
-  (split-at-opt (set (keys (:main-dispatch cli/default-commands))) args))
-
-(defn get-init-opt [opt-set args]
-  (->> (split-at-main-opt args)
-       first
-       (split-at-opt opt-set)
-       last
-       second))
-
-(defn update-opt [args opt-set f]
-  (let [[mpre mpost] (split-at-main-opt args)
-        [opt-pre opt-post] (split-at-opt opt-set mpre)]
-    (if-not (empty? opt-post)
-      (concat opt-pre [(first opt-post)] [(f (second opt-post))]
-              (drop 2 opt-post) mpost)
-      (concat [(first opt-set) (f nil)] args))))
-
-(def get-build-opt (partial get-init-opt #{"-b" "--build"}))
-(def get-build-once-opt (partial get-init-opt #{"-bo" "--build-once"}))
-(defn get-main-opt-flag [args] (first (second (split-at-main-opt args))))
-
-(defn handle-build-opt [args]
-  (if-let [build-name (or (get-build-opt args) (get-build-once-opt args))]
-    (let [build-options (get-build build-name)
-          main-flag (get-main-opt-flag args)
-          main-ns (:main build-options)]
-      (cond
-        (#{"-c" "--compile" "-m" "--main" "-h" "--help" "-?"} main-flag)
-        args
-        main-ns
-        (let [[pre post] (split-at-main-opt args)]
-          (concat pre ["-c" (str main-ns)] post))
-        :else args))
-    args))
-
-;; TODO figwheel.core start when not --repl
 (defn -main [& args]
-  (alter-var-root #'cli/default-commands #(cli/add-commands %
-                                           figwheel-commands))
+  (alter-var-root #'cli/default-commands cli/add-commands figwheel-commands)
   (try
     (let [[pre post] (split-with (complement #{"-re" "--repl-env"}) args)
           args' (if (empty? post) (concat ["-re" "figwheel"] args) args)
-          args' (handle-build-opt args')
-          ;; no args
-          args' (if (empty? args) (concat args' ["-b" "figwheel-default-repl-build"
-                                                 "-c" "figwheel.repl.preload"
-                                                 "-r"])
-                    args')]
+          args' (if (empty? args) (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile]
-        #_(println args')
         (apply cljs.main/-main args')))
     (catch Throwable e
       (let [d (ex-data e)]
