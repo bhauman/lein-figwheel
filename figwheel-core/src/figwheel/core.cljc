@@ -394,7 +394,8 @@
   (let [files (set files)]
     (filter
      #(when-let [source-file (:source-file %)]
-        (files (.getCanonicalPath source-file)))
+        (when (instance? java.io.File source-file)
+          (files (.getCanonicalPath source-file))))
      sources)))
 
 (defn js-dependencies-with-file-urls [js-dependency-index]
@@ -640,27 +641,28 @@
    (js-dependencies-with-file-urls (:js-dependency-index compiler-env))))
 
 (defn source-file [source-o-js-dep]
-  (cond
-    (:url source-o-js-dep) (io/file (.getFile (:url source-o-js-dep)))
-    (:source-file source-o-js-dep) (:source-file source-o-js-dep)))
+  (let [f (cond
+            (:url source-o-js-dep) (io/file (.getFile (:url source-o-js-dep)))
+            (:source-file source-o-js-dep) (:source-file source-o-js-dep))]
+    (when (instance? java.io.File f) f)))
 
 (defn sources->modified-map [sources]
   (into {}
-        (map (comp
-              (juxt #(.getCanonicalPath %) #(.lastModified %))
-              source-file))
+        (comp
+         (keep source-file)
+         (map (juxt #(.getCanonicalPath %) #(.lastModified %))))
         sources))
 
 (defn sources-modified [compiler-env last-modifieds]
   (doall
    (keep
     (fn [source]
-      (let [file' (source-file source)
-            path  (.getCanonicalPath file')
-            last-modified' (.lastModified file')
-            last-modified (get last-modifieds path 0)]
-        (when (> last-modified' last-modified)
-          (vary-meta source assoc ::last-modified last-modified'))))
+      (when-let [file' (source-file source)]
+        (let [path  (.getCanonicalPath file')
+              last-modified' (.lastModified file')
+              last-modified (get last-modifieds path 0)]
+          (when (> last-modified' last-modified)
+            (vary-meta source assoc ::last-modified last-modified')))))
     (all-sources compiler-env))))
 
 (defn sources-modified! [compiler-env last-modified-vol]
