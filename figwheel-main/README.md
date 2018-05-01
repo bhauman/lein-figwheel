@@ -25,9 +25,9 @@ above features have been improved significantly.
 * the configuration options have been simplified
 
 The new architecture also makes it trivial to add your own development
-time features that can communicate from the server to your client.
+tools that can communicate from the server to your client.
 
-> Currently still undergoing heavy development and things will change.
+> Currently still undergoing heavy development. Stuff will most certainly change.
 
 > This documentation is incomplete and intended to help you take the new figwheel
 > for a spin before its official release.
@@ -43,14 +43,8 @@ create a `deps.edn` file.
 ```
 {:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
         ;; add rebel readline for a better REPL readline editor
-        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}}
- :paths ["src" "target"]}
+        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}}}
 ```
-
-The above defines our dependencies and adds the `src` and `target`
-directories to the classpath. We need the `target` directory on the
-classpath so that our compiled assets are accessible to the server
-(this is configurable).
 
 Now launch a REPL with
 
@@ -58,7 +52,8 @@ Now launch a REPL with
 clojure -m figwheel.main
 ```
 
-This will launch open a browser window and a REPL connected to it.
+This will first compile browser REPL code to a temp directory, and
+then a browser will open and a `cljs.user=>` prompt will appear.
 
 From here you can do REPL driven development of ClojureScript.
 
@@ -101,10 +96,37 @@ The `-b` or `--build` flag is indicating that we should read
 
 The `-r` or `--repl` flag indicates that a repl should be launched.
 
+## Configuring Figwheel Main
+
+If you need to configure figwheel.main, place a `figwheel-main.edn`
+in the same directory that you will be executing it from.
+
+If you need to override some of the configuration options for a
+particular build, simply add those options as meta data on the build edn.
+
+For example if you want to have `:watch-dirs` that are specific to the
+"dev" build then in `dev.cljs.edn`
+
+```
+^{:watch-dirs ["cljs-src"]
+  :css-dirs ["resources/public/css"]}
+{:main example.core}
+```
+
+All the available configuration options are documented here:
+https://github.com/bhauman/lein-figwheel/blob/master/figwheel-main/doc/figwheel-main-options.md
+
+All the available configuration options specs are here:
+https://github.com/bhauman/lein-figwheel/blob/master/figwheel-main/src/figwheel/main/schema.clj
+
 ## More to come ...
 
 Figwheel Main aims to honor all the flags provided by `cljs.main` as
 of right now your mileage may vary.
+
+## Known issues
+
+* Not working with Node yet
 
 ## License
 
