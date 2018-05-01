@@ -190,6 +190,7 @@ For the server side:
     [[server-port]]      the host supplied in :ring-server-options > :host or \"localhost\" or the default port
 
 On the client side:
+
     [[client-hostname]]  the js/location.hostname on the client
     [[client-port]]      the js/location.port on the client
 
