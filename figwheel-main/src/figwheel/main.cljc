@@ -149,7 +149,7 @@
     (resolve 'figwheel.main.schema/validate-config!)))
 
 (defn validate-config! [edn fail-msg & [succ-msg]]
-  (when validate-config!*
+  (when (and validate-config!* (not (false? (:validate-config edn))))
     (validate-config!* edn fail-msg)
     (when succ-msg
       (log/succeed succ-msg))))
@@ -186,9 +186,9 @@
                                {:cljs.main/error :invalid-arg}
                                t))))]
     (when (meta build)
-      (log/debug "Validating metadata in build: " fname)
-      (validate-config! (meta build)
-                        (str "Configuration error in " fname)))
+      (when-not (false? (:validate-config (meta build)))
+        (log/debug "Validating metadata in build: " fname)
+        (validate-config! (meta build) (str "Configuration error in " fname))))
     build))
 
 (defn watch-dir-from-ns [main-ns]
@@ -367,9 +367,11 @@
               a' b'))
 
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
-  (log/info "Validating figwheel-main.edn")
-  (validate-config! main-edn "Configuration error in figwheel-main.edn"
-                    "figwheel-main.edn is valid!")
+  (when-not (false? (:validate-config main-edn))
+    (log/info "Validating figwheel-main.edn")
+    (validate-config! main-edn "Configuration error in figwheel-main.edn"
+                      "figwheel-main.edn is valid!"))
+
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
     (when (and ring-handler (not handler))
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))

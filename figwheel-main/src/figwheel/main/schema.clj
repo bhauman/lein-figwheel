@@ -28,6 +28,7 @@
                       ::pprint-config
                       ::open-file-command
                       ::client-print-to
+                      ::validate-config
                       ]))
 
 (s/def ::figwheel-core boolean?)
@@ -35,17 +36,36 @@
  ::figwheel-core
  "Wether to include the figwheel.core library in the build. This
  enables hot reloading and client notification of compile time errors.
- Defaults to true.")
+ Default: true
+
+  :figwheel-core false")
 
 (s/def ::hot-reload-cljs boolean?)
 (spec-doc
  :figwheel.core/hot-reload-cljs
  "Whether or not figwheel.core should hot reload compiled
- ClojureScript. Only has meaning when :figwheel is true.
- Defaults to true")
+ClojureScript. Only has meaning when :figwheel is true.
+Default: true
+
+  :hot-reload-cljs false")
 
 (s/def ::load-warninged-code boolean?)
+(spec-doc
+ ::load-warninged-code
+ "If there are warnings in your code emitted from the compiler, figwheel
+does not refresh. If you would like Figwheel to load code even if
+there are warnings generated set this to true.
+Default: false
 
+  :load-warninged-code true")
+
+(s/def ::validate-config boolean?)
+(spec-doc
+ ::validate-config
+ "Whether to validate the figwheel-main.edn and build config (i.e.\".cljs.edn\") files.
+Default: true
+
+  :validate-config false")
 
 (s/def ::pprint-config boolean?)
 
