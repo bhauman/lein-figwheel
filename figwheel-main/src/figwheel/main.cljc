@@ -797,7 +797,13 @@ This can cause confusion when your are not using Cider."
         (let [repl-fn (or (when-not (false? (:rebel-readline (::config *config*)))
                             (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*))
                           cljs.repl/repl*)]
-          (repl-fn repl-env repl-options))))))
+          (try
+            (repl-fn repl-env repl-options)
+            (catch clojure.lang.ExceptionInfo e
+              (if (-> e ex-data :type (= :rebel-readline.jline-api/bad-terminal))
+                (do (println (.getMessage e))
+                    (cljs.repl/repl* repl-env repl-options))
+                (throw e)))))))))
 
 (defn serve [{:keys [repl-env repl-options eval-str join?]}]
   (log-server-start repl-env)
