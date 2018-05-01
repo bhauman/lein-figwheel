@@ -290,6 +290,12 @@
 
 (declare serve update-config)
 
+(defn print-conf [cfg]
+  (println "---------------------- Figwheel options ----------------------")
+  (pprint (::config cfg))
+  (println "---------------------- Compiler options ----------------------")
+  (pprint (:options cfg)))
+
 (defn serve-main-opt [repl-env-fn args b-cfg]
   (let [{:keys [::config repl-env-options repl-options] :as cfg}
         (-> b-cfg
@@ -300,8 +306,11 @@
                       "<center><h3 style=\"color:red;\">index.html not found</h3></center>"))
         {:keys [pprint-config]} config
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))]
+    (log/trace "Verbose config:" (with-out-str (pprint cfg)))
     (if pprint-config
-      (clojure.pprint/pprint cfg)
+      (do
+        (log/info ":pprint-config true - printing config:")
+        (print-conf cfg))
       (serve {:repl-env repl-env
               :repl-options repl-options
               :join? true}))))
@@ -881,8 +890,11 @@ This can cause confusion when your are not using Cider."
     (binding [*base-config* cfg
               *config* b-cfg]
       (cljs.env/with-compiler-env cenv
+        (log/trace "Verbose config:" (with-out-str (pprint b-cfg)))
         (if pprint-config
-          (do (clojure.pprint/pprint b-cfg) b-cfg)
+          (do
+            (log/info ":pprint-config true - printing config:")
+            (print-conf b-cfg))
           (binding [cljs.repl/*repl-env* repl-env
                     figwheel.core/*config* (select-keys config [:hot-reload-cljs])]
             (let [fw-mode? (figwheel-mode? b-cfg)]
@@ -892,7 +904,7 @@ This can cause confusion when your are not using Cider."
                                                 ::start-figwheel-options
                                                 config))
                 (doseq [init-fn (::initializers b-cfg)] (init-fn))
-                (log/debug "Figwheel.core config:" (pr-str figwheel.core/*config*))
+                (log/trace "Figwheel.core config:" (pr-str figwheel.core/*config*))
                 (figwheel.core/start*)
                 (cond
                   (= mode :repl)
