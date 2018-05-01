@@ -794,7 +794,8 @@ This can cause confusion when your are not using Cider."
     (let [repl-options (assoc repl-options :caught (:caught repl-options repl-caught))]
       (if (in-nrepl?)
         (nrepl-repl repl-env repl-options)
-        (let [repl-fn (or (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*)
+        (let [repl-fn (or (when-not (false? (:rebel-readline (::config *config*)))
+                            (fw-util/require-resolve-var 'rebel-readline.cljs.repl/repl*))
                           cljs.repl/repl*)]
           (repl-fn repl-env repl-options))))))
 

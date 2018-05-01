@@ -29,6 +29,7 @@
                       ::open-file-command
                       ::client-print-to
                       ::validate-config
+                      ::rebel-readline
                       ]))
 
 (s/def ::figwheel-core boolean?)
@@ -66,6 +67,22 @@ Default: false
 Default: true
 
   :validate-config false")
+
+(s/def ::rebel-readline boolean?)
+(spec-doc
+ ::rebel-readline
+   "By default Figwheel engauges a Rebel readline editor when it starts
+the ClojureScript Repl in the terminal that it is launched in.
+
+This will only work if you have com.bhauman/rebel-readline-cljs in
+your dependencies.
+
+More about Rebel readline:
+https://github.com/bhauman/rebel-readline
+
+Default: true
+
+  :readline false")
 
 (s/def ::pprint-config boolean?)
 
