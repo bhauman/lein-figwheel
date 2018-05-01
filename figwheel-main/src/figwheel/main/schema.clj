@@ -5,7 +5,7 @@
    [clojure.spec.alpha :as s]
    [expound.alpha :as exp]))
 
-(defonce ^:dynamic *spec-meta* (atom {}))
+(def ^:dynamic *spec-meta* (atom {}))
 (defn spec-doc [k doc] (swap! *spec-meta* assoc-in [k :doc] doc))
 
 (defn file-exists? [s] (and s (.isFile (io/file s))))
@@ -91,7 +91,7 @@ https://github.com/bhauman/rebel-readline
 
 Default: true
 
-  :readline false")
+  :rebel-readline false")
 
 (s/def ::wait-time-ms integer?)
 (spec-doc
@@ -318,6 +318,10 @@ The default value of :target-dir is \"target\"
 
 (s/def ::connect-url non-blank-string?)
 
+;; ------------------------------------------------------------
+;; Validate
+;; ------------------------------------------------------------
+
 #_(exp/expound ::edn {:watch-dirs ["src"]
                       :ring-handler "asdfasdf/asdfasdf"
                       :reload-clj-files [:cljss :clj]})
@@ -332,3 +336,44 @@ The default value of :target-dir is \"target\"
       (throw (ex-info (str context-msg "\n" explained)
                       {::error explained}))))
   true)
+
+;; ------------------------------------------------------------
+;; Generate docs
+;; ------------------------------------------------------------
+
+(defn last-line-example? [doc]
+  (try (when-let [lns (not-empty (string/split-lines doc))]
+         (when (> (count lns) 1)
+           (keyword? (read-string (last (string/split-lines doc))))))
+       (catch Throwable t nil)))
+
+(defn split-out-example [doc]
+  (if (last-line-example? doc)
+    (let [lns (string/split-lines doc)]
+      #_(prn lns)
+      [(string/join "\n" (butlast lns)) (last lns)])
+    [doc]))
+
+(defn markdown-option-docs []
+  (string/join
+   "\n\n"
+   (mapv (fn [[k v]]
+          (let [k (keyword (name k))
+                {:keys [doc]} v
+                [doc' example] (split-out-example doc)]
+            (cond-> (format "## %s\n\n%s" (pr-str k) doc')
+              example (str "\n```\n" (string/trim example) "\n```"))))
+         @*spec-meta*)))
+
+(defn markdown-docs []
+  (str "# Figwheel Main configuration options\n\n"
+       "The following options can be supplied to `figwheel.main` via the `figwheel-main.edn` file.\n\n"
+       (markdown-option-docs)))
+
+(defn output-docs [output-to]
+  (.mkdirs (.getParentFile (io/file output-to)))
+  (spit output-to (markdown-docs)))
+
+#_(output-docs "doc/figwheel-main-options.md")
+
+#_(markdown-docs)
