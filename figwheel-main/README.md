@@ -127,6 +127,7 @@ of right now your mileage may vary.
 ## Known issues
 
 * Not working with Node yet
+* Quiting from rebel-readline REPL requires quiting multiple processes
 
 ## License
 
