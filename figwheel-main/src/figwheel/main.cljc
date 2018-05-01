@@ -10,6 +10,7 @@
         [cljs.repl]
         [cljs.repl.figwheel]
         [clojure.java.io :as io]
+        [clojure.pprint :refer [pprint]]
         [clojure.string :as string]
         [figwheel.core :as fw-core]
         [figwheel.main.ansi-party :as ansip]
@@ -173,7 +174,7 @@
   (update-in cfg [::extra-config :watch-dirs] (fnil conj []) path))
 
 (defn figwheel-opt [cfg bl]
-  (assoc-in cfg [::config :figwheel] (not= bl "false")))
+  (assoc-in cfg [::config :figwheel-core] (not= bl "false")))
 
 (defn get-build [bn]
   (let [fname (str bn ".cljs.edn")
@@ -279,6 +280,7 @@
              temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
+         (assoc-in [:options :aot-cache] true)
          (assoc-in [:repl-env-options :open-url]
                    "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
          ;; TODO :default-index-body should be a function that takes the build options as an arg
@@ -447,7 +449,7 @@
 
 ;; needs local config
 (defn figwheel-mode? [{:keys [::config options]}]
-  (and (:figwheel config true)
+  (and (:figwheel-core config true)
        (or (= :repl (:mode config)) (not-empty (:watch-dirs config)))
        (= :none (:optimizations options :none))))
 
@@ -464,7 +466,11 @@
     (update-in [:options :preloads]
                (fn [p]
                  (vec (distinct
-                       (concat p '[figwheel.repl.preload figwheel.core figwheel.main])))))))
+                       (concat p '[figwheel.repl.preload figwheel.core figwheel.main])))))
+    (false? (:heads-up-display config))
+    (update-in [:options :closure-defines] assoc 'figwheel.core/heads-up-display false)
+    (true? (:load-warninged-code config))
+    (update-in [:options :closure-defines] assoc 'figwheel.core/load-warninged-code true)))
 
 ;; targets options
 ;; TODO needs to consider case where one or the other is specified???
@@ -824,7 +830,8 @@ This can cause confusion when your are not using Cider."
         (when (first (filter #{'figwheel.core} (:preloads (:options cfg))))
           (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
                                           (select-keys repl-env-options
-                                                       [:connection-filter]))]
+                                                       [:connection-filter]))
+                    figwheel.core/*config* (select-keys config [:hot-reload-cljs])]
             (figwheel.core/start*)))))))
 
 (defn start-background-builds [{:keys [::background-builds] :as cfg}]
@@ -853,6 +860,7 @@ This can cause confusion when your are not using Cider."
                           "   either set your :target key to" (pr-str (str target-dir))
                           "or add it to the :resource-paths key\n")
                 (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
+                (.mkdirs target-dir)
                 (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))
 
 (defn default-compile [repl-env-fn cfg]
@@ -866,7 +874,8 @@ This can cause confusion when your are not using Cider."
       (cljs.env/with-compiler-env cenv
         (if pprint-config
           (do (clojure.pprint/pprint b-cfg) b-cfg)
-          (binding [cljs.repl/*repl-env* repl-env]
+          (binding [cljs.repl/*repl-env* repl-env
+                    figwheel.core/*config* (select-keys config [:hot-reload-cljs])]
             (let [fw-mode? (figwheel-mode? b-cfg)]
               (build config options cenv)
               (when-not (= mode :build-once)
@@ -874,6 +883,7 @@ This can cause confusion when your are not using Cider."
                                                 ::start-figwheel-options
                                                 config))
                 (doseq [init-fn (::initializers b-cfg)] (init-fn))
+                (log/debug "Figwheel.core config:" (pr-str figwheel.core/*config*))
                 (figwheel.core/start*)
                 (cond
                   (= mode :repl)

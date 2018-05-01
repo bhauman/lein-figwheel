@@ -8,15 +8,16 @@
 (defonce ^:dynamic *spec-meta* (atom {}))
 (defn spec-doc [k doc] (swap! *spec-meta* assoc-in [k :doc] doc))
 
-
-
 (defn file-exists? [s] (and s (.isFile (io/file s))))
 (defn directory-exists? [s] (and s (.isDirectory (io/file s))))
 
 (defn non-blank-string? [x] (and (string? x) (not (string/blank? x))))
 
 (s/def ::edn (s/keys :opt-un
-                     [::watch-dirs
+                     [::figwheel-core
+                      ::hot-reload-cljs
+                      ::load-warninged-code
+                      ::watch-dirs
                       ::reload-clj-files
                       ::ring-handler
                       ::ring-server
@@ -28,6 +29,23 @@
                       ::open-file-command
                       ::client-print-to
                       ]))
+
+(s/def ::figwheel-core boolean?)
+(spec-doc
+ ::figwheel-core
+ "Wether to include the figwheel.core library in the build. This
+ enables hot reloading and client notification of compile time errors.
+ Defaults to true.")
+
+(s/def ::hot-reload-cljs boolean?)
+(spec-doc
+ :figwheel.core/hot-reload-cljs
+ "Whether or not figwheel.core should hot reload compiled
+ ClojureScript. Only has meaning when :figwheel is true.
+ Defaults to true")
+
+(s/def ::load-warninged-code boolean?)
+
 
 (s/def ::pprint-config boolean?)
 

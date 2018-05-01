@@ -158,13 +158,10 @@
 ;; Global state
 ;; ------------------------------------------------------------
 
-(def config-defaults
-  {;; this could also be done server side
-   :load-warninged-code false
-   :heads-up-display (not (nil? goog/global.document))
-   ::reload-state {}})
+(goog-define load-warninged-code false)
+(goog-define heads-up-display true)
 
-(defonce state (atom config-defaults))
+(defonce state (atom {::reload-state {}}))
 
 ;; ------------------------------------------------------------
 ;; Heads up display logic
@@ -173,10 +170,14 @@
 ;; TODO could move the state atom and heads up display logic to heads-up display
 ;; TODO could probably make it run completely off of events emitted here
 
+(defn heads-up-display? []
+  (and heads-up-display
+       (not (nil? goog/global.document))))
+
 (let [last-reload-timestamp (atom 0)
       promise-chain (Promise. (fn [r _] (r true)))]
   (defn render-watcher [_ _ o n]
-    (when (:heads-up-display @state)
+    (when (heads-up-display?)
       ;; a new reload has arrived
       (if-let [ts (when-let [ts (get-in n [::reload-state :reload-started])]
                     (and (< @last-reload-timestamp ts) ts))]
@@ -261,12 +262,12 @@
                            (get figwheel-meta %))
                         namespaces)]
     (swap! state assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
-    (when-not (empty? namespaces)
-      (js/setTimeout #(dispatch-event :figwheel.before-load {:namespaces namespaces}) 0))
     (let [to-reload
-          (when-not (and (false? (:load-warninged-code @state))
+          (when-not (and (not load-warninged-code)
                          (not-empty (get-in @state [::reload-state :warnings])))
             (filter #(reload-ns? %) namespaces))]
+      (when-not (empty? to-reload)
+        (js/setTimeout #(dispatch-event :figwheel.before-load {:namespaces namespaces}) 0))
       (doseq [ns to-reload]
         ;; goog/require has to be patched by a repl bootstrap
         (goog/require (name ns) true))
@@ -274,10 +275,10 @@
             (fn []
               (try
                 (when (not-empty to-reload)
-                  (glog/info logger (str "loaded " (pr-str to-reload))))
+                  (glog/info logger (str "loaded " (pr-str to-reload)))
+                  (dispatch-event :figwheel.after-load {:reloaded-namespaces to-reload}))
                 (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
                   (glog/info logger (str "did not load " (pr-str not-loaded))))
-                (dispatch-event :figwheel.after-load {:reloaded-namespaces to-reload})
                 (finally
                   (swap! state assoc ::reload-state {}))))]
         (if (and (exists? js/figwheel.repl)
@@ -325,6 +326,8 @@
 
 #?(:clj
    (do
+
+(def ^:dynamic *config* {:hot-reload-cljs true})
 
 (defn debug-prn [& args]
   (binding [*out* *err*]
@@ -517,7 +520,8 @@
                (json/write-str (map-keys cljs.compiler/munge (find-figwheel-meta))))))
 
 (defn reload-namespaces [ns-syms]
-  (let [ret (client-eval (reload-namespace-code ns-syms))]
+  (let [ns-syms (if (false? (:hot-reload-cljs *config*)) [] ns-syms)
+        ret (client-eval (reload-namespace-code ns-syms))]
     ;; currently we are saveing the value of the compiler env
     ;; so that we can detect if the dependency tree changed
     (swap! last-compiler-env assoc env/*compiler* @env/*compiler*)
@@ -671,8 +675,8 @@
     modified-sources))
 
 (defn start*
-  ([] (start* env/*compiler* cljs.repl/*repl-env*))
-  ([compiler-env repl-env]
+  ([] (start* *config* env/*compiler* cljs.repl/*repl-env*))
+  ([config compiler-env repl-env]
    (add-watch
     compiler-env
     ::watch-hook
@@ -685,18 +689,20 @@
               (and (:finished compile-data)
                    (not (:exception compile-data)))
               (binding [env/*compiler* compiler-env
-                        cljs.repl/*repl-env* repl-env]
+                        cljs.repl/*repl-env* repl-env
+                        *config* config]
                 (let [namespaces
                       (if (contains? compile-data :changed-files)
                         (paths->namespaces-to-reload (:changed-files compile-data))
                         (->> (sources-modified! @compiler-env last-modified)
                              (sources->namespaces-to-reload)))]
-                  (when-let [warnings (:warnings compile-data)]
+                  (when-let [warnings (not-empty (:warnings compile-data))]
                     (handle-warnings warnings))
                   (reload-namespaces namespaces)))
               (:exception compile-data)
               (binding [env/*compiler* compiler-env
-                        cljs.repl/*repl-env* repl-env]
+                        cljs.repl/*repl-env* repl-env
+                        *config* config]
                 (handle-exception (:exception compile-data)))
               ;; next cond
               :else nil
