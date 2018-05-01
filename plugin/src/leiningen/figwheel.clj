@@ -555,10 +555,9 @@ Configuration:
              (or (= nil command)
                  (= ":reactor" command))
              (get-in project [:figwheel :repl] true)
-             (get-in project [:figwheel :readline] true))
-          (if tramp/*trampoline?*
-            (launch-figwheel command project build-ids)
-            (do
-              (warn-about-broken-trampoline-on-windows)
-              (apply tramp/trampoline project "figwheel" command-and-or-build-ids)))
+             (get-in project [:figwheel :readline] true)
+             (not tramp/*trampoline?*))
+          (do
+            (warn-about-broken-trampoline-on-windows)
+            (apply tramp/trampoline project "figwheel" command-and-or-build-ids))
           (launch-figwheel command project build-ids))))))
