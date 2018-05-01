@@ -248,7 +248,9 @@ The default value of `:target-dir` is "target"
 
 ```
 :target-dir "cljs-target"
-```# Rarely used options
+```
+
+# Rarely used options
 
 ## :client-print-to
 

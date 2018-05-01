@@ -435,6 +435,7 @@ Normally defaults to `:repl`"
          "The following options can be supplied to `figwheel.main` via the `figwheel-main.edn` file.\n\n"
          "# Commonly used options (in order of importance)\n\n"
          (markdown-option-docs common)
+         "\n\n"
          "# Rarely used options\n\n"
          (markdown-option-docs un-common))))
 
