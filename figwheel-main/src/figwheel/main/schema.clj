@@ -406,28 +406,13 @@ Normally defaults to `:repl`"
 ;; Generate docs
 ;; ------------------------------------------------------------
 
-(defn last-line-example? [doc]
-  (try (when-let [lns (not-empty (string/split-lines doc))]
-         (when (> (count lns) 1)
-           (keyword? (read-string (last (string/split-lines doc))))))
-       (catch Throwable t nil)))
-
-(defn split-out-example [doc]
-  (if (last-line-example? doc)
-    (let [lns (string/split-lines doc)]
-      #_(prn lns)
-      [(string/join "\n" (butlast lns)) (last lns)])
-    [doc]))
-
 (defn markdown-option-docs [key-datas]
   (string/join
    "\n\n"
    (mapv (fn [{:keys [key doc]}]
            (let [k (keyword (name key))
                  [doc' example] (split-out-example doc)]
-             (format "## %s\n\n%s" (pr-str k) doc)
-             #_(cond-> (format "## %s\n\n%s" (pr-str k) doc')
-                 example (str "\n```\n" (string/trim example) "\n```"))))
+             (format "## %s\n\n%s" (pr-str k) doc)))
          key-datas)))
 
 (defn markdown-docs []
