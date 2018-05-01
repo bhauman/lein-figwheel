@@ -8,7 +8,7 @@ The following options can be supplied to `figwheel.main` via the `figwheel-main.
 
 A list of ClojureScript source directories to be watched and compiled on change.
 
-:watch-dirs ["cljs-src"]
+    :watch-dirs ["cljs-src"]
 
 ## :css-dirs
 
