@@ -118,7 +118,7 @@
                                           (false? (:reload-clj-files reload-config)) []
                                           :else ["clj" "cljc"])))
        :handler (fww/throttle
-                 50
+                 (:wait-time-ms reload-config 50)
                  (bound-fn [evts]
                    (binding [cljs.env/*compiler* cenv]
                      (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
@@ -707,7 +707,7 @@
     (if-let [paths (and (not= mode :build-once) (not-empty watch-dirs))]
       (do
         (build-cljs id (apply bapi/inputs paths) options cenv)
-        (watch-build id paths options cenv (select-keys config [:reload-clj-files])))
+        (watch-build id paths options cenv (select-keys config [:reload-clj-files :wait-time-ms])))
       (cond
         source
         (build-cljs id source options cenv)
@@ -843,7 +843,7 @@ This can cause confusion when your are not using Cider."
                      (:watch-dirs config)
                      (:options cfg)
                      cenv
-                     (select-keys config [:reload-clj-files]))
+                     (select-keys config [:reload-clj-files :wait-time-ms]))
         ;; TODO need to move to this pattern instead of repl evals
         (when (first (filter #{'figwheel.core} (:preloads (:options cfg))))
           (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
@@ -1033,7 +1033,7 @@ This can cause confusion when your are not using Cider."
           (watch-build main-build-id
                        watch-dirs options
                        cljs.env/*compiler*
-                       (select-keys config [:reload-clj-files]))
+                       (select-keys config [:reload-clj-files :wait-time-ms]))
           (when (first (filter #{'figwheel.core} (:preloads options)))
             (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
                                             (select-keys repl-env-options

@@ -84,6 +84,17 @@ Default: true
 
   :readline false")
 
+(s/def ::wait-time-ms integer?)
+(spec-doc
+ ::wait-time-ms
+  "The number of milliseconds to wait before issuing reloads. Set this
+higher to wait longer for changes. This is the interval from when the first
+file change occurs until we finally issue a reload event.
+
+Default: 50
+
+  :wait-time-ms 50")
+
 (s/def ::pprint-config boolean?)
 
 (s/def ::mode #{:build-once :repl :serve})
