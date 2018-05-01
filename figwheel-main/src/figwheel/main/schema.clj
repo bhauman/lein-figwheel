@@ -52,7 +52,7 @@
   :doc
   "A list of ClojureScript source directories to be watched and compiled on change.
 
-:watch-dirs [\"cljs-src\"]"
+    :watch-dirs [\"cljs-src\"]"
   :group :common)
 
 (s/def ::css-dirs (s/coll-of (s/and non-blank-string?
@@ -108,7 +108,7 @@ https://github.com/bhauman/rebel-readline
 
 Default: true
 
-  :rebel-readline false"
+    :rebel-readline false"
   :group :common)
 
 (s/def ::pprint-config boolean?)
@@ -121,7 +121,7 @@ compiles your build.
 
 Default: false
 
-  :pprint-config true"
+    :pprint-config true"
   :group :common)
 
 (s/def ::open-file-command non-blank-string?)
@@ -156,7 +156,7 @@ and Figwheel will call emacsclient with the correct args."
  enables hot reloading and client notification of compile time errors.
  Default: true
 
-  :figwheel-core false"
+    :figwheel-core false"
   :group :common)
 
 (s/def ::hot-reload-cljs boolean?)
@@ -166,7 +166,7 @@ and Figwheel will call emacsclient with the correct args."
 ClojureScript. Only has meaning when :figwheel is true.
 Default: true
 
-  :hot-reload-cljs false"
+    :hot-reload-cljs false"
   :group :common)
 
 (s/def ::connect-url non-blank-string?)
@@ -216,7 +216,7 @@ If you want to disable this behavior:
 
 Or you can specify which suffixes will cause the reloading
 
-  :reload-clj-files #{:clj :cljc}"
+    :reload-clj-files #{:clj :cljc}"
   :group :common)
 
 (s/def ::log-file non-blank-string?)
@@ -258,7 +258,7 @@ does not refresh. If you would like Figwheel to load code even if
 there are warnings generated set this to true.
 Default: false
 
-  :load-warninged-code true"
+    :load-warninged-code true"
   :group :common)
 
 (s/def ::ansi-color-output boolean?)
@@ -277,7 +277,7 @@ to false.  Default: true
  "Whether to validate the figwheel-main.edn and build config (i.e.\".cljs.edn\") files.
 Default: true
 
-  :validate-config false"
+    :validate-config false"
   :group :common)
 
 (s/def ::target-dir non-blank-string?)
@@ -363,7 +363,7 @@ file change occurs until we finally issue a reload event.
 
 Default: 50
 
-  :wait-time-ms 50"
+    :wait-time-ms 50"
   :group :un-common)
 
 (s/def ::mode #{:build-once :repl :serve})
@@ -372,14 +372,14 @@ Default: 50
  "The `:mode` indicates the behavior that occurs after a compile.
 Options: `:repl` `:serve` or `:build-once`
 
-`:repl` indicates that repl sill be started
-`:serve` indicates that a server will be started
-`:build-once` indicates that a compile will not be follwed by any action
+* `:repl` indicates that repl sill be started
+* `:serve` indicates that a server will be started
+* `:build-once` indicates that a compile will not be follwed by any action
 
 This is mainly intended for use when you are launching figwheel.main from a script.
 
 Normally defaults to `:repl`"
-  :group :un-common)
+:group :un-common)
 
 
 
@@ -425,8 +425,9 @@ Normally defaults to `:repl`"
    (mapv (fn [{:keys [key doc]}]
            (let [k (keyword (name key))
                  [doc' example] (split-out-example doc)]
-             (cond-> (format "## %s\n\n%s" (pr-str k) doc')
-               example (str "\n```\n" (string/trim example) "\n```"))))
+             (format "## %s\n\n%s" (pr-str k) doc)
+             #_(cond-> (format "## %s\n\n%s" (pr-str k) doc')
+                 example (str "\n```\n" (string/trim example) "\n```"))))
          key-datas)))
 
 (defn markdown-docs []

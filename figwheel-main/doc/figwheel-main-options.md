@@ -8,17 +8,13 @@ The following options can be supplied to `figwheel.main` via the `figwheel-main.
 
 A list of ClojureScript source directories to be watched and compiled on change.
 
-```
 :watch-dirs ["cljs-src"]
-```
 
 ## :css-dirs
 
 A list of CSS source directories to be watched and reloaded into the browser.
 
-```
-:css-dirs ["resource/public/css"]
-```
+    :css-dirs ["resource/public/css"]
 
 ## :ring-handler
 
@@ -29,9 +25,7 @@ start your own server, the figwheel.client will still be able to
 connect to its websocket endpoint.
 Default: none
 
-```
-:ring-handler my-project.server/handler
-```
+    :ring-handler my-project.server/handler
 
 ## :ring-server-options
 
@@ -60,9 +54,7 @@ https://github.com/bhauman/rebel-readline
 
 Default: true
 
-```
-:rebel-readline false
-```
+    :rebel-readline false
 
 ## :pprint-config
 
@@ -73,9 +65,7 @@ compiles your build.
 
 Default: false
 
-```
-:pprint-config true
-```
+    :pprint-config true
 
 ## :open-file-command
 
@@ -106,9 +96,7 @@ Wether to include the figwheel.core library in the build. This
  enables hot reloading and client notification of compile time errors.
  Default: true
 
-```
-:figwheel-core false
-```
+    :figwheel-core false
 
 ## :hot-reload-cljs
 
@@ -116,9 +104,7 @@ Whether or not figwheel.core should hot reload compiled
 ClojureScript. Only has meaning when :figwheel is true.
 Default: true
 
-```
-:hot-reload-cljs false
-```
+    :hot-reload-cljs false
 
 ## :connect-url
 
@@ -163,27 +149,21 @@ If you want to disable this behavior:
 
 Or you can specify which suffixes will cause the reloading
 
-```
-:reload-clj-files #{:clj :cljc}
-```
+    :reload-clj-files #{:clj :cljc}
 
 ## :log-file
 
 The name of a file to redirect the figwheel.main logging to. This
 will only take effect when a REPL has been started.
 
-```
-:log-file "figwheel-main.log"
-```
+    :log-file "figwheel-main.log"
 
 ## :log-level
 
 The level to set figwheel.main java.util.logger to.
 Can be one of: `:error` `:info` `:debug` `:trace` `:all` `:off`
 
-```
-:log-level :error
-```
+    :log-level :error
 
 ## :log-syntax-error-style
 
@@ -194,9 +174,7 @@ not display the erroneous code.
 Available options: `:verbose`, `:concise`
 Default: `:verbose`
 
-```
-:log-syntax-error-style :concise
-```
+    :log-syntax-error-style :concise
 
 ## :load-warninged-code
 
@@ -205,9 +183,7 @@ does not refresh. If you would like Figwheel to load code even if
 there are warnings generated set this to true.
 Default: false
 
-```
-:load-warninged-code true
-```
+    :load-warninged-code true
 
 ## :ansi-color-output
 
@@ -215,18 +191,14 @@ Figwheel makes an effort to provide colorful text output. If you need
 to prevent ANSI color codes in figwheel output set `:ansi-color-output`
 to false.  Default: true
 
-```
-:ansi-color-output false
-```
+    :ansi-color-output false
 
 ## :validate-config
 
 Whether to validate the figwheel-main.edn and build config (i.e.".cljs.edn") files.
 Default: true
 
-```
-:validate-config false
-```
+    :validate-config false
 
 ## :target-dir
 
@@ -246,9 +218,7 @@ assets, it is very important that the :target-dir be on the classpath.
 
 The default value of `:target-dir` is "target"
 
-```
-:target-dir "cljs-target"
-```
+    :target-dir "cljs-target"
 
 # Rarely used options
 
@@ -259,9 +229,7 @@ repl and or the console. `:client-print-to` is a list of where you
 want print output directed. The output choices are `:console` and `:repl`
 Default: [:console :repl]
 
-```
-:client-print-to [:console]
-```
+    :client-print-to [:console]
 
 ## :ring-stack
 
@@ -317,18 +285,16 @@ file change occurs until we finally issue a reload event.
 
 Default: 50
 
-```
-:wait-time-ms 50
-```
+    :wait-time-ms 50
 
 ## :mode
 
 The `:mode` indicates the behavior that occurs after a compile.
 Options: `:repl` `:serve` or `:build-once`
 
-`:repl` indicates that repl sill be started
-`:serve` indicates that a server will be started
-`:build-once` indicates that a compile will not be follwed by any action
+* `:repl` indicates that repl sill be started
+* `:serve` indicates that a server will be started
+* `:build-once` indicates that a compile will not be follwed by any action
 
 This is mainly intended for use when you are launching figwheel.main from a script.
 
