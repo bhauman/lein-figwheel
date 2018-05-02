@@ -158,6 +158,7 @@
       file-excerpt (assoc :file-excerpt file-excerpt))))
 
 (defn except-data->format-lines-data [except-data]
+
   (let [data (figwheel.core/inline-message-display-data except-data)
         longest-number (->> data (keep second) (reduce max 0) str count)
         number-fn  #(format (str "  %" (when-not (zero? longest-number)
@@ -170,7 +171,11 @@
                 :code-line [:yellow (number-fn n) s "\n"]
                 :error-in-code [:line [:yellow (number-fn n) ] [:bright s] "\n"]
                 :error-message [:yellow (number-fn "") (first (string/split s #"\^---")) "^---\n"]))
-            data))))
+            ;; only one error message
+            (let [[pre post] (split-with #(not= :error-message (first %)) data)]
+              (concat pre (take 1 post)
+                      (filter #(not= :error-message (first %))
+                              post)))))))
 
 (defn except-data->format-data [{:keys [message] :as except-data}]
   [:exception

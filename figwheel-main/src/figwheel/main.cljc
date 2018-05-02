@@ -9,6 +9,7 @@
         [cljs.main :as cm]
         [cljs.repl]
         [cljs.repl.figwheel]
+        [cljs.util]
         [clojure.java.io :as io]
         [clojure.pprint :refer [pprint]]
         [clojure.string :as string]
@@ -161,6 +162,34 @@
 ;; Additional cli options
 ;; ----------------------------------------------------------------------------
 
+;; safer option reading from files which prints out syntax errors
+
+(defn read-edn-file [f]
+  (try (redn/read
+        (rtypes/source-logging-push-back-reader (io/reader f) 1 f))
+       (catch Throwable t
+         (log/syntax-exception t)
+         (throw
+          (ex-info (str "Couldn't read the file:" f)
+                   {::error true} t)))))
+
+(defn read-edn-opts [str]
+  (letfn [(read-rsrc [rsrc-str orig-str]
+            (if-let [rsrc (io/resource rsrc-str)]
+              (edn/read-string (slurp rsrc))
+              (cljs.cli/missing-resource orig-str)))]
+    (cond
+     (string/starts-with? str "@/") (read-rsrc (subs str 2) str)
+     (string/starts-with? str "@") (read-rsrc (subs str 1) str)
+     :else
+     (let [f (io/file str)]
+       (if (.isFile f)
+         (read-edn-file f)
+         (cljs.cli/missing-file str))))))
+
+(defn load-edn-opts [str]
+  (reduce merge {} (map read-edn-opts (cljs.util/split-paths str))))
+
 (defn figwheel-opts-opt
   [cfg ropts]
   (let [ropts (string/trim ropts)
@@ -173,7 +202,7 @@
                                      "Error reading EDN from command line: -fwo " (pr-str ropts))
                                     {::error true}
                                     e))))
-                (cljs.cli/load-edn-opts ropts))]
+                (load-edn-opts ropts))]
     (validate-config! edn "Error validating figwheel options EDN provided to -fwo CLI flag")
     (update cfg ::config merge edn)))
 
@@ -197,15 +226,6 @@
 
 (defn figwheel-opt [cfg bl]
   (assoc-in cfg [::config :figwheel-core] (not= bl "false")))
-
-(defn read-edn-file [f]
-  (try (redn/read
-        (rtypes/source-logging-push-back-reader (io/reader f) 1 f))
-       (catch Throwable t
-         (log/syntax-exception t)
-         (throw
-          (ex-info (str "Couldn't read the file:" f)
-                   {::error true} t)))))
 
 (defn get-build [bn]
   (let [fname (str bn ".cljs.edn")
@@ -269,9 +289,14 @@
 (declare default-compile)
 
 (defn build-main-opt [repl-env-fn [_ build-name & args] cfg]
-  (default-compile repl-env-fn
+  ;; serve if no other args
+  (let [args (if-not (#{"-s" "-r" "--repl" "--serve"} (first args))
+               (cons "-s" args)
+               args)]
+    (default-compile repl-env-fn
                    (merge (build-opt cfg build-name)
-                          {:args args})))
+                          {:args args
+                           ::build-main-opt true}))))
 
 (defn build-once-main-opt [repl-env-fn [_ build-name & args] cfg]
   (default-compile repl-env-fn
@@ -490,8 +515,11 @@
   (update-in cfg [::config :watch-dirs]
             #(not-empty
               (distinct
-               (let [ns-watch-dir (and (:main options)
-                                       (watch-dir-from-ns (:main options)))]
+               (let [ns-watch-dir (and
+                                   (not (:watch options))
+                                   (empty? %)
+                                   (:main options)
+                                   (watch-dir-from-ns (:main options)))]
                  (cond-> %
                    (:watch options) (conj (:watch options))
                    ns-watch-dir (conj ns-watch-dir)))))))
@@ -499,8 +527,14 @@
 ;; needs local config
 (defn figwheel-mode? [{:keys [::config options]}]
   (and (:figwheel-core config true)
-       (or (= :repl (:mode config)) (not-empty (:watch-dirs config)))
+       (and (#{:repl :serve} (:mode config))
+            (not-empty (:watch-dirs config)))
        (= :none (:optimizations options :none))))
+
+(defn repl-connection? [{:keys [::config options] :as cfg}]
+  (or (and (= :repl (:mode config))
+           (= :none (:optimizations options :none)))
+      (figwheel-mode? cfg)))
 
 ;; TODO this is a no-op right now
 (defn prep-client-config [config]
@@ -515,7 +549,7 @@
     (update-in [:options :preloads]
                (fn [p]
                  (vec (distinct
-                       (concat p '[figwheel.repl.preload figwheel.core figwheel.main])))))
+                       (concat p '[figwheel.core figwheel.main])))))
     (false? (:heads-up-display config))
     (update-in [:options :closure-defines] assoc 'figwheel.core/heads-up-display false)
     (true? (:load-warninged-code config))
@@ -622,11 +656,20 @@
                                 (cond-> {:fwprocess process-unique}
                                   (:id build) (assoc :fwbuild (:id build))))
         conn-url (config-connect-url cfg connect-id)
-        fw-mode? (figwheel-mode? cfg)]
+        conn? (repl-connection? cfg)]
     (cond-> cfg
-      fw-mode?
+      conn?
       (update-in [:options :closure-defines] assoc 'figwheel.repl/connect-url conn-url)
-      (and fw-mode? (not-empty connect-id))
+      conn?
+      (update-in [:options :preloads]
+                 (fn [p]
+                   (vec (distinct
+                         (concat p '[figwheel.repl.preload])))))
+      (and conn? (:client-print-to config))
+      (update-in [:options :closure-defines] assoc
+                 'figwheel.repl/print-output
+                 (string/join "," (distinct (map name (:client-print-to config)))))
+      (and conn? (not-empty connect-id))
       (assoc-in [:repl-env-options :connection-filter]
                 (let [kys (keys connect-id)]
                   (fn [{:keys [query]}]
@@ -635,7 +678,7 @@
 
 (defn config-open-file-command [{:keys [::config options] :as cfg}]
   (if-let [setup (and (:open-file-command config)
-                      (figwheel-mode? cfg)
+                      (repl-connection? cfg)
                       (fw-util/require-resolve-var 'figwheel.main.editor/setup))]
     (-> cfg
         (update ::initializers (fnil conj []) #(setup (:open-file-command config)))
@@ -651,18 +694,11 @@
 (defn config-watch-css [{:keys [::config options] :as cfg}]
   (cond-> cfg
     (and (not-empty (:css-dirs config))
-         (figwheel-mode? cfg))
+         (repl-connection? cfg))
     (->
      (update ::initializers (fnil conj []) #(watch-css (:css-dirs config)))
      (update-in [:options :preloads]
                 (fn [p] (vec (distinct (conj p 'figwheel.main.css-reload))))))))
-
-(defn config-client-print-to [{:keys [::config] :as cfg}]
-  (cond-> cfg
-    (:client-print-to config)
-    (update-in [:options :closure-defines] assoc
-               'figwheel.repl/print-output
-               (string/join "," (distinct (map name (:client-print-to config)))))))
 
 (defn get-repl-options [{:keys [options args inits repl-options] :as cfg}]
   (assoc (merge (dissoc options :main)
@@ -725,7 +761,6 @@
        config-default-asset-path
        config-default-aot-cache-false
        config-repl-connect
-       config-client-print-to
        config-open-file-command
        config-watch-css
        config-finalize-repl-options
@@ -947,7 +982,7 @@ This can cause confusion when your are not using Cider."
                   (= mode :repl)
                   ;; this forwards command line args
                   (repl repl-env repl-options)
-                  (or (= mode :serve) fw-mode?)
+                  (= mode :serve)
                   ;; we need to get the server host:port args
                   (serve {:repl-env repl-env
                           :repl-options repl-options
@@ -1157,7 +1192,8 @@ This can cause confusion when your are not using Cider."
           [pre post] (split-with (complement #{"-re" "--repl-env"}) args)
           args'      (if (empty? post) (concat ["-re" "figwheel"] args) args)
           args'      (if (empty? args) (concat args' ["-r"]) args')]
-      (with-redefs [cljs.cli/default-compile default-compile]
+      (with-redefs [cljs.cli/default-compile default-compile
+                    cljs.cli/load-edn-opts load-edn-opts]
         (apply cljs.main/-main args')))
     (catch Throwable e
       (let [d (ex-data e)]
