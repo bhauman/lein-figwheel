@@ -12,6 +12,9 @@
         [clojure.java.io :as io]
         [clojure.pprint :refer [pprint]]
         [clojure.string :as string]
+        [clojure.edn :as edn]
+        [clojure.tools.reader.edn :as redn]
+        [clojure.tools.reader.reader-types :as rtypes]
         [figwheel.core :as fw-core]
         [figwheel.main.ansi-party :as ansip]
         [figwheel.main.logging :as log]
@@ -158,6 +161,25 @@
 ;; Additional cli options
 ;; ----------------------------------------------------------------------------
 
+(defn figwheel-opts-opt
+  [cfg ropts]
+  (let [ropts (string/trim ropts)
+        edn   (if (string/starts-with? ropts "{")
+                (try
+                  (edn/read-string ropts)
+                  (catch Throwable e
+                    (throw (ex-info (str
+                                     (.getMessage e) "\n"
+                                     "Error reading EDN from command line: -fwo " (pr-str ropts))
+                                    {::error true}
+                                    e))))
+                (cljs.cli/load-edn-opts ropts))]
+    (validate-config! edn "Error validating figwheel options EDN provided to -fwo CLI flag")
+    (update cfg ::config merge edn)))
+
+(defn print-config-opt [cfg opt]
+  (assoc-in cfg [::config :pprint-config] (not (#{"false"} opt))))
+
 (defn- watch-opt
   [cfg path]
   (when-not (.exists (io/file path))
@@ -176,15 +198,21 @@
 (defn figwheel-opt [cfg bl]
   (assoc-in cfg [::config :figwheel-core] (not= bl "false")))
 
+(defn read-edn-file [f]
+  (try (redn/read
+        (rtypes/source-logging-push-back-reader (io/reader f) 1 f))
+       (catch Throwable t
+         (log/syntax-exception t)
+         (throw
+          (ex-info (str "Couldn't read the file:" f)
+                   {::error true} t)))))
+
 (defn get-build [bn]
   (let [fname (str bn ".cljs.edn")
-        build (try (read-string (slurp fname))
-                   (catch Throwable t
-                     ;; TODO use error parsing here to create better error message
-                     (throw
-                      (ex-info (str "Couldn't read the build file: " fname " : " (.getMessage t))
-                               {:cljs.main/error :invalid-arg}
-                               t))))]
+        build (if-not (.isFile (io/file fname))
+                (throw (ex-info (str "Unable to find build file: " fname)
+                                {:filename fname}))
+                (read-edn-file fname))]
     (when (meta build)
       (when-not (false? (:validate-config (meta build)))
         (log/debug "Validating metadata in build: " fname)
@@ -199,11 +227,6 @@
               end-parts (fw-util/path-parts (:relative-path source))]
           (when (= end-parts (take-last (count end-parts) res))
             (str (apply io/file (drop-last (count end-parts) res)))))))))
-
-(defn watch-dirs-from-build [{:keys [main] :as build-options}]
-  (let [watch-dirs (-> build-options meta :watch-dirs)
-        main-ns-dir (and main (watch-dir-from-ns (symbol main)))]
-    (not-empty (filter #(.exists (io/file %)) (cons main-ns-dir watch-dirs)))))
 
 (def default-main-repl-index-body
   (str
@@ -260,9 +283,11 @@
 (defn repl-main-opt [repl-env-fn args cfg]
   (let [target-on-classpath?
         (when-let [target-dir
-                   (try (:target-dir (read-string (slurp "figwheel-main.edn")) "target")
-                        (catch Throwable t
-                          nil))]
+                   (:target-dir
+                    (try (read-string (slurp "figwheel-main.edn"))
+                         (catch Throwable t
+                           nil))
+                    "target")]
           (fw-util/dir-on-classpath? target-dir))
         temp-dir (when-not target-on-classpath?
                    (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
@@ -320,6 +345,13 @@
           {:group :cljs.cli/compile :fn watch-opt
            :arg "path"
            :doc "Continuously build, only effective with the --compile main option"}
+          ["-fwo" "--fw-opts"]
+          {:group :cljs.cli/compile :fn figwheel-opts-opt
+           :arg "edn"
+           :doc (str "Options to configure figwheel.main, can be an EDN string or "
+                     "system-dependent path-separated list of EDN files / classpath resources. Options "
+                     "will be merged left to right.")}
+          ;; TODO uncertain about this
           ["-fw" "--figwheel"]
           {:group :cljs.cli/compile :fn figwheel-opt
            :arg "bool"
@@ -330,7 +362,11 @@
           ["-bb" "--background-build"]
           {:group :cljs.cli/compile :fn background-build-opt
            :arg "str"
-           :doc (str "The name of a build config to watch and build in the background.")}}
+           :doc "The name of a build config to watch and build in the background."}
+          ["-pc" "--pprint-config" "--print-config"]
+          {:group :cljs.cli/compile :fn print-config-opt
+           :doc "Instead of running the command print out the configuration built up by the command. Useful for debugging."}
+          }
    :main {["-b" "--build"]
           {:fn build-main-opt
            :arg "string"
@@ -387,19 +423,21 @@
     (cond-> main-edn
       handler (assoc :ring-handler handler))))
 
+
+
+;; use tools reader read-string for better error messages
+#_(redn/read-string)
 (defn fetch-figwheel-main-edn [cfg]
-  (try (read-string (slurp (io/file "figwheel-main.edn")))
-       (catch Throwable t
-         (throw (ex-info "Problem reading figwheel-main.edn" )))))
+  (read-edn-file "figwheel-main.edn"))
 
 (defn- config-figwheel-main-edn [cfg]
-  (if-not (.exists (io/file "figwheel-main.edn"))
+  (if-not (.isFile (io/file "figwheel-main.edn"))
     cfg
     (let [config-edn (or (::start-figwheel-options cfg)
                          (process-figwheel-main-edn
                           (fetch-figwheel-main-edn cfg)))]
       (-> cfg
-          (update ::config merge config-edn)))))
+          (update ::config #(merge config-edn %))))))
 
 (defn- config-merge-current-build-conf [{:keys [::extra-config ::build] :as cfg}]
   (update cfg
@@ -550,7 +588,6 @@
 
       (.contains url "[[server-port]]")
       (string/replace "[[server-port]]"     (str server-port)))))
-
 
 (defn add-to-query [uri query-map]
   (let [[pre query] (string/split uri #"\?")]
@@ -1087,6 +1124,24 @@ This can cause confusion when your are not using Cider."
             (build-cljs i input options
                          (cljs.env/default-compiler-env options))))))))
 
+(defn fix-simple-bool-arg* [flags args]
+  (let [[pre post] (split-with (complement flags) args)]
+    (if (empty? post)
+      pre
+      (concat pre [(first post) "true"] (rest post)))))
+
+(defn fix-simple-bool-args [flags args]
+  (reverse
+   (reduce (fn [accum arg]
+             (if (and (flags (first accum))
+                      (not (#{"true" "false"} arg)))
+               (-> accum
+                   (conj "true")
+                   (conj arg))
+               (conj accum arg)))
+           (list)
+           args)))
+
 (defmacro build-once [& ids]
   (build-once* ids)
   nil)
@@ -1098,9 +1153,10 @@ This can cause confusion when your are not using Cider."
 (defn -main [& args]
   (alter-var-root #'cli/default-commands cli/add-commands figwheel-commands)
   (try
-    (let [[pre post] (split-with (complement #{"-re" "--repl-env"}) args)
-          args' (if (empty? post) (concat ["-re" "figwheel"] args) args)
-          args' (if (empty? args) (concat args' ["-r"]) args')]
+    (let [args       (fix-simple-bool-args #{"-pc" "--pprint-config"} args)
+          [pre post] (split-with (complement #{"-re" "--repl-env"}) args)
+          args'      (if (empty? post) (concat ["-re" "figwheel"] args) args)
+          args'      (if (empty? args) (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile]
         (apply cljs.main/-main args')))
     (catch Throwable e
