@@ -173,10 +173,21 @@
           (ex-info (str "Couldn't read the file:" f)
                    {::error true} t)))))
 
+(defn read-edn-string [s & [fail-msg]]
+  (try
+    (edn/read-string s)
+    (catch Throwable e
+      (throw (ex-info (str
+                       (.getMessage e) "\n"
+                       (or fail-msg "Failed to read EDN string: ")
+                       (pr-str s))
+                      {::error true}
+                      e)))))
+
 (defn read-edn-opts [str]
   (letfn [(read-rsrc [rsrc-str orig-str]
             (if-let [rsrc (io/resource rsrc-str)]
-              (edn/read-string (slurp rsrc))
+              (read-edn-string (slurp rsrc))
               (cljs.cli/missing-resource orig-str)))]
     (cond
      (string/starts-with? str "@/") (read-rsrc (subs str 2) str)
@@ -187,21 +198,54 @@
          (read-edn-file f)
          (cljs.cli/missing-file str))))))
 
+(defn merge-meta [m m] (with-meta (merge m m) (merge (meta m) (meta m))))
+
 (defn load-edn-opts [str]
-  (reduce merge {} (map read-edn-opts (cljs.util/split-paths str))))
+  (reduce merge-meta {} (map read-edn-opts (cljs.util/split-paths str))))
+
+(defn fallback-id [edn]
+  (let [m (meta edn)]
+    (cond
+      (and (:id m) (not (string/blank? (str (:id m)))))
+      (:id m)
+      ;;(:main edn)      (munge (str (:main edn)))
+      :else
+      (str "build-"
+           (.getValue (doto (java.util.zip.CRC32.)
+                        (.update (.getBytes (pr-str (into (sorted-map) edn))))))))))
+
+(defn compile-opts-opt
+  [cfg copts]
+  (let [copts (string/trim copts)
+        edn   (if (or (string/starts-with? copts "{")
+                      (string/starts-with? copts "^"))
+                (read-edn-string copts "Error reading EDN from command line flag: -co ")
+                (load-edn-opts copts))
+        config  (meta edn)
+        id
+        (if (or (string/starts-with? copts "{")
+                (string/starts-with? copts "^"))
+          (and (map? edn) (fallback-id edn))
+          (some->
+           (->>
+            (cljs.util/split-paths copts)
+            (filter #(not (.startsWith % "@")))
+            (map io/file)
+            (filter #(.isFile %)))
+           first
+           .getName
+           (string/split #"\.")
+           first))]
+    (cond-> cfg
+      edn (update :options merge edn)
+      id  (update-in [::build :id] #(if-not % id %))
+      config (update-in [::build :config] merge config))))
 
 (defn figwheel-opts-opt
   [cfg ropts]
   (let [ropts (string/trim ropts)
         edn   (if (string/starts-with? ropts "{")
-                (try
-                  (edn/read-string ropts)
-                  (catch Throwable e
-                    (throw (ex-info (str
-                                     (.getMessage e) "\n"
-                                     "Error reading EDN from command line: -fwo " (pr-str ropts))
-                                    {::error true}
-                                    e))))
+                (read-edn-string ropts "Error reading EDN from command line flag: -fwo ")
                 (load-edn-opts ropts))]
     (validate-config! edn "Error validating figwheel options EDN provided to -fwo CLI flag")
     (update cfg ::config merge edn)))
@@ -270,9 +314,9 @@
   (let [options (get-build bn)]
     (-> cfg
         (update :options merge options)
-        (assoc-in [::build] (cond-> {:id bn}
-                              (meta options)
-                              (assoc :config (meta options)))))))
+        (assoc  ::build (cond-> {:id bn}
+                          (meta options)
+                          (assoc :config (meta options)))))))
 
 (defn build-once-opt [cfg bn]
   (let [cfg (build-opt cfg bn)]
@@ -374,6 +418,12 @@
           {:group :cljs.cli/compile :fn figwheel-opts-opt
            :arg "edn"
            :doc (str "Options to configure figwheel.main, can be an EDN string or "
+                     "system-dependent path-separated list of EDN files / classpath resources. Options "
+                     "will be merged left to right.")}
+          ["-co" "--compile-opts"]
+          {:group :cljs.cli/main&compile :fn compile-opts-opt
+           :arg "edn"
+           :doc (str "Options to configure the build, can be an EDN string or "
                      "system-dependent path-separated list of EDN files / classpath resources. Options "
                      "will be merged left to right.")}
           ;; TODO uncertain about this
@@ -1202,6 +1252,7 @@ This can cause confusion when your are not using Cider."
                 (::error d))
           (println (.getMessage e))
           (throw e))))))
+
 
 ))
 
