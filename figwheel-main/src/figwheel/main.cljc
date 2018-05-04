@@ -1048,26 +1048,70 @@ This can cause confusion when your are not using Cider."
                           :repl-options repl-options
                           :join? (get b-cfg ::join-server? true)}))))))))))
 
-(defn start
-  ([] (start {}))
-  ([{:keys [figwheel-options build join-server?]}]
-   (let [[build-id build-options] (if (map? build)
-                                    [(:id build) (:options build)]
-                                    [build])
-         build-id (name (or build-id "dev"))
-         options  (or (and (not build-options)
-                           (get-build build-id))
-                      build-options
-                      {})
+(defn start-build-arg->build-options [build]
+  (let [[build-id build-options config]
+        (if (map? build)
+          [(:id build) (:options build)
+           (:config build)]
+          [build])
+        build-id (name build-id)
+        options  (or (and (not build-options)
+                          (get-build build-id))
+                     build-options
+                     {})
+        config  (or config (meta options))]
+    (cond-> {:id build-id
+             :options options}
+      config (assoc :config config))))
+
+(defn start*
+  ([join-server? build] (start nil build))
+  ([join-server? figwheel-options build & background-builds]
+   (let [{:keys [id] :as build} (start-build-arg->build-options build)
          cfg
-         (cond-> {:options options
+         (cond-> {:options (:options build)
                   ::join-server? (if (true? join-server?) true false)}
            figwheel-options (assoc ::start-figwheel-options figwheel-options)
-           build-id    (assoc ::build {:id  build-id
-                                       :config (meta options)})
+           id    (assoc ::build (dissoc build :options))
            (not (get figwheel-options :mode))
-           (assoc-in [::config :mode] :repl))]
+           (assoc-in [::config :mode] :repl)
+           (not-empty background-builds)
+           (assoc ::background-builds (mapv
+                                       start-build-arg->build-options
+                                       background-builds)))]
+     cfg
      (default-compile cljs.repl.figwheel/repl-env cfg))))
+
+(defn start
+  "Starts Figwheel.
+
+  Example:
+
+  (start \"dev\") ;; will look up the configuration from figwheel-main.edn
+                  ;; and dev.cljs.edn
+
+  With inline build config:
+  (start {:id \"dev\" :options {:main 'example.core}})
+
+  With inline figwheel config:
+  (start {:css-dirs [\"resources/public/css\"]} \"dev\")
+
+  With inline figwheel and build config:
+  (start {:css-dirs [\"resources/public/css\"]}
+         {:id \"dev\" :options {:main 'example.core}})
+
+  If you don't want to launch a REPL:
+  (start {:css-dirs [\"resources/public/css\"]
+          :mode :serve}
+         {:id \"dev\" :options {:main 'example.core}})"
+  [& args]
+  (apply start* false args))
+
+(defn start-join
+  "Starts figwheel and blocks, useful when starting figwheel as a
+  server only i.e. `:mode :serve`  from a script."
+  [& args]
+  (apply start* true args))
 
 ;; ----------------------------------------------------------------------------
 ;; REPL api
