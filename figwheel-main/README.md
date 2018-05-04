@@ -173,6 +173,10 @@ Will output:
                  print-output "repl,console"}}
 ```
 
+## Using figwheel.main from a script
+
+See the `figwheel.main/start` function and the `figwheel.main/start-join` functions.
+
 ## More to come ...
 
 Figwheel Main aims to honor all the flags provided by `cljs.main` as
