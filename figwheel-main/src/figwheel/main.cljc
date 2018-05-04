@@ -95,6 +95,7 @@
 
 ;; simple protection against printing the compiler env
 ;; TODO this doesn't really work when it needs to
+;; TODO Not actually used!
 (defrecord WatchInfo [id paths options compiler-env reload-config])
 (defmethod print-method WatchInfo [wi ^java.io.Writer writer]
   (.write writer (pr-str
@@ -173,16 +174,23 @@
           (ex-info (str "Couldn't read the file:" f)
                    {::error true} t)))))
 
+(defn str-source->file-excerpt [except-data code-str]
+  (let [{:keys [line column]} except-data
+        excerpt (figwheel.core/str-excerpt code-str (max 1 (- line 10)) 20)]
+    (assoc except-data :file-excerpt excerpt)))
+
 (defn read-edn-string [s & [fail-msg]]
   (try
-    (edn/read-string s)
-    (catch Throwable e
-      (throw (ex-info (str
-                       (.getMessage e) "\n"
-                       (or fail-msg "Failed to read EDN string: ")
-                       (pr-str s))
-                      {::error true}
-                      e)))))
+    (redn/read
+     (rtypes/source-logging-push-back-reader (io/reader (.getBytes s)) 1))
+    (catch Throwable t
+      (let [except-data (str-source->file-excerpt (fig-ex/parse-exception t)
+                                                  s)]
+        (log/info (ansip/format-str (log/format-ex except-data)))
+        (throw (ex-info (str (or fail-msg "Failed to read EDN string: ")
+                             (.getMessage t))
+                        {::error true}
+                        t))))))
 
 (defn read-edn-opts [str]
   (letfn [(read-rsrc [rsrc-str orig-str]
@@ -227,16 +235,13 @@
              (if (or (string/starts-with? copts "{")
                      (string/starts-with? copts "^"))
                (and (map? edn) (fallback-id edn))
-               (some->
-                (->>
-                 (cljs.util/split-paths copts)
-                 (filter #(not (.startsWith % "@")))
-                 (map io/file)
-                 (filter #(.isFile %)))
-                first
-                .getName
-                (string/split #"\.")
-                first)))]
+               (->>
+                (cljs.util/split-paths copts)
+                (filter (complement string/blank?))
+                (filter #(not (.startsWith % "@")))
+                (map io/file)
+                (map (comp first #(string/split % #"\.") #(.getName %)))
+                (string/join ""))))]
     (cond-> cfg
       edn (update :options merge edn)
       id  (update-in [::build :id] #(if-not % id %))

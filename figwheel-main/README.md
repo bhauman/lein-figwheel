@@ -74,7 +74,14 @@ use it only when you are going to interact at the REPL.
 To define a build which will allow you work on a set of files and hot
 reload them.
 
-Create a file `dev.cljs.edn`:
+Ensure your `deps.edn` file has `figwheel.main` dependencies:
+
+```
+{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"} 
+        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}}}}
+```
+
+Create a file `dev.cljs.edn` build file:
 
 ```
 {:main example.core}
@@ -102,12 +109,18 @@ The `-b` or `--build` flag is indicating that we should read
 
 The `-r` or `--repl` flag indicates that a repl should be launched.
 
+Interesting to note that the above command is equivalent to:
+
+```
+clojure -m figwheel.main -co dev.cljs.edn -c example.core -r
+```
+
 ## Configuring Figwheel Main
 
 If you need to configure figwheel.main, place a `figwheel-main.edn`
 in the same directory that you will be executing it from.
 
-If you need to override some of the configuration options for a
+If you need to override some of the figwheel configuration options for a
 particular build, simply add those options as meta data on the build edn.
 
 For example if you want to have `:watch-dirs` that are specific to the
@@ -125,6 +138,41 @@ https://github.com/bhauman/lein-figwheel/blob/master/figwheel-main/doc/figwheel-
 All the available configuration options specs are here:
 https://github.com/bhauman/lein-figwheel/blob/master/figwheel-main/src/figwheel/main/schema.clj
 
+## Quick way for experienced devs to understand the command line options
+
+You can supply a `-pc` or `--pprint-config` flag to `figwheel.main`
+and it will print out the computed configuration instead of running
+the command.
+
+For example:
+
+```
+clojure -m figwheel.main -pc -b dev -r
+```
+
+Will output:
+
+```clojure
+---------------------- Figwheel options ----------------------
+{:ring-handler #'exproj.server/handler,
+ :ring-server-options {:port 9550},
+ :client-print-to [:repl :console],
+ :pprint-config true,
+ :watch-dirs ("src"),
+ :mode :repl}
+---------------------- Compiler options ----------------------
+{:main exproj.core,
+ :preloads [figwheel.core figwheel.main figwheel.repl.preload],
+ :output-to "target/public/cljs-out/dev-main.js",
+ :output-dir "target/public/cljs-out/dev",
+ :asset-path "cljs-out/dev",
+ :aot-cache false,
+ :closure-defines
+ #:figwheel.repl{connect-url
+                 "ws://localhost:9550/figwheel-connect?fwprocess=c8712b&fwbuild=dev",
+                 print-output "repl,console"}}
+```
+
 ## More to come ...
 
 Figwheel Main aims to honor all the flags provided by `cljs.main` as
@@ -132,6 +180,7 @@ of right now your mileage may vary.
 
 ## Known issues
 
+* the `--help` flag has not been correctly edited to be helpful yet!
 * Not working with Node yet
 * Quiting from rebel-readline REPL requires quiting multiple processes
 

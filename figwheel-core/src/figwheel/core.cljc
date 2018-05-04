@@ -547,13 +547,17 @@
 ;; warnings
 ;; -------------------------------------------------------------
 
+(defn str-excerpt [code-str start length & [path]]
+  (cond->
+      {:start-line start
+       :excerpt  (->> (string/split-lines code-str)
+                      (drop (dec start))
+                      (take length)
+                      (string/join "\n"))}
+    path (assoc :path path)))
+
 (defn file-excerpt [file start length]
-  {:start-line start
-   :path       (.getCanonicalPath file)
-   :excerpt  (->> (string/split-lines (slurp file))
-                  (drop (dec start))
-                  (take length)
-                  (string/join "\n"))})
+  (str-excerpt (slurp file) start length (.getCanonicalPath file)))
 
 (defn warning-info [{:keys [warning-type env extra path]}]
   (when warning-type
