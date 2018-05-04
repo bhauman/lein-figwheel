@@ -277,16 +277,20 @@
 (defn figwheel-opt [cfg bl]
   (assoc-in cfg [::config :figwheel-core] (not= bl "false")))
 
+
+
 (defn get-build [bn]
-  (let [fname (str bn ".cljs.edn")
-        build (if-not (.isFile (io/file fname))
-                (throw (ex-info (str "Unable to find build file: " fname)
-                                {:filename fname}))
-                (read-edn-file fname))]
+  (let [fname (if (.contains bn (System/getProperty "path.separator"))
+                bn
+                (str bn ".cljs.edn"))
+        build (->> (cljs.util/split-paths bn)
+                   (map #(str % ".cljs.edn"))
+                   (string/join (System/getProperty "path.separator"))
+                   load-edn-opts)]
     (when (meta build)
       (when-not (false? (:validate-config (meta build)))
-        (log/debug "Validating metadata in build: " fname)
-        (validate-config! (meta build) (str "Configuration error in " fname))))
+        (log/debug "Validating metadata in build option: " fname)
+        (validate-config! (meta build) (str "Configuration error in build options meta data:" fname))))
     build))
 
 (defn watch-dir-from-ns [main-ns]
