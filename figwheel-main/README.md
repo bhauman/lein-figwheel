@@ -40,7 +40,7 @@ installed.
 Now quickly launch a ClojureScript REPL with:
 
 ```
-clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}}}}"  -m figwheel.main
+clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"}}}}"  -m figwheel.main
 ```
 
 This will first compile browser REPL code to a temp directory, and
