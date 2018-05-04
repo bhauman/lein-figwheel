@@ -223,19 +223,20 @@
                 (load-edn-opts copts))
         config  (meta edn)
         id
-        (if (or (string/starts-with? copts "{")
-                (string/starts-with? copts "^"))
-          (and (map? edn) (fallback-id edn))
-          (some->
-           (->>
-            (cljs.util/split-paths copts)
-            (filter #(not (.startsWith % "@")))
-            (map io/file)
-            (filter #(.isFile %)))
-           first
-           .getName
-           (string/split #"\.")
-           first))]
+        (and edn
+             (if (or (string/starts-with? copts "{")
+                     (string/starts-with? copts "^"))
+               (and (map? edn) (fallback-id edn))
+               (some->
+                (->>
+                 (cljs.util/split-paths copts)
+                 (filter #(not (.startsWith % "@")))
+                 (map io/file)
+                 (filter #(.isFile %)))
+                first
+                .getName
+                (string/split #"\.")
+                first)))]
     (cond-> cfg
       edn (update :options merge edn)
       id  (update-in [::build :id] #(if-not % id %))

@@ -37,19 +37,10 @@ tools that can communicate from the server to your client.
 First, make sure you have the [Clojure CLI Tools](https://clojure.org/guides/getting_started) 
 installed.
 
-In a project directory that you want to start working with figwheel in
-create a `deps.edn` file.
+Now quickly launch a ClojureScript REPL with:
 
 ```
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
-        ;; add rebel readline for a better REPL readline editor
-        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}}}
-```
-
-Now launch a REPL with
-
-```
-clojure -m figwheel.main
+clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}}}}"  -m figwheel.main
 ```
 
 This will first compile browser REPL code to a temp directory, and
@@ -57,11 +48,26 @@ then a browser will open and a `cljs.user=>` prompt will appear.
 
 From here you can do REPL driven development of ClojureScript.
 
-You can also use `leiningen` like so:
+You can also use `leiningen` by adding it to `:dependencies` in your
+`project.clj` and launching it like so:
 
 ```
-lein trampoline run -m figwheel.main
+lein run -m figwheel.main
 ```
+
+**With Rebel Readline for much better REPL experience**
+
+Figwheel main will automatically use `rebel-readline-cljs` it is
+available. So you can get Rebel Readline behavior by simply adding it
+to your dependencies.
+
+```
+clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.2\"}}}}"  -m figwheel.main
+```
+
+As of right now Rebel readline does create some startup overhead
+(hoping to correct this in the near future), so you may want to choose
+use it only when you are going to interact at the REPL.
 
 **Creating a build**
 
