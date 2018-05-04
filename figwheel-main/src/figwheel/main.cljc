@@ -93,18 +93,9 @@
 (def build-cljs (wrap-with-build-logging bapi/build))
 (def fig-core-build (wrap-with-build-logging figwheel.core/build))
 
-;; simple protection against printing the compiler env
-;; TODO this doesn't really work when it needs to
-;; TODO Not actually used!
-(defrecord WatchInfo [id paths options compiler-env reload-config])
-(defmethod print-method WatchInfo [wi ^java.io.Writer writer]
-  (.write writer (pr-str
-                  (cond-> (merge {} wi)
-                    (:compiler-env wi) (assoc :compiler-env 'compiler-env...)))))
-
 (defn watch-build [id inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
-    (log/info "Watching build - " id)
+    (log/info "Watching and compiling paths:" (pr-str inputs) "for build -" id)
     (fww/add-watch!
      [::autobuild id]
      (merge
@@ -174,18 +165,12 @@
           (ex-info (str "Couldn't read the file:" f)
                    {::error true} t)))))
 
-(defn str-source->file-excerpt [except-data code-str]
-  (let [{:keys [line column]} except-data
-        excerpt (figwheel.core/str-excerpt code-str (max 1 (- line 10)) 20)]
-    (assoc except-data :file-excerpt excerpt)))
-
 (defn read-edn-string [s & [fail-msg]]
   (try
     (redn/read
      (rtypes/source-logging-push-back-reader (io/reader (.getBytes s)) 1))
     (catch Throwable t
-      (let [except-data (str-source->file-excerpt (fig-ex/parse-exception t)
-                                                  s)]
+      (let [except-data (fig-ex/add-excerpt (fig-ex/parse-exception t) s)]
         (log/info (ansip/format-str (log/format-ex except-data)))
         (throw (ex-info (str (or fail-msg "Failed to read EDN string: ")
                              (.getMessage t))
@@ -886,22 +871,12 @@ Note: Cider will inject this config into your project.clj.
 This can cause confusion when your are not using Cider."
                     {::error :no-cljs-nrepl-middleware}))))
 
-(defn root-source->file-excerpt [{:keys [source-form] :as root-source-info} except-data]
-  (let [{:keys [source column]} (when (instance? clojure.lang.IMeta source-form)
-                                  (meta source-form))]
-    (cond-> except-data
-      (and column (> column 1) (= (:line except-data) 1) (:column except-data))
-      (update :column  #(max 1 (- % (dec column))))
-      source (assoc :file-excerpt {:start-line 1 :excerpt source}))))
-
 (defn repl-caught [err repl-env repl-options]
   (let [root-source-info (some-> err ex-data :root-source-info)]
     (if (and (instance? clojure.lang.IExceptionInfo err)
              (#{:js-eval-error :js-eval-exception} (:type (ex-data err))))
       (cljs.repl/repl-caught err repl-env repl-options)
-      (let [except-data (root-source->file-excerpt
-                         root-source-info
-                         (fig-ex/parse-exception err))]
+      (let [except-data (fig-ex/add-excerpt (fig-ex/parse-exception err))]
         ;; TODO strange ANSI color error when printing this inside rebel-readline
         (println (binding [ansip/*use-color* (if (resolve 'rebel-readline.cljs.repl/repl*)
                                                false
@@ -967,6 +942,8 @@ This can cause confusion when your are not using Cider."
                    ::build {:id id :config config})
             update-config)
         cenv (cljs.env/default-compiler-env)]
+    (when (empty? (:watch-dirs config))
+          (log/failure "Can not watch a build with no :watch-dirs"))
     (when (not-empty (:watch-dirs config))
       (log/info "Starting background autobuild - " (:id build))
       (binding [cljs.env/*compiler* cenv]
@@ -1065,7 +1042,7 @@ This can cause confusion when your are not using Cider."
       config (assoc :config config))))
 
 (defn start*
-  ([join-server? build] (start nil build))
+  ([join-server? build] (start* nil build))
   ([join-server? figwheel-options build & background-builds]
    (let [{:keys [id] :as build} (start-build-arg->build-options build)
          cfg

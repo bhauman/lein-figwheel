@@ -150,3 +150,41 @@
       data'  (assoc :data data'))))
 
 #_(parse-exception (figwheel.tools.exceptions-test/fetch-clj-exception "(defn [])"))
+
+;; Excerpts
+
+(defn str-excerpt [code-str start length & [path]]
+  (cond->
+      {:start-line start
+       :excerpt  (->> (string/split-lines code-str)
+                      (drop (dec start))
+                      (take length)
+                      (string/join "\n"))}
+    path (assoc :path path)))
+
+(defn file-excerpt [file start length]
+  (str-excerpt (slurp file) start length (.getCanonicalPath file)))
+
+(defn root-source->file-excerpt [{:keys [source-form] :as root-source-info} except-data]
+  (let [{:keys [source column]} (when (instance? clojure.lang.IMeta source-form)
+                                  (meta source-form))]
+    (cond-> except-data
+      (and column (> column 1) (= (:line except-data) 1) (:column except-data))
+      (update :column  #(max 1 (- % (dec column))))
+      source (assoc :file-excerpt {:start-line 1 :excerpt source}))))
+
+(defn add-excerpt
+  ([parsed] (add-excerpt parsed nil))
+  ([{:keys [file line data] :as parsed} code-str]
+   (cond
+     (and line file (.isFile (io/file file)))
+     (let [fex (file-excerpt (io/file file) (max 1 (- line 10)) 20)]
+       (cond-> parsed
+         fex (assoc :file-excerpt fex)))
+     (and line (:root-source-info data))
+     (root-source->file-excerpt (:root-source-info data) parsed)
+     (and line code-str)
+     (let [str-ex (str-excerpt code-str (max 1 (- line 10)) 20)]
+       (cond-> parsed
+         str-ex (assoc :file-excerpt str-ex)))
+     :else parsed)))

@@ -151,11 +151,7 @@
   [:cyan (exception-title ex) "   " (file-line-col ex)])
 
 (defn exception-with-excerpt [e]
-  (let [{:keys [file line] :as parsed-ex} (fig-ex/parse-exception e)
-        file-excerpt (when (and file line (.exists (io/file file)))
-                       (figwheel.core/file-excerpt (io/file file) (max 1 (- line 10)) 20))]
-    (cond-> parsed-ex
-      file-excerpt (assoc :file-excerpt file-excerpt))))
+  (fig-ex/add-excerpt (fig-ex/parse-exception e)))
 
 (defn except-data->format-lines-data [except-data]
 
