@@ -15,7 +15,7 @@
    [com.stuartsierra/component "0.3.2"]
    [suspendable "0.1.1"
     :exclusions [org.clojure/clojure com.stuartsierra/component]]
-   [http-kit "2.2.0"]
+   [http-kit "2.3.0"]
    [ring-cors "0.1.11"
     :exclusions [ring/ring-core org.clojure/clojure]]
    [ring/ring-core "1.6.3"
