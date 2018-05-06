@@ -183,15 +183,15 @@ Make sure you have the [latest version of leiningen installed](https://github.co
 Then include the following `:dependencies` in your `project.clj` file.
 
 ```clojure
-[org.clojure/clojure "1.8.0"]
-[org.clojure/clojurescript "1.9.946"]
+[org.clojure/clojure "1.9.0"]
+[org.clojure/clojurescript "1.10.238"]
 ```
 
 Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.15"]
+[lein-figwheel "0.5.16"]
 ```
 
 #### Configure your builds
@@ -482,6 +482,16 @@ The REPL get's its syntax highlighting and other features from the
 
 You can type `:repl/help` to learn more about how to use it.
 
+> For Windows: Rebel-readline will not be automatically included on
+> windows you will have to use `lein trampoline figwheel` in order to
+> get rebel-readline. And this should be done with the knowledge that
+> the classpath may be corrupted if it gets too long and thus things
+> will stop working.
+> See [Scripting Figwheel](#scripting-figwheel) below if you want to use
+> rebel-readline in a stable manner
+
+
+
 ##### REPL Figwheel control functions.
 
 The Figwheel REPL has the following control functions:
@@ -566,8 +576,8 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.15"]` and
-`[com.bhauman/rebel-readline "0.1.1"]` in your dependencies.
+`[figwheel-sidecar "0.5.16"]` and
+`[com.bhauman/rebel-readline "0.1.2"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the
 `figwheel-sidecar.repl-api` and provide your build configuration to
@@ -674,93 +684,6 @@ This is a powerful way to work, as you now have the interactivity and
 generality of the Clojure programming language available.
 
 Need to start a server? Go for it.<br/>Need to watch and compile SASS files? No problem.
-
-#### Scripting with Component
-
-I highly recommend Stuart Sierra's
-[component](https://github.com/stuartsierra/component) library to
-compose all the services you will need in your development process.
-
-Here is an example of creating a Figwheel component and composing it
-with a Ring server component to serve your application.
-
-```clojure
-(require
- '[figwheel-sidecar.repl-api :as ra]
- '[com.stuartsierra.component :as component]
- '[ring.component.jetty :refer [jetty-server]])
-
-(def figwheel-config
-   {:figwheel-options {} ;; <-- figwheel server config goes here 
-    :build-ids ["dev"]   ;; <-- a vector of build ids to start autobuilding
-    :all-builds          ;; <-- supply your build configs here
-    [{:id "dev"
-      :figwheel true
-      :source-paths ["src/main"]
-      :compiler {:main "example.core"
-                 :asset-path "/out"
-                 :output-to "resources/public/main.js"
-                 :output-dir "resources/public/out"
-                 :verbose true}}]})
-
-(defrecord Figwheel []
-  component/Lifecycle
-  (start [config]
-    (ra/start-figwheel! config)
-    config)
-  (stop [config]
-    ;; you may want to restart other components but not Figwheel
-    ;; consider commenting out this next line if that is the case
-    (ra/stop-figwheel!)
-    config))
-
-(defn handler [request]
-  {:status  200
-   :headers {"Content-Type" "text/plain"}
-   :body    "Hello World"})
-
-(def system
-  (atom
-   (component/system-map
-    :app-server (jetty-server {:app {:handler handler}, :port 3000})
-    :figwheel   (map->Figwheel figwheel-config))))
-
-(defn start []
-  (swap! system component/start))
-
-(defn stop []
-  (swap! system component/stop))
-
-(defn reload []
-  (stop)
-  (start))
-
-(defn repl []
-  (ra/cljs-repl))
-```
-
-Again you can run this script as so:
-
-```
-$ lein trampoline run -m clojure.main --init script/figwheel.clj -m rebel-readline.main
-```
-
-As you can see with humble beginnings you can build up arbitrary
-functionality.
-
-Please see Daniel Szmulewicz's excellent [system](https://github.com/danielsz/system) which is
-a set of helpful [components](https://github.com/danielsz/system)
-
-> If you are using nREPL, launching the ClojureScript REPL requires
-> that you have Piggieback installed. Please see the section above
-> titled "Editor REPLs and nREPL"
-
-> Please note that when you stop the Figwheel server, http-kit throws
-> a `java.util.concurrent.RejectedExecutionException`, this is expected
-
-Read more about the [`clojure.main`](http://clojure.org/repl_and_main) command line options
-
-Read more about [component](https://github.com/stuartsierra/component)
 
 ### Tips and Support
 

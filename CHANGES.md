@@ -1,3 +1,22 @@
+## 0.5.16 Caching improvements & no trampoline on windows
+
+Daniel Compton did some great work solving the caching issues.
+
+There is also a very confusing problem with lein trampoline on Windows
+see issue #682. So I turned off the auto-trampoline feature for
+Windows which allowed the for the elegent use of Rebel readline by
+just calling `lein figwheel`.
+
+Windows users can still elect to use trampoline with figwheel and get
+the benefits of rebel-readline but the will have to call lein
+trampoline figwheel and this should be done with the knowledge that
+they may experience a classpath corruption issue.
+
+* worker target support PR #659
+* important caching tweaks for serving CLJS assets PR #667
+* :npm-deps false support PR #678
+
+
 ## 0.5.15 Readline
 
 A big thanks goes out to ClojuristsTogether.org and everyone who

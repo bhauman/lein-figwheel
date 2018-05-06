@@ -12,8 +12,8 @@
    [leiningen.figwheel.fuzzy :as fuz]
    [simple-lein-profile-merge.core :as lm]))
 
-(def _figwheel-version_ "0.5.16-SNAPSHOT")
-(def _rebel-readline-cljs-version_ "0.1.1")
+(def _figwheel-version_ "0.5.16")
+(def _rebel-readline-cljs-version_ "0.1.2")
 
 (defn make-subproject [project paths-to-add]
   (with-meta
@@ -535,7 +535,13 @@ Configuration:
     (when-not ((every-pred command-like? report-if-bad-command) command)
       (let [[command build-ids] (if (command-like? command)
                                     [command build-ids]
-                                    [nil (and command (cons command build-ids))])]
+                                    [nil (and command (cons command build-ids))])
+            windows? (-> (System/getProperty "os.name")
+                         (string/lower-case)
+                         (.contains "windows"))
+            project (cond-> project
+                      (and windows? (not tramp/*trampoline?*))
+                      (assoc-in [:figwheel :readline] false))]
         (if (and
              (or (= nil command)
                  (= ":reactor" command))
@@ -545,9 +551,7 @@ Configuration:
              ;; https://github.com/technomancy/leiningen/issues/982
              ;; and
              ;; https://github.com/bhauman/lein-figwheel/issues/682
-             (not (-> (System/getProperty "os.name")
-                      (string/lower-case)
-                      (.contains "windows")))
+             (not windows?)
              (get-in project [:figwheel :repl] true)
              (get-in project [:figwheel :readline] true))
           (if tramp/*trampoline?*

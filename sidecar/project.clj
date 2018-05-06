@@ -1,4 +1,4 @@
-(defproject figwheel-sidecar "0.5.16-SNAPSHOT"
+(defproject figwheel-sidecar "0.5.16"
   :description "ClojureScript Autobuilder/Server which pushes changed files to the browser."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -8,7 +8,7 @@
         :dir ".."}
   :dependencies
   [[org.clojure/clojure "1.8.0"]
-   [org.clojure/clojurescript "1.9.946"
+   [org.clojure/clojurescript "1.10.238"
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.4.474"
     :exclusions [org.clojure/tools.reader]]
@@ -16,7 +16,7 @@
    [suspendable "0.1.1"
     :exclusions [org.clojure/clojure com.stuartsierra/component]]
    [http-kit "2.3.0"]
-   [ring-cors "0.1.11"
+   [ring-cors "0.1.12"
     :exclusions [ring/ring-core org.clojure/clojure]]
    [ring/ring-core "1.6.3"
     :exclusions
@@ -24,7 +24,7 @@
      org.clojure/clojure]]
    [co.deps/ring-etag-middleware "0.2.0"]
    [clj-stacktrace "0.2.8"]
-   [figwheel "0.5.16-SNAPSHOT"
+   [figwheel "0.5.16"
       :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.11" :exclusions [org.clojure/clojure]]
 
