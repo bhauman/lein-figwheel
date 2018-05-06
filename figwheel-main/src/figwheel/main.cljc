@@ -154,6 +154,83 @@
 ;; Additional cli options
 ;; ----------------------------------------------------------------------------
 
+;; Help
+
+
+(def help-template
+  "Usage: clj -m figwheel.main [init-opt*] [main-opt] [arg*]
+
+Common usage:
+  clj -m figwheel.main -b dev -r
+Which is equivalient to:
+  clj -m figwheel.main -co dev.cljs.edn -c example.core -r
+
+In the above example, dev.cljs.edn is a file in the current directory
+that holds a build configuration which is a Map of ClojureScript
+compile options. In the above command example.core is ClojureScript
+namespace on your classpath that you want to compile.
+
+A minimal dev.cljs.edn will look similar to:
+{:main example.core}
+
+The above command will start a watch process that will compile your
+source files when one of them changes, it will also facilitate
+communication between this watch process and your JavaScript
+environment (normally a browser window) so that it can hot reload
+changed code into the environment. After the initial compile, it
+will then launch a browser to host your compiled ClojureScript code,
+and finally a CLJS REPL will launch.
+
+Configuration:
+
+In the above example, besides looking for a dev.cljs.edn file,
+figwheel.main will also look for a figwheel-main.edn file in the
+current directory as well.
+
+A list of all the config options can be found here:
+https://github.com/bhauman/lein-figwheel/blob/master/figwheel-main/doc/figwheel-main-options.md
+
+A list of ClojureScript compile options can be found here:
+https://clojurescript.org/reference/compiler-options
+
+You can add build specific figwheel.main configuration in the
+*.cljs.edn file by adding metadata to the build config file like
+so:
+
+^{:watch-dirs [\"dev\" \"cljs-src\"]}
+{:main example.core}
+
+Command Line Options
+
+With no options or args, figwheel.main runs a ClojureScript REPL
+
+%s
+For --main and --repl:
+
+  - Enters the cljs.user namespace
+  - Binds *command-line-args* to a seq of strings containing command line
+    args that appear after any main option
+  - Runs all init options in order
+  - Calls a -main function or runs a repl or script if requested
+
+The init options may be repeated and mixed freely, but must appear before
+any main option.
+
+In the case of --compile and --build you may supply --repl or --serve
+options afterwards.
+
+Paths may be absolute or relative in the filesystem or relative to
+classpath. Classpath-relative paths have prefix of @ or @/")
+
+(defn help-str [repl-env]
+  (format help-template
+    (#'cljs.cli/options-str (#'cljs.cli/merged-commands repl-env))))
+
+(defn help-opt
+  [repl-env _ _]
+  (println (help-str repl-env)))
+
+
 ;; safer option reading from files which prints out syntax errors
 
 (defn read-edn-file [f]
@@ -408,7 +485,7 @@
   {:init {["-w" "--watch"]
           {:group :cljs.cli/compile :fn watch-opt
            :arg "path"
-           :doc "Continuously build, only effective with the --compile main option"}
+           :doc "Continuously build, only effective with the --compile and --build main options"}
           ["-fwo" "--fw-opts"]
           {:group :cljs.cli/compile :fn figwheel-opts-opt
            :arg "edn"
@@ -420,20 +497,20 @@
            :arg "edn"
            :doc (str "Options to configure the build, can be an EDN string or "
                      "system-dependent path-separated list of EDN files / classpath resources. Options "
-                     "will be merged left to right.")}
+                     "will be merged left to right. Any meta data will be merged with the figwheel-options.")}
           ;; TODO uncertain about this
           ["-fw" "--figwheel"]
           {:group :cljs.cli/compile :fn figwheel-opt
            :arg "bool"
            :doc (str "Use Figwheel to auto reload and report compile info. "
                      "Only takes effect when watching is happening and the "
-                     "optimizations level is :none or nil. "
+                     "optimizations level is :none or nil."
                      "Defaults to true.")}
           ["-bb" "--background-build"]
           {:group :cljs.cli/compile :fn background-build-opt
            :arg "str"
            :doc "The name of a build config to watch and build in the background."}
-          ["-pc" "--pprint-config" "--print-config"]
+          ["-pc" "--print-config"]
           {:group :cljs.cli/compile :fn print-config-opt
            :doc "Instead of running the command print out the configuration built up by the command. Useful for debugging."}
           }
@@ -452,7 +529,9 @@
           {:fn serve-main-opt
            :arg "host:port"
            :doc "Run a server based on the figwheel-main configuration options"}
-
+          ["-h" "--help" "-?"]
+          {:fn help-opt
+           :doc "Print this help message and exit"}
           }})
 
 ;; ----------------------------------------------------------------------------
@@ -577,7 +656,7 @@
        (= :none (:optimizations options :none))))
 
 (defn repl-connection? [{:keys [::config options] :as cfg}]
-  (or (and (= :repl (:mode config))
+  (or (and (#{:repl :main} (:mode config))
            (= :none (:optimizations options :none)))
       (figwheel-mode? cfg)))
 
@@ -901,7 +980,7 @@ This can cause confusion when your are not using Cider."
                             :extra extra
                             :path ana/*cljs-file*}
                            figwheel.core/warning-info
-                           (root-source->file-excerpt (:root-source-info env))
+                           (fig-ex/root-source->file-excerpt (:root-source-info env))
                            log/format-ex
                            ansip/format-str
                            string/trim-newline
@@ -989,6 +1068,51 @@ This can cause confusion when your are not using Cider."
                 (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
                 (.mkdirs target-dir)
                 (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))
+
+(defn default-main [repl-env-fn cfg]
+  (let [target-on-classpath?
+        (when-let [target-dir
+                   (:target-dir
+                    (try (read-string (slurp "figwheel-main.edn"))
+                         (catch Throwable t
+                           nil))
+                    "target")]
+          (fw-util/dir-on-classpath? target-dir))
+        temp-dir (when-not target-on-classpath?
+                   (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
+                     (.delete tempf)
+                     (.mkdirs tempf)
+                     (.deleteOnExit (io/file tempf))
+                     (fw-util/add-classpath! (.toURL (.toURI tempf)))
+                     tempf))
+        cfg (-> cfg
+                (cond->
+                    temp-dir (assoc-in [:options :output-dir] (default-output-dir temp-dir))
+                    temp-dir (assoc-in [:options :output-to]  (default-output-to temp-dir))
+                    temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
+                (assoc-in [:options :aot-cache] false)
+                (update :options #(assoc % :main
+                                         (or (some-> (:main cfg) symbol)
+                                             'figwheel.repl.preload)))
+                (assoc-in [:repl-env-options :open-url]
+                          "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
+                ;; TODO :default-index-body should be a function that takes the build options as an arg
+                (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
+                (assoc-in [::config :mode] :repl)
+                (assoc-in [::build] {:id "figwheel-main-option-build"}))
+        source (:uri (bapi/ns->location (get-in cfg [:options :main])))]
+    (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg}
+          (update-config cfg)
+          {:keys [mode pprint-config]} config]
+      (if pprint-config
+        (do
+          (log/info ":pprint-config true - printing config:")
+          (print-conf b-cfg))
+        (cljs.env/ensure
+         (build-cljs "figwheel-main-option-build"
+                     source
+                     (:options b-cfg) cljs.env/*compiler*)
+          (cljs.cli/default-main repl-env-fn b-cfg))))))
 
 (defn default-compile [repl-env-fn cfg]
   (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg} (update-config cfg)
@@ -1102,7 +1226,7 @@ This can cause confusion when your are not using Cider."
 (defn currently-available-ids []
   (into (currently-watched-ids)
         (map second (keep #(when (fww/real-file? %)
-                 (re-matches #"(.+)\.cljs\.edn" (.getName %)))
+                             (re-matches #"(.+)\.cljs\.edn" (.getName %)))
                           (file-seq (io/file "."))))))
 
 (defn config-for-id [id]
@@ -1240,6 +1364,14 @@ This can cause confusion when your are not using Cider."
             (build-cljs i input options
                          (cljs.env/default-compiler-env options))))))))
 
+(defmacro build-once [& ids]
+  (build-once* ids)
+  nil)
+
+;; ----------------------------------------------------------------------------
+;; Main
+;; ----------------------------------------------------------------------------
+
 (defn fix-simple-bool-arg* [flags args]
   (let [[pre post] (split-with (complement flags) args)]
     (if (empty? post)
@@ -1257,14 +1389,6 @@ This can cause confusion when your are not using Cider."
                (conj accum arg)))
            (list)
            args)))
-
-(defmacro build-once [& ids]
-  (build-once* ids)
-  nil)
-
-;; ----------------------------------------------------------------------------
-;; Main
-;; ----------------------------------------------------------------------------
 
 (defn -main [& args]
   (alter-var-root #'cli/default-commands cli/add-commands figwheel-commands)

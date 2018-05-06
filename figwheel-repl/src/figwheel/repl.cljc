@@ -329,6 +329,10 @@
           (binding [cljs.core/*print-newline* true
                     cljs.core/*print-fn* (fn [x] (.append sb x))]
             (let [result-value (*eval-js* code)
+                  ;; the result needs to be readable
+                  result-value (if-not (string? result-value)
+                                 (pr-str result-value)
+                                 result-value)
                   output-str (str sb)]
               (when print-to-console?
                 (js/setTimeout #(out-print :console output-str) 0))
@@ -547,8 +551,10 @@
 
 (defn receive-message! [data]
   (when-let [data
-             (try (edn/read-string data)
-                  (catch Throwable t (binding [*out* *err*] (clojure.pprint/pprint (Throwable->map t)))))]
+             (try
+               (edn/read-string data)
+               (catch Throwable t
+                 (binding [*out* *err*] (clojure.pprint/pprint (Throwable->map t)))))]
     (doseq [f @listener-set]
       (try (f data) (catch Throwable ex)))))
 
@@ -1069,30 +1075,38 @@
         (remove-listener listener))))
   cljs.repl/IReplEnvOptions
   (-repl-options [this]
-    {;:browser-repl true
-     :preloads '[[figwheel.repl.preload]]
-     :cljs.cli/commands
-     {:groups {::repl {:desc "Figwheel REPL options"}}
-      :init
-      {["-H" "--host"]
-       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :host] %2)
-        :arg "address"
-        :doc "Address to bind"}
-       ["-p" "--port"]
-       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :port] (Integer/parseInt %2))
-        :arg "number"
-        :doc "Port to bind"}
-       ["-rh" "--ring-handler"]
-       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-handler]
-                                     (when %2
-                                       (dynload %2)))
-        :arg "string"
-        :doc "Ring Handler for default REPL server EX. \"example.server/handler\" "}
-       ["-rrso" "--ring-stack-opt"]
-       {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-stack-options]
-                                     (read-string %2))
-         :arg "edn"
-         :doc "Set of options to configure default ring stack"}}}})
+    (let [main-fn (resolve 'figwheel.main/default-main)
+          ;compile-fn (resolve 'figwheel.main/default-compile)
+          ]
+
+      (cond->
+          {;:browser-repl true
+           :preloads '[[figwheel.repl.preload]]
+           :cljs.cli/commands
+           {:groups {::repl {:desc "Figwheel REPL options"}}
+            :init
+            {["-H" "--host"]
+             {:group ::repl :fn #(assoc-in %1 [:repl-env-options :host] %2)
+              :arg "address"
+              :doc "Address to bind"}
+             ["-p" "--port"]
+             {:group ::repl :fn #(assoc-in %1 [:repl-env-options :port] (Integer/parseInt %2))
+              :arg "number"
+              :doc "Port to bind"}
+           ["-rh" "--ring-handler"]
+             {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-handler]
+                                           (when %2
+                                             (dynload %2)))
+              :arg "string"
+              :doc "Ring Handler for default REPL server EX. \"example.server/handler\" "}
+             ["-rrso" "--ring-stack-opt"]
+             {:group ::repl :fn #(assoc-in %1 [:repl-env-options :ring-stack-options]
+                                           (read-string %2))
+              :arg "edn"
+              :doc "Set of options to configure default ring stack"}}}}
+        main-fn    (assoc :cljs.cli/main    @main-fn)
+        ;compile-fn (assoc :cljs.cli/compile @compile-fn)
+        )))
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [this st err opts]
     (cljs.stacktrace/parse-stacktrace this st err opts)))
