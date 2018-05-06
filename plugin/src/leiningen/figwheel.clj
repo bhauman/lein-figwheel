@@ -8,6 +8,7 @@
    [leiningen.trampoline :as tramp]
    [clojure.java.io :as io]
    [clojure.set :refer [intersection]]
+   [clojure.string :as string]
    [leiningen.figwheel.fuzzy :as fuz]
    [simple-lein-profile-merge.core :as lm]))
 
@@ -538,6 +539,15 @@ Configuration:
         (if (and
              (or (= nil command)
                  (= ":reactor" command))
+             ;; no auto-trampoline on windows
+             ;; users can call lein trampoline figwheel if they wish
+             ;; see
+             ;; https://github.com/technomancy/leiningen/issues/982
+             ;; and
+             ;; https://github.com/bhauman/lein-figwheel/issues/682
+             (not (-> (System/getProperty "os.name")
+                      (string/lower-case)
+                      (.contains "windows")))
              (get-in project [:figwheel :repl] true)
              (get-in project [:figwheel :readline] true))
           (if tramp/*trampoline?*
