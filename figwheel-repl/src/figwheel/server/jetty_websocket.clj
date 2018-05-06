@@ -16,7 +16,9 @@
     HandlerList]
    [org.eclipse.jetty.websocket.servlet
     WebSocketServletFactory WebSocketCreator
-    ServletUpgradeRequest ServletUpgradeResponse]))
+    ServletUpgradeRequest ServletUpgradeResponse]
+   [org.eclipse.jetty.util.log Log StdErrLog]
+   ))
 
 ;; ------------------------------------------------------
 ;; Jetty 9 Websockets
@@ -76,6 +78,17 @@
           (proxy-super handle target request req res))))))
 
 
+(defn set-log-level! [log-lvl]
+  (let [level (or ({:all     StdErrLog/LEVEL_ALL
+                    :debug   StdErrLog/LEVEL_DEBUG
+                    :info    StdErrLog/LEVEL_INFO
+                    :off     StdErrLog/LEVEL_OFF
+                    :warn    StdErrLog/LEVEL_WARN } log-lvl)
+                  StdErrLog/LEVEL_WARN)]
+    (doto (Log/getRootLogger)
+      (.setLevel level))
+    (doseq [[k v] (Log/getLoggers)]
+      (.setLevel v level))))
 
 (defn async-websocket-configurator [{:keys [websockets async-handlers]}]
   (fn [server]
@@ -104,16 +117,22 @@
                                    ws-proxy-handlers
                                    async-proxy-handlers
                                    [existing-handler]))))]
-      (.setHandler server contexts))))
+      (.setHandler server contexts)
+      server)))
 
-(defn run-jetty [handler {:keys [websockets async-handlers] :as options}]
+(defn run-jetty [handler {:keys [websockets async-handlers log-level] :as options}]
   (jt/run-jetty
    handler
-   (cond-> options
-     (or (not-empty websockets) (not-empty async-handlers))
-     (assoc :configurator (async-websocket-configurator
-                           (select-keys options
-                                        [:websockets :async-handlers]))))))
+   (if (or (not-empty websockets) (not-empty async-handlers))
+     (assoc options :configurator
+            (fn [server]
+              (set-log-level! log-level)
+              ((async-websocket-configurator
+                (select-keys options [:websockets :async-handlers])) server)))
+     (assoc options
+            :configurator
+            (fn [server]
+              (set-log-level! log-level))))))
 
 ;; Figwheel REPL adapter
 
@@ -171,6 +190,8 @@
   (defonce scratch (atom {}))
   (-> @scratch :adaptor (.. getSession getUpgradeRequest) build-request-map)
   )
+
+
 
 #_(def server (run-jetty
                (fn [ring-request]
