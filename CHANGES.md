@@ -15,7 +15,7 @@ they may experience a classpath corruption issue.
 * worker target support PR #659
 * important caching tweaks for serving CLJS assets PR #667
 * :npm-deps false support PR #678
-
+* fix to prefer and detect new cider/piggieback
 
 ## 0.5.15 Readline
 
