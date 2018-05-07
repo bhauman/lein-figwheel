@@ -158,7 +158,7 @@
 
 
 (def help-template
-  "Usage: clj -m figwheel.main [init-opt*] [main-opt] [arg*]
+  "Usage: clojure -m figwheel.main [init-opt*] [main-opt] [arg*]
 
 Common usage:
   clj -m figwheel.main -b dev -r
@@ -200,7 +200,7 @@ so:
 ^{:watch-dirs [\"dev\" \"cljs-src\"]}
 {:main example.core}
 
-Command Line Options
+Command Line Options:
 
 With no options or args, figwheel.main runs a ClojureScript REPL
 
@@ -222,14 +222,25 @@ options afterwards.
 Paths may be absolute or relative in the filesystem or relative to
 classpath. Classpath-relative paths have prefix of @ or @/")
 
+(defn adjust-option-docs [commands]
+  (-> commands
+      (update-in [:groups :cljs.cli/main&compile :pseudos]
+                 dissoc ["-re" "--repl-env"])
+      (assoc-in [:init ["-d" "--output-dir"] :doc]
+                "Set the output directory to use")
+      (update-in [:init ["-w" "--watch"] :doc] str
+                ". This option can be supplied multiple times.")))
+
 (defn help-str [repl-env]
-  (format help-template
-    (#'cljs.cli/options-str (#'cljs.cli/merged-commands repl-env))))
+  (format
+   help-template
+   (#'cljs.cli/options-str
+    (adjust-option-docs
+     (#'cljs.cli/merged-commands repl-env)))))
 
 (defn help-opt
   [repl-env _ _]
   (println (help-str repl-env)))
-
 
 ;; safer option reading from files which prints out syntax errors
 
@@ -517,18 +528,29 @@ classpath. Classpath-relative paths have prefix of @ or @/")
    :main {["-b" "--build"]
           {:fn build-main-opt
            :arg "string"
-           :doc (str "The name of a build config to build.")}
+           :doc (str "Run a compile. The supplied build name refers to a  "
+                     "compililation options edn file. IE. \"dev\" will indicate "
+                     "that a \"dev.cljs.edn\" will be read for "
+                     "compilation options. The --build option will make an "
+                     "extra attempt to "
+                     "initialize a figwheel live reloading workflow. "
+                     "If --repl follows, "
+                     "will launch a REPL after the compile completes. "
+                     "If --server follows, will start a web server according to "
+                     "current configuration after the compile "
+                     "completes.")}
           ["-bo" "--build-once"]
           {:fn build-once-main-opt
            :arg "string"
-           :doc "The name of a build config to build once."}
+           :doc (str "Compile for the build name one time. "
+                     "Looks for a build EDN file just like the --build command.")}
           ["-r" "--repl"]
           {:fn repl-main-opt
            :doc "Run a REPL"}
           ["-s" "--serve"]
           {:fn serve-main-opt
            :arg "host:port"
-           :doc "Run a server based on the figwheel-main configuration options"}
+           :doc "Run a server based on the figwheel-main configuration options."}
           ["-h" "--help" "-?"]
           {:fn help-opt
            :doc "Print this help message and exit"}
