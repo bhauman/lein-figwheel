@@ -1417,6 +1417,12 @@ This can cause confusion when your are not using Cider."
   (try
     (let [args       (fix-simple-bool-args #{"-pc" "--pprint-config"} args)
           [pre post] (split-with (complement #{"-re" "--repl-env"}) args)
+          _          (when (not-empty post)
+                       (throw
+                        (ex-info (str "figwheel.main does not support the --repl-env option\n"
+                                      "The figwheel REPL is implicitly used.\n"
+                                      "Perhaps you were intending to use the --target option?")
+                                 {::error true})))
           args'      (if (empty? post) (concat ["-re" "figwheel"] args) args)
           args'      (if (empty? args) (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile

@@ -184,7 +184,6 @@ of right now your mileage may vary.
 
 ## Known issues
 
-* the `--help` flag has not been correctly edited to be helpful yet!
 * Not working with Node yet
 * Quiting from rebel-readline REPL requires quiting multiple processes
 
