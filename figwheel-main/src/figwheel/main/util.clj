@@ -34,10 +34,11 @@
     (if (fn? handler)
       handler
       (let [h (symbol handler)]
-        (when-let [ns (namespace h)]
-          (when (require? (symbol ns))
-            (when-let [handler-var (resolve h)]
-              handler-var)))))))
+        (or (resolve h)
+            (when-let [ns (namespace h)]
+              (when (require? (symbol ns))
+                (when-let [handler-var (resolve h)]
+                  handler-var))))))))
 
 (defn rebel-readline? []
   (require-resolve-var 'rebel-readline.core/read-line))
