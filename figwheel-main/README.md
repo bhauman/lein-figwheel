@@ -80,8 +80,11 @@ reload them.
 Ensure your `deps.edn` file has `figwheel.main` dependencies:
 
 ```
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"} 
-        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}}}
+{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
+        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}
+ ;; setup common development paths that you may be used to 
+ ;; from lein
+ :paths ["src" "target" "resources"]}
 ```
 
 Create a file `dev.cljs.edn` build file:
@@ -117,6 +120,11 @@ Interesting to note that the above command is equivalent to:
 ```
 clojure -m figwheel.main -co dev.cljs.edn -c example.core -r
 ```
+
+Note: that if you want to add your own `index.html` file to host your
+application, if you have added `resources` to your "deps.edn" `:paths`
+key, as demonstrated above, you can place the `index.html` in
+`resources/public/index.html`
 
 ## Configuring Figwheel Main
 
