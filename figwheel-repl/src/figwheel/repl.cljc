@@ -67,7 +67,7 @@
   (glog/log logger goog.debug.Logger.Level.FINEST msg))
 
 ;; TODO dev
-(.setLevel logger goog.debug.Logger.Level.FINEST )
+#_(.setLevel logger goog.debug.Logger.Level.FINEST)
 
 ;; --------------------------------------------------------------
 ;; Bootstrap goog require reloading
