@@ -27,6 +27,9 @@ above features have been improved significantly.
 The new architecture also makes it trivial to add your own development
 tools that can communicate from the server to your client.
 
+> Currently ONLY works for a browser environment, Node support will be
+> coming next with other targets soon following.
+
 > Currently still undergoing heavy development. Stuff will most certainly change.
 
 > This documentation is incomplete and intended to help you take the new figwheel
