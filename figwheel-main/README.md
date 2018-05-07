@@ -81,7 +81,7 @@ Ensure your `deps.edn` file has `figwheel.main` dependencies:
 
 ```
 {:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"} 
-        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}}}}
+        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}}}
 ```
 
 Create a file `dev.cljs.edn` build file:
