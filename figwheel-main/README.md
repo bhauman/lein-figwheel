@@ -65,7 +65,7 @@ available. So you can get Rebel Readline behavior by simply adding it
 to your dependencies.
 
 ```
-clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.2\"}}}}"  -m figwheel.main
+clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
 ```
 
 As of right now Rebel readline does create some startup overhead
