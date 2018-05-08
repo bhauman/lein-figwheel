@@ -1004,7 +1004,15 @@ This can cause confusion when your are not using Cider."
   (let [root-source-info (some-> err ex-data :root-source-info)]
     (if (and (instance? clojure.lang.IExceptionInfo err)
              (#{:js-eval-error :js-eval-exception} (:type (ex-data err))))
-      (cljs.repl/repl-caught err repl-env repl-options)
+      (try
+        (cljs.repl/repl-caught err repl-env repl-options)
+        (catch Throwable e
+          (let [{:keys [value stacktrace] :as data} (ex-data err)]
+            (when value
+              (println value))
+            (when stacktrace
+              (println stacktrace))
+            (log/debug (with-out-str (pprint data))))))
       (let [except-data (fig-ex/add-excerpt (fig-ex/parse-exception err))]
         ;; TODO strange ANSI color error when printing this inside rebel-readline
         (println (binding [ansip/*use-color* (if (resolve 'rebel-readline.cljs.repl/repl*)
