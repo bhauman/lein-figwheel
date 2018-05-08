@@ -1066,12 +1066,13 @@
 
   ;; open a url
   (when-let [open-url
-             (when-let [url (:open-url repl-env)]
-               ;; TODO the host port thing needs to be fixed ealier
-               (fill-server-url-template
-                url
-                (merge (select-keys repl-env [:host :port])
-                       (select-keys (:ring-server-options repl-env) [:host :port]))))]
+             (and (not (= :nodejs (:target opts)))
+              (when-let [url (:open-url repl-env)]
+                ;; TODO the host port thing needs to be fixed ealier
+                (fill-server-url-template
+                 url
+                 (merge (select-keys repl-env [:host :port])
+                        (select-keys (:ring-server-options repl-env) [:host :port])))))]
     (println "Opening URL" open-url)
     (browse/browse-url open-url)))
 
