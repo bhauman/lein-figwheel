@@ -378,7 +378,6 @@
 
 (defn hook-repl-printing-output! [respond-msg]
   (defmethod out-print :repl [_ args]
-    (glog/info logger (str "Printing" (pr-str args)))
     (respond-to respond-msg
                 {:output true
                  :stream :out
@@ -390,28 +389,52 @@
                  :args (mapv #(if (string? %) % (gjson/serialize %)) args)}))
   (setup-printing!))
 
+(defn ensure-websocket [thunk]
+  (if (gobj/get goog.global "WebSocket")
+    (thunk)
+    (if-let [websocket-class
+             (or (gobj/get goog.global "FIGWHEEL_WEBSOCKET_CLASS")
+                 (and (= host-env :node)
+                      (try (js/require "ws")
+                           (catch js/Error e
+                             nil)))
+                 (and (= host-env :worker)
+                      (gobj/get js/self "WebSocket")))]
+      (do
+        (gobj/set goog.global "WebSocket" websocket-class)
+        (thunk)
+        (gobj/set goog.global "WebSocket" nil))
+      (do
+        (glog/error
+         logger
+         (if (= host-env :node)
+           "Figwheel: Can't start Figwheel!! Please make sure ws is installed\n do -> 'npm install ws'"
+           "Figwheel: Can't start Figwheel!! This client doesn't support WebSockets"))))))
+
 (defn ws-connect [& [websocket-url']]
-  (let [websocket (goog.net.WebSocket.)
-        url (str (make-url websocket-url'))]
-    (patch-goog-base)
-    (doto websocket
-      (.addEventListener goog.net.WebSocket.EventType.MESSAGE
-                         (fn [e]
-                           (when-let [msg (gobj/get e "message")]
-                             (try
-                               (debug msg)
-                               (message (assoc
-                                         (js->clj (js/JSON.parse msg) :keywordize-keys true)
-                                         :websocket websocket))
-                               (catch js/Error e
-                                 (glog/error logger e))))))
-      (.addEventListener goog.net.WebSocket.EventType.OPENED
-                         (fn [e]
-                           (swap! state assoc :connection {:websocket websocket})
-                           (hook-repl-printing-output! {:websocket websocket})
-                           (js/console.log "OPENED")
-                           (js/console.log e)))
-      (.open url))))
+  (ensure-websocket
+   #(let [websocket (goog.net.WebSocket.)
+          url (str (make-url websocket-url'))]
+      (patch-goog-base)
+      (try
+        (doto websocket
+          (.addEventListener goog.net.WebSocket.EventType.MESSAGE
+                             (fn [e]
+                               (when-let [msg (gobj/get e "message")]
+                                 (try
+                                   (debug msg)
+                                   (message (assoc
+                                             (js->clj (js/JSON.parse msg) :keywordize-keys true)
+                                             :websocket websocket))
+                                   (catch js/Error e
+                                     (glog/error logger e))))))
+          (.addEventListener goog.net.WebSocket.EventType.OPENED
+                             (fn [e]
+                               (swap! state assoc :connection {:websocket websocket})
+                               (hook-repl-printing-output! {:websocket websocket})
+                               (js/console.log "OPENED")
+                               (js/console.log e)))
+          (.open url))))))
 
 ;; -----------------------------------------------------------
 ;; HTTP simple and long polling
