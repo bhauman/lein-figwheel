@@ -131,7 +131,6 @@
                          (log/debug "Detected changed cljs files: " (pr-str (map str files)))
                          (fig-core-build id inputs opts cenv files)
                          (catch Throwable t
-                           (log/syntax-exception t)
                            (figwheel.core/notify-on-exception cenv t {})
                            false))))))}))))
 
