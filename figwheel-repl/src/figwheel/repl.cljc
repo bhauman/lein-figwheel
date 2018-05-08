@@ -34,7 +34,6 @@
 #?(:cljs (do
 
 ;; TODO dev only
-(enable-console-print!)
 
 ;; --------------------------------------------------
 ;; Logging
@@ -287,16 +286,39 @@
        :response response-body}
     uuid (assoc :uuid uuid)))
 
+;; this is a fire and forget POST
+(def http-post
+  (condp = host-env
+    :node
+    (let [http (js/require "http")]
+      (fn [url post-data]
+        (let [data (volatile! "")
+              uri (guri/parse (str url))]
+          (-> (.request http
+               #js {:host (.getDomain uri)
+                    :port (.getPort uri)
+                    :path (str (.getPath uri) (when-let [q (.getQuery uri)]
+                                                (str "?" q)))
+                    :method "POST"
+                    :headers #js {"Content-Length" (js/Buffer.byteLength post-data)}}
+               (fn [x]))
+              (.on "error" #(js/console.error %))
+              (doto
+                  (.write post-data)
+                  (.end))))))
+    (fn [url response]
+      (xhrio/send url
+                  (fn [e] (debug "Response Posted"))
+                  "POST"
+                  response))))
+
 (defn respond-to [{:keys [websocket http-url] :as old-msg} response-body]
   (let [response (response-for old-msg response-body)]
     (cond
       websocket
       (.send websocket (pr-str response))
       http-url
-      (xhrio/send http-url
-                  (fn [e] (debug "Response Posted"))
-                  "POST"
-                  (pr-str response)))))
+      (http-post http-url (pr-str response)))))
 
 (defn respond-to-connection [response-body]
   (respond-to (:connection @state) response-body))
@@ -341,6 +363,9 @@
                :ua-product ua-product
                :value result-value})))
         (catch js/Error e
+          ;; logging errors to console helpful
+          (when (and (exists? js/console) (exists? js/console.error))
+            (js/console.error "REPL eval error" e))
           {:status :exception
            :value (pr-str e)
            :ua-product ua-product
@@ -389,17 +414,21 @@
                  :args (mapv #(if (string? %) % (gjson/serialize %)) args)}))
   (setup-printing!))
 
+(defn get-websocket-class []
+  (or
+   (gobj/get goog.global "WebSocket")
+   (gobj/get goog.global "FIGWHEEL_WEBSOCKET_CLASS")
+   (and (= host-env :node)
+        (try (js/require "ws")
+             (catch js/Error e
+               nil)))
+   (and (= host-env :worker)
+        (gobj/get js/self "WebSocket"))))
+
 (defn ensure-websocket [thunk]
   (if (gobj/get goog.global "WebSocket")
     (thunk)
-    (if-let [websocket-class
-             (or (gobj/get goog.global "FIGWHEEL_WEBSOCKET_CLASS")
-                 (and (= host-env :node)
-                      (try (js/require "ws")
-                           (catch js/Error e
-                             nil)))
-                 (and (= host-env :worker)
-                      (gobj/get js/self "WebSocket")))]
+    (if-let [websocket-class (get-websocket-class)]
       (do
         (gobj/set goog.global "WebSocket" websocket-class)
         (thunk)
@@ -415,7 +444,6 @@
   (ensure-websocket
    #(let [websocket (goog.net.WebSocket.)
           url (str (make-url websocket-url'))]
-      (patch-goog-base)
       (try
         (doto websocket
           (.addEventListener goog.net.WebSocket.EventType.MESSAGE
@@ -431,25 +459,41 @@
           (.addEventListener goog.net.WebSocket.EventType.OPENED
                              (fn [e]
                                (swap! state assoc :connection {:websocket websocket})
-                               (hook-repl-printing-output! {:websocket websocket})
-                               (js/console.log "OPENED")
-                               (js/console.log e)))
+                               (hook-repl-printing-output! {:websocket websocket})))
           (.open url))))))
 
 ;; -----------------------------------------------------------
 ;; HTTP simple and long polling
 ;; -----------------------------------------------------------
 
-(defn http-get [url]
-  (Promise.
-   (fn [succ err]
-     (xhrio/send
-      url
-      (fn [e]
-        (let [xhr (gobj/get e "target")]
-          (if (.isSuccess xhr)
-            (succ (.getResponseJson xhr))
-            (err xhr))))))))
+(def http-get
+  (condp = host-env
+    :node
+    (let [http (js/require "http")]
+      (fn [url]
+        (Promise.
+         (fn [succ err]
+           (let [data (volatile! "")]
+             (-> (.get http (str url)
+                       (fn [response]
+                         (.on response "data"
+                              (fn [chunk] (vswap! data str chunk)))
+                         (.on response "end" #(succ
+                                               (try (js/JSON.parse @data)
+                                                    (catch js/Error e
+                                                      (js/console.error e)
+                                                      (err e)))))))
+                 (.on "error" err)))))))
+    (fn [url]
+      (Promise.
+       (fn [succ err]
+         (xhrio/send
+          url
+          (fn [e]
+            (let [xhr (gobj/get e "target")]
+              (if (.isSuccess xhr)
+                (succ (.getResponseJson xhr))
+                (err xhr))))))))))
 
 (declare http-connect http-connect*)
 
@@ -505,8 +549,24 @@
 (defn http-connect [& [connect-url']]
   (http-connect* 0 connect-url'))
 
+(defn switch-to-http? [url]
+  (if (or (gstring/startsWith url "http")
+          (get-websocket-class))
+    url
+    (do
+      (glog/warning
+       logger
+       (str
+        "No WebSocket implementation found falling back to http long polling"
+        (when (= host-env :node)
+          ":\n Please make sure \"ws\" is installed :: do -> 'npm install ws'")))
+      (-> (guri/parse url)
+          (.setScheme "http")
+          str))))
+
 (defn connect [& [connect-url']]
-  (let [url (string/trim (or connect-url' connect-url))]
+  (patch-goog-base)
+  (let [url (switch-to-http? (string/trim (or connect-url' connect-url)))]
     (cond
       (gstring/startsWith url "ws")   (ws-connect url)
       (gstring/startsWith url "http") (http-connect url))))
@@ -864,10 +924,6 @@
       (Thread/sleep 500)
       (recur))))
 
-
-
-
-
 (defn send-for-eval [{:keys [focus-session-name ;; just here for consideration
                              broadcast] :as repl-env} connections js]
   (if broadcast
@@ -1099,10 +1155,7 @@
         (remove-listener listener))))
   cljs.repl/IReplEnvOptions
   (-repl-options [this]
-    (let [main-fn (resolve 'figwheel.main/default-main)
-          ;compile-fn (resolve 'figwheel.main/default-compile)
-          ]
-
+    (let [main-fn (resolve 'figwheel.main/default-main)]
       (cond->
           {;:browser-repl true
            :preloads '[[figwheel.repl.preload]]
@@ -1123,9 +1176,7 @@
                                              (dynload %2)))
               :arg "string"
               :doc "Ring Handler for default REPL server EX. \"example.server/handler\" "}}}}
-        main-fn    (assoc :cljs.cli/main    @main-fn)
-        ;compile-fn (assoc :cljs.cli/compile @compile-fn)
-        )))
+        main-fn    (assoc :cljs.cli/main @main-fn))))
   cljs.repl/IParseStacktrace
   (-parse-stacktrace [this st err opts]
     (cljs.stacktrace/parse-stacktrace this st err opts)))
@@ -1193,7 +1244,6 @@
 
 (defmacro focus [session-name]
   (focus* session-name))
-
 
 ;; TODOS
 ;; - try https setup
