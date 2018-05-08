@@ -18,6 +18,7 @@
              [clojure.java.browse :as browse]
              [cljs.repl]
              [cljs.stacktrace]
+             [clojure.java.io :as io]
              [clojure.string :as string]
              [figwheel.server.ring]]))
   (:import
@@ -27,7 +28,8 @@
               [goog Promise]
               [goog.storage.mechanism HTML5SessionStorage]]
        :clj [java.util.concurrent.ArrayBlockingQueue
-             java.net.URLDecoder])))
+             java.net.URLDecoder
+             [java.lang ProcessBuilder Process]])))
 
 (def default-port 9500)
 
@@ -557,9 +559,9 @@
       (glog/warning
        logger
        (str
-        "No WebSocket implementation found falling back to http long polling"
+        "No WebSocket implementation found! Falling back to http-long-polling"
         (when (= host-env :node)
-          ":\n Please make sure \"ws\" is installed :: do -> 'npm install ws'")))
+          ":\n For a more efficient connection ensure that \"ws\" is installed :: do -> 'npm install ws'")))
       (-> (guri/parse url)
           (.setScheme "http")
           str))))
@@ -1077,6 +1079,15 @@
       (string/replace "[[server-hostname]]" (or host "localhost"))
       (string/replace "[[server-port]]" (str port))))
 
+(defn launch-node [opts repl-env input-path & [output-log-file]]
+  (let [xs (cond-> [(get repl-env :node-command "node")]
+             (:inspect-node repl-env true) (conj "--inspect")
+             input-path (conj input-path))
+        proc (cond-> (ProcessBuilder. (into-array xs))
+               output-log-file (.redirectError  (io/file output-log-file))
+               output-log-file (.redirectOutput (io/file output-log-file)))]
+    (.start proc)))
+
 ;; when doing a port search
 ;; - what needs to know the port afterwards?
 ;; - auto open the browser, this is easy enough.
@@ -1120,6 +1131,19 @@
       (reset! (:printing-listener repl-env) print-listener)
       (add-listener print-listener)))
 
+  ;; Node REPL
+  (when (and (= :nodejs (:target opts))
+             (:launch-node repl-env true)
+             (:output-to opts))
+    (let [output-file (str (io/file (:output-dir opts) "node.log"))]
+      (println "Starting node ... ")
+      (reset! (:node-proc repl-env) (launch-node opts repl-env (:output-to opts) output-file))
+      (println "Node output being logged to:" output-file)
+      (when (:inspect-node repl-env true)
+        (println "For a better development experience:")
+        (println "  1. Open chrome://inspect/#devices ... (in Chrome)")
+        (println "  2. Click \"Open dedicated DevTools for Node\""))))
+
   ;; open a url
   (when-let [open-url
              (and (not (= :nodejs (:target opts)))
@@ -1144,13 +1168,17 @@
     ;; load a file into all the appropriate envs
     (when-let [js-content (try (slurp url) (catch Throwable t))]
       (evaluate this js-content)))
-  (-tear-down [{:keys [server printing-listener]}]
+  (-tear-down [{:keys [server printing-listener node-proc]}]
     ;; don't shut things down in nrepl
     (when-not (when-let [v (resolve 'clojure.tools.nrepl.middleware.interruptible-eval/*msg*)]
                 (thread-bound? v))
       (when-let [svr @server]
         (reset! server nil)
         (.stop svr))
+      (when-let [proc @node-proc]
+        (.destroy proc)
+        #_(.waitFor proc) ;; ?
+        )
       (when-let [listener @printing-listener]
         (remove-listener listener))))
   cljs.repl/IReplEnvOptions
@@ -1195,6 +1223,7 @@
           ;; translate output into messages
           :out-print-fn nil
           :err-print-fn nil
+          :node-proc (atom nil)
           :print-to-output-streams true
           :connection-filter connection-filter
           :focus-session-name (atom nil)

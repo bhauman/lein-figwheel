@@ -39,6 +39,10 @@
                       ::validate-config
                       ::target-dir
 
+                      ::launch-node
+                      ::inspect-node
+                      ::node-command
+
                       ::client-print-to
                       ::ring-stack
                       ::ring-stack-options
@@ -303,6 +307,29 @@ The default value of `:target-dir` is \"target\"
     :target-dir \"cljs-target\""
   :group :common)
 
+(s/def ::launch-node boolean?)
+(def-spec-meta ::launch-node
+  :doc
+  "A boolean that indicates wether you want figwheel to automatically
+launch Node. Defaults to true."
+  :group :common)
+
+(s/def ::inspect-node boolean?)
+(def-spec-meta ::inspect-node
+  :doc
+  "A boolean that indicates wether you want figwheel to enable remote
+inspection by adding \"--inspect\" when it launches Node.
+Defaults to true."
+  :group :common)
+
+(s/def ::node-command non-blank-string?)
+(def-spec-meta ::node-command
+  :doc
+  "A String indicating the Node.js executable to launch Node with.
+Defaults to \"node\""
+  :group :common)
+
+
 ;; -------------------------------XXXXXXXXXXXX
 
 (s/def ::client-print-to (s/coll-of #{:console :repl}))
@@ -411,8 +438,7 @@ Normally defaults to `:repl`"
   (string/join
    "\n\n"
    (mapv (fn [{:keys [key doc]}]
-           (let [k (keyword (name key))
-                 [doc' example] (split-out-example doc)]
+           (let [k (keyword (name key))]
              (format "## %s\n\n%s" (pr-str k) doc)))
          key-datas)))
 

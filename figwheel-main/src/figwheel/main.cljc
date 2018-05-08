@@ -892,7 +892,10 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    :ring-server-options
                    :ring-stack
                    :ring-stack-options
-                   :ring-handler])
+                   :ring-handler
+                   :launch-node
+                   :inspect-node
+                   :node-command])
      repl-env-options ;; from command line
      (select-keys repl-options [:output-to :output-dir]))))
 

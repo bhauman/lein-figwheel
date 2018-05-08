@@ -221,6 +221,22 @@ The default value of `:target-dir` is "target"
 
     :target-dir "cljs-target"
 
+## :launch-node
+
+A boolean that indicates wether you want figwheel to automatically
+launch Node. Defaults to true.
+
+## :inspect-node
+
+A boolean that indicates wether you want figwheel to enable remote
+inspection by adding "--inspect" when it launches Node.
+Defaults to true.
+
+## :node-command
+
+A String indicating the Node.js executable to launch Node with.
+Defaults to "node"
+
 # Rarely used options
 
 ## :client-print-to
