@@ -127,12 +127,16 @@
                                            (.endsWith % ".cljc"))
                                       files))]
                            (log/debug "Reloading clj files: " (pr-str (map str clj-files)))
-                           (figwheel.core/reload-clj-files clj-files))
+                           (try
+                             (figwheel.core/reload-clj-files clj-files)
+                             (catch Throwable t
+                               (log/syntax-exception t)
+                               (figwheel.core/notify-on-exception cenv t {})
+                               (throw t))))
                          (log/debug "Detected changed cljs files: " (pr-str (map str files)))
                          (fig-core-build id inputs opts cenv files)
-                         (catch Throwable t
-                           (figwheel.core/notify-on-exception cenv t {})
-                           false))))))}))))
+                         ;; exceptions are reported by the time they get to here
+                         (catch Throwable t false))))))}))))
 
 (def validate-config!*
   (when (try
