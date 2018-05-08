@@ -441,7 +441,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                            nil))
                     "target")]
           (fw-util/dir-on-classpath? target-dir))
-        temp-dir (when-not target-on-classpath?
+        temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
+                               target-on-classpath?)
                    (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
                      (.delete tempf)
                      (.mkdirs tempf)
@@ -452,8 +453,12 @@ classpath. Classpath-relative paths have prefix of @ or @/")
      repl-env-fn
      (-> cfg
          (cond->
-             temp-dir (assoc-in [:options :output-dir] (default-output-dir temp-dir))
-             temp-dir (assoc-in [:options :output-to]  (default-output-to temp-dir))
+             temp-dir (assoc-in [:options :output-dir]
+                                (default-output-dir
+                                 (assoc cfg [::config :target-dir] temp-dir)))
+             temp-dir (assoc-in [:options :output-to]
+                                (default-output-to
+                                 (assoc cfg [::config :target-dir] temp-dir)))
              temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
@@ -560,16 +565,42 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 ;; Config
 ;; ----------------------------------------------------------------------------
 
-(defn default-output-dir [target & [scope]]
+(defn default-output-dir* [target & [scope]]
   (->> (cond-> [(or target "target") "public" "cljs-out"]
          scope (conj scope))
        (apply io/file)
        (.getPath)))
 
-(defn default-output-to [target & [scope]]
+(defmulti default-output-dir (fn [{:keys [options]}]
+                               (get options :target :browser)))
+
+(defmethod default-output-dir :default [{:keys [::config ::build]}]
+  (default-output-dir* (:target-dir config) (:id build)))
+
+(defmethod default-output-dir :nodejs [{:keys [::config ::build]}]
+  (let [target (:target-dir config "target")
+        scope (:id build)]
+    (->> (cond-> [target "node"]
+           scope (conj scope))
+         (apply io/file)
+         (.getPath))))
+
+(defn default-output-to* [target & [scope]]
   (.getPath (io/file (or target "target") "public" "cljs-out"
                      (cond->> "main.js"
                        scope (str scope "-")))))
+
+(defmulti default-output-to (fn [{:keys [options]}]
+                              (get options :target :browser)))
+
+(defmethod default-output-to :default [{:keys [::config ::build]}]
+  (default-output-to* (:target-dir config) (:id build)))
+
+(defmethod default-output-to :nodejs [{:keys [::build] :as cfg}]
+  (let [scope (:id build)]
+    (.getPath (io/file (default-output-dir cfg)
+                       (cond->> "main.js"
+                         scope (str scope "-"))))))
 
 (defn extra-config-merge [a' b']
   (merge-with (fn [a b]
@@ -706,32 +737,29 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn- config-default-dirs [{:keys [options ::config ::build] :as cfg}]
   (cond-> cfg
     (nil? (:output-to options))
-    (assoc-in [:options :output-to] (default-output-to
-                                     (:target-dir config)
-                                     (:id build)))
+    (assoc-in [:options :output-to] (default-output-to cfg))
     (nil? (:output-dir options))
-    (assoc-in [:options :output-dir] (default-output-dir
-                                      (:target-dir config)
-                                      (:id build)))))
+    (assoc-in [:options :output-dir] (default-output-dir cfg))))
 
 (defn figure-default-asset-path [{:keys [figwheel-options options ::config ::build] :as cfg}]
-  (let [{:keys [output-dir]} options]
-    ;; TODO could discover the resource root if there is only one
-    ;; or if ONLY static file serving can probably do something with that
-    ;; as well
-    ;; UNTIL THEN if you have configured your static resources no default asset-path
-    (when-not (contains? (:ring-stack-options figwheel-options) :static)
-      (let [parts (fw-util/relativized-path-parts (or output-dir
-                                                      (default-output-dir
-                                                       (:target-dir config)
-                                                       (:id build))))]
-        (when-let [asset-path
-                   (->> parts
-                        (split-with (complement #{"public"}))
-                        last
-                        rest
-                        not-empty)]
-          (str (apply io/file asset-path)))))))
+
+  (if (= :nodejs (:target options))
+    (:output-dir options)
+    (let [{:keys [output-dir]} options]
+      ;; TODO could discover the resource root if there is only one
+      ;; or if ONLY static file serving can probably do something with that
+      ;; as well
+      ;; UNTIL THEN if you have configured your static resources no default asset-path
+      (when-not (contains? (:ring-stack-options figwheel-options) :static)
+        (let [parts (fw-util/relativized-path-parts (or output-dir
+                                                        (default-output-dir cfg)))]
+          (when-let [asset-path
+                     (->> parts
+                          (split-with (complement #{"public"}))
+                          last
+                          rest
+                          not-empty)]
+            (str (apply io/file asset-path))))))))
 
 ;; targets options
 (defn- config-default-asset-path [{:keys [options] :as cfg}]
@@ -1102,7 +1130,8 @@ This can cause confusion when your are not using Cider."
                            nil))
                     "target")]
           (fw-util/dir-on-classpath? target-dir))
-        temp-dir (when-not target-on-classpath?
+        temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
+                               target-on-classpath?)
                    (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
                      (.delete tempf)
                      (.mkdirs tempf)
@@ -1111,8 +1140,10 @@ This can cause confusion when your are not using Cider."
                      tempf))
         cfg (-> cfg
                 (cond->
-                    temp-dir (assoc-in [:options :output-dir] (default-output-dir temp-dir))
-                    temp-dir (assoc-in [:options :output-to]  (default-output-to temp-dir))
+                    temp-dir (assoc-in [:options :output-dir]
+                                       (default-output-dir* temp-dir))
+                    temp-dir (assoc-in [:options :output-to]
+                                       (default-output-to* temp-dir))
                     temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
                 (assoc-in [:options :aot-cache] false)
                 (update :options #(assoc % :main
