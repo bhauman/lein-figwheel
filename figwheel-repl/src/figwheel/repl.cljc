@@ -408,8 +408,8 @@
         (glog/error
          logger
          (if (= host-env :node)
-           "Figwheel: Can't start Figwheel!! Please make sure ws is installed\n do -> 'npm install ws'"
-           "Figwheel: Can't start Figwheel!! This client doesn't support WebSockets"))))))
+           "Can't connect!! Please make sure ws is installed\n do -> 'npm install ws'"
+           "Can't connect!! This client doesn't support WebSockets"))))))
 
 (defn ws-connect [& [websocket-url']]
   (ensure-websocket
