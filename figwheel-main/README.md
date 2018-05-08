@@ -37,10 +37,16 @@ tools that can communicate from the server to your client.
 
 ## Quick Usage
 
+> It is assumed that you have perused https://clojurescript.org/guides/quick-start
+
 First, make sure you have the [Clojure CLI Tools](https://clojure.org/guides/getting_started) 
 installed.
 
-Now quickly launch a ClojureScript REPL with:
+On Mac OSX with brew:
+
+    brew install clojure
+
+Now launch a ClojureScript REPL with:
 
 ```
 clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"}}}}"  -m figwheel.main
