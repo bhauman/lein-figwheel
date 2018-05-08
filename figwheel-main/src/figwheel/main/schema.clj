@@ -409,8 +409,6 @@ This is mainly intended for use when you are launching figwheel.main from a scri
 Normally defaults to `:repl`"
 :group :un-common)
 
-
-
 ;; ------------------------------------------------------------
 ;; Validate
 ;; ------------------------------------------------------------
