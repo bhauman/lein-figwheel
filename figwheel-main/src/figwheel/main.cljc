@@ -1067,29 +1067,31 @@ This can cause confusion when your are not using Cider."
     (background-build cfg build)))
 
 (defn validate-fix-target-classpath! [{:keys [::config ::build options]}]
-  (when-not (contains? (:ring-stack-options config) :static)
-    (when-let [output-to (:output-to options)]
-      (when-not (.isAbsolute (io/file output-to))
-        (let [parts (fw-util/path-parts output-to)
-              target-dir (first (split-with (complement #{"public"}) parts))]
-          (when-not (empty? target-dir)
-            (let [target-dir (apply io/file target-dir)]
-              (when-not (fw-util/dir-on-classpath? target-dir)
-                (log/warn (ansip/format-str
-                           [:yellow "Target directory " (pr-str (str target-dir))
-                            " is not on the classpath"]))
-                (log/warn "Please fix this by adding" (pr-str (str target-dir))
-                          "to your classpath\n"
-                          "I.E.\n"
-                          "For Clojure CLI Tools in your deps.edn file:\n"
-                          "   ensure " (pr-str (str target-dir))
-                          "is in your :paths key\n\n"
-                          "For Leiningen in your project.clj:\n"
-                          "   either set your :target key to" (pr-str (str target-dir))
-                          "or add it to the :resource-paths key\n")
-                (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
-                (.mkdirs target-dir)
-                (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))
+  (when (#{nil :browser} (:target options))
+    (when-not (contains? (:ring-stack-options config) :static)
+      (when-let [output-to (:output-to options)]
+        (when-not (.isAbsolute (io/file output-to))
+          (let [parts (fw-util/path-parts output-to)
+                target-dir (first (split-with (complement #{"public"}) parts))]
+            (when (some #{"public"} parts)
+              (when-not (empty? target-dir)
+                (let [target-dir (apply io/file target-dir)]
+                  (when-not (fw-util/dir-on-classpath? target-dir)
+                    (log/warn (ansip/format-str
+                               [:yellow "Target directory " (pr-str (str target-dir))
+                                " is not on the classpath"]))
+                    (log/warn "Please fix this by adding" (pr-str (str target-dir))
+                              "to your classpath\n"
+                              "I.E.\n"
+                              "For Clojure CLI Tools in your deps.edn file:\n"
+                              "   ensure " (pr-str (str target-dir))
+                              "is in your :paths key\n\n"
+                              "For Leiningen in your project.clj:\n"
+                              "   either set your :target key to" (pr-str (str target-dir))
+                              "or add it to the :resource-paths key\n")
+                    (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
+                    (.mkdirs target-dir)
+                    (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))))
 
 (defn default-main [repl-env-fn cfg]
   (let [target-on-classpath?
