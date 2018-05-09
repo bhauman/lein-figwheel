@@ -226,6 +226,29 @@ You be able to run the build more simply:
 
     clojure -m figwheel.main -t node -b dev -r
 
+## Reload hooks
+
+It is common to want to provide callbacks to do some housekeeping
+before or after a hot reload has occurred.
+
+You can conveniently configure hot reload callbacks at runtime with
+metadata. You can see and example of providing callbacks below:
+
+```clojure
+;; first notify figwheel that this ns has callback defined in it
+(ns ^:figwheel-hooks example.core)
+
+;; mark the hook functions with ^:before-load and ^:after-load 
+;; metadata
+
+(defn ^:before-load my-before-reload-callback []
+    (println "BEFORE reload!!!"))
+
+(defn ^:after-load my-after-reload-callback []
+    (println "AFTER reload!!!"))
+```
+
+The reload hooks will be called before and after every hot code reload.
 
 ## Quick way for experienced devs to understand the command line options
 

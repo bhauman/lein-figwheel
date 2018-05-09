@@ -253,6 +253,18 @@
 ;; reloading namespaces
 ;; ----------------------------------------------------------------
 
+(defn call-hooks [hook-key & args]
+  (let [hooks (keep (fn [[n mdata]]
+                      (when-let [f (get-in mdata [:figwheel-hooks hook-key])]
+                        [n f]))
+                    (:figwheel.core/metadata @state))]
+    (doseq [[n f] hooks]
+      (if-let [hook (reduce #(gobj/get %1 %2) goog.global (map str (concat (string/split n #"\.") [f])))]
+        (do
+          (glog/info logger (str "Calling " (pr-str hook-key) " hook - " n "." f))
+          (apply hook args))
+        (glog/warning logger (str "Unable to find " (pr-str hook-key) " hook - " n "." f))))))
+
 (defn ^:export reload-namespaces [namespaces figwheel-meta]
   ;; reconstruct serialized data
   (let [figwheel-meta (into {}
@@ -261,12 +273,15 @@
         namespaces (map #(with-meta (symbol %)
                            (get figwheel-meta %))
                         namespaces)]
-    (swap! state assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))
+    (swap! state #(-> %
+                      (assoc ::metadata figwheel-meta)
+                      (assoc-in [::reload-state :reload-started] (.getTime (js/Date.)))))
     (let [to-reload
           (when-not (and (not load-warninged-code)
                          (not-empty (get-in @state [::reload-state :warnings])))
             (filter #(reload-ns? %) namespaces))]
       (when-not (empty? to-reload)
+        (call-hooks :before-load {:namespaces namespaces})
         (js/setTimeout #(dispatch-event :figwheel.before-load {:namespaces namespaces}) 0))
       (doseq [ns to-reload]
         ;; goog/require has to be patched by a repl bootstrap
@@ -276,6 +291,7 @@
               (try
                 (when (not-empty to-reload)
                   (glog/info logger (str "loaded " (pr-str to-reload)))
+                  (call-hooks :after-load {:reloaded-namespaces to-reload})
                   (dispatch-event :figwheel.after-load {:reloaded-namespaces to-reload}))
                 (when-let [not-loaded (not-empty (filter (complement (set to-reload)) namespaces))]
                   (glog/info logger (str "did not load " (pr-str not-loaded))))
@@ -344,6 +360,18 @@
      "<cljs repl>" 1
      code)))
 
+(defn hooks-for-namespace [ns]
+  (into {}
+        (keep
+         (fn [[k v]]
+           (when-let [hook (first
+                            (filter
+                             (set (keys (:meta v)))
+                             [:before-load :after-load]))]
+             [hook
+              (cljs.compiler/munge k)]))
+         (get-in @cljs.env/*compiler* [:cljs.analyzer/namespaces ns :defs]))))
+
 (defn find-figwheel-meta []
   (into {}
         (comp
@@ -352,8 +380,12 @@
                identity
                #(select-keys
                  (meta %)
-                 [:figwheel-always :figwheel-load :figwheel-no-load])))
-         (filter (comp not-empty second)))
+                 [:figwheel-always :figwheel-load :figwheel-no-load :figwheel-hooks])))
+         (filter (comp not-empty second))
+         (map (fn [[ns m]]
+                (if (:figwheel-hooks m)
+                  [ns (assoc m :figwheel-hooks (hooks-for-namespace ns))]
+                  [ns m]))))
         (:sources @env/*compiler*)))
 
 (defn in-upper-level? [topo-state current-depth dep]
@@ -797,6 +829,18 @@
 
 
 (comment
+
+  (def cenv (cljs.env/default-compiler-env))
+
+  (:cljs.analyzer/namespaces @cenv)
+
+  (get-in @cenv [:cljs.analyzer/namespaces 'figwheel.core :defs])
+
+  #_(clojure.java.shell/sh "rm" "-rf" "out")
+  (build "src" {:main 'figwheel.core} cenv)
+
+  (binding [cljs.env/*compiler* cenv]
+    (find-figwheel-meta))
 
   (first (cljs.js-deps/load-library* "src"))
 
