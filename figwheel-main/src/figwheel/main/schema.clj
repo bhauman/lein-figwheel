@@ -475,6 +475,7 @@ behavior. Default: false
          (markdown-option-docs un-common))))
 
 (defn output-docs [output-to]
+  (require 'figwheel.server.ring)
   (.mkdirs (.getParentFile (io/file output-to)))
   (spit output-to (markdown-docs)))
 

@@ -316,3 +316,22 @@ Options: `:repl` `:serve` or `:build-once`
 This is mainly intended for use when you are launching figwheel.main from a script.
 
 Normally defaults to `:repl`
+
+## :broadcast-reload
+
+Figwheel broadcasts hot reloads to all clients that have connected
+since the figwheel process has started. Set `:broadcast-reload` to
+`false` if you want to only send hot-reloads to the client where the
+REPL eval occurs.
+Default: true
+
+    :broadast-reload false
+
+## :broadcast
+
+In the past figwheel would broadcast REPL evaluations to all
+connected clients and then print the first result received in the
+REPL. Setting `:broadcast` to `true` will give you back this legacy
+behavior. Default: false
+
+    :broadcast true
