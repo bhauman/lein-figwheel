@@ -1236,8 +1236,9 @@ This can cause confusion when your are not using Cider."
       config (assoc :config config))))
 
 (defn start*
-  ([join-server? build] (start* nil build))
+  ([join-server? build] (start* nil nil build))
   ([join-server? figwheel-options build & background-builds]
+   (assert build "Figwheel Start: build argument required")
    (let [{:keys [id] :as build} (start-build-arg->build-options build)
          cfg
          (cond-> {:options (:options build)
