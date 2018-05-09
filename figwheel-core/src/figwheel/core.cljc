@@ -343,7 +343,8 @@
 #?(:clj
    (do
 
-(def ^:dynamic *config* {:hot-reload-cljs true})
+(def ^:dynamic *config* {:hot-reload-cljs true
+                         :broadcast-reload true})
 
 (defn debug-prn [& args]
   (binding [*out* *err*]
@@ -356,7 +357,9 @@
 (defn client-eval [code]
   (when-not (string/blank? code)
     (cljs.repl/-evaluate
-     cljs.repl/*repl-env*
+     (cond-> cljs.repl/*repl-env*
+       (:broadcast-reload *config* true)
+       (assoc :broadcast true))
      "<cljs repl>" 1
      code)))
 

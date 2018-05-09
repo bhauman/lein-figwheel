@@ -898,7 +898,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    :ring-handler
                    :launch-node
                    :inspect-node
-                   :node-command])
+                   :node-command
+                   :broadcast])
      repl-env-options ;; from command line
      (select-keys repl-options [:output-to :output-dir]))))
 
@@ -1101,7 +1102,7 @@ This can cause confusion when your are not using Cider."
           (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
                                           (select-keys repl-env-options
                                                        [:connection-filter]))
-                    figwheel.core/*config* (select-keys config [:hot-reload-cljs])]
+                    figwheel.core/*config* (select-keys config [:hot-reload-cljs :broadcast-reload])]
             (figwheel.core/start*)))))))
 
 (defn start-background-builds [{:keys [::background-builds] :as cfg}]
@@ -1198,7 +1199,7 @@ This can cause confusion when your are not using Cider."
             (log/info ":pprint-config true - printing config:")
             (print-conf b-cfg))
           (binding [cljs.repl/*repl-env* repl-env
-                    figwheel.core/*config* (select-keys config [:hot-reload-cljs])]
+                    figwheel.core/*config* (select-keys config [:hot-reload-cljs :broadcast-reload])]
             (let [fw-mode? (figwheel-mode? b-cfg)]
               (build config options cenv)
               (when-not (= mode :build-once)
