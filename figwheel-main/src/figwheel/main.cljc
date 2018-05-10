@@ -985,6 +985,20 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 ;; REPL
 ;; ------------------------------
 
+(defn repl-api-docs []
+  (let [dvars (filter (comp :cljs-repl-api meta) (vals (ns-publics 'figwheel.main)))]
+    (string/join
+     "\n"
+     (map (fn [{:keys [ns name arglists doc]}]
+            (str "--------------------------------------------------------------------------------\n"
+             "(" ns "/" name
+             (when-let [args (not-empty (first arglists))]
+               (str " " (pr-str args)))
+             ")\n   " doc))
+          (map meta dvars)))))
+
+#_(println (repl-api-docs))
+
 (defn bound-var? [sym]
   (when-let [v (resolve sym)]
     (thread-bound? v)))
@@ -1331,8 +1345,10 @@ This can cause confusion when your are not using Cider."
         (println "Cleaning build id:" (-> watch' ::watch-info :id))
         (clean-build options)))))
 
-(defmacro clean [& ids]
-  (clean* (map name ids))
+(defmacro ^:cljs-repl-api clean
+  "Takes one or more builds ids and deletes their compiled artifacts."
+  [& build-ids]
+  (clean* (map name build-ids))
   nil)
 
 (defn status* []
@@ -1341,7 +1357,9 @@ This can cause confusion when your are not using Cider."
     (println "Currently building:" (string/join ", " ids))
     (println "No builds are currently being built.")))
 
-(defmacro status []
+(defmacro ^:cljs-repl-api status
+  "Displays the build ids of the builds are currently being watched and compiled."
+  []
   (status*) nil)
 
 (defn stop-builds* [ids]
@@ -1354,8 +1372,10 @@ This can cause confusion when your are not using Cider."
 
 ;; TODO should this default to stopping all builds??
 ;; I think yes
-(defmacro stop-builds [& ids]
-  (stop-builds* ids)
+(defmacro ^:cljs-repl-api stop-builds
+  "Takes one or more build ids and stops watching and compiling them."
+  [& build-ids]
+  (stop-builds* build-ids)
   nil)
 
 (defn main-build? [id]
@@ -1395,8 +1415,10 @@ This can cause confusion when your are not using Cider."
 
 ;; TODO should this default to stopping all builds??
 ;; I think yes
-(defmacro start-builds [& ids]
-  (start-builds* ids)
+(defmacro ^:cljs-repl-api start-builds
+  "Takes one or more build names and starts them building."
+  [& build-ids]
+  (start-builds* build-ids)
   nil)
 
 (defn reload-config* []
@@ -1412,8 +1434,11 @@ This can cause confusion when your are not using Cider."
     (start-builds* ids)
     nil))
 
-(defmacro reset [& ids]
-  (reset* ids))
+(defmacro ^:cljs-repl-api reset
+  "If no args are provided, all current builds will be cleaned and restarted.
+   Otherwise, this will clean and restart the provided build ids."
+  [& build-ids]
+  (reset* build-ids))
 
 (defn build-once* [ids]
   (let [ids (->> ids (map name) distinct)
@@ -1435,8 +1460,10 @@ This can cause confusion when your are not using Cider."
             (build-cljs i input options
                          (cljs.env/default-compiler-env options))))))))
 
-(defmacro build-once [& ids]
-  (build-once* ids)
+(defmacro ^:cljs-repl-api build-once
+  "Forces a single compile of the provided build ids."
+  [& build-ids]
+  (build-once* build-ids)
   nil)
 
 ;; ----------------------------------------------------------------------------
