@@ -416,6 +416,14 @@
                  :args (mapv #(if (string? %) % (gjson/serialize %)) args)}))
   (setup-printing!))
 
+(defn connection-established! [url]
+  (when (= host-env :html)
+    (let [target (.. goog.global -document -body)]
+          (.dispatchEvent
+           target
+           (doto (js/Event. "figwheel.repl.connected" target)
+             (gobj/add "data" {:url url}))))))
+
 (defn get-websocket-class []
   (or
    (gobj/get goog.global "WebSocket")
@@ -460,6 +468,7 @@
                                      (glog/error logger e))))))
           (.addEventListener goog.net.WebSocket.EventType.OPENED
                              (fn [e]
+                               (connection-established! url)
                                (swap! state assoc :connection {:websocket websocket})
                                (hook-repl-printing-output! {:websocket websocket})))
           (.open url))))))
@@ -532,6 +541,7 @@
              (let [typ (gobj/get msg "connection-type")]
                (glog/info logger (str "Connected: " typ))
                (msg-fn msg)
+               (connection-established! url)
                ;; after connecting setup printing redirects
                (swap! state assoc :connection {:http-url surl})
                (hook-repl-printing-output! {:http-url surl})
