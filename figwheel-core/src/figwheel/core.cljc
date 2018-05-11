@@ -259,7 +259,10 @@
                         [n f]))
                     (:figwheel.core/metadata @state))]
     (doseq [[n f] hooks]
-      (if-let [hook (reduce #(gobj/get %1 %2) goog.global (map str (concat (string/split n #"\.") [f])))]
+      (if-let [hook (reduce #(when %1
+                               (gobj/get %1 %2))
+                            goog.global
+                            (map str (concat (string/split n #"\.") [f])))]
         (do
           (glog/info logger (str "Calling " (pr-str hook-key) " hook - " n "." f))
           (apply hook args))
