@@ -566,14 +566,20 @@
           (.setScheme "http")
           str))))
 
-(defn connect [& [connect-url']]
+(defn connect* [connect-url']
   (patch-goog-base)
   (let [url (switch-to-http? (string/trim (or connect-url' connect-url)))]
     (cond
       (gstring/startsWith url "ws")   (ws-connect url)
       (gstring/startsWith url "http") (http-connect url))))
 
-))
+(defn connect [& [connect-url']]
+  (defonce connected
+    (do (connect* connect-url') true))))
+
+)
+
+;; end :cljs
 
 
 #?(:clj (do
