@@ -359,7 +359,7 @@
                                  result-value)
                   output-str (str sb)]
               (when print-to-console?
-                (js/setTimeout #(out-print :console output-str) 0))
+                (js/setTimeout #(out-print :console [output-str]) 0))
               {:status :success
                :out output-str
                :ua-product ua-product
