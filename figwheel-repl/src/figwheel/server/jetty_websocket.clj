@@ -77,7 +77,6 @@
               (.setHandled request true)))
           (proxy-super handle target request req res))))))
 
-
 (defn set-log-level! [log-lvl]
   (let [level (or ({:all     StdErrLog/LEVEL_ALL
                     :debug   StdErrLog/LEVEL_DEBUG
