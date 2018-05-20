@@ -358,7 +358,7 @@
                                  (pr-str result-value)
                                  result-value)
                   output-str (str sb)]
-              (when print-to-console?
+              (when (and print-to-console? (not (zero? (.getLength sb))))
                 (js/setTimeout #(out-print :console [output-str]) 0))
               {:status :success
                :out output-str
