@@ -123,7 +123,7 @@ For the server side:
     [[config-hostname]]  the host supplied in :ring-server-options > :host or "localhost"
     [[server-hostname]]  the java.InetAddress localhost name - "Bruces-MacBook-Pro.local" on my machine
     [[server-ip]]        the java.InetAddress localhost ip interface - normally 192.168.x.x
-    [[server-port]]      the host supplied in :ring-server-options > :host or "localhost" or the default port
+    [[server-port]]      the port supplied in :ring-server-options > :port or the default port 9500
 
 On the client side:
 
@@ -133,6 +133,24 @@ On the client side:
 If the url starts with a Websocket scheme "ws://" a websocket
 connection will be established. If the url starts with an http scheme
 "http" an http long polling connection will be established.
+
+## :open-url
+
+Either a boolean value `false` or a string that indicates the url
+that the figwheel repl will open in the browser after the source code
+has been compiled. A `false` value will disable this behavior.
+
+The string value is actually a template that can provide optional
+template variables. For example the default `:open-url` is:
+
+    "http://[[server-hostname]]:[[server-port]]"
+
+The available template variables are:
+
+For the server side:
+
+    [[server-hostname]]  the host supplied in :ring-server-options > :host or "localhost"
+    [[server-port]]      the port supplied in :ring-server-options > :port or the default port 9500
 
 ## :reload-clj-files
 

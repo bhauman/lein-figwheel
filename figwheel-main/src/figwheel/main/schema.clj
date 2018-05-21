@@ -203,14 +203,16 @@ connection will be established. If the url starts with an http scheme
 \"http\" an http long polling connection will be established."
   :group :common)
 
-(s/def ::open-url non-blank-string?)
+(s/def ::open-url (s/or :non-blank-string non-blank-string?
+                        :false false?))
 (def-spec-meta ::open-url
   :doc
- "The url that the figwheel repl will open in the browser after the
-souce code has been compiled.
+ "Either a boolean value `false` or a string that indicates the url
+that the figwheel repl will open in the browser after the source code
+has been compiled. A `false` value will disable this behavior.
 
-This url is actually a template that will be filled in.  For example
-the default `:open-url` is:
+The string value is actually a template that can provide optional
+template variables. For example the default `:open-url` is:
 
     \"http://[[server-hostname]]:[[server-port]]\"
 
@@ -500,4 +502,4 @@ behavior. Default: false
 
 #_(output-docs "doc/figwheel-main-options.md")
 
-#_(markdown-docs)
+#_(Markdown-docs)
