@@ -55,7 +55,7 @@
                                             :on-jsload      example.core/fig-reload
                                             :on-message     example.core/on-message
                                             :auto-jump-to-source-on-error true
-                                        ; :open-urls ["http://localhost:3449/index.html"]
+                                            :open-urls ["http://localhost:3449/index.html"]
                                         ; :debug true
                                             }
                                  :compiler {
@@ -114,11 +114,13 @@
                                                        :optimizations :whitespace
                                                        }}}}
 
-  :profiles { :dev { :dependencies [[com.cemerick/piggieback "0.2.1"]
+  :profiles { :dev { :dependencies [;[cider/piggieback "0.2.1"]
+
                                     [figwheel-sidecar "0.5.17-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
-                                    [org.clojure/tools.nrepl "0.2.12"]
-                                    [leiningen-core "2.6.1"]]
+                                    #_[org.clojure/tools.nrepl "0.2.12"]
+                                    #_[leiningen-core "2.6.1"]
+                                    ]
                     ;; this is testing profile merging
                     #_:figwheel #_{
                                    :recompile-dependents false
@@ -143,9 +145,9 @@
              ;; Start an nREPL server into the running fighweel
              ;; process
 
-             ;; :nrepl-port 7888
+             :nrepl-port 7888
 
-             :nrepl-middleware ["cider.nrepl/cider-middleware"
+             #_:nrepl-middleware #_["cider.nrepl/cider-middleware"
                                 #_"refactor-nrepl.middleware/wrap-refactor"
                                 #_"cemerick.piggieback/wrap-cljs-repl"]
 
