@@ -842,6 +842,9 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                  (fn [p]
                    (vec (distinct
                          (concat p '[figwheel.repl.preload])))))
+      conn?
+      (update-in [:options :repl-requires] into '[[figwheel.main :refer-macros [stop-builds start-builds build-once reset clean status]]
+                                                  [figwheel.repl :refer-macros [conns focus]]])
       (and conn? (:client-print-to config))
       (update-in [:options :closure-defines] assoc
                  'figwheel.repl/print-output
@@ -1044,6 +1047,22 @@ This can cause confusion when your are not using Cider."
         #_(clojure.pprint/pprint (Throwable->map err))
         (flush)))))
 
+(def repl-header
+  (str "Figwheel Main Controls:
+          (figwheel.main/stop-builds id ...)  ;; stops Figwheel autobuilder for ids
+          (figwheel.main/start-builds id ...) ;; starts autobuilder focused on ids
+          (figwheel.main/reset)               ;; stops, cleans, reloads config, and starts autobuilder
+          (figwheel.main/build-once id ...)   ;; builds source one time
+          (figwheel.main/clean id ...)        ;; deletes compiled cljs target files
+          (figwheel.main/status)              ;; displays current state of system
+Figwheel REPL Controls:
+          (figwheel.repl/conns)               ;; displays the current connections
+          (figwheel.repl/focus session-name)  ;; choose which session name to focus on
+In the cljs.user ns, controls can be called without ns ie. (conns) instead of (figwheel.repl/conns)
+    Docs: (doc function-name-here)
+    Exit: :cljs/quit
+ Results: Stored in vars *1, *2, *3, *e holds last exception object"))
+
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
   (log-server-start repl-env)
@@ -1066,12 +1085,14 @@ This can cause confusion when your are not using Cider."
                            string/trim-newline
                            println)
                       (flush))))]
-    (let [repl-options (assoc repl-options :caught (:caught repl-options repl-caught))]
+    (let [repl-options (-> repl-options
+                           (assoc :caught (:caught repl-options repl-caught)))]
       (println (ansip/format-str
                 [:bright (format "Prompt will show when REPL connects to evaluation environment (i.e. %s)"
                                  (if (= :nodejs (:target repl-options))
                                    "Node"
                                    "a REPL hosting webpage"))]))
+      (println repl-header)
       (if (in-nrepl?)
         (nrepl-repl repl-env repl-options)
         (let [repl-fn (or (when-not (false? (:rebel-readline (::config *config*)))
