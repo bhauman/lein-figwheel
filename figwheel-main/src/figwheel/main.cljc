@@ -1067,6 +1067,11 @@ This can cause confusion when your are not using Cider."
                            println)
                       (flush))))]
     (let [repl-options (assoc repl-options :caught (:caught repl-options repl-caught))]
+      (println (ansip/format-str
+                [:bright (format "Prompt will show when REPL connects to evaluation environment (i.e. %s)"
+                                 (if (= :nodejs (:target repl-options))
+                                   "Node"
+                                   "a REPL hosting webpage"))]))
       (if (in-nrepl?)
         (nrepl-repl repl-env repl-options)
         (let [repl-fn (or (when-not (false? (:rebel-readline (::config *config*)))
