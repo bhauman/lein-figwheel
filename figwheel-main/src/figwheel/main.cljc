@@ -142,14 +142,16 @@
   (when (try
           (require 'clojure.spec.alpha)
           (require 'expound.alpha)
-          (require 'figwheel.main.schema)
+          (require 'expound.ansi)
+          (require 'figwheel.main.schema.config)
           true
           (catch Throwable t false))
-    (resolve 'figwheel.main.schema/validate-config!)))
+    (resolve 'figwheel.main.schema.core/validate-config!)))
 
 (defn validate-config! [edn fail-msg & [succ-msg]]
   (when (and validate-config!* (not (false? (:validate-config edn))))
-    (validate-config!* edn fail-msg)
+    (expound.ansi/with-color-when (:ansi-color-output edn true)
+      (validate-config!* :figwheel.main.schema.config/edn edn fail-msg))
     (when succ-msg
       (log/succeed succ-msg))))
 
@@ -1533,7 +1535,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
         (apply cljs.main/-main args')))
     (catch Throwable e
       (let [d (ex-data e)]
-        (if (or (:figwheel.main.schema/error d)
+        (if (or (:figwheel.main.schema.core/error d)
                 (:cljs.main/error d)
                 (::error d))
           (println (.getMessage e))
