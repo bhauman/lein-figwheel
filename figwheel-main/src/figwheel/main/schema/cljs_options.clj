@@ -1021,141 +1021,83 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
 
 ;; ** The Top level Options Map for the cljs/build fn
 (s/def ::cljs-options
-  (s/and
-   map?
-   (comment
-     (attach-warning ":asset-path has no effect without a :main or :modules"
-                     (fn [{:keys [main modules] :as cmpl}]
-                       (not (and (contains? cmpl :asset-path)
-                                 (nil? main)
-                                 (nil? modules)))))
+  (spell/keys
+   :opt-un
+   [::main
+    ::preloads
+    ::asset-path
+    ::output-to
+    ::output-dir
+    ::closure-warnings
+    ::optimizations
+    ::source-map
+    ::verbose
+    ::pretty-print
+    ::target
+    ::infer-externs
+    ::foreign-libs
+    ::externs
+    ::modules
+    ::source-map-path
+    ::source-map-asset-path
+    ::source-map-timestamp
+    ::cache-analysis
+    ::recompile-dependents
+    ::static-fns
+    ::load-tests
+    ::elide-asserts
+    ::pseudo-names
+    ::print-input-delimiter
+    ::output-wrapper
+    ::libs
+    ::preamble
+    ::hashbang
+    ::compiler-stats
+    ::language-in
+    ::language-out
+    ::npm-deps
+    ::install-deps
+    ::closure-defines
+    ::closure-extra-annotations
+    ::anon-fn-naming-policy
+    ::optimize-constants
+    ::parallel-build
+    ::devcards
+    ::dump-core
+    ::emit-constants
+    ::warning-handlers
+    ::source-map-inline
+    ::ups-libs
+    ::ups-externs
+    ::ups-foreign-libs
+    ::closure-output-charset
+    ::external-config
+    ::watch-fn
+    ::process-shim
+    ::warnings
+    ::fn-invoke-direct
+    ::rewrite-polyfills
+    ::checked-arrays
+    ::aot-cache
 
-     (attach-warning ":pseudo-names has no effect when :optimizations is not :advanced"
-                     (fn [{:keys [optimizations] :as cmpl}]
-                       (not (and (contains? cmpl :pseudo-names)
-                                 (not= optimizations :advanced)))))
-
-     ;; **** TODO add in the cljs.compiler unknown/similar-key warning here
-
-     ;; these next warnings probably be elevated to an errors attach-reason
-     (attach-warning ":preamble has no effect when :optimizations is :none"
-                     (fn [{:keys [optimizations] :as cmpl}]
-                       (not (and (contains? cmpl :preamble)
-                                 (opt-none? optimizations)))))
-
-     (attach-warning ":hashbang has no effect when :target is not :nodejs"
-                     (fn [{:keys [target] :as cmpl}]
-                       (not (and (contains? cmpl :hashbang) (not= target :nodejs)))))
-
-     (attach-warning ":clojure-defines has no effect when :optimizations is :whitespace"
-                     (fn [{:keys [optimizations] :as cmpl}]
-                       (not (and (contains? cmpl :closure-defines)
-                                 (= :whitespace optimizations)))))
-
-     (attach-warning "missing an :output-to option - you probably will want this ..."
-                     (fn [cmpl] (or (contains? cmpl :output-to)
-                                    (contains? cmpl :modules))))
-
-     (attach-reason  ":closure-defines requires a :main when :optimizations is :none"
-                     (fn [{:keys [optimizations main] :as cmpl}]
-                       (not (and (contains? cmpl :closure-defines)
-                                 (nil? main)
-                                 (opt-none? optimizations))))
-                     :focus-path [:closure-defines])
-
-     (attach-reason  ":source-map must be a boolean when :optimizations is :none"
-                     (fn [{:keys [source-map optimizations] :as cmpl}]
-                       (not (and
-                             (contains? cmpl :source-map)
-                             (not (boolean? source-map))
-                             (opt-none? optimizations))))
-                     :focus-path [:source-map])
-
-     (attach-reason  ":source-map must be a string? when :optimizations is not :none"
-                     (fn [{:keys [source-map optimizations] :as cmpl}]
-                       (not (and
-                             (contains? cmpl :source-map)
-                             (not (string? source-map))
-                             (not (opt-none? optimizations)))))
-                     :focus-path [:source-map]))
-
-   (s/keys
-    :opt-un
-    [::main
-     ::preloads
-     ::asset-path
-     ::output-to
-     ::output-dir
-     ::closure-warnings
-     ::optimizations
-     ::source-map
-     ::verbose
-     ::pretty-print
-     ::target
-     ::infer-externs
-     ::foreign-libs
-     ::externs
-     ::modules
-     ::source-map-path
-     ::source-map-asset-path
-     ::source-map-timestamp
-     ::cache-analysis
-     ::recompile-dependents
-     ::static-fns
-     ::load-tests
-     ::elide-asserts
-     ::pseudo-names
-     ::print-input-delimiter
-     ::output-wrapper
-     ::libs
-     ::preamble
-     ::hashbang
-     ::compiler-stats
-     ::language-in
-     ::language-out
-     ::npm-deps
-     ::install-deps
-     ::closure-defines
-     ::closure-extra-annotations
-     ::anon-fn-naming-policy
-     ::optimize-constants
-     ::parallel-build
-     ::devcards
-     ::dump-core
-     ::emit-constants
-     ::warning-handlers
-     ::source-map-inline
-     ::ups-libs
-     ::ups-externs
-     ::ups-foreign-libs
-     ::closure-output-charset
-     ::external-config
-     ::watch-fn
-     ::process-shim
-     ::warnings
-     ::fn-invoke-direct
-     ::rewrite-polyfills
-     ::checked-arrays
-     ::aot-cache
-
-     ;; these need definitions above
-     ::closure-variable-map-out
-     ::closure-generate-exports
-     ::closure-module-roots
-     ::rename-prefix
-     ::closure-property-map-in
-     ::ignore-js-module-exts
-     ::closure-property-map-out
-     ::stable-names
-     ::watch-error-fn
-     ::browser-repl
-     ::opts-cache
-     ::watch
-     ::cache-analysis-format
-     ::rename-prefix-namespace
-     ::closure-variable-map-in
-     ::use-only-custom-externs
+    ;; these need definitions above
+    ::closure-variable-map-out
+    ::closure-generate-exports
+    ::closure-module-roots
+    ::rename-prefix
+    ::closure-property-map-in
+    ::ignore-js-module-exts
+    ::closure-property-map-out
+    ::stable-names
+    ::watch-error-fn
+    ::browser-repl
+    ::opts-cache
+    ::watch
+    ::cache-analysis-format
+    ::rename-prefix-namespace
+    ::closure-variable-map-in
+    ::use-only-custom-externs
 
 
-     ]
-    )))
+    ]
+   ))

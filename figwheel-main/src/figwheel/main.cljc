@@ -39,9 +39,6 @@
 (def ^:dynamic *base-config*)
 (def ^:dynamic *config*)
 
-;; TODO put this in figwheel config
-#_(.setLevel log/*logger* java.util.logging.Level/ALL)
-
 (defonce process-unique (subs (str (java.util.UUID/randomUUID)) 0 6))
 
 (defn- time-elapsed [started-at]
@@ -138,20 +135,33 @@
                          ;; exceptions are reported by the time they get to here
                          (catch Throwable t false))))))}))))
 
+(declare read-edn-file)
+
+(defn get-edn-file-key
+  ([edn-file key] (get-edn-file-key edn-file key nil))
+  ([edn-file key default]
+   (get (read-edn-file edn-file) key default)))
+
 (def validate-config!*
   (when (try
           (require 'clojure.spec.alpha)
           (require 'expound.alpha)
           (require 'expound.ansi)
           (require 'figwheel.main.schema.config)
+          (require 'figwheel.main.schema.cljs-options)
           true
           (catch Throwable t false))
     (resolve 'figwheel.main.schema.core/validate-config!)))
 
-(defn validate-config! [edn fail-msg & [succ-msg]]
-  (when (and validate-config!* (not (false? (:validate-config edn))))
+(defn validate-config! [spec edn fail-msg & [succ-msg]]
+  (when (and validate-config!*
+             (not
+              (false?
+               (:validate-config
+                edn
+                (get-edn-file-key "figwheel-main.edn" :validate-config)))))
     (expound.ansi/with-color-when (:ansi-color-output edn true)
-      (validate-config!* :figwheel.main.schema.config/edn edn fail-msg))
+      (validate-config!* spec edn fail-msg))
     (when succ-msg
       (log/succeed succ-msg))))
 
@@ -320,6 +330,11 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                 (map io/file)
                 (map (comp first #(string/split % #"\.") #(.getName %)))
                 (string/join ""))))]
+    (log/debug "Validating options passed to --compile-opts")
+    (validate-config!
+     :figwheel.main.schema.cljs-options/cljs-options
+     edn
+     (str "Configuration error in options passed to --compile-opts"))
     (cond-> cfg
       edn (update :options merge edn)
       id  (update-in [::build :id] #(if-not % id %))
@@ -331,7 +346,9 @@ classpath. Classpath-relative paths have prefix of @ or @/")
         edn   (if (string/starts-with? ropts "{")
                 (read-edn-string ropts "Error reading EDN from command line flag: -fwo ")
                 (load-edn-opts ropts))]
-    (validate-config! edn "Error validating figwheel options EDN provided to -fwo CLI flag")
+    (validate-config!
+     :figwheel.main.schema.config/edn
+     edn "Error validating figwheel options EDN provided to -fwo CLI flag")
     (update cfg ::config merge edn)))
 
 (defn print-config-opt [cfg opt]
@@ -355,8 +372,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn figwheel-opt [cfg bl]
   (assoc-in cfg [::config :figwheel-core] (not= bl "false")))
 
-
-
 (defn get-build [bn]
   (let [fname (if (.contains bn (System/getProperty "path.separator"))
                 bn
@@ -365,10 +380,19 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    (map #(str % ".cljs.edn"))
                    (string/join (System/getProperty "path.separator"))
                    load-edn-opts)]
-    (when (meta build)
+    (when build
       (when-not (false? (:validate-config (meta build)))
-        (log/debug "Validating metadata in build option: " fname)
-        (validate-config! (meta build) (str "Configuration error in build options meta data:" fname))))
+        (when (meta build)
+          (log/debug "Validating metadata in build: " fname)
+          (validate-config!
+           :figwheel.main.schema.config/edn
+           (meta build)
+           (str "Configuration error in build options meta data: " fname)))
+        (log/debug "Validating CLJS compile options for build:" fname)
+        (validate-config!
+         :figwheel.main.schema.cljs-options/cljs-options
+         build
+         (str "Configuration error in CLJS compile options: " fname))))
     build))
 
 (defn watch-dir-from-ns [main-ns]
@@ -426,9 +450,9 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                (cons "-s" args)
                args)]
     (default-compile repl-env-fn
-                   (merge (build-opt cfg build-name)
-                          {:args args
-                           ::build-main-opt true}))))
+                     (merge (build-opt cfg build-name)
+                            {:args args
+                             ::build-main-opt true}))))
 
 (defn build-once-main-opt [repl-env-fn [_ build-name & args] cfg]
   (default-compile repl-env-fn
@@ -439,12 +463,10 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 
 (defn repl-main-opt [repl-env-fn args cfg]
   (let [target-on-classpath?
-        (when-let [target-dir
-                   (:target-dir
-                    (try (read-string (slurp "figwheel-main.edn"))
-                         (catch Throwable t
-                           nil))
-                    "target")]
+        (when-let [target-dir (get-edn-file-key
+                               "figwheel-main.edn"
+                               :target-dir
+                               "target")]
           (fw-util/dir-on-classpath? target-dir))
         temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
                                target-on-classpath?)
@@ -621,7 +643,9 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
   (when-not (false? (:validate-config main-edn))
     (log/info "Validating figwheel-main.edn")
-    (validate-config! main-edn "Configuration error in figwheel-main.edn"
+    (validate-config!
+     :figwheel.main.schema.config/edn
+     main-edn "Configuration error in figwheel-main.edn"
                       "figwheel-main.edn is valid!"))
 
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
@@ -747,7 +771,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (assoc-in [:options :output-dir] (default-output-dir cfg))))
 
 (defn figure-default-asset-path [{:keys [figwheel-options options ::config ::build] :as cfg}]
-
   (if (= :nodejs (:target options))
     (:output-dir options)
     (let [{:keys [output-dir]} options]
@@ -1518,7 +1541,11 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
            args)))
 
 (defn -main [& args]
+  ;; todo make this local with-redefs?
   (alter-var-root #'cli/default-commands cli/add-commands figwheel-commands)
+  ;; set log level early
+  (when-let [level (get-edn-file-key "figwheel-main.edn" :log-level)]
+    (log/set-level level))
   (try
     (let [args       (fix-simple-bool-args #{"-pc" "--pprint-config"} args)
           [pre post] (split-with (complement #{"-re" "--repl-env"}) args)
