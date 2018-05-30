@@ -3,6 +3,7 @@
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.spec.alpha :as s]
+   [expound.printer :as printer]
    [expound.alpha :as exp]))
 
 (def ^:dynamic *spec-meta* (atom {}))
@@ -23,26 +24,46 @@
 ;; Validate
 ;; ------------------------------------------------------------
 
-#_(exp/expound ::edn {:watch-dirs ["src"]
-                      :ring-handler "asdfasdf/asdfasdf"
-                      :reload-clj-files [:cljss :clj]})
+(defn key-meta-for-problem [{:keys [via :spell-spec.alpha/likely-misspelling-of] :as prob}]
+  (or
+   (when-let [n (first likely-misspelling-of)]
+     (when-let [ns (namespace (first via))]
+       (get @*spec-meta* (keyword ns (name n)))))
+   (some->> (reverse via)
+            (filter @*spec-meta*)
+            ;; don't show the root docs
+            (filter (complement
+                     #{:figwheel.main.schema.config/edn
+                       :figwheel.main.schema.cljs-options/cljs-options}))
+            first
+            (get @*spec-meta*))))
 
-#_(s/valid? ::edn {:watch-dirs ["src"]
-                   :ring-handler "asdfasdf/asdfasdf"
-                   :reload-clj-files [:cljss :clj]})
+(let [expected-str (deref #'exp/expected-str)]
+  (defn expected-str-with-doc [_type spec-name val path problems opts]
+    (str (expected-str _type spec-name val path problems opts)
+         (when-let [{:keys [key doc]} (key-meta-for-problem (first problems))]
+           (when doc
+             (str
+              "\n\n-- Doc for " (pr-str (keyword (name key)))  " -----\n\n"
+             (printer/indent doc)))))))
 
 (defn expound-string [spec form]
   (when-let [explain-data (s/explain-data spec form)]
-    (with-out-str
-      ((exp/custom-printer
-        {:print-specs? false})
-       explain-data))))
+    (with-redefs [exp/expected-str expected-str-with-doc]
+      (with-out-str
+        ((exp/custom-printer
+          {:print-specs? false})
+         explain-data)))))
 
 (defn validate-config! [spec config-data context-msg]
   (if-let [explained (expound-string spec config-data)]
     (throw (ex-info (str context-msg "\n" explained)
                     {::error explained}))
     true))
+
+#_(expound-string
+   :figwheel.main.schema.config/edn
+   (read-string (slurp "figwheel-main.edn")))
 
 ;; ------------------------------------------------------------
 ;; Generate docs
