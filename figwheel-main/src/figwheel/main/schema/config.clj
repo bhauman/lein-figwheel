@@ -155,7 +155,7 @@ and Figwheel will call emacsclient with the correct args."
   :group :common)
 
 (s/def ::hot-reload-cljs boolean?)
-(def-spec-meta :figwheel.core/hot-reload-cljs
+(def-spec-meta ::hot-reload-cljs
   :doc
  "Whether or not figwheel.core should hot reload compiled
 ClojureScript. Only has meaning when :figwheel is true.

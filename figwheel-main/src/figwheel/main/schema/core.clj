@@ -57,7 +57,13 @@
          key-datas)))
 
 (defn markdown-docs []
-  (let [{:keys [common un-common]}  (group-by :group (sort-by :position (vals @*spec-meta*)))]
+  (let [{:keys [common un-common]} (->> (vals @*spec-meta*)
+                                        (filter #(-> %
+                                                     :key
+                                                     namespace
+                                                     (= "figwheel.main.schema.config")))
+                                        (sort-by :position)
+                                        (group-by :group))]
     (str "# Figwheel Main Configuration Options\n\n"
          "The following options can be supplied to `figwheel.main` via the `figwheel-main.edn` file.\n\n"
          "# Commonly used options (in order of importance)\n\n"
@@ -71,6 +77,7 @@
   (require 'figwheel.server.ring)
   (.mkdirs (.getParentFile (io/file output-to)))
   (spit output-to (markdown-docs)))
+
 
 #_(validate-config! :figwheel.main.schema.config/edn (read-string (slurp "figwheel-main.edn")) "")
 
