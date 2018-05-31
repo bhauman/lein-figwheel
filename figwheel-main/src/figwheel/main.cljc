@@ -1569,7 +1569,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                                       "The figwheel REPL is implicitly used.\n"
                                       "Perhaps you were intending to use the --target option?")
                                  {::error true})))
-          _          (validate-cli! args)
+          _          (validate-cli! (vec args))
           args'      (concat ["-re" "figwheel"] args)
           args'      (if (empty? args) (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile
