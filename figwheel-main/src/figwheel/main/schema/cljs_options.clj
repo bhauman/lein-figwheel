@@ -1015,10 +1015,6 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
 (s/def  ::violated-module-dep ::warning-value)
 (s/def  ::visiblity ::warning-value)
 
-;; opt none helper
-(defn- opt-none? [opt]
-  (or (nil? opt) (= :none opt)))
-
 ;; ** The Top level Options Map for the cljs/build fn
 (s/def ::cljs-options
   (spell/keys
@@ -1080,7 +1076,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
     ::checked-arrays
     ::aot-cache
 
-    ;; these need definitions above
+    ;; these need to be specified
     ::closure-variable-map-out
     ::closure-generate-exports
     ::closure-module-roots
@@ -1097,7 +1093,6 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
     ::rename-prefix-namespace
     ::closure-variable-map-in
     ::use-only-custom-externs
-
 
     ]
    ))

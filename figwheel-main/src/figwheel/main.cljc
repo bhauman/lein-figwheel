@@ -149,6 +149,7 @@
           (require 'expound.ansi)
           (require 'figwheel.main.schema.config)
           (require 'figwheel.main.schema.cljs-options)
+          (require 'figwheel.main.schema.cli)
           true
           (catch Throwable t false))
     (resolve 'figwheel.main.schema.core/validate-config!)))
@@ -162,6 +163,19 @@
                 (get-edn-file-key "figwheel-main.edn" :validate-config)))))
     (expound.ansi/with-color-when (:ansi-color-output edn true)
       (validate-config!* spec edn fail-msg))
+    (when succ-msg
+      (log/succeed succ-msg))))
+
+(def validate-cli!*
+  (when validate-config!*
+    (resolve 'figwheel.main.schema.cli/validate-cli!)))
+
+(defn validate-cli! [cli-args & [succ-msg]]
+  (when (and validate-cli!*
+             (get-edn-file-key "figwheel-main.edn" :validate-cli true))
+    (expound.ansi/with-color-when
+      (get-edn-file-key "figwheel-main.edn" :ansi-color-output true)
+      (validate-cli!* cli-args "Error in command line args"))
     (when succ-msg
       (log/succeed succ-msg))))
 
@@ -1555,7 +1569,8 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                                       "The figwheel REPL is implicitly used.\n"
                                       "Perhaps you were intending to use the --target option?")
                                  {::error true})))
-          args'      (if (empty? post) (concat ["-re" "figwheel"] args) args)
+          _          (validate-cli! args)
+          args'      (concat ["-re" "figwheel"] args)
           args'      (if (empty? args) (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile
                     cljs.cli/load-edn-opts load-edn-opts]
@@ -1563,13 +1578,11 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
     (catch Throwable e
       (let [d (ex-data e)]
         (if (or (:figwheel.main.schema.core/error d)
+                (:figwheel.main.schema.cli/error d)
                 (:cljs.main/error d)
                 (::error d))
           (println (.getMessage e))
-          (throw e))))))
-
-
-))
+          (throw e))))))))
 
 #_(def test-args
   (concat ["-co" "{:aot-cache false :asset-path \"out\"}" "-b" "dev" "-e" "(figwheel.core/start-from-repl)"]

@@ -34,7 +34,7 @@
     (if (fn? handler)
       handler
       (let [h (symbol handler)]
-        (or (resolve h)
+        (or (try (resolve h) (catch Throwable t nil))
             (when-let [ns (namespace h)]
               (when (require? (symbol ns))
                 (when-let [handler-var (resolve h)]

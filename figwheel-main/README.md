@@ -224,7 +224,7 @@ Of course if you add `:target :nodejs` to `dev.cljs.edn` like so:
 
 You be able to run the build more simply:
 
-    clojure -m figwheel.main -t node -b dev -r
+    clojure -m figwheel.main -b dev -r
 
 ## Reload hooks
 
