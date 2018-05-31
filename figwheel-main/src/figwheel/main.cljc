@@ -354,11 +354,19 @@ classpath. Classpath-relative paths have prefix of @ or @/")
       id  (update-in [::build :id] #(if-not % id %))
       config (update-in [::build :config] merge config))))
 
+(defn repl-env-opts-opt
+  [cfg ropts]
+  (let [ropts (string/trim ropts)
+        edn   (if (string/starts-with? ropts "{")
+                (read-edn-string ropts "Error reading EDN from command line flag: --repl-opts ")
+                (load-edn-opts ropts))]
+    (update cfg :repl-env-options merge edn)))
+
 (defn figwheel-opts-opt
   [cfg ropts]
   (let [ropts (string/trim ropts)
         edn   (if (string/starts-with? ropts "{")
-                (read-edn-string ropts "Error reading EDN from command line flag: -fwo ")
+                (read-edn-string ropts "Error reading EDN from command line flag: -fw-opts ")
                 (load-edn-opts ropts))]
     (validate-config!
      :figwheel.main.schema.config/edn
@@ -547,6 +555,12 @@ classpath. Classpath-relative paths have prefix of @ or @/")
           {:group :cljs.cli/compile :fn figwheel-opts-opt
            :arg "edn"
            :doc (str "Options to configure figwheel.main, can be an EDN string or "
+                     "system-dependent path-separated list of EDN files / classpath resources. Options "
+                     "will be merged left to right.")}
+          ["-ro" "--repl-opts"]
+          {:group ::main&compile :fn repl-env-opts-opt
+           :arg "edn"
+           :doc (str "Options to configure the repl-env, can be an EDN string or "
                      "system-dependent path-separated list of EDN files / classpath resources. Options "
                      "will be merged left to right.")}
           ["-co" "--compile-opts"]

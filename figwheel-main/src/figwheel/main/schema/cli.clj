@@ -127,8 +127,6 @@ resource paths should start with @")
   (s/cat :opt-key #{"-bb" "--background-build"}
          :opt-val ::build-name))
 
-#_(validate-cli ["-bb" "devv"])
-
 (s/def ::figwheel (s/cat :opt-key #{"-fw" "--figwheel"}
                          :opt-val #{"true" "false"}))
 
@@ -418,15 +416,16 @@ resource paths should start with @")
              (printer/indent (string/join "\n" (#'cljs.cli/auto-fill doc 65)))))))))
 
 (defn validate-cli [cli-options]
-  (when-let [data (update-problems
-                   (add-problem-types
-                    (s/explain-data ::cli-options cli-options)))]
-    #_(clojure.pprint/pprint data)
-    (with-redefs [exp/expected-str expected-str-with-doc]
-      (with-out-str
-        ((exp/custom-printer {:print-specs? false
-                              :show-valid-values? true})
-         data)))))
+  (when-let [data' (s/explain-data ::cli-options cli-options)]
+    (let [data (update-problems
+                (add-problem-types
+                 data'))]
+      #_(clojure.pprint/pprint data)
+      (with-redefs [exp/expected-str expected-str-with-doc]
+        (with-out-str
+          ((exp/custom-printer {:print-specs? false
+                                :show-valid-values? true})
+           data))))))
 
 (defn validate-cli! [cli-args context-msg]
   (if-let [explained (validate-cli cli-args)]
