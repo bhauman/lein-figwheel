@@ -325,6 +325,8 @@ resource paths should start with @")
 
 (defn problem-type [expd p]
   (cond
+    (:expound.spec.problem/type p)
+    (:expound.spec.problem/type p)
     (unknown-flag? expd p)
     ::unknown-flag
     (unknown-script-input? expd p)
@@ -405,13 +407,6 @@ resource paths should start with @")
 (defn update-problems [expd]
   (update expd ::s/problems #(mapv (partial update-problem expd) %)))
 
-;; todo
-
-;; - add docs with custom printer
-
-;; - do some post checks to ensure that folks are not suppling init args
-;; that are not needed for the given main arg
-
 (defn doc-for-flag [val {:keys [in :expound.spec.problem/type ::similar-flags]}]
   (when-let [flag (cond (not-empty similar-flags)
                         (first similar-flags)
@@ -432,7 +427,7 @@ resource paths should start with @")
               "\n\n__ Doc for " (string/join " " flags)  " _____\n\n"
              (printer/indent (string/join "\n" (#'cljs.cli/auto-fill doc 65)))))))))
 
-(defn validate-cli [cli-options]
+#_(defn validate-cli [cli-options]
   (when-let [data' (s/explain-data ::cli-options cli-options)]
     (let [data (update-problems
                 (add-problem-types
@@ -444,8 +439,130 @@ resource paths should start with @")
                                 :show-valid-values? true})
            data))))))
 
+;; ----------------------------------------------------------------------
+;; ensure the opts respect group
+;; ----------------------------------------------------------------------
+;; we could just include this in one big spec
+;; but the errors are less intuitive IMHO
+
+(s/def ::cli-options-no-repl-env
+  ;; include all opts except -i -e and -v
+  (s/cat :inits (s/*
+                 (s/alt
+                  :compile-opts  ::compile-opts
+                  :output-dir    ::output-dir
+                  :repl-opts     ::repl-opts
+                  :figwheel-opts ::figwheel-opts
+                  :target        ::target
+                  ;:init          ::init
+                  ;:eval          ::eval
+                  ;:verbose       ::verbose
+                  :optimizations ::optimizations
+                  :background-build ::background-build
+                  :figwheel      ::figwheel
+                  :output-to     ::output-to
+                  :print-config  ::print-config
+                  :watch         ::watch
+                  :port          ::port
+                  :host          ::host
+                  :ring-handler  ::ring-handler))
+         :mains (s/? ::main-opts)))
+
+#_(let [mains [:compile {:flag "-c", :repl-serve [:repl {:flag "-r"}]}]]
+    (-> mains second :repl-serve first (= :repl)))
+
+(defn not-repl-env-opt [{:keys [inits mains] :as conformed} cli-options]
+  (when-not (or (#{:script :stdin :repl :main} (first mains))
+                (and (#{:compile :compile-ns :build} (first mains))
+                     (-> mains second :repl-serve first (= :repl))))
+    (when-let [error (s/explain-data ::cli-options-no-repl-env cli-options)]
+      (update error
+              ::s/problems
+              #(mapv
+                (fn [x]
+                  (let [res (assoc x
+                                   :expound.spec.problem/type ::missing-main-opt
+                                   ::conformed-mains mains
+                                   ::should-have-main-opt
+                                   ["--repl" "--main" "-r" "-m" "-" "[cljs script]"])]
+                    (cond
+                      (empty? mains) res
+                      (and (#{:compile :compile-ns :build} (first mains))
+                           (-> mains second :repl-serve nil? ))
+                      (assoc res ::should-have-main-opt ["--repl" "-r"])
+                      :else
+                      (assoc res
+                             :expound.spec.problem/type
+                             ::incompatible-flag-for-main-opt))))
+                %)))))
+
+(s/def ::cli-options-no-compile
+  ;; include all opts except compile opts
+  (s/cat :inits (s/*
+                 (s/alt
+                  :compile-opts  ::compile-opts
+                  :output-dir    ::output-dir
+                  :repl-opts     ::repl-opts
+                  ;:figwheel-opts ::figwheel-opts
+                  :target        ::target
+                  :init          ::init
+                  :eval          ::eval
+                  :verbose       ::verbose
+                  ;:optimizations ::optimizations
+                  ;:background-build ::background-build
+                  ;:figwheel      ::figwheel
+                  ;:output-to     ::output-to
+                  :print-config  ::print-config
+                  ;:watch         ::watch
+                  :port          ::port
+                  :host          ::host
+                  :ring-handler  ::ring-handler))
+         :mains (s/? ::main-opts)))
+
+(defn not-compile-opt [{:keys [inits mains] :as conformed} cli-options]
+  (when-not (#{:compile :compile-ns :build :build-once} (first mains))
+    (when-let [error (s/explain-data ::cli-options-no-compile cli-options)]
+      (update error
+              ::s/problems
+              #(mapv
+                (fn [x]
+                  (let [res (assoc x
+                                   :expound.spec.problem/type ::missing-main-opt
+                                   ::conformed-mains mains
+                                   ::should-have-main-opt
+                                   ["--compile" "--build" "--build-once"
+                                    "-c" "-b" "-bo"])]
+                    (if (empty? mains)
+                      res
+                      (assoc res
+                             :expound.spec.problem/type
+                             ::incompatible-flag-for-main-opt))))
+                %)))))
+
+(defn get-explain-data [cli-options]
+  (or (s/explain-data ::cli-options cli-options)
+      (let [conformed (s/conform ::cli-options cli-options)]
+        (or
+         (not-repl-env-opt conformed cli-options)
+         (not-compile-opt conformed cli-options)))))
+
+(defn validate-cli-extra [cli-options]
+  (if-let [data' (get-explain-data cli-options)]
+    (let [data (update-problems
+                (add-problem-types
+                 data'))]
+      #_(clojure.pprint/pprint data)
+      (with-redefs [exp/expected-str expected-str-with-doc]
+        (with-out-str
+          ((exp/custom-printer {:print-specs? false
+                                :show-valid-values? true})
+           data))))))
+
+#_ (validate-cli-extra ["-co" "dev.cljs.edn" "-O" "advanced"])
+
+
 (defn validate-cli! [cli-args context-msg]
-  (if-let [explained (validate-cli cli-args)]
+  (if-let [explained (validate-cli-extra cli-args)]
     (throw (ex-info (str context-msg "\n" explained)
                     {::error explained}))
     true))
@@ -487,10 +604,39 @@ resource paths should start with @")
 (defmethod exp/expected-str ::ignored-args [_type spec-name val path problems opts]
   (str "extra args are only allowed after the --repl, --main, - (stdin) or script args"))
 
+(defmethod exp/problem-group-str ::missing-main-opt [_type spec-name val path problems opts]
+  (spell-exp/exp-formated
+   "Missing main option"
+   _type spec-name val path problems opts))
+
+(defmethod exp/expected-str ::missing-main-opt [_type spec-name val path problems opts]
+  (let [{:keys [::should-have-main-opt] :as prob} (first problems)
+        opt (first (:val prob))]
+    (str "must add a main option for the " opt " flag to take effect,"
+         (spell-exp/format-correction-list should-have-main-opt))))
+
+(defmethod exp/problem-group-str ::incompatible-flag-for-main-opt
+  [_type spec-name val path problems opts]
+  (let [{:keys [::conformed-mains]} (first problems)
+        mains (not-empty (flatten (s/unform ::cli-options {:mains conformed-mains})))]
+    (prn conformed-mains mains)
+    (spell-exp/exp-formated
+     (str "Incompatible flag for main option"
+          (when mains
+            (str "s:  " (string/join " " mains)))
+          "  ---")
+     _type spec-name val path problems opts)))
+
+(defmethod exp/expected-str ::incompatible-flag-for-main-opt
+  [_type spec-name val path problems opts]
+  (let [{:keys [::should-have-main-opt] :as prob} (first problems)
+        opt (first (:val prob))]
+    (str "should have the correct main option for the " opt " flag to take effect,"
+         (spell-exp/format-correction-list should-have-main-opt))))
+
 #_ (validate-cli ["-e" "(list)" "-c" "-s" "asdf:asdf" "-d"])
 
 #_(exp/expound-str ::cli-options ["-i" "asdf" "-i" "asdf" "-e" "15"])
-
 
 ;; for reference
 #_"init options:
