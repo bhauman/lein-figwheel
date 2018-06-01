@@ -140,7 +140,8 @@
 (defn get-edn-file-key
   ([edn-file key] (get-edn-file-key edn-file key nil))
   ([edn-file key default]
-   (get (read-edn-file edn-file) key default)))
+   (try (get (read-string (slurp edn-file)) key default)
+        (catch Throwable t nil))))
 
 (def validate-config!*
   (when (try
