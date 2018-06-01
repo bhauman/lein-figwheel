@@ -583,7 +583,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
            :arg "str"
            :doc "The name of a build config to watch and build in the background."}
           ["-pc" "--print-config"]
-          {:group :cljs.cli/compile :fn print-config-opt
+          {:group :cljs.cli/main&compile :fn print-config-opt
            :doc "Instead of running the command print out the configuration built up by the command. Useful for debugging."}
           }
    :main {["-b" "--build"]
