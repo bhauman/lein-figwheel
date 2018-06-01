@@ -1569,14 +1569,14 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
            (list)
            args)))
 
-(defn -main [& args]
+(defn -main [& orig-args]
   ;; todo make this local with-redefs?
   (alter-var-root #'cli/default-commands cli/add-commands figwheel-commands)
   ;; set log level early
   (when-let [level (get-edn-file-key "figwheel-main.edn" :log-level)]
     (log/set-level level))
   (try
-    (let [args       (fix-simple-bool-args #{"-pc" "--pprint-config"} args)
+    (let [args       (fix-simple-bool-args #{"-pc" "--print-config"} orig-args)
           [pre post] (split-with (complement #{"-re" "--repl-env"}) args)
           _          (when (not-empty post)
                        (throw
@@ -1584,9 +1584,12 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                                       "The figwheel REPL is implicitly used.\n"
                                       "Perhaps you were intending to use the --target option?")
                                  {::error true})))
-          _          (validate-cli! (vec args))
+          _          (validate-cli! (vec orig-args))
           args'      (concat ["-re" "figwheel"] args)
-          args'      (if (empty? args) (concat args' ["-r"]) args')]
+          args'      (if (or (empty? args)
+                             (= args ["-pc" "true"])
+                             (= args ["--print-config" "true"]))
+                       (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile
                     cljs.cli/load-edn-opts load-edn-opts]
         (apply cljs.main/-main args')))
@@ -1596,7 +1599,8 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                 (:figwheel.main.schema.cli/error d)
                 (:cljs.main/error d)
                 (::error d))
-          (println (.getMessage e))
+          (binding [*out* *err*]
+            (println (.getMessage e)))
           (throw e))))))))
 
 #_(def test-args
