@@ -112,10 +112,10 @@ resource paths should start with @")
   (file-exists? (str b ".cljs.edn")))
 
 (exp/def ::not-end-with-cljs-edn #(not (string/ends-with? % ".cljs.edn"))
-  "should not end with .cljs.edn as this is already implied")
+  "should not end with .cljs.edn as this is already implied\n(this should be maria if you have a maria.cljs.edn file)")
 
 (exp/def ::build-exists build-exists?
-  "should be a build file in the current directory that ends with .cljs.edn")
+  "should indicate a build file in the current directory\n(this should be marko if you have a marko.cljs.edn file)")
 
 (exp/def ::directory-exists directory-exists?
   "should be an existing directory relative to the current directory")
@@ -341,32 +341,49 @@ resource paths should start with @")
 (defn add-problem-types [expd]
   (update expd ::s/problems #(mapv (partial add-problem-type expd) %)))
 
-#_(remove-ns 'figwheel.main.schema.cli)
-
 (defn similar-flags [f]
   (let [all-flags (filter some?
                           (concat (keys (:main-dispatch cljs.cli/default-commands))
-                                  (keys (:init-dispatch cljs.cli/default-commands))))]
-    (not-empty
-     (cond
-       (string/starts-with? f "--")
-       ((spell/likely-misspelled (into #{}
-                                       (filter #(string/starts-with? % "--"))
-                                       all-flags))
-        f)
-       (and (string/starts-with? f "-") (> (count f) 4))
-       ((spell/likely-misspelled (into #{}
-                                       (filter #(string/starts-with? % "--"))
-                                       all-flags))
-          (str "-" f))
-       :else
-       (binding [spell/*length->threshold* (fn [_] 1)]
-         ((spell/likely-misspelled (into #{}
-                                         (comp
-                                          (filter #(> (count %) 2))
-                                          (filter #(re-matches #"-[^-].*" %)))
-                                         all-flags))
-          f))))))
+                                  (keys (:init-dispatch cljs.cli/default-commands))))
+        long-flags (into #{}
+                         (filter #(string/starts-with? % "--"))
+                         all-flags)
+        short-flags (set (filter #(re-matches #"-[^-].*" %) all-flags))
+        similar-short-flags
+        (fn [flag] (binding [spell/*length->threshold* (fn [_] 1)]
+                     ((spell/likely-misspelled (into #{}
+                                                     (filter #(> (count %) 2))
+                                                     short-flags))
+                      flag)))
+        similar-long-flags #((spell/likely-misspelled long-flags) %)]
+    (when-let [result
+               (cond
+                 ;; catch common mistake of providing a -- for - arg
+                 (and (string/starts-with? f "--")
+                      (<= (count f) 5))
+                 (let [flag' (subs f 1)]
+                   (if-let [flag (short-flags flag')]
+                     [flag]
+                     (similar-short-flags flag')))
+
+                 ;; catch common mistake of providing a - for -- arg
+                 (and (re-matches #"-[^-].*" f) (> (count f) 4))
+                 (let [flag' (str "-" f)]
+                   (if-let [flag (long-flags flag')]
+                     [flag]
+                     (similar-long-flags flag')))
+
+                 ;; misspelled -- arg
+                 (string/starts-with? f "--")
+                 (similar-long-flags f)
+
+                 ;; misspelled - arg
+                 :else
+                 (similar-short-flags f))]
+      (not-empty result))))
+
+#_(similar-flags "--cd")
+
 
 (defmulti update-problem (fn [expd p] (:expound.spec.problem/type p)))
 
