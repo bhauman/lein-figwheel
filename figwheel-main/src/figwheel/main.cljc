@@ -505,10 +505,10 @@ classpath. Classpath-relative paths have prefix of @ or @/")
          (cond->
              temp-dir (assoc-in [:options :output-dir]
                                 (default-output-dir
-                                 (assoc cfg [::config :target-dir] temp-dir)))
+                                 (assoc-in cfg [::config :target-dir] temp-dir)))
              temp-dir (assoc-in [:options :output-to]
                                 (default-output-to
-                                 (assoc cfg [::config :target-dir] temp-dir)))
+                                 (assoc-in cfg [::config :target-dir] temp-dir)))
              temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
