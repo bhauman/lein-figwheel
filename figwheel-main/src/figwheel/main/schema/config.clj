@@ -4,7 +4,8 @@
    [clojure.string :as string]
    [clojure.spec.alpha :as s]
    [clojure.set]
-   [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?]]
+   [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?
+                                      ensure-all-registered-keys-included]]
    [expound.alpha :as exp]
    [spell-spec.alpha :as spell]
    [spell-spec.expound]))
@@ -422,17 +423,9 @@ behavior. Default: false
     :broadcast true"
   :group :un-common)
 
-;; helper to validate that all keys are registered
-(defmacro all-keys-registered [key-spec]
-  (let [spec-keys (set (cons ::edn (mapcat second (partition 2 (rest key-spec)))))
-        reg-keys  (set (filter #(= "figwheel.main.schema.config" (namespace %))
-                               (keys (s/registry))))
-        missing-keys (clojure.set/difference reg-keys spec-keys)]
-    (assert (empty? missing-keys) (str "missing keys " (pr-str missing-keys))))
-  key-spec)
-
 (s/def ::edn
-  (all-keys-registered
+  (ensure-all-registered-keys-included
+   #{::edn}
    (spell/strict-keys
     :opt-un
     [::watch-dirs

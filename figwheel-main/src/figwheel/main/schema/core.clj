@@ -3,6 +3,7 @@
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.spec.alpha :as s]
+   [clojure.set]
    [expound.printer :as printer]
    [expound.alpha :as exp]))
 
@@ -64,6 +65,19 @@
 #_(expound-string
    :figwheel.main.schema.config/edn
    (read-string (slurp "figwheel-main.edn")))
+
+;; ------------------------------------------------------------
+;; Spec validation
+;; ------------------------------------------------------------
+
+(defmacro ensure-all-registered-keys-included [ignore-reg-keys key-spec]
+  (let [spec-keys (set (concat ignore-reg-keys
+                               (mapcat second (partition 2 (rest key-spec)))))
+        reg-keys  (set (filter #(= (str *ns*) (namespace %))
+                               (keys (s/registry))))
+        missing-keys (clojure.set/difference reg-keys spec-keys)]
+    (assert (empty? missing-keys) (str "missing keys " (pr-str missing-keys))))
+  key-spec)
 
 ;; ------------------------------------------------------------
 ;; Generate docs
