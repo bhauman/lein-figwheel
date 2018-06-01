@@ -3,43 +3,11 @@
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.spec.alpha :as s]
+   [clojure.set]
    [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?]]
    [expound.alpha :as exp]
    [spell-spec.alpha :as spell]
    [spell-spec.expound]))
-
-(s/def ::edn (spell/strict-keys :opt-un
-                     [::watch-dirs
-                      ::css-dirs
-                      ::ring-handler
-                      ::ring-server-options
-                      ::rebel-readline
-                      ::pprint-config
-                      ::open-file-command
-                      ::figwheel-core
-                      ::hot-reload-cljs
-                      ::connect-url
-                      ::reload-clj-files
-                      ::log-file
-                      ::log-level
-                      ::log-syntax-error-style
-                      ::load-warninged-code
-                      ::ansi-color-output
-                      ::validate-config
-                      ::target-dir
-
-                      ::launch-node
-                      ::inspect-node
-                      ::node-command
-
-                      ::client-print-to
-                      ::ring-stack
-                      ::ring-stack-options
-                      ::watch-time-ms
-                      ::mode
-                      ::ring-server
-                      ::broadcast
-                      ::broadcast-reload]))
 
 (s/def ::watch-dirs (s/coll-of (s/and non-blank-string?
                                       directory-exists?)))
@@ -297,6 +265,15 @@ Default: true
     :validate-config false"
   :group :common)
 
+(s/def ::validate-cli boolean?)
+(def-spec-meta ::validate-cli
+  :doc
+ "Whether to validate the figwheel-main command line options
+Default: true
+
+    :validate-cli false"
+  :group :common)
+
 (s/def ::target-dir non-blank-string?)
 (def-spec-meta ::target-dir
   :doc
@@ -444,3 +421,50 @@ behavior. Default: false
 
     :broadcast true"
   :group :un-common)
+
+;; helper to validate that all keys are registered
+(defmacro all-keys-registered [key-spec]
+  (let [spec-keys (set (cons ::edn (mapcat second (partition 2 (rest key-spec)))))
+        reg-keys  (set (filter #(= "figwheel.main.schema.config" (namespace %))
+                               (keys (s/registry))))
+        missing-keys (clojure.set/difference reg-keys spec-keys)]
+    (assert (empty? missing-keys) (str "missing keys " (pr-str missing-keys))))
+  key-spec)
+
+(s/def ::edn
+  (all-keys-registered
+   (spell/strict-keys
+    :opt-un
+    [::watch-dirs
+     ::css-dirs
+     ::ring-handler
+     ::ring-server-options
+     ::rebel-readline
+     ::pprint-config
+     ::open-file-command
+     ::figwheel-core
+     ::hot-reload-cljs
+     ::connect-url
+     ::open-url
+     ::reload-clj-files
+     ::log-file
+     ::log-level
+     ::log-syntax-error-style
+     ::load-warninged-code
+     ::ansi-color-output
+     ::validate-config
+     ::validate-cli
+     ::target-dir
+
+     ::launch-node
+     ::inspect-node
+     ::node-command
+
+     ::client-print-to
+     ::ring-stack
+     ::ring-stack-options
+     ::wait-time-ms
+     ::mode
+     ::ring-server
+     ::broadcast
+     ::broadcast-reload])))
