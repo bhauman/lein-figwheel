@@ -325,6 +325,8 @@ resource paths should start with @")
 
 (defn problem-type [expd p]
   (cond
+    (:expound.spec.problem/type p)
+    (:expound.spec.problem/type p)
     (unknown-flag? expd p)
     ::unknown-flag
     (unknown-script-input? expd p)
@@ -443,6 +445,73 @@ resource paths should start with @")
           ((exp/custom-printer {:print-specs? false
                                 :show-valid-values? true})
            data))))))
+
+;; ----------------------------------------------------------------------
+;; ensure the opts repsect group
+;; ----------------------------------------------------------------------
+;; we could just include this in one big spec
+;; but the errors are less intuitive IMHO
+
+(s/def ::cli-options-no-repl-env
+  ;; include all opts except -i -e and -v
+  (s/cat :inits (s/*
+                 (s/alt
+                 :compile-opts  ::compile-opts
+                 :output-dir    ::output-dir
+                 :repl-opts     ::repl-opts
+                 :figwheel-opts ::figwheel-opts
+                 :target        ::target
+                 :optimizations ::optimizations
+                 :background-build ::background-build
+                 :figwheel      ::figwheel
+                 :output-to     ::output-to
+                 :print-config  ::print-config
+                 :watch         ::watch
+                 :port          ::port
+                 :host          ::host
+                 :ring-handler  ::ring-handler))
+         :mains (s/? ::main-opts)))
+
+#_(let [mains [:compile {:flag "-c", :repl-serve [:repl {:flag "-r"}]}]]
+    (-> mains second :repl-serve first (= :repl)))
+
+(defn not-repl-env-opt [{:keys [inits mains] :as conformed}]
+  (when-not (or (#{:script :stdin :repl :main} (first mains))
+                (and (#{:compile :compile-ns :build} (first mains))
+                     (-> mains second :repl-serve first (= :repl))))
+    (let [opts (s/unform ::cli-options conformed)]
+      (when-let [error (s/explain-data ::cli-options-no-repl-env opts)]
+        (update error
+                ::s/problems
+                #(mapv
+                  (fn [x] (assoc x
+                                 :expound.spec.problem/type
+                                 ::missing-correct-main-opt
+                                 ::should-have-main-opt
+                                 ["--repl" "--main" "-r" "-m" "-" "script"]))
+                  %))))))
+
+(defn get-explain-data [cli-options]
+  (or (s/explain-data ::cli-options cli-options)
+      (let [conformed (s/conform ::cli-options cli-options)]
+        (not-repl-env-opt conformed))))
+
+(defn validate-cli-extra [cli-options]
+  (if-let [data' (get-explain-data cli-options)]
+    (let [data (update-problems
+                (add-problem-types
+                 data'))]
+      (clojure.pprint/pprint data)
+      (with-redefs [exp/expected-str expected-str-with-doc]
+        (with-out-str
+          ((exp/custom-printer {:print-specs? false
+                                :show-valid-values? true})
+           data))))))
+
+#_(s/conform ::cli-options ["-c" "-r"])
+
+#_ (validate-cli-extra ["-co" "dev.cljs.edn" "-e" "(list)"])
+
 
 (defn validate-cli! [cli-args context-msg]
   (if-let [explained (validate-cli cli-args)]
