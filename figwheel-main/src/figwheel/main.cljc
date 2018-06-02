@@ -1298,28 +1298,32 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
             (print-conf b-cfg))
           (binding [cljs.repl/*repl-env* repl-env
                     figwheel.core/*config* (select-keys config [:hot-reload-cljs :broadcast-reload])]
-            (let [fw-mode? (figwheel-mode? b-cfg)]
-              (build config options cenv)
-              (when-not (= mode :build-once)
-                (start-background-builds (assoc cfg
-                                                ::start-figwheel-options
-                                                config))
-                (doseq [init-fn (::initializers b-cfg)] (init-fn))
-                (log/trace "Figwheel.core config:" (pr-str figwheel.core/*config*))
-                (figwheel.core/start*)
-                (cond
-                  (= mode :repl)
-                  ;; this forwards command line args
-                  (repl repl-env repl-options)
-                  (= mode :serve)
-                  ;; we need to get the server host:port args
-                  (serve {:repl-env repl-env
-                          :repl-options repl-options
+            (try
+              (let [fw-mode? (figwheel-mode? b-cfg)]
+                (build config options cenv)
+                (when-not (= mode :build-once)
+                  (start-background-builds (assoc cfg
+                                                  ::start-figwheel-options
+                                                  config))
+                  (doseq [init-fn (::initializers b-cfg)] (init-fn))
+                  (log/trace "Figwheel.core config:" (pr-str figwheel.core/*config*))
+                  (figwheel.core/start*)
+                  (cond
+                    (= mode :repl)
+                    ;; this forwards command line args
+                    (repl repl-env repl-options)
+                    (= mode :serve)
+                    ;; we need to get the server host:port args
+                    (serve {:repl-env repl-env
+                            :repl-options repl-options
                           :join? (get b-cfg ::join-server? true)})
-                  ;; the final case is compiling without a repl or a server
-                  ;; if there is a watcher running join it
-                  (and (fww/running?) (get b-cfg ::join-server? true))
-                  (fww/join))))))))))
+                    ;; the final case is compiling without a repl or a server
+                    ;; if there is a watcher running join it
+                    (and (fww/running?) (get b-cfg ::join-server? true))
+                    (fww/join))))
+              (finally
+                (when (get b-cfg ::join-server? true)
+                  (fww/stop!))))))))))
 
 (defn start-build-arg->build-options [build]
   (let [[build-id build-options config]

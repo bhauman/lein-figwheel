@@ -29,6 +29,9 @@
 (defn join []
   (some-> *watcher* deref :watcher :thread .join))
 
+(defn stop! []
+  (some-> *watcher* deref :watcher hawk/stop!))
+
 (defn throttle [millis f]
   (fn [{:keys [collector] :as ctx} e]
     (let [collector (or collector (atom {}))

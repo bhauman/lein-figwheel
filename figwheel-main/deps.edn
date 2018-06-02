@@ -14,7 +14,7 @@
 
         ;; possibly external
 
-        ;;com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}
+        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}
 
         ;; going to make validation seperate?
         expound {:mvn/version "0.7.0"}
