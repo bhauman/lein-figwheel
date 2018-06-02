@@ -1,7 +1,7 @@
 (ns figwheel.main-test
   (:require
    [figwheel.main :as fm]
-   [figwheel.main.test.utils :refer [with-edn-files]]
+   [figwheel.main.test.utils :refer [with-edn-files with-err-str]]
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.test :refer [deftest testing is]]))
@@ -46,5 +46,16 @@
 
     )
   )
+
+(deftest auto-adds-target-classpath-for-compile
+  (with-edn-files
+    {:figwheel-main.edn {:target-dir "never-gonna-find-me"}
+     :scripty-test.cljs "(println (+ 1 2 3))"}
+    (is (string/includes? (with-err-str (main->config "-b" "dev"))
+                          "Attempting to dynamically add classpath!!"))
+    (is (string/includes? (with-err-str (main->config "-bo" "dev"))
+                          "Attempting to dynamically add classpath!!"))
+    (is (string/includes? (with-err-str (main->config "-c" "figwheel.main"))
+                          "Attempting to dynamically add classpath!!"))))
 
 #_(main-to-print-config "-pc" "-r" )
