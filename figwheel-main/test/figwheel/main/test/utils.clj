@@ -1,5 +1,7 @@
 (ns figwheel.main.test.utils
-  (:require [clojure.java.io :as io]))
+  (:require
+   [clojure.java.io :as io]
+   [figwheel.main.logging :as log]))
 
 (defn rename-file [filename new-filename]
   (let [f (io/file filename)]
@@ -70,3 +72,7 @@ Example:
      (binding [*err* s#]
        ~@body
        (str s#))))
+
+(defn logging-fixture [f]
+  (with-redefs [log/*logger* (log/default-logger "figmain.test.logger" (log/writer-handler))]
+    (f)))

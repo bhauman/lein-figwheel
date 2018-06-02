@@ -1,11 +1,12 @@
 (ns figwheel.main-test
   (:require
    [figwheel.main :as fm]
-   [figwheel.main.test.utils :refer [with-edn-files with-err-str]]
-   [figwheel.main.logging :as log]
+   [figwheel.main.test.utils :refer [with-edn-files with-err-str logging-fixture]]
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [clojure.test :refer [deftest testing is]]))
+   [clojure.test :refer [deftest testing is use-fixtures]]))
+
+(use-fixtures :once logging-fixture)
 
 (defn main->config [& args]
   (with-redefs [clojure.core/shutdown-agents (fn [])
@@ -46,14 +47,14 @@
     (uses-temp-dir? (:options (main->config "-")))))
 
 ;; FIX logging output capture
-#_(deftest auto-adds-target-classpath-for-compile
+(deftest auto-adds-target-classpath-for-compile
   (with-edn-files
     {:figwheel-main.edn {:target-dir "never-gonna-find-me"}}
-    (is (string/includes? (with-err-str (main->config "-b" "dev"))
+    (is (string/includes? (with-out-str (main->config "-b" "dev"))
                           "Attempting to dynamically add classpath!!"))
-    (is (string/includes? (with-err-str (main->config "-bo" "dev"))
+    (is (string/includes? (with-out-str (main->config "-bo" "dev"))
                           "Attempting to dynamically add classpath!!"))
-    (is (string/includes? (with-err-str (main->config "-c" "figwheel.main"))
+    (is (string/includes? (with-out-str (main->config "-c" "figwheel.main"))
                           "Attempting to dynamically add classpath!!"))))
 
 (deftest validates-command-line
@@ -65,7 +66,5 @@
     (with-edn-files
       {:figwheel-main.edn :delete}
       (string/includes? (with-err-str (main->config "-O" "dev")) "should be one of"))))
-
-
 
 #_(main-to-print-config "-pc" "-r" )
