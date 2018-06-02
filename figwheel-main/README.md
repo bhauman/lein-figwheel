@@ -293,10 +293,6 @@ See the `figwheel.main/start` function and the `figwheel.main/start-join` functi
 Figwheel Main aims to honor all the flags provided by `cljs.main` as
 of right now your mileage may vary.
 
-## Known issues
-
-* Quiting from rebel-readline REPL requires quiting multiple processes
-
 ## License
 
 Copyright © 2018 Bruce Hauman
