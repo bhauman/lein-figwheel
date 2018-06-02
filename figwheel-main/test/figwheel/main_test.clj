@@ -42,10 +42,7 @@
     (uses-temp-dir? (:options (main->config "-r")))
     (uses-temp-dir? (:options (main->config "-m" "figwheel.main")))
     (uses-temp-dir? (:options (main->config "scripty-test.cljs")))
-    (uses-temp-dir? (:options (main->config "-")))
-
-    )
-  )
+    (uses-temp-dir? (:options (main->config "-")))))
 
 (deftest auto-adds-target-classpath-for-compile
   (with-edn-files

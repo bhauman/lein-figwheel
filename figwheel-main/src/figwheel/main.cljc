@@ -92,48 +92,52 @@
 
 (defn watch-build [id inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
-    (log/info "Watching and compiling paths:" (pr-str inputs) "for build -" id)
-    (fww/add-watch!
-     [::autobuild id]
-     (merge
-      {::watch-info (merge
-                     (:extra-info reload-config)
-                     {:id id
-                      :paths inputs
-                      :options opts
-                      :compiler-env cenv
-                      :reload-config reload-config})}
-      {:paths inputs
-       :filter (fww/suffix-filter (into #{"cljs" "js"}
-                                        (cond
-                                          (coll? (:reload-clj-files reload-config))
-                                          (mapv name (:reload-clj-files reload-config))
-                                          (false? (:reload-clj-files reload-config)) []
-                                          :else ["clj" "cljc"])))
-       :handler (fww/throttle
-                 (:wait-time-ms reload-config 50)
-                 (bound-fn [evts]
-                   (binding [cljs.env/*compiler* cenv]
-                     (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
-                           inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
-                       (try
-                         (when-let [clj-files
-                                    (not-empty
-                                     (filter
-                                      #(or (.endsWith % ".clj")
-                                           (.endsWith % ".cljc"))
-                                      files))]
-                           (log/debug "Reloading clj files: " (pr-str (map str clj-files)))
-                           (try
-                             (figwheel.core/reload-clj-files clj-files)
-                             (catch Throwable t
-                               (log/syntax-exception t)
-                               (figwheel.core/notify-on-exception cenv t {})
-                               (throw t))))
-                         (log/debug "Detected changed cljs files: " (pr-str (map str files)))
-                         (fig-core-build id inputs opts cenv files)
-                         ;; exceptions are reported by the time they get to here
-                         (catch Throwable t false))))))}))))
+    (let [build-inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)
+          ;; the build-fn needs to be passed in before here?
+          build-fn (if (some #{'figwheel.core} (:preloads opts))
+                     #(fig-core-build id build-inputs opts cenv %)
+                     (fn [files] (build-cljs id build-inputs opts cenv)))]
+      (log/info "Watching and compiling paths:" (pr-str inputs) "for build -" id)
+      (fww/add-watch!
+       [::autobuild id]
+       (merge
+        {::watch-info (merge
+                       (:extra-info reload-config)
+                       {:id id
+                        :paths inputs
+                        :options opts
+                        :compiler-env cenv
+                        :reload-config reload-config})}
+        {:paths inputs
+         :filter (fww/suffix-filter (into #{"cljs" "js"}
+                                          (cond
+                                            (coll? (:reload-clj-files reload-config))
+                                            (mapv name (:reload-clj-files reload-config))
+                                            (false? (:reload-clj-files reload-config)) []
+                                            :else ["clj" "cljc"])))
+         :handler (fww/throttle
+                   (:wait-time-ms reload-config 50)
+                   (bound-fn [evts]
+                     (binding [cljs.env/*compiler* cenv]
+                       (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)]
+                         (try
+                           (when-let [clj-files
+                                      (not-empty
+                                       (filter
+                                        #(or (.endsWith % ".clj")
+                                             (.endsWith % ".cljc"))
+                                        files))]
+                             (log/debug "Reloading clj files: " (pr-str (map str clj-files)))
+                             (try
+                               (figwheel.core/reload-clj-files clj-files)
+                               (catch Throwable t
+                                 (log/syntax-exception t)
+                                 (figwheel.core/notify-on-exception cenv t {})
+                                 (throw t))))
+                           (log/debug "Detected changed cljs files: " (pr-str (map str files)))
+                           (build-fn files)
+                           ;; exceptions are reported by the time they get to here
+                           (catch Throwable t false))))))})))))
 
 (declare read-edn-file)
 
@@ -1312,7 +1316,10 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                   ;; we need to get the server host:port args
                   (serve {:repl-env repl-env
                           :repl-options repl-options
-                          :join? (get b-cfg ::join-server? true)}))))))))))
+                          :join? (get b-cfg ::join-server? true)})
+                  ;; finally if we have a watcher running join it
+                  (fww/running?)
+                  (fww/join))))))))))
 
 (defn start-build-arg->build-options [build]
   (let [[build-id build-options config]

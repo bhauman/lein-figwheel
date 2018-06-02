@@ -23,6 +23,12 @@
     (when watcher (hawk/stop! watcher))
     (reset! *watcher* {})))
 
+(defn running? []
+  (some-> *watcher* deref :watcher :thread .isAlive))
+
+(defn join []
+  (some-> *watcher* deref :watcher :thread .join))
+
 (defn throttle [millis f]
   (fn [{:keys [collector] :as ctx} e]
     (let [collector (or collector (atom {}))

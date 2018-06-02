@@ -785,6 +785,7 @@
      (with-redefs [cljs.closure/build build]
        (cljs-build src opts)))
     ([src opts compiler-env & [changed-files]]
+     (assert compiler-env "should have a compiler env")
      (let [local-data (volatile! {})]
        (binding [cljs.analyzer/*cljs-warning-handlers*
                  (conj cljs.analyzer/*cljs-warning-handlers*
