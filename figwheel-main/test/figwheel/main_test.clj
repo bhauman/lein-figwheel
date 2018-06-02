@@ -46,13 +46,24 @@
 
 (deftest auto-adds-target-classpath-for-compile
   (with-edn-files
-    {:figwheel-main.edn {:target-dir "never-gonna-find-me"}
-     :scripty-test.cljs "(println (+ 1 2 3))"}
+    {:figwheel-main.edn {:target-dir "never-gonna-find-me"}}
     (is (string/includes? (with-err-str (main->config "-b" "dev"))
                           "Attempting to dynamically add classpath!!"))
     (is (string/includes? (with-err-str (main->config "-bo" "dev"))
                           "Attempting to dynamically add classpath!!"))
     (is (string/includes? (with-err-str (main->config "-c" "figwheel.main"))
                           "Attempting to dynamically add classpath!!"))))
+
+(deftest validates-command-line
+  (testing "without figwheel-main.edn"
+    (with-edn-files
+      {:figwheel-main.edn {:target-dir "never-gonna-find-me"}}
+      (string/includes? (with-err-str (main->config "-O" "dev")) "should be one of")))
+  (testing "with figwheel-main.edn"
+    (with-edn-files
+      {:figwheel-main.edn :delete}
+      (string/includes? (with-err-str (main->config "-O" "dev")) "should be one of"))))
+
+
 
 #_(main-to-print-config "-pc" "-r" )
