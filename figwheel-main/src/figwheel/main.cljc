@@ -1174,7 +1174,6 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                              "<cljs repl>"
                              ;; todo allow opts to be added here
                              (first (ana-api/forms-seq (StringReader. eval-str)))))
-
   (when-let [server (and join? @(:server repl-env))]
     (.join server)))
 
@@ -1317,8 +1316,9 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                   (serve {:repl-env repl-env
                           :repl-options repl-options
                           :join? (get b-cfg ::join-server? true)})
-                  ;; finally if we have a watcher running join it
-                  (fww/running?)
+                  ;; the final case is compiling without a repl or a server
+                  ;; if there is a watcher running join it
+                  (and (fww/running?) (get b-cfg ::join-server? true))
                   (fww/join))))))))))
 
 (defn start-build-arg->build-options [build]
