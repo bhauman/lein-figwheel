@@ -602,7 +602,7 @@ resource paths should start with @")
   (spell-exp/exp-formated "Ignored Extra CLI arguments"  _type spec-name val path problems opts))
 
 (defmethod exp/expected-str ::ignored-args [_type spec-name val path problems opts]
-  (str "extra args are only allowed after the --repl, --main, - (stdin) or script args"))
+  (str "extra args are only allowed after the --repl, --main, - (stdin) or [script] options"))
 
 (defmethod exp/problem-group-str ::missing-main-opt [_type spec-name val path problems opts]
   (spell-exp/exp-formated
