@@ -67,4 +67,31 @@
       {:figwheel-main.edn :delete}
       (string/includes? (with-err-str (main->config "-O" "dev")) "should be one of"))))
 
+(defn asset-path-relative? [{:keys [options]}]
+  (let [{:keys [output-dir asset-path]} options]
+    (and output-dir
+         asset-path
+         (string/ends-with? output-dir asset-path))))
+
+(deftest asset-path-is-relative-to-output-dir
+  (with-edn-files
+    {:figwheel-main.edn {:target-dir "never-gonna-find-me"}}
+    (is (asset-path-relative? (main->config "-co" "dev.cljs.edn" "-r")))
+    (is (asset-path-relative? (main->config "-m" "figwheel.main")))
+    (is (asset-path-relative? (main->config "-c" "figwheel.main" "-r")))
+    (is (asset-path-relative? (main->config "-b" "dev" "-r")))
+    (is (asset-path-relative? (main->config "-bo" "dev"))))
+  (with-edn-files
+    {:figwheel-main.edn :delete}
+    (is (asset-path-relative? (main->config "-co" "dev.cljs.edn" "-r")))
+    (is (asset-path-relative? (main->config "-m" "figwheel.main")))
+    (is (asset-path-relative? (main->config "-c" "figwheel.main" "-r")))
+    (is (asset-path-relative? (main->config "-b" "dev" "-r")))
+    (is (asset-path-relative? (main->config "-bo" "dev"))))
+
+
+  )
+
+
+
 #_(main-to-print-config "-pc" "-r" )

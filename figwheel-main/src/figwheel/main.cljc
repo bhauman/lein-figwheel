@@ -39,6 +39,8 @@
 (def ^:dynamic *base-config*)
 (def ^:dynamic *config*)
 
+(def default-target-dir "target")
+
 (defonce process-unique (subs (str (java.util.UUID/randomUUID)) 0 6))
 
 (defn- time-elapsed [started-at]
@@ -488,32 +490,45 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 
 (declare default-output-dir default-output-to)
 
-(defn repl-main-opt [repl-env-fn args cfg]
+(defn make-temp-dir []
+  (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
+    (.delete tempf)
+    (.mkdirs tempf)
+    (.deleteOnExit (io/file tempf))
+    (fw-util/add-classpath! (.toURL (.toURI tempf)))
+    tempf))
+
+(defn add-temp-dir [cfg]
+  (let [temp-dir (make-temp-dir)
+        config-with-target (assoc-in cfg [::config :target-dir] temp-dir)
+        output-dir (default-output-dir config-with-target)
+        output-to  (default-output-to config-with-target)]
+    (-> cfg
+        (assoc-in [:options :output-dir] output-dir)
+        (assoc-in [:options :output-to]  output-to)
+        (assoc-in [:options :asset-path]
+                  (str "cljs-out"
+                       (when-let [id (-> cfg ::build :id)]
+                         (str (System/getProperty "file.separator")
+                              id)))))))
+
+(defn should-add-temp-dir? [cfg]
   (let [target-on-classpath?
         (when-let [target-dir (get-edn-file-key
                                "figwheel-main.edn"
                                :target-dir
-                               "target")]
-          (fw-util/dir-on-classpath? target-dir))
-        temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
-                               target-on-classpath?)
-                   (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
-                     (.delete tempf)
-                     (.mkdirs tempf)
-                     (.deleteOnExit (io/file tempf))
-                     (fw-util/add-classpath! (.toURL (.toURI tempf)))
-                     tempf))]
+                               default-target-dir)]
+          (fw-util/dir-on-classpath? target-dir))]
+    (and (nil? (:target (:options cfg)))
+         (not target-on-classpath?))))
+
+(defn repl-main-opt [repl-env-fn args cfg]
+  (let [cfg (if (should-add-temp-dir? cfg)
+              (add-temp-dir cfg)
+              cfg)]
     (default-compile
      repl-env-fn
      (-> cfg
-         (cond->
-             temp-dir (assoc-in [:options :output-dir]
-                                (default-output-dir
-                                 (assoc-in cfg [::config :target-dir] temp-dir)))
-             temp-dir (assoc-in [:options :output-to]
-                                (default-output-to
-                                 (assoc-in cfg [::config :target-dir] temp-dir)))
-             temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
          (assoc-in [:options :aot-cache] true)
@@ -626,7 +641,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 ;; ----------------------------------------------------------------------------
 
 (defn default-output-dir* [target & [scope]]
-  (->> (cond-> [(or target "target") "public" "cljs-out"]
+  (->> (cond-> [(or target default-target-dir) "public" "cljs-out"]
          scope (conj scope))
        (apply io/file)
        (.getPath)))
@@ -638,7 +653,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
   (default-output-dir* (:target-dir config) (:id build)))
 
 (defmethod default-output-dir :nodejs [{:keys [::config ::build]}]
-  (let [target (:target-dir config "target")
+  (let [target (:target-dir config default-target-dir)
         scope (:id build)]
     (->> (cond-> [target "node"]
            scope (conj scope))
@@ -646,7 +661,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
          (.getPath))))
 
 (defn default-output-to* [target & [scope]]
-  (.getPath (io/file (or target "target") "public" "cljs-out"
+  (.getPath (io/file (or target default-target-dir) "public" "cljs-out"
                      (cond->> "main.js"
                        scope (str scope "-")))))
 
@@ -1234,30 +1249,22 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                     (.mkdirs target-dir)
                     (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))))
 
+;; build-id situations
+;; - temp-dir build id doesn't matter
+;; - target directory build id
+;;   (if unique would ensure clean main compile and run)
+;;   when don't you want it to be unique
+;;   when do you not want a clean compile when running main or repl?
+;;     (when you are running it over and over again)
+;;     for main we can use the main-ns for a build id
+;;   - repl only
+;;   - main only
+
 (defn default-main [repl-env-fn cfg]
-  (let [target-on-classpath?
-        (when-let [target-dir
-                   (:target-dir
-                    (try (read-string (slurp "figwheel-main.edn"))
-                         (catch Throwable t
-                           nil))
-                    "target")]
-          (fw-util/dir-on-classpath? target-dir))
-        temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
-                               target-on-classpath?)
-                   (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
-                     (.delete tempf)
-                     (.mkdirs tempf)
-                     (.deleteOnExit (io/file tempf))
-                     (fw-util/add-classpath! (.toURL (.toURI tempf)))
-                     tempf))
+  (let [cfg (if (should-add-temp-dir? cfg)
+              (add-temp-dir cfg)
+              cfg)
         cfg (-> cfg
-                (cond->
-                    temp-dir (assoc-in [:options :output-dir]
-                                       (default-output-dir* temp-dir))
-                    temp-dir (assoc-in [:options :output-to]
-                                       (default-output-to* temp-dir))
-                    temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
                 (assoc-in [:options :aot-cache] false)
                 (update :options #(assoc % :main
                                          (or (some-> (:main cfg) symbol)
