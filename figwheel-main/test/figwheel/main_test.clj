@@ -92,6 +92,27 @@
 
   )
 
+(deftest dont-infer-watch-directory-for-compile-without-repl-or-serve
+  (with-edn-files
+    {:dev.cljs.edn '{:main exproj.core}}
+    (is (empty? (-> (main->config "-co" "dev.cljs.edn" "-c")
+                    :figwheel.main/config :watch-dirs)))
+    (is (empty? (-> (main->config "-c" "exproj.core")
+                    :figwheel.main/config :watch-dirs)))
+
+    (is (not-empty (-> (main->config "-co" "dev.cljs.edn" "-c" "-r")
+                       :figwheel.main/config :watch-dirs)))
+
+    (is (not-empty (-> (main->config "-co" "dev.cljs.edn" "-c" "-s")
+                       :figwheel.main/config :watch-dirs)))
+
+
+
+    )
+
+  )
+
+
 
 
 #_(main-to-print-config "-pc" "-r" )

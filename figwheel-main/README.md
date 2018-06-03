@@ -124,7 +124,7 @@ The `-r` or `--repl` flag indicates that a repl should be launched.
 Interesting to note that the above command is equivalent to:
 
 ```
-clojure -m figwheel.main -co dev.cljs.edn -c example.core -r
+clojure -m figwheel.main -co dev.cljs.edn -c -r
 ```
 
 Note: that if you want to add your own `index.html` file to host your

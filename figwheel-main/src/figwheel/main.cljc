@@ -770,6 +770,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
             #(not-empty
               (distinct
                (let [ns-watch-dir (and
+                                   (#{:repl :serve} (:mode config))
                                    (not (:watch options))
                                    (empty? %)
                                    (:main options)
