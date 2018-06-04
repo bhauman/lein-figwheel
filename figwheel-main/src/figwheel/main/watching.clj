@@ -9,8 +9,10 @@
 (defn alter-watches [{:keys [watcher watches]} f]
   (when watcher (hawk/stop! watcher))
   (let [watches (f watches)
-        watcher (apply hawk/watch! (map vector (vals watches)))]
-    {:watcher watcher :watches watches}))
+        watcher (when (not-empty watches)
+                  (apply hawk/watch! (map vector (vals watches))))]
+    {:watcher watcher
+     :watches watches}))
 
 (defn add-watch! [watch-key watch]
   (swap! *watcher* alter-watches #(assoc % watch-key watch)))
