@@ -322,6 +322,12 @@ resource paths should start with @")
 #_(let [expd (s/explain-data ::cli-options ["-e" "(list)" "-c" "-s" "asdf:asdf" "-d"])]
     (ignored-args? expd (first (::s/problems expd))))
 
+(defn missing-build-file? [expd p]
+  (-> p :via last (= ::build-exists)))
+
+#_(let [expd (s/explain-data ::cli-options ["-b" "never-find-build"])]
+    (missing-build-file? expd (first (::s/problems expd))))
+
 (defn problem-type [expd p]
   (cond
     (:expound.spec.problem/type p)
@@ -332,6 +338,8 @@ resource paths should start with @")
     ::unknown-script-input
     (ignored-args? expd p)
     ::ignored-args
+    (missing-build-file? expd p)
+    ::missing-build-file
     :else nil))
 
 (defn add-problem-type [expd p]
@@ -402,6 +410,16 @@ resource paths should start with @")
 (defmethod update-problem ::unknown-script-input [{:keys [::s/value ::s/problems] :as expd} p]
   (let [unknown-script (-> p :val first)]
     (assoc p ::unknown-script unknown-script)))
+
+(defmethod update-problem ::missing-build-file [{:keys [::s/value ::s/problems] :as expd} p]
+  (let [build-id (:val p)
+        build-file (str build-id)
+        all-build-files (map second (keep #(when (.isFile %)
+                                             (re-matches #"(.+)\.cljs\.edn" (.getName %)))
+                                          (file-seq (io/file "."))))]
+    (cond-> (assoc p ::missing-file build-file)
+      (not-empty all-build-files) (assoc :pred (set all-build-files)))))
+
 
 (defn update-problems [expd]
   (update expd ::s/problems #(mapv (partial update-problem expd) %)))
@@ -632,6 +650,20 @@ resource paths should start with @")
         opt (first (:val prob))]
     (str "should have the correct main option for the " opt " flag to take effect,"
          (spell-exp/format-correction-list should-have-main-opt))))
+
+(defmethod exp/problem-group-str ::missing-build-file [_type spec-name val path problems opts]
+  (spell-exp/exp-formated
+   (str "Build file " (::missing-file (first problems)) ".cljs.edn not found" )
+   _type spec-name val path problems opts))
+
+(defmethod exp/expected-str ::missing-build-file
+  [_type spec-name val path problems opts]
+  (let [{:keys [val pred] :as prob} (first problems)]
+    (if (and (set? pred) (not-empty pred))
+      ;; there are build files
+      (str "should refer to an existing build" (spell-exp/format-correction-list pred))
+      (str "should refer to a build file but there are no build files in the current directory"))))
+
 
 #_ (validate-cli ["-e" "(list)" "-c" "-s" "asdf:asdf" "-d"])
 
