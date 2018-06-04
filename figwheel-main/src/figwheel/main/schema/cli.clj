@@ -36,7 +36,6 @@
                      :else nil)]
     (io/resource rname)))
 
-
 (defn file-or-resource-should-exist [f]
   (if-let [rname (cond
                    (string/starts-with? f "@/") (subs f 2)

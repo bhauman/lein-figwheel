@@ -1,6 +1,7 @@
 (ns figwheel.main.schema.cli-test
   (:require
    [figwheel.main.schema.cli :refer [validate-cli-extra]]
+   [figwheel.main.test.utils :refer [with-edn-files]]
    [clojure.string :as string]
    [clojure.test :refer [deftest testing is]]))
 
@@ -68,7 +69,37 @@
         "Missing main option"
         "must add a main option for the -e")
 
-  #_(incl (validate-cli-extra ["-e" "(list)"])
+  (with-edn-files
+    {:ex-script.cljs "(list)"}
+    (incl (validate-cli-extra ["-i" "ex-script.cljs"])
+          "Missing main option"
+          "must add a main option for the -i"))
+
+  (incl (validate-cli-extra ["-e" "(list)" "-c" "figwheel.main"])
         "Missing main option"
-        "must add a main option for the -e")
+        "must add a main option for the -e"
+        ;; narrows the suggestion
+        "\"--repl\", \"-r\"\n")
+
+  (incl (validate-cli-extra ["-O" "advanced"])
+        "Missing main option"
+        "must add a main option for the -O"
+        "--compile"
+        )
+
+
+  )
+
+(deftest imcompatible-flag-for-main-opt
+  (incl (validate-cli-extra ["-e" "(list)" "-s" "asdf:hasdf"])
+        "Incompatible flag for main options:  -s"
+        "--repl")
+
+
+  (incl (validate-cli-extra ["-O" "advanced" "-r"])
+        "Incompatible flag for main options:  -r"
+        "should have the correct main option for the -O"
+        "--compile"
+        )
+
   )
