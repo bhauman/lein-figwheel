@@ -149,7 +149,7 @@
 
                        "<p>This page is currently hosting your REPL and application evaluation environment. "
                        "Validate the connection by typing <code>(js/alert&nbsp;\"Hello&nbsp;Figwheel!\")</code> in the REPL.</p>"
-                       "<p>To provide your own custom page, place an <code>index.html</code> file on the server path.</p>"
+                       "<p>To provide your own custom page, place an <code>index.html</code> file on the server path (normally <code>resources/public/index.html</code>).</p>"
                        "<pre>"
                        "&lt;!DOCTYPE html&gt;\n"
                        "&lt;html&gt;\n"
