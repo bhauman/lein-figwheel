@@ -532,6 +532,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
          (assoc-in [:options :aot-cache] true)
+         ;; TODO only do this if open-url isn't set
          (assoc-in [:repl-env-options :open-url]
                    "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
          ;; TODO :default-index-body should be a function that takes the build options as an arg
@@ -1270,6 +1271,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                 (update :options #(assoc % :main
                                          (or (some-> (:main cfg) symbol)
                                              'figwheel.repl.preload)))
+                ;; TODO only do this if open-url isn't set
                 (assoc-in [:repl-env-options :open-url]
                           "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
                 ;; TODO :default-index-body should be a function that takes the build options as an arg

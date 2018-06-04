@@ -129,8 +129,20 @@
           (handler request))
         (handler request)))))
 
+
+(defn best-guess-script-path [output-to]
+  (when output-to
+    (let [parts (string/split output-to #"[/\\]")]
+      (when ((set parts) "public")
+        (->> parts
+             (split-with (complement #{"public"}))
+             second
+             (drop 1)
+             (string/join "/"))))))
+
 (defn index-html [{:keys [output-to body]}]
-  (let [body' (or body
+  (let [path  (best-guess-script-path output-to)
+        body' (or body
                   (str "<p>Welcome to the Figwheel default index page.</p>"
 
                        "<p>You are seeing this because the webserver was unable to locate an index page for your application.</p>"
@@ -145,9 +157,12 @@
                        "    &lt;meta charset=\"UTF-8\"&gt;\n"
                        "  &lt;/head&gt;\n"
                        "  &lt;body&gt;\n"
-                       "    &lt;script src=\"[correct-path-to "
-                       (or output-to "main.js file")
-                       "]\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
+                       "    &lt;script src=\""
+                       (if path path
+                           (str "[correct-path-to "
+                                (or output-to "main.js file")
+                                "]"))
+                       "\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
                        "  &lt;/body&gt;\n"
                        "&lt;/html&gt;\n"
                        "</pre>"
