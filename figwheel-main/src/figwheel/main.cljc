@@ -522,23 +522,39 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (and (nil? (:target (:options cfg)))
          (not target-on-classpath?))))
 
+(defn helper-ring-app [handler html-body output-to & [force-index?]]
+  (figwheel.server.ring/default-index-html
+   handler
+   (figwheel.server.ring/index-html (cond-> {}
+                                      html-body (assoc :body html-body)
+                                      output-to (assoc :output-to output-to)))
+   force-index?))
+
 (defn repl-main-opt [repl-env-fn args cfg]
   (let [cfg (if (should-add-temp-dir? cfg)
               (add-temp-dir cfg)
-              cfg)]
+              cfg)
+        cfg (if (get-in cfg [::build :id])
+              cfg
+              (assoc-in cfg [::build :id] "figwheel-default-repl-build"))
+        output-to (get-in cfg [:options :output-to]
+                          (default-output-to cfg))]
     (default-compile
      repl-env-fn
      (-> cfg
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
          (assoc-in [:options :aot-cache] true)
-         ;; TODO only do this if open-url isn't set
-         (assoc-in [:repl-env-options :open-url]
-                   "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
-         ;; TODO :default-index-body should be a function that takes the build options as an arg
-         (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
-         (assoc-in [::config :mode] :repl)
-         (assoc-in [::build] {:id "figwheel-default-repl-build"})))))
+
+         (assoc-in [::config
+                    :ring-stack-options
+                    :figwheel.server.ring/dev
+                    :figwheel.server.ring/system-app-handler]
+                   #(helper-ring-app %
+                                     default-main-repl-index-body
+                                     output-to
+                                     true))
+         (assoc-in [::config :mode] :repl)))))
 
 (declare serve update-config)
 
@@ -549,14 +565,20 @@ classpath. Classpath-relative paths have prefix of @ or @/")
   (pprint (:options cfg)))
 
 (defn serve-main-opt [repl-env-fn args b-cfg]
-  (let [{:keys [::config repl-env-options repl-options] :as cfg}
+  (let [{:keys [repl-env-options repl-options options] :as cfg}
         (-> b-cfg
             (assoc :args args)
-            update-config
-            (assoc-in [:repl-env-options :default-index-body]
-                      ;; TODO helpful instructions on where to put index.html
-                      "<center><h3 style=\"color:red;\">index.html not found</h3></center>"))
-        {:keys [pprint-config]} config
+            update-config)
+        repl-env-options
+        (assoc-in repl-env-options
+                  [:ring-stack-options
+                   :figwheel.server.ring/dev
+                   :figwheel.server.ring/system-app-handler]
+                  #(helper-ring-app %
+                                    ;; TODO helpful instructions on where to put index.html
+                                    "<center><h3 style=\"color:red;\">index.html not found</h3></center>"
+                                    (:output-to options)))
+        {:keys [pprint-config]} (::config cfg)
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))]
     (log/trace "Verbose config:" (with-out-str (pprint cfg)))
     (if pprint-config
@@ -1266,28 +1288,40 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
   (let [cfg (if (should-add-temp-dir? cfg)
               (add-temp-dir cfg)
               cfg)
+        cfg (if (get-in cfg [::build :id])
+              cfg
+              (assoc-in cfg [::build :id] "figwheel-main-option-build"))
+        output-to (get-in cfg [:options :output-to]
+                          (default-output-to cfg))
         cfg (-> cfg
                 (assoc-in [:options :aot-cache] false)
                 (update :options #(assoc % :main
                                          (or (some-> (:main cfg) symbol)
                                              'figwheel.repl.preload)))
-                ;; TODO only do this if open-url isn't set
-                (assoc-in [:repl-env-options :open-url]
-                          "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
-                ;; TODO :default-index-body should be a function that takes the build options as an arg
-                (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
-                (assoc-in [::config :mode] :repl)
-                (assoc-in [::build] {:id "figwheel-main-option-build"}))
+                (assoc-in [::config
+                           :ring-stack-options
+                           :figwheel.server.ring/dev
+                           :figwheel.server.ring/system-app-handler]
+                          #(helper-ring-app
+                            %
+                            (str "<br/><br/><center>"
+                                 (if (:main cfg)
+                                   (str "Executing main fn: <code>" (str (:main cfg) "/-main</code>"))
+                                   "Attempting to execute main")
+                                 "</center>")
+                            output-to
+                            true))
+                (assoc-in [::config :mode] :repl))
         source (:uri (bapi/ns->location (get-in cfg [:options :main])))]
     (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg}
           (update-config cfg)
-          {:keys [mode pprint-config]} config]
+          {:keys [pprint-config]} config]
       (if pprint-config
         (do
           (log/info ":pprint-config true - printing config:")
           (print-conf b-cfg))
         (cljs.env/ensure
-         (build-cljs "figwheel-main-option-build"
+         (build-cljs (get-in b-cfg [::build :id] "figwheel-main-option-build")
                      source
                      (:options b-cfg) cljs.env/*compiler*)
           (cljs.cli/default-main repl-env-fn b-cfg))))))

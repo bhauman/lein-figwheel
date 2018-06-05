@@ -220,15 +220,13 @@
         "</script>"))
      "</body></html>")))
 
-(defn default-index-html [handler html]
+(defn default-index-html [handler html & [force-index?]]
   (fn [r]
     (let [res           (handler r)
           method-uri    ((juxt :request-method :uri) r)
-          root-request? (= [:get "/"] method-uri)
-          force-index? (= "figwheel-server-force-default-index=true"
-                           (:query-string r))]
+          root-request? (= [:get "/"] method-uri)]
       (cond
-        (and force-index? html)
+        (and force-index? root-request? html)
         {:status 200
          :headers {"Content-Type" "text/html"}
          :body html}
@@ -242,12 +240,13 @@
   (let [{:keys [:co.deps.ring-etag-middleware/wrap-file-etag
                 :ring.middleware.cors/wrap-cors
                 :ring.middleware.not-modified/wrap-not-modified
-                :ring.middleware.stacktrace/wrap-stacktrace]} dev]
+                :ring.middleware.stacktrace/wrap-stacktrace
+                ::system-app-handler]} dev]
     (cond-> (handle-first ring-handler not-found)
       (::resource-root-index dev) (resource-root-index (get-in config [:static :resources]))
       true                        (ring.middleware.defaults/wrap-defaults config)
       (dev ::fix-index-mime-type) fix-index-mime-type
-      (dev ::default-index-html)  (default-index-html (::default-index-html dev))
+      system-app-handler          system-app-handler
       (dev ::wrap-no-cache)       wrap-no-cache
       wrap-file-etag              etag/wrap-file-etag
       wrap-not-modified           not-modified/wrap-not-modified

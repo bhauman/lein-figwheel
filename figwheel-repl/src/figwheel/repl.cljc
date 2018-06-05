@@ -1063,12 +1063,12 @@
           (and
            (contains? #{nil :browser} (:target options))
            (:output-to options)
-           (not (get-in (:ring-stack-options options) [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html])))
+           (not (get-in (:ring-stack-options options) [:figwheel.server.ring/dev :figwheel.server.ring/system-app-handler])))
           (assoc-in
-           [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html]
-           (figwheel.server.ring/index-html (cond-> (select-keys options [:output-to])
-                                              (:default-index-body options)
-                                              (assoc :body (:default-index-body options)))))))
+           [:figwheel.server.ring/dev :figwheel.server.ring/system-app-handler]
+           #(figwheel.server.ring/default-index-html
+             %
+             (figwheel.server.ring/index-html (select-keys options [:output-to]))))))
      (assoc (get options :ring-server-options)
             :async-handlers
             {figwheel-connect-path
@@ -1117,7 +1117,7 @@
          (nil? @(:server repl-env)))
     (let [server (run-default-server
                   (merge
-                   (select-keys repl-env [:default-index-body
+                   (select-keys repl-env [
                                           :port
                                           :host
                                           :output-to
