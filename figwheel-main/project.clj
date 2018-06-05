@@ -1,4 +1,4 @@
-(defproject com.bhauman/figwheel-main "0.1.0"
+(defproject com.bhauman/figwheel-main "0.1.1-SNAPSHOT"
   :description "Figwheel Main - Clojurescript tooling."
   :url "https://github.com/bhauman/lein-figwheel"
   :license {:name "Eclipse Public License - v 1.0"
@@ -9,8 +9,8 @@
   :dependencies
   [[org.clojure/clojure "1.9.0"]
    [org.clojure/clojurescript "1.10.238"]
-   [com.bhauman/figwheel-repl "0.1.0"]
-   [com.bhauman/figwheel-core "0.1.0"]
+   [com.bhauman/figwheel-repl "0.1.1-SNAPSHOT"]
+   [com.bhauman/figwheel-core "0.1.1-SNAPSHOT"]
    [com.bhauman/spell-spec "0.1.0"]
    [ring "1.6.3"]
    [org.eclipse.jetty.websocket/websocket-servlet "9.2.21.v20170120"]
