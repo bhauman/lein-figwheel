@@ -1,5 +1,7 @@
 # figwheel-main
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.bhauman/figwheel-main.svg)](https://clojars.org/com.bhauman/figwheel-main)
+
 Figwheel Main is intended to provide a `cljs.main` like command line
 experience for ClojureScript that also provides the many features that
 were first developed in `lein-figwheel` but better.
@@ -48,7 +50,7 @@ On Mac OSX with brew:
 Now launch a ClojureScript REPL with:
 
 ```
-clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"}}}}"  -m figwheel.main
+clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0\"}}}}"  -m figwheel.main
 ```
 
 This will first compile browser REPL code to a temp directory, and
@@ -70,7 +72,7 @@ available. So you can get Rebel Readline behavior by simply adding it
 to your dependencies.
 
 ```
-clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
+clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
 ```
 
 As of right now Rebel readline does create some startup overhead
@@ -85,7 +87,7 @@ reload them.
 Ensure your `deps.edn` file has `figwheel.main` dependencies:
 
 ```clojure
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
+{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0"}
         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}
  ;; setup common development paths that you may be used to 
  ;; from lein
@@ -164,7 +166,7 @@ ClojureScript searches for source files on the Classpath. When you add
 a `re-frame` dependency like so:
 
 ```clojure
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
+{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0"}
         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}
         ;; adding re-frame
         re-frame {:mvn/version "1.10.5"}}
