@@ -4,14 +4,22 @@
    [clojure.string :as string]
    [clojure.spec.alpha :as s]
    [clojure.set]
+   [figwheel.main.util :as util]
    [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?
                                       ensure-all-registered-keys-included]]
+   [figwheel.main.schema.shared]
    [expound.alpha :as exp]
    [spell-spec.alpha :as spell]
    [spell-spec.expound]))
 
-(s/def ::watch-dirs (s/coll-of (s/and non-blank-string?
-                                      directory-exists?)))
+(s/def ::watch-dirs
+  (s/coll-of
+   (s/and non-blank-string?
+          directory-exists?
+          :figwheel.main.schema.shared/has-cljs-source-files)))
+
+#_(exp/expound ::watch-dirs ["/Users/bhauman/workspace/temp/figtest/ouchy"])
+
 (def-spec-meta ::watch-dirs
   :doc
   "A list of ClojureScript source directories to be watched and compiled on change.

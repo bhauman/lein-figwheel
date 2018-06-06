@@ -13,6 +13,7 @@
                                       non-blank-string?
                                       file-exists?
                                       directory-exists?]]
+   [figwheel.main.schema.shared]
    [figwheel.main.util :as fw-util]
    [spell-spec.alpha :as spell]
    [spell-spec.expound :as spell-exp]))
@@ -135,7 +136,8 @@ resource paths should start with @")
 (s/def ::print-config #{"-pc" "--print-config"})
 
 (s/def ::watch (s/cat :opt-key #{"-w" "--watch"}
-                      :opt-val ::directory-exists))
+                      :opt-val (s/and ::directory-exists
+                                      :figwheel.main.schema.shared/has-cljs-source-files)))
 
 (defn integer-string? [s] (re-matches #"\d+" s))
 

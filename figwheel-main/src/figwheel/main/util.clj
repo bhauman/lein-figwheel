@@ -155,3 +155,14 @@
       (find-ns-source-in-local-dir ns)))
 
 #_(ns-available? "exproj.core")
+
+(defn source-file-types-in-dir [dir]
+  (into
+   #{}
+   (map
+    #(last (string/split % #"\."))
+    (keep
+     #(last (path-parts (str %)))
+     (filter
+      #(.isFile %)
+      (file-seq (io/file dir)))))))
