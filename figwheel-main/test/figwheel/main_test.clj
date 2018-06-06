@@ -49,13 +49,13 @@
 ;; FIX logging output capture
 (deftest auto-adds-target-classpath-for-compile
   (with-edn-files
-    {:figwheel-main.edn {:target-dir "never-gonna-find-me"}}
+    {:figwheel-main.edn {:target-dir "never-gonna-find-me-now"}}
     (is (string/includes? (with-out-str (main->config "-b" "dev"))
-                          "Attempting to dynamically add classpath!!"))
+                          "Attempting to dynamically add \"never-gonna-find-me-now\""))
     (is (string/includes? (with-out-str (main->config "-bo" "dev"))
-                          "Attempting to dynamically add classpath!!"))
+                          "Attempting to dynamically add \"never-gonna-find-me-now\""))
     (is (string/includes? (with-out-str (main->config "-c" "figwheel.main"))
-                          "Attempting to dynamically add classpath!!"))))
+                          "Attempting to dynamically add \"never-gonna-find-me-now\""))))
 
 (deftest validates-command-line
   (testing "without figwheel-main.edn"

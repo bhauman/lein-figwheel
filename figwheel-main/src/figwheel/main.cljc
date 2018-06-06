@@ -425,7 +425,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     build))
 
 (defn watch-dir-from-ns [main-ns]
-  (let [source (bapi/ns->location main-ns)]
+  (let [source (fw-util/ns->location main-ns)]
     (when-let [f (:uri source)]
       (when (= "file" (.getScheme (.toURI f)))
         (let [res (fw-util/relativized-path-parts (.getPath f))
@@ -495,7 +495,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (.delete tempf)
     (.mkdirs tempf)
     (.deleteOnExit (io/file tempf))
-    (fw-util/add-classpath! (.toURL (.toURI tempf)))
+    (fw-util/add-classpath! (.toURL tempf))
     tempf))
 
 (defn add-temp-dir [cfg]
@@ -725,8 +725,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (cond-> main-edn
       handler (assoc :ring-handler handler))))
 
-
-
 ;; use tools reader read-string for better error messages
 #_(redn/read-string)
 (defn fetch-figwheel-main-edn [cfg]
@@ -766,6 +764,43 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (cond-> cfg
       main-ns (assoc :ns main-ns)       ;; TODO not needed?
       main-ns (assoc-in [:options :main] main-ns))))
+
+(defn warn-that-dir-not-on-classpath [typ dir]
+  (let [[n k] (condp = typ
+                :source ["Source directory" :source-paths]
+                :target ["Target directory" :resource-paths])]
+    (log/warn (ansip/format-str
+               [:yellow n " "
+                (pr-str (str dir))
+                " is not on the classpath"]))
+    (log/warn "Please fix this by adding" (pr-str (str dir))
+              "to your classpath\n"
+              "I.E.\n"
+              "For Clojure CLI Tools in your deps.edn file:\n"
+              "   ensure" (pr-str (str dir))
+              "is in your :paths key\n\n"
+              (when k
+                (format
+                 (str "For Leiningen in your project.clj:\n"
+                      "   add it to the %s key\n")
+                 (pr-str k))))))
+
+;; takes a string or file representation of a directory
+(defn add-classpath! [dir]
+  (when-not (fw-util/dir-on-classpath? dir)
+    (log/warn (ansip/format-str [:yellow
+                                 (format "Attempting to dynamically add %s to classpath!"
+                                 (pr-str (str dir)))]))
+    (fw-util/add-classpath! (.toURL (io/file dir)))))
+
+(defn- config-main-sourch-path-on-classpath [{:keys [options] :as cfg}]
+  (when-let [main (:ns cfg)]
+    (when-not (fw-util/safe-ns->location main)
+      (when-let [src-dir (fw-util/find-source-dir-for-cljs-ns main)]
+        (when-not (fw-util/dir-on-classpath? src-dir)
+          (add-classpath! src-dir)
+          (warn-that-dir-not-on-classpath :source src-dir)))))
+  cfg)
 
 ;; targets local config
 (defn- config-repl-serve? [{:keys [ns args] :as cfg}]
@@ -1039,6 +1074,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-log-syntax-error-style!
        config-repl-serve?
        config-main-ns
+       config-main-sourch-path-on-classpath
        config-update-watch-dirs
        config-figwheel-mode?
        config-default-dirs
@@ -1056,7 +1092,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 
 (defn build [{:keys [watch-dirs mode ::build] :as config} options cenv]
   (let [source (when (and (= :none (:optimizations options :none)) (:main options))
-                 (:uri (bapi/ns->location (symbol (:main options)))))
+                 (:uri (fw-util/ns->location (symbol (:main options)))))
         id (:id (::build *config*) "dev")]
     ;; TODO should probably try obtain a watch path from :main here
     ;; if watch-dirs is empty
@@ -1259,21 +1295,10 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
               (when-not (empty? target-dir)
                 (let [target-dir (apply io/file target-dir)]
                   (when-not (fw-util/dir-on-classpath? target-dir)
-                    (log/warn (ansip/format-str
-                               [:yellow "Target directory " (pr-str (str target-dir))
-                                " is not on the classpath"]))
-                    (log/warn "Please fix this by adding" (pr-str (str target-dir))
-                              "to your classpath\n"
-                              "I.E.\n"
-                              "For Clojure CLI Tools in your deps.edn file:\n"
-                              "   ensure " (pr-str (str target-dir))
-                              "is in your :paths key\n\n"
-                              "For Leiningen in your project.clj:\n"
-                              "   either set your :target key to" (pr-str (str target-dir))
-                              "or add it to the :resource-paths key\n")
-                    (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
                     (.mkdirs target-dir)
-                    (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))))
+                    (add-classpath! target-dir)
+                    (warn-that-dir-not-on-classpath :target target-dir)
+))))))))))
 
 ;; build-id situations
 ;; - temp-dir build id doesn't matter
@@ -1314,7 +1339,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                             output-to
                             true))
                 (assoc-in [::config :mode] :repl))
-        source (:uri (bapi/ns->location (get-in cfg [:options :main])))]
+        source (:uri (fw-util/ns->location (get-in cfg [:options :main])))]
     (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg}
           (update-config cfg)
           {:keys [pprint-config]} config]
@@ -1592,7 +1617,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
               input (if-let [paths (not-empty (:watch-dirs config))]
                       (apply bapi/inputs paths)
                       (when-let [source (when (:main options)
-                                          (:uri (bapi/ns->location (symbol (:main options)))))]
+                                          (:uri (fw-util/ns->location (symbol (:main options)))))]
                         source))]
           (when input
             (build-cljs i input options

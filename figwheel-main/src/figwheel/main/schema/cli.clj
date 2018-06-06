@@ -218,13 +218,11 @@ resource paths should start with @")
 (s/def ::build-once  (s/cat :build-opt #{"-bo" "--build-once"}
                             :build-val ::build-name))
 
-(defn cljs-namespace-on-classpath? [ns]
-  (try (bapi/ns->location ns)
-       (catch Throwable t
-         false)))
+(defn cljs-namespace-available? [ns]
+  (fw-util/ns-available? ns))
 
-(exp/def ::cljs-namespace-on-classpath cljs-namespace-on-classpath?
-  "should be a CLJS namespace on the classpath (.ie example.main)")
+(exp/def ::cljs-namespace-available cljs-namespace-available?
+  "should be a CLJS namespace available on the classpath")
 
 (s/def ::compile (s/cat :flag #{"-c" "--compile"}
                         :val  (s/? not-flag?)))
@@ -236,7 +234,7 @@ resource paths should start with @")
 #_(s/conform ::cli-options ["-e" "(list)"  "-c" "-figwheel" "-r"])
 
 (s/def ::main (s/cat :flag #{"-m" "--main"}
-                     :val  ::cljs-namespace-on-classpath
+                     :val  ::cljs-namespace-available
                      :args (s/* any?)))
 
 (s/def ::help  #{"-h" "--help" "-?"})
@@ -247,7 +245,7 @@ resource paths should start with @")
                     :build    (s/cat :opt ::build
                                      :repl-serve (s/? ::repl-or-serve))
                     :compile-ns (s/cat :flag #{"-c" "--compile"}
-                                       :ns ::cljs-namespace-on-classpath
+                                       :ns ::cljs-namespace-available
                                        :repl-serve (s/? ::repl-or-serve))
                     :compile    (s/cat :flag #{"-c" "--compile"}
                                        :repl-serve (s/? ::repl-or-serve))
