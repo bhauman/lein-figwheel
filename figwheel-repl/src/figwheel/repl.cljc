@@ -1153,7 +1153,7 @@
     (when (and (= :nodejs target)
                (:launch-node repl-env true)
                output-to)
-      (let [output-file (str (io/file output-dir "node.log"))]
+      (let [output-file (io/file output-dir "node.log")]
         (println "Starting node ... ")
         (reset! (:node-proc repl-env) (launch-node opts repl-env output-to output-file))
         (println "Node output being logged to:" output-file)
