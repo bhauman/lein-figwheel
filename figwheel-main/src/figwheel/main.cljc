@@ -1070,6 +1070,18 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (alter-var-root #'log/*syntax-error-style* (fn [_] (:log-syntax-error-style config))))
   cfg)
 
+(defn- config-warn-resource-directory-not-on-classpath [{:keys [::config options] :as cfg}]
+  ;; this could check for other directories than resources
+  ;; but this is mainly to help newcomers
+  (when (and (nil? (:target options))
+             (#{:repl :serve} (:mode config))
+             (.isFile (io/file "resources/public/index.html"))
+             (not (fw-util/dir-on-classpath? "resources")))
+    (log/warn (ansip/format-str
+               [:yellow "A \"resources/public/index.html\" exists but the \"resources\" directory is not on the classpath\n"
+                "    the default server will not be able to find your index.html"])))
+  cfg)
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
@@ -1092,7 +1104,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-open-file-command
        config-watch-css
        config-finalize-repl-options
-       config-clean))
+       config-clean
+       config-warn-resource-directory-not-on-classpath))
 
 ;; ----------------------------------------------------------------------------
 ;; Main action
