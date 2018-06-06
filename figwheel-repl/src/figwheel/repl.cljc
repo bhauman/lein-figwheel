@@ -1117,9 +1117,9 @@
          (nil? @(:server repl-env)))
     (let [server (run-default-server
                   (merge
-                   (select-keys repl-env [
-                                          :port
+                   (select-keys repl-env [:port
                                           :host
+                                          :target
                                           :output-to
                                           :ring-handler
                                           :ring-server
@@ -1146,31 +1146,33 @@
                         (repl-env-print repl-env stream args))))))))]
       (reset! (:printing-listener repl-env) print-listener)
       (add-listener print-listener)))
+  (let [{:keys [target output-to output-dir]}
+        (apply merge
+               (map #(select-keys % [:target :output-to :output-dir]) [repl-env opts]))]
+    ;; Node REPL
+    (when (and (= :nodejs target)
+               (:launch-node repl-env true)
+               output-to)
+      (let [output-file (str (io/file output-dir "node.log"))]
+        (println "Starting node ... ")
+        (reset! (:node-proc repl-env) (launch-node opts repl-env output-to output-file))
+        (println "Node output being logged to:" output-file)
+        (when (:inspect-node repl-env true)
+          (println "For a better development experience:")
+          (println "  1. Open chrome://inspect/#devices ... (in Chrome)")
+          (println "  2. Click \"Open dedicated DevTools for Node\""))))
 
-  ;; Node REPL
-  (when (and (= :nodejs (:target opts))
-             (:launch-node repl-env true)
-             (:output-to opts))
-    (let [output-file (str (io/file (:output-dir opts) "node.log"))]
-      (println "Starting node ... ")
-      (reset! (:node-proc repl-env) (launch-node opts repl-env (:output-to opts) output-file))
-      (println "Node output being logged to:" output-file)
-      (when (:inspect-node repl-env true)
-        (println "For a better development experience:")
-        (println "  1. Open chrome://inspect/#devices ... (in Chrome)")
-        (println "  2. Click \"Open dedicated DevTools for Node\""))))
-
-  ;; open a url
-  (when-let [open-url
-             (and (not (= :nodejs (:target opts)))
-              (when-let [url (:open-url repl-env)]
-                ;; TODO the host port thing needs to be fixed ealier
-                (fill-server-url-template
-                 url
-                 (merge (select-keys repl-env [:host :port])
-                        (select-keys (:ring-server-options repl-env) [:host :port])))))]
-    (println "Opening URL" open-url)
-    (browse/browse-url open-url)))
+    ;; open a url
+    (when-let [open-url
+               (and (not (= :nodejs target))
+                    (when-let [url (:open-url repl-env)]
+                      ;; TODO the host port thing needs to be fixed ealier
+                      (fill-server-url-template
+                       url
+                       (merge (select-keys repl-env [:host :port])
+                              (select-keys (:ring-server-options repl-env) [:host :port])))))]
+      (println "Opening URL" open-url)
+      (browse/browse-url open-url))))
 
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
@@ -1186,17 +1188,15 @@
       (evaluate this js-content)))
   (-tear-down [{:keys [server printing-listener node-proc]}]
     ;; don't shut things down in nrepl
-    (when-not (when-let [v (resolve 'clojure.tools.nrepl.middleware.interruptible-eval/*msg*)]
-                (thread-bound? v))
-      (when-let [svr @server]
-        (reset! server nil)
-        (.stop svr))
-      (when-let [proc @node-proc]
-        (.destroy proc)
-        #_(.waitFor proc) ;; ?
-        )
-      (when-let [listener @printing-listener]
-        (remove-listener listener))))
+    (when-let [svr @server]
+      (reset! server nil)
+      (.stop svr))
+    (when-let [proc @node-proc]
+      (.destroy proc)
+      #_(.waitFor proc) ;; ?
+      )
+    (when-let [listener @printing-listener]
+      (remove-listener listener)))
   cljs.repl/IReplEnvOptions
   (-repl-options [this]
     (let [main-fn (resolve 'figwheel.main/default-main)]

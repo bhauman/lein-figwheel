@@ -989,7 +989,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                      [`(set! *command-line-args* (list ~@args))])}]
           inits)))
 
-(defn get-repl-env-options [{:keys [repl-env-options ::config] :as cfg}]
+(defn get-repl-env-options [{:keys [repl-env-options ::config options] :as cfg}]
   (let [repl-options (get-repl-options cfg)]
     (merge
      (select-keys config
@@ -1004,7 +1004,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    :broadcast
                    :open-url])
      repl-env-options ;; from command line
-     (select-keys repl-options [:output-to :output-dir]))))
+     (select-keys options [:output-to :output-dir :target]))))
 
 (defn config-finalize-repl-options [cfg]
   (let [repl-options (get-repl-options cfg)
