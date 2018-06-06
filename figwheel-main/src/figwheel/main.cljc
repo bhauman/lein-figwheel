@@ -786,7 +786,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                  (pr-str k))))))
 
 ;; takes a string or file representation of a directory
-(defn add-classpath! [dir]
+(defn- add-classpath! [dir]
   (when-not (fw-util/dir-on-classpath? dir)
     (log/warn (ansip/format-str [:yellow
                                  (format "Attempting to dynamically add %s to classpath!"
@@ -836,6 +836,13 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                  (cond-> %
                    (:watch options) (conj (:watch options))
                    ns-watch-dir (conj ns-watch-dir)))))))
+
+(defn- config-ensure-watch-dirs-on-classpath [{:keys [::config] :as cfg}]
+  (doseq [src-dir (:watch-dirs config)]
+    (when-not (fw-util/dir-on-classpath? src-dir)
+      (add-classpath! src-dir)
+      (warn-that-dir-not-on-classpath :source src-dir)))
+  cfg)
 
 ;; needs local config
 (defn figwheel-mode? [{:keys [::config options]}]
@@ -1076,6 +1083,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-main-ns
        config-main-sourch-path-on-classpath
        config-update-watch-dirs
+       config-ensure-watch-dirs-on-classpath
        config-figwheel-mode?
        config-default-dirs
        config-default-asset-path
