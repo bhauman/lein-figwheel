@@ -52,7 +52,7 @@ Default: none
   :group :common)
 
 (s/def ::ring-server-options (s/keys :opt-un
-                                     [::schema/port
+                                     [::schema/integer-port
                                       ::schema/host]))
 
 (def-spec-meta ::ring-server-options
@@ -445,6 +445,22 @@ behavior. Default: false
     :broadcast true"
   :group :un-common)
 
+(s/def ::repl-eval-timeout integer?)
+(def-spec-meta ::repl-eval-timeout
+  :doc
+  "The time (in milliseconds) it takes for the repl to timeout.
+Evaluating any given expression in cljs can take some time.
+The repl is configured to throw a timeout exception as to not hang forever.
+
+This config option will determine how long the repl waits for the result of an eval
+before throwing.
+
+Default: 8000
+
+    :repl-eval-timeout 10000 ;;waits for 10 seconds instead of 8"
+  :group :un-common)
+
+
 (s/def ::edn
   (ensure-all-registered-keys-included
    #{::edn}
@@ -474,6 +490,7 @@ behavior. Default: false
      ::launch-node
      ::inspect-node
      ::node-command
+     ::cljs-devtools
 
      ::client-print-to
      ::ring-stack
@@ -482,4 +499,5 @@ behavior. Default: false
      ::mode
      ::ring-server
      ::broadcast
-     ::broadcast-reload])))
+     ::broadcast-reload
+     ::repl-eval-timeout])))

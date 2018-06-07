@@ -989,7 +989,7 @@
 
 (let [timeout-val (Object.)]
   (defn evaluate [{:keys [focus-session-name ;; just here for consideration
-                          repl-timeout
+                          repl-eval-timeout
                           broadcast] :as repl-env} js]
     (reset! (:bound-printer repl-env)
             (bound-fn [stream args]
@@ -997,7 +997,7 @@
     (wait-for-connection repl-env)
     (let [ev-connections (eval-connections repl-env)
           result (let [v (deref (send-for-eval repl-env ev-connections js)
-                                (or repl-timeout 8000)
+                                (or repl-eval-timeout 8000)
                                 timeout-val)]
                    (cond (= timeout-val v)
                      (do

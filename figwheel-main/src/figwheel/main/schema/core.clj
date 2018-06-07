@@ -22,7 +22,9 @@
 (defn directory-exists? [s] (and s (.isDirectory (io/file s))))
 (defn non-blank-string? [x] (and (string? x) (not (string/blank? x))))
 
-(defn integer-like? [x] (re-matches #"\d+" x))
+(defn integer-like? [x]
+  (and (string? x)
+       (re-matches #"\d+" x)))
 
 (defn flag-arg? [s]
   (and (non-blank-string? s)
@@ -40,6 +42,9 @@
   "should be an existing host interface (i.e. \"localhost\" \"127.0.0.1\" \"0.0.0.0\" \"192.168.0.1\")")
 
 (exp/def ::port integer-like?
+  "should be an integer port i.e 9500")
+
+(exp/def ::integer-port integer?
   "should be an integer port i.e 9500")
 
 (defn has-cljs-source-files? [dir]

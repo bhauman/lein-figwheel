@@ -1057,7 +1057,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    :inspect-node
                    :node-command
                    :broadcast
-                   :open-url])
+                   :open-url
+                   :repl-eval-timeout])
      repl-env-options ;; from command line
      (select-keys options [:output-to :output-dir :target]))))
 
