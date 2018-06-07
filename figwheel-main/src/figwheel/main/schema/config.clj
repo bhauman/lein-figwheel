@@ -5,9 +5,10 @@
    [clojure.spec.alpha :as s]
    [clojure.set]
    [figwheel.main.util :as util]
-   [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?
-                                      ensure-all-registered-keys-included]]
-   [figwheel.main.schema.shared]
+   [figwheel.main.schema.core
+    :as schema
+    :refer [def-spec-meta non-blank-string? directory-exists?
+            ensure-all-registered-keys-included]]
    [expound.alpha :as exp]
    [spell-spec.alpha :as spell]
    [spell-spec.expound]))
@@ -16,7 +17,7 @@
   (s/coll-of
    (s/and non-blank-string?
           directory-exists?
-          :figwheel.main.schema.shared/has-cljs-source-files)))
+          ::schema/has-cljs-source-files)))
 
 #_(exp/expound ::watch-dirs ["/Users/bhauman/workspace/temp/figtest/ouchy"])
 
@@ -50,7 +51,10 @@ Default: none
     :ring-handler my-project.server/handler"
   :group :common)
 
-(s/def ::ring-server-options (s/keys :opt-un [::port]))
+(s/def ::ring-server-options (s/keys :opt-un
+                                     [::schema/port
+                                      ::schema/host]))
+
 (def-spec-meta ::ring-server-options
   :doc
  "All the options to forward to the `ring-jetty-adapter/run-jetty` function

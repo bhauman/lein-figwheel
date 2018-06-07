@@ -9,22 +9,17 @@
    [clojure.string :as string]
    [expound.alpha :as exp]
    [expound.printer :as printer]
-   [figwheel.main.schema.core :refer [def-spec-meta
-                                      non-blank-string?
-                                      file-exists?
-                                      directory-exists?]]
-   [figwheel.main.schema.shared]
+   [figwheel.main.schema.core
+    :as schema
+    :refer [def-spec-meta
+            non-blank-string?
+            file-exists?
+            flag-arg?
+            not-flag?
+            directory-exists?]]
    [figwheel.main.util :as fw-util]
    [spell-spec.alpha :as spell]
    [spell-spec.expound :as spell-exp]))
-
-(defn flag-arg? [s]
-  (and (non-blank-string? s)
-       (.startsWith s "-")))
-
-(defn not-flag? [x]
-  (and (string? x)
-       (not (flag-arg? x))))
 
 (defn inline-edn-string? [s]
   (or (string/starts-with? s "{")
@@ -137,17 +132,13 @@ resource paths should start with @")
 
 (s/def ::watch (s/cat :opt-key #{"-w" "--watch"}
                       :opt-val (s/and ::directory-exists
-                                      :figwheel.main.schema.shared/has-cljs-source-files)))
-
-(defn integer-string? [s] (re-matches #"\d+" s))
-
-(exp/def ::integer-string integer-string? "should be an integer")
+                                      ::schema/has-cljs-source-files)))
 
 (s/def ::port (s/cat :opt-key #{"-p" "--port"}
-                     :opt-val ::integer-string))
+                     :opt-val ::schema/port))
 
 (s/def ::host (s/cat :opt-key #{"-H" "--host"}
-                     :opt-val not-flag?))
+                     :opt-val ::schema/host))
 
 (defn can-require-and-resolve-var? [var-str]
   (boolean (fw-util/require-resolve-var var-str)))
