@@ -839,7 +839,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 
 (defn- config-ensure-watch-dirs-on-classpath [{:keys [::config] :as cfg}]
   (doseq [src-dir (:watch-dirs config)]
-    (when-not (fw-util/dir-on-classpath? src-dir)
+    (when-not (fw-util/dir-on-current-classpath? src-dir)
       (add-classpath! src-dir)
       (warn-that-dir-not-on-classpath :source src-dir)))
   cfg)
@@ -1315,11 +1315,23 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
             (when (some #{"public"} parts)
               (when-not (empty? target-dir)
                 (let [target-dir (apply io/file target-dir)]
-                  (when-not (fw-util/dir-on-classpath? target-dir)
-                    (.mkdirs target-dir)
-                    (add-classpath! target-dir)
-                    (warn-that-dir-not-on-classpath :target target-dir)
-))))))))))
+                  (if (and (fw-util/dir-on-classpath? target-dir)
+                           (not (.exists target-dir)))
+                    ;; quietly fix this situation??
+                    (do
+                      (log/warn
+                       (ansip/format-str
+                        [:yellow
+                         "Making target directory "
+                         (pr-str (str target-dir))
+                         " and re-adding it to the classpath"
+                         " (this only needs to be done when the target directory doesn't exist)"]))
+                      (.mkdirs target-dir)
+                      (fw-util/add-classpath! (.toURL target-dir)))
+                    (when-not (fw-util/dir-on-classpath? target-dir)
+                      (.mkdirs target-dir)
+                      (add-classpath! target-dir)
+                      (warn-that-dir-not-on-classpath :target target-dir))))))))))))
 
 ;; build-id situations
 ;; - temp-dir build id doesn't matter

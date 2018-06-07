@@ -81,9 +81,8 @@
 (defn add-classpath! [url]
   (assert (instance? java.net.URL url))
   (ensure-dynclass-loader!)
-  (when-not (dir-on-current-classpath? (.getFile url))
-    (let [root-loader (root-dynclass-loader)]
-      (.addURL ^clojure.lang.DynamicClassLoader root-loader url))))
+  (let [root-loader (root-dynclass-loader)]
+    (.addURL ^clojure.lang.DynamicClassLoader root-loader url)))
 
 ;; this is a best guess for situations where the user doesn't
 ;; add the source directory to the classpath
