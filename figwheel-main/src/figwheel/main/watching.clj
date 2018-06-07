@@ -6,11 +6,15 @@
 
 (def ^:dynamic *watcher* (atom {:watcher nil :watches {}}))
 
+(def ^:dynamic *hawk-options* nil)
+
 (defn alter-watches [{:keys [watcher watches]} f]
   (when watcher (hawk/stop! watcher))
   (let [watches (f watches)
         watcher (when (not-empty watches)
-                  (apply hawk/watch! (map vector (vals watches))))]
+                  (if *hawk-options*
+                    (apply hawk/watch! *hawk-options* (map vector (vals watches)))
+                    (apply hawk/watch! (map vector (vals watches)))))]
     {:watcher watcher
      :watches watches}))
 
