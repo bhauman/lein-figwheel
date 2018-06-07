@@ -997,6 +997,19 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                     (= (select-keys query kys)
                        connect-id)))))))
 
+(defn config-cljs-devtools [{:keys [::config options] :as cfg}]
+  (if (and
+       (nil? (:target options))
+       (= :none (:optimizations options :none))
+       (:cljs-devtools config true)
+       (try (bapi/ns->location 'devtools.preload) (catch Throwable t false)))
+    (update-in cfg
+               [:options :preloads]
+               (fn [p]
+                 (vec (distinct
+                       (concat p '[devtools.preload])))))
+    cfg))
+
 (defn config-open-file-command [{:keys [::config options] :as cfg}]
   (if-let [setup (and (:open-file-command config)
                       (repl-connection? cfg)
@@ -1101,6 +1114,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-default-asset-path
        config-default-aot-cache-false
        config-repl-connect
+       config-cljs-devtools
        config-open-file-command
        config-watch-css
        config-finalize-repl-options

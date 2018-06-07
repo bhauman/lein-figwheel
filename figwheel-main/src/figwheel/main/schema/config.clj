@@ -331,6 +331,16 @@ Defaults to true."
 Defaults to \"node\""
   :group :common)
 
+(s/def ::cljs-devtools boolean?)
+
+(def-spec-meta ::cljs-devtools
+  :doc
+  "A boolean that indicates wether to include binaryage/devtools into
+the your clojurescript build. Defaults to true when the target is a
+browser and the :optimizations level is :none, otherwise it is false.
+
+    :cljs-devtools false"
+  :group :common)
 
 ;; -------------------------------XXXXXXXXXXXX
 

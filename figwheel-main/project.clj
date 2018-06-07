@@ -15,6 +15,7 @@
    [ring "1.6.3"]
    [org.eclipse.jetty.websocket/websocket-servlet "9.2.21.v20170120"]
    [org.eclipse.jetty.websocket/websocket-server "9.2.21.v20170120"]
+   [binaryage/devtools "0.9.10"]
    [hawk "0.2.11"]
    [expound "0.7.0"]]
   :profiles {:dev {:dependencies [[cider/piggieback "0.3.5"]
