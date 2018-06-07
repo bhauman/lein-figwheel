@@ -989,6 +989,10 @@ classpath. Classpath-relative paths have prefix of @ or @/")
       (update-in [:options :closure-defines] assoc
                  'figwheel.repl/print-output
                  (string/join "," (distinct (map name (:client-print-to config)))))
+      (and conn? (:client-log-level config))
+      (update-in [:options :closure-defines] assoc
+                 'figwheel.repl/client-log-level
+                 (name (:client-log-level config)))
       (and conn? (not-empty (:watch-dirs config)))
       (update-in [:repl-options :analyze-path] (comp vec concat) (:watch-dirs config))
       (and conn? (not-empty connect-id))

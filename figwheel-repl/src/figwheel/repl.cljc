@@ -576,7 +576,31 @@
           (.setScheme "http")
           str))))
 
+(goog-define client-log-level "info")
+
+(def log-levels
+  (into {}
+        (map (juxt
+              string/lower-case
+              #(gobj/get goog.debug.Logger.Level %))
+             (map str '(SEVERE WARNING INFO CONFIG FINE FINER FINEST)))))
+
+(defn set-log-level [logger' level]
+  (if-let [lvl (get log-levels level)]
+    (do
+      (.setLevel logger' lvl)
+      (debug (str "setting log level to " level)))
+    (glog/warn (str "Log level " (pr-str level) " doesn't exist must be one of "
+                    (pr-str ("severe" "warning" "info" "config" "fine" "finer" "finest"))))))
+
+(defn init-log-level! []
+  (doseq [logger' (cond-> [logger]
+                    (exists? js/figwheel.core)
+                    (conj js/figwheel.core.logger))]
+    (set-log-level logger' client-log-level)))
+
 (defn connect* [connect-url']
+  (init-log-level!)
   (patch-goog-base)
   (let [url (switch-to-http? (string/trim (or connect-url' connect-url)))]
     (cond

@@ -235,6 +235,16 @@ Can be one of: `:error` `:info` `:debug` `:trace` `:all` `:off`
     :log-level :error"
   :group :common)
 
+(s/def ::client-log-level  #{:severe :warning :info :config :fine :finer :finest})
+(def-spec-meta ::client-log-level
+  :doc
+ "The log level to set the client side goog.log.Logger to for
+figwheel.repl and figwheel.core. Can be one of:
+`:severe` `:warning` `:info` `:config` `:fine` `:finer` `:finest`
+
+    :client-log-level :warning"
+  :group :common)
+
 (s/def ::log-syntax-error-style #{:verbose :concise})
 (def-spec-meta ::log-syntax-error-style
   :doc
@@ -490,6 +500,7 @@ be useful for certain docker environments.
      ::reload-clj-files
      ::log-file
      ::log-level
+     ::client-log-level
      ::log-syntax-error-style
      ::load-warninged-code
      ::ansi-color-output
