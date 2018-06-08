@@ -1,0 +1,2 @@
+^{:ring-handler figwheel.main.helper/dev-endpoint}
+{:main figwheel.main.helper}

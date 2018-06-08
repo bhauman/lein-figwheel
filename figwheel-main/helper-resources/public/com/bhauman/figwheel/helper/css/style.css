@@ -1,0 +1,86 @@
+body {
+    margin: 0px;
+    font-family: "Lucida Grande","Lucida Sans Unicode","Lucida Sans",Geneva,Arial,sans-serif!important;
+    color: #444;
+    line-height: 1.7em;
+}
+
+.logo {zindex: 2;}
+header {
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    background-image: linear-gradient(to right, #330f42, #a12475);
+    color: white;
+}
+
+#connect-status {
+    display: flex;
+    line-height: 60px;
+    border-radius: 30px;
+    font-size: 20px;
+    background-color: #330f42;
+    width: 60px;
+    height: 60px;
+    transition: width 0.5s ease, background-color 0.5s ease;
+}
+
+#connect-status.connected {
+    background-color: rgb(81, 136, 0);
+    color: white;
+    width: 198px;
+}
+
+#connect-status.connected .connect-text {
+    padding-left: 10px;
+    padding-right: 20px;
+}
+
+#connect-status.connected #connect-msg::after {
+    content: "Connected";
+}
+
+#main-content {
+    width: 77%;
+}
+
+aside {
+    padding-top: 2em;
+    margin-right: 20px;
+    width: 198px;
+}
+
+aside a {
+    color: #888;
+    text-decoration: none;
+
+}
+
+.container {
+    display:flex;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 940px;
+    padding-right: 0.5em;
+    padding-left: 0.5em;
+}
+
+.logo-text {
+    margin-left: 20px;
+    color: white;
+    font-size: 36px;
+    line-height: 60px;
+    font-weight: 400;
+}
+
+code {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 1.2em;
+    background-color: rgba(27,31,35,0.05);
+    border-radius: 3px;
+}
+
+pre code {
+    background-color: #fff;
+    padding: 0px;
+}

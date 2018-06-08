@@ -23,4 +23,16 @@
         }
 
  :paths ["src" "target" "dev_resources" "devel" "helper-resources"]
+
+ :aliases {:build-helper
+           {:main-opts ["-m"
+                        "figwheel.main"
+                        "-co" "helper.cljs.edn"
+                        "-o"
+                        "helper-resources/public/com/bhauman/figwheel/helper.js"
+                        "-O"
+                        "advanced"
+                        "-c"
+                        "figwheel.main.helper"]}}
+
  }

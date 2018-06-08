@@ -62,3 +62,5 @@ figwheel-main/dev/example/except.clj
 figwheel-main/figwheel.log.lck
 
 figwheel-main/output.log.lck
+
+figwheel-main/.ruby-version
