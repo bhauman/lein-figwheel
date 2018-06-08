@@ -712,19 +712,22 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                   :else b))
               a' b'))
 
-(defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
+(defn process-main-config [{:keys [ring-handler] :as main-config}]
+  (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
+    (when (and ring-handler (not handler))
+      (throw (ex-info "Unable to find :ring-handler" {::error true
+                                                      :ring-handler ring-handler})))
+    (cond-> main-config
+      handler (assoc :ring-handler handler))))
+
+(defn process-figwheel-main-edn [main-edn]
   (when-not (false? (:validate-config main-edn))
     (log/info "Validating figwheel-main.edn")
     (validate-config!
      :figwheel.main.schema.config/edn
      main-edn "Configuration error in figwheel-main.edn"
                       "figwheel-main.edn is valid!"))
-
-  (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
-    (when (and ring-handler (not handler))
-      (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
-    (cond-> main-edn
-      handler (assoc :ring-handler handler))))
+  (process-main-config main-edn))
 
 ;; use tools reader read-string for better error messages
 #_(redn/read-string)
@@ -743,7 +746,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn- config-merge-current-build-conf [{:keys [::extra-config ::build] :as cfg}]
   (update cfg
           ::config #(extra-config-merge
-                     (merge-with (fn [a b] (if b b a)) % (:config build))
+                     (merge-with (fn [a b] (if b b a)) %
+                                 (process-main-config (:config build)))
                      extra-config)))
 
 (defn host-port-arg? [arg]
