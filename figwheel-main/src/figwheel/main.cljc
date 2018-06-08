@@ -1132,23 +1132,24 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 ;; ----------------------------------------------------------------------------
 
 (defn build [{:keys [watch-dirs mode ::build] :as config} options cenv]
-  (let [source (when (and (= :none (:optimizations options :none)) (:main options))
-                 (:uri (fw-util/ns->location (symbol (:main options)))))
-        id (:id (::build *config*) "dev")]
+  (let [id (:id (::build *config*) "dev")]
     ;; TODO should probably try obtain a watch path from :main here
     ;; if watch-dirs is empty
-    (if-let [paths (and (not= mode :build-once) (not-empty watch-dirs))]
+    (if-let [paths (and (not= mode :build-once)
+                        (not-empty watch-dirs))]
       (do
         (build-cljs id (apply bapi/inputs paths) options cenv)
         (watch-build id paths options cenv (select-keys config [:reload-clj-files
                                                                 :wait-time-ms
                                                                 :hawk-options])))
-      (cond
-        source
-        (build-cljs id source options cenv)
-        ;; TODO need :compile-paths config param
-        (not-empty watch-dirs)
-        (build-cljs id (apply bapi/inputs watch-dirs) options cenv)))))
+      (let [source (when (:main options)
+                     (:uri (fw-util/ns->location (symbol (:main options)))))]
+        (cond
+          source
+          (build-cljs id source options cenv)
+          ;; TODO need :compile-paths config param
+          (not-empty watch-dirs)
+          (build-cljs id (apply bapi/inputs watch-dirs) options cenv))))))
 
 (defn log-server-start [repl-env]
   (let [host (get-in repl-env [:ring-server-options :host] "localhost")
