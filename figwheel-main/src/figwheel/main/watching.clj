@@ -6,11 +6,17 @@
 
 (def ^:dynamic *watcher* (atom {:watcher nil :watches {}}))
 
+(def ^:dynamic *hawk-options* nil)
+
 (defn alter-watches [{:keys [watcher watches]} f]
   (when watcher (hawk/stop! watcher))
   (let [watches (f watches)
-        watcher (apply hawk/watch! (map vector (vals watches)))]
-    {:watcher watcher :watches watches}))
+        watcher (when (not-empty watches)
+                  (if *hawk-options*
+                    (apply hawk/watch! *hawk-options* (map vector (vals watches)))
+                    (apply hawk/watch! (map vector (vals watches)))))]
+    {:watcher watcher
+     :watches watches}))
 
 (defn add-watch! [watch-key watch]
   (swap! *watcher* alter-watches #(assoc % watch-key watch)))
@@ -22,6 +28,15 @@
   (let [{:keys [watcher]} @*watcher*]
     (when watcher (hawk/stop! watcher))
     (reset! *watcher* {})))
+
+(defn running? []
+  (some-> *watcher* deref :watcher :thread .isAlive))
+
+(defn join []
+  (some-> *watcher* deref :watcher :thread .join))
+
+(defn stop! []
+  (some-> *watcher* deref :watcher hawk/stop!))
 
 (defn throttle [millis f]
   (fn [{:keys [collector] :as ctx} e]

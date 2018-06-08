@@ -1,7 +1,8 @@
 {:deps {org.clojure/clojure {:mvn/version "1.9.0"}
         org.clojure/clojurescript {:mvn/version "1.10.238"}
-        figwheel-repl {:local/root "../figwheel-repl"}
-        figwheel-core {:local/root "../figwheel-core"}
+        figwheel-repl {:local/root "/Users/bhauman/workspace/lein-figwheel/figwheel-repl"}
+        ;com.bhauman/figwheel-repl {:mvn/version "0.1.0-SNAPSHOT"}
+        figwheel-core {:local/root "/Users/bhauman/workspace/lein-figwheel/figwheel-core"}
 
         ;; server
         ring {:mvn/version "1.6.3"}
@@ -12,12 +13,14 @@
         hawk {:mvn/version "0.2.11"}
 
         ;; possibly external
-
-        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.2"}
+        binaryage/devtools {:mvn/version "0.9.10"}
+        com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}
 
         ;; going to make validation seperate?
-        expound {:mvn/version "0.5.0"}
+        expound {:mvn/version "0.7.0"}
+        com.bhauman/spell-spec {:mvn/version "0.1.0"}
+
         }
 
- :paths ["src" "target" "dev_resources" "devel"]
+ :paths ["src" "target" "dev_resources" "devel" "helper-resources"]
  }

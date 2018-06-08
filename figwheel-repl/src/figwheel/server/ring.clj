@@ -129,15 +129,27 @@
           (handler request))
         (handler request)))))
 
+
+(defn best-guess-script-path [output-to]
+  (when output-to
+    (let [parts (string/split output-to #"[/\\]")]
+      (when ((set parts) "public")
+        (->> parts
+             (split-with (complement #{"public"}))
+             second
+             (drop 1)
+             (string/join "/"))))))
+
 (defn index-html [{:keys [output-to body]}]
-  (let [body' (or body
+  (let [path  (best-guess-script-path output-to)
+        body' (or body
                   (str "<p>Welcome to the Figwheel default index page.</p>"
 
                        "<p>You are seeing this because the webserver was unable to locate an index page for your application.</p>"
 
                        "<p>This page is currently hosting your REPL and application evaluation environment. "
                        "Validate the connection by typing <code>(js/alert&nbsp;\"Hello&nbsp;Figwheel!\")</code> in the REPL.</p>"
-                       "<p>To provide your own custom page, place an <code>index.html</code> file on the server path.</p>"
+                       "<p>To provide your own custom page, place an <code>index.html</code> file on the server path (normally <code>resources/public/index.html</code>).</p>"
                        "<pre>"
                        "&lt;!DOCTYPE html&gt;\n"
                        "&lt;html&gt;\n"
@@ -145,9 +157,12 @@
                        "    &lt;meta charset=\"UTF-8\"&gt;\n"
                        "  &lt;/head&gt;\n"
                        "  &lt;body&gt;\n"
-                       "    &lt;script src=\"[correct-path-to "
-                       (or output-to "main.js file")
-                       "]\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
+                       "    &lt;script src=\""
+                       (if path path
+                           (str "[correct-path-to "
+                                (or output-to "main.js file")
+                                "]"))
+                       "\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
                        "  &lt;/body&gt;\n"
                        "&lt;/html&gt;\n"
                        "</pre>"
@@ -205,15 +220,13 @@
         "</script>"))
      "</body></html>")))
 
-(defn default-index-html [handler html]
+(defn default-index-html [handler html & [force-index?]]
   (fn [r]
     (let [res           (handler r)
           method-uri    ((juxt :request-method :uri) r)
-          root-request? (= [:get "/"] method-uri)
-          force-index? (= "figwheel-server-force-default-index=true"
-                           (:query-string r))]
+          root-request? (= [:get "/"] method-uri)]
       (cond
-        (and force-index? html)
+        (and force-index? root-request? html)
         {:status 200
          :headers {"Content-Type" "text/html"}
          :body html}
@@ -227,12 +240,13 @@
   (let [{:keys [:co.deps.ring-etag-middleware/wrap-file-etag
                 :ring.middleware.cors/wrap-cors
                 :ring.middleware.not-modified/wrap-not-modified
-                :ring.middleware.stacktrace/wrap-stacktrace]} dev]
+                :ring.middleware.stacktrace/wrap-stacktrace
+                ::system-app-handler]} dev]
     (cond-> (handle-first ring-handler not-found)
       (::resource-root-index dev) (resource-root-index (get-in config [:static :resources]))
       true                        (ring.middleware.defaults/wrap-defaults config)
       (dev ::fix-index-mime-type) fix-index-mime-type
-      (dev ::default-index-html)  (default-index-html (::default-index-html dev))
+      system-app-handler          system-app-handler
       (dev ::wrap-no-cache)       wrap-no-cache
       wrap-file-etag              etag/wrap-file-etag
       wrap-not-modified           not-modified/wrap-not-modified

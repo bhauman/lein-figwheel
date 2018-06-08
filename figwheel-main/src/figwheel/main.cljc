@@ -39,8 +39,7 @@
 (def ^:dynamic *base-config*)
 (def ^:dynamic *config*)
 
-;; TODO put this in figwheel config
-#_(.setLevel log/*logger* java.util.logging.Level/ALL)
+(def default-target-dir "target")
 
 (defonce process-unique (subs (str (java.util.UUID/randomUUID)) 0 6))
 
@@ -95,61 +94,96 @@
 
 (defn watch-build [id inputs opts cenv & [reload-config]]
   (when-let [inputs (if (coll? inputs) inputs [inputs])]
-    (log/info "Watching and compiling paths:" (pr-str inputs) "for build -" id)
-    (fww/add-watch!
-     [::autobuild id]
-     (merge
-      {::watch-info (merge
-                     (:extra-info reload-config)
-                     {:id id
-                      :paths inputs
-                      :options opts
-                      :compiler-env cenv
-                      :reload-config reload-config})}
-      {:paths inputs
-       :filter (fww/suffix-filter (into #{"cljs" "js"}
-                                        (cond
-                                          (coll? (:reload-clj-files reload-config))
-                                          (mapv name (:reload-clj-files reload-config))
-                                          (false? (:reload-clj-files reload-config)) []
-                                          :else ["clj" "cljc"])))
-       :handler (fww/throttle
-                 (:wait-time-ms reload-config 50)
-                 (bound-fn [evts]
-                   (binding [cljs.env/*compiler* cenv]
-                     (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)
-                           inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)]
-                       (try
-                         (when-let [clj-files
-                                    (not-empty
-                                     (filter
-                                      #(or (.endsWith % ".clj")
-                                           (.endsWith % ".cljc"))
-                                      files))]
-                           (log/debug "Reloading clj files: " (pr-str (map str clj-files)))
+    (let [build-inputs (if (coll? inputs) (apply bapi/inputs inputs) inputs)
+          ;; the build-fn needs to be passed in before here?
+          build-fn (if (some #{'figwheel.core} (:preloads opts))
+                     #(fig-core-build id build-inputs opts cenv %)
+                     (fn [files] (build-cljs id build-inputs opts cenv)))]
+      (log/info "Watching and compiling paths:" (pr-str inputs) "for build -" id)
+      (binding [fww/*hawk-options* (:hawk-options reload-config nil)]
+        (fww/add-watch!
+         [::autobuild id]
+         (merge
+          {::watch-info (merge
+                         (:extra-info reload-config)
+                         {:id id
+                          :paths inputs
+                          :options opts
+                          :compiler-env cenv
+                          :reload-config reload-config})}
+          {:paths inputs
+           :filter (fww/suffix-filter (into #{"cljs" "js"}
+                                            (cond
+                                              (coll? (:reload-clj-files reload-config))
+                                              (mapv name (:reload-clj-files reload-config))
+                                              (false? (:reload-clj-files reload-config)) []
+                                              :else ["clj" "cljc"])))
+           :handler (fww/throttle
+                     (:wait-time-ms reload-config 50)
+                     (bound-fn [evts]
+                       (binding [cljs.env/*compiler* cenv]
+                         (let [files (mapv (comp #(.getCanonicalPath %) :file) evts)]
                            (try
-                             (figwheel.core/reload-clj-files clj-files)
-                             (catch Throwable t
-                               (log/syntax-exception t)
-                               (figwheel.core/notify-on-exception cenv t {})
-                               (throw t))))
-                         (log/debug "Detected changed cljs files: " (pr-str (map str files)))
-                         (fig-core-build id inputs opts cenv files)
-                         ;; exceptions are reported by the time they get to here
-                         (catch Throwable t false))))))}))))
+                             (when-let [clj-files
+                                        (not-empty
+                                         (filter
+                                          #(or (.endsWith % ".clj")
+                                               (.endsWith % ".cljc"))
+                                          files))]
+                               (log/debug "Reloading clj files: " (pr-str (map str clj-files)))
+                               (try
+                                 (figwheel.core/reload-clj-files clj-files)
+                                 (catch Throwable t
+                                   (log/syntax-exception t)
+                                   (figwheel.core/notify-on-exception cenv t {})
+                                   (throw t))))
+                             (log/debug "Detected changed cljs files: " (pr-str (map str files)))
+                             (build-fn files)
+                             ;; exceptions are reported by the time they get to here
+                             (catch Throwable t false))))))}))))))
+
+(declare read-edn-file)
+
+(defn get-edn-file-key
+  ([edn-file key] (get-edn-file-key edn-file key nil))
+  ([edn-file key default]
+   (try (get (read-string (slurp edn-file)) key default)
+        (catch Throwable t default))))
 
 (def validate-config!*
   (when (try
           (require 'clojure.spec.alpha)
           (require 'expound.alpha)
-          (require 'figwheel.main.schema)
+          (require 'expound.ansi)
+          (require 'figwheel.main.schema.config)
+          (require 'figwheel.main.schema.cljs-options)
+          (require 'figwheel.main.schema.cli)
           true
           (catch Throwable t false))
-    (resolve 'figwheel.main.schema/validate-config!)))
+    (resolve 'figwheel.main.schema.core/validate-config!)))
 
-(defn validate-config! [edn fail-msg & [succ-msg]]
-  (when (and validate-config!* (not (false? (:validate-config edn))))
-    (validate-config!* edn fail-msg)
+(defn validate-config! [spec edn fail-msg & [succ-msg]]
+  (when (and validate-config!*
+             (not
+              (false?
+               (:validate-config
+                edn
+                (get-edn-file-key "figwheel-main.edn" :validate-config)))))
+    (expound.ansi/with-color-when (:ansi-color-output edn true)
+      (validate-config!* spec edn fail-msg))
+    (when succ-msg
+      (log/succeed succ-msg))))
+
+(def validate-cli!*
+  (when validate-config!*
+    (resolve 'figwheel.main.schema.cli/validate-cli!)))
+
+(defn validate-cli! [cli-args & [succ-msg]]
+  (when (and validate-cli!*
+             (get-edn-file-key "figwheel-main.edn" :validate-cli true))
+    (expound.ansi/with-color-when
+      (get-edn-file-key "figwheel-main.edn" :ansi-color-output true)
+      (validate-cli!* cli-args "Error in command line args"))
     (when succ-msg
       (log/succeed succ-msg))))
 
@@ -318,18 +352,33 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                 (map io/file)
                 (map (comp first #(string/split % #"\.") #(.getName %)))
                 (string/join ""))))]
+    (log/debug "Validating options passed to --compile-opts")
+    (validate-config!
+     :figwheel.main.schema.cljs-options/cljs-options
+     edn
+     (str "Configuration error in options passed to --compile-opts"))
     (cond-> cfg
       edn (update :options merge edn)
       id  (update-in [::build :id] #(if-not % id %))
       config (update-in [::build :config] merge config))))
 
+(defn repl-env-opts-opt
+  [cfg ropts]
+  (let [ropts (string/trim ropts)
+        edn   (if (string/starts-with? ropts "{")
+                (read-edn-string ropts "Error reading EDN from command line flag: --repl-opts ")
+                (load-edn-opts ropts))]
+    (update cfg :repl-env-options merge edn)))
+
 (defn figwheel-opts-opt
   [cfg ropts]
   (let [ropts (string/trim ropts)
         edn   (if (string/starts-with? ropts "{")
-                (read-edn-string ropts "Error reading EDN from command line flag: -fwo ")
+                (read-edn-string ropts "Error reading EDN from command line flag: -fw-opts ")
                 (load-edn-opts ropts))]
-    (validate-config! edn "Error validating figwheel options EDN provided to -fwo CLI flag")
+    (validate-config!
+     :figwheel.main.schema.config/edn
+     edn "Error validating figwheel options EDN provided to -fwo CLI flag")
     (update cfg ::config merge edn)))
 
 (defn print-config-opt [cfg opt]
@@ -353,8 +402,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn figwheel-opt [cfg bl]
   (assoc-in cfg [::config :figwheel-core] (not= bl "false")))
 
-
-
 (defn get-build [bn]
   (let [fname (if (.contains bn (System/getProperty "path.separator"))
                 bn
@@ -363,14 +410,23 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    (map #(str % ".cljs.edn"))
                    (string/join (System/getProperty "path.separator"))
                    load-edn-opts)]
-    (when (meta build)
+    (when build
       (when-not (false? (:validate-config (meta build)))
-        (log/debug "Validating metadata in build option: " fname)
-        (validate-config! (meta build) (str "Configuration error in build options meta data:" fname))))
+        (when (meta build)
+          (log/debug "Validating metadata in build: " fname)
+          (validate-config!
+           :figwheel.main.schema.config/edn
+           (meta build)
+           (str "Configuration error in build options meta data: " fname)))
+        (log/debug "Validating CLJS compile options for build:" fname)
+        (validate-config!
+         :figwheel.main.schema.cljs-options/cljs-options
+         build
+         (str "Configuration error in CLJS compile options: " fname))))
     build))
 
 (defn watch-dir-from-ns [main-ns]
-  (let [source (bapi/ns->location main-ns)]
+  (let [source (fw-util/ns->location main-ns)]
     (when-let [f (:uri source)]
       (when (= "file" (.getScheme (.toURI f)))
         (let [res (fw-util/relativized-path-parts (.getPath f))
@@ -424,9 +480,9 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                (cons "-s" args)
                args)]
     (default-compile repl-env-fn
-                   (merge (build-opt cfg build-name)
-                          {:args args
-                           ::build-main-opt true}))))
+                     (merge (build-opt cfg build-name)
+                            {:args args
+                             ::build-main-opt true}))))
 
 (defn build-once-main-opt [repl-env-fn [_ build-name & args] cfg]
   (default-compile repl-env-fn
@@ -435,43 +491,71 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 
 (declare default-output-dir default-output-to)
 
-(defn repl-main-opt [repl-env-fn args cfg]
+(defn make-temp-dir []
+  (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
+    (.delete tempf)
+    (.mkdirs tempf)
+    (.deleteOnExit (io/file tempf))
+    (fw-util/add-classpath! (.toURL tempf))
+    tempf))
+
+(defn add-temp-dir [cfg]
+  (let [temp-dir (make-temp-dir)
+        config-with-target (assoc-in cfg [::config :target-dir] temp-dir)
+        output-dir (default-output-dir config-with-target)
+        output-to  (default-output-to config-with-target)]
+    (-> cfg
+        (assoc-in [:options :output-dir] output-dir)
+        (assoc-in [:options :output-to]  output-to)
+        (assoc-in [:options :asset-path]
+                  (str "cljs-out"
+                       (when-let [id (-> cfg ::build :id)]
+                         (str (System/getProperty "file.separator")
+                              id)))))))
+
+(defn should-add-temp-dir? [cfg]
   (let [target-on-classpath?
-        (when-let [target-dir
-                   (:target-dir
-                    (try (read-string (slurp "figwheel-main.edn"))
-                         (catch Throwable t
-                           nil))
-                    "target")]
-          (fw-util/dir-on-classpath? target-dir))
-        temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
-                               target-on-classpath?)
-                   (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
-                     (.delete tempf)
-                     (.mkdirs tempf)
-                     (.deleteOnExit (io/file tempf))
-                     (fw-util/add-classpath! (.toURL (.toURI tempf)))
-                     tempf))]
+        (when-let [target-dir (get-edn-file-key
+                               "figwheel-main.edn"
+                               :target-dir
+                               default-target-dir)]
+          (fw-util/dir-on-classpath? target-dir))]
+    (and (nil? (:target (:options cfg)))
+         (not target-on-classpath?))))
+
+(defn helper-ring-app [handler html-body output-to & [force-index?]]
+  (figwheel.server.ring/default-index-html
+   handler
+   (figwheel.server.ring/index-html (cond-> {}
+                                      html-body (assoc :body html-body)
+                                      output-to (assoc :output-to output-to)))
+   force-index?))
+
+(defn repl-main-opt [repl-env-fn args cfg]
+  (let [cfg (if (should-add-temp-dir? cfg)
+              (add-temp-dir cfg)
+              cfg)
+        cfg (if (get-in cfg [::build :id])
+              cfg
+              (assoc-in cfg [::build :id] "figwheel-default-repl-build"))
+        output-to (get-in cfg [:options :output-to]
+                          (default-output-to cfg))]
     (default-compile
      repl-env-fn
      (-> cfg
-         (cond->
-             temp-dir (assoc-in [:options :output-dir]
-                                (default-output-dir
-                                 (assoc cfg [::config :target-dir] temp-dir)))
-             temp-dir (assoc-in [:options :output-to]
-                                (default-output-to
-                                 (assoc cfg [::config :target-dir] temp-dir)))
-             temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
          (assoc-in [:options :aot-cache] true)
-         (assoc-in [:repl-env-options :open-url]
-                   "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
-         ;; TODO :default-index-body should be a function that takes the build options as an arg
-         (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
-         (assoc-in [::config :mode] :repl)
-         (assoc-in [::build] {:id "figwheel-default-repl-build"})))))
+
+         (assoc-in [::config
+                    :ring-stack-options
+                    :figwheel.server.ring/dev
+                    :figwheel.server.ring/system-app-handler]
+                   #(helper-ring-app %
+                                     default-main-repl-index-body
+                                     output-to
+                                     true))
+         (assoc-in [::config :mode] :repl)))))
 
 (declare serve update-config)
 
@@ -482,14 +566,20 @@ classpath. Classpath-relative paths have prefix of @ or @/")
   (pprint (:options cfg)))
 
 (defn serve-main-opt [repl-env-fn args b-cfg]
-  (let [{:keys [::config repl-env-options repl-options] :as cfg}
+  (let [{:keys [repl-env-options repl-options options] :as cfg}
         (-> b-cfg
             (assoc :args args)
-            update-config
-            (assoc-in [:repl-env-options :default-index-body]
-                      ;; TODO helpful instructions on where to put index.html
-                      "<center><h3 style=\"color:red;\">index.html not found</h3></center>"))
-        {:keys [pprint-config]} config
+            update-config)
+        repl-env-options
+        (assoc-in repl-env-options
+                  [:ring-stack-options
+                   :figwheel.server.ring/dev
+                   :figwheel.server.ring/system-app-handler]
+                  #(helper-ring-app %
+                                    ;; TODO helpful instructions on where to put index.html
+                                    "<center><h3 style=\"color:red;\">index.html not found</h3></center>"
+                                    (:output-to options)))
+        {:keys [pprint-config]} (::config cfg)
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))]
     (log/trace "Verbose config:" (with-out-str (pprint cfg)))
     (if pprint-config
@@ -511,6 +601,12 @@ classpath. Classpath-relative paths have prefix of @ or @/")
            :doc (str "Options to configure figwheel.main, can be an EDN string or "
                      "system-dependent path-separated list of EDN files / classpath resources. Options "
                      "will be merged left to right.")}
+          ["-ro" "--repl-opts"]
+          {:group ::main&compile :fn repl-env-opts-opt
+           :arg "edn"
+           :doc (str "Options to configure the repl-env, can be an EDN string or "
+                     "system-dependent path-separated list of EDN files / classpath resources. Options "
+                     "will be merged left to right.")}
           ["-co" "--compile-opts"]
           {:group :cljs.cli/main&compile :fn compile-opts-opt
            :arg "edn"
@@ -530,7 +626,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
            :arg "str"
            :doc "The name of a build config to watch and build in the background."}
           ["-pc" "--print-config"]
-          {:group :cljs.cli/compile :fn print-config-opt
+          {:group :cljs.cli/main&compile :fn print-config-opt
            :doc "Instead of running the command print out the configuration built up by the command. Useful for debugging."}
           }
    :main {["-b" "--build"]
@@ -569,7 +665,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 ;; ----------------------------------------------------------------------------
 
 (defn default-output-dir* [target & [scope]]
-  (->> (cond-> [(or target "target") "public" "cljs-out"]
+  (->> (cond-> [(or target default-target-dir) "public" "cljs-out"]
          scope (conj scope))
        (apply io/file)
        (.getPath)))
@@ -581,7 +677,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
   (default-output-dir* (:target-dir config) (:id build)))
 
 (defmethod default-output-dir :nodejs [{:keys [::config ::build]}]
-  (let [target (:target-dir config "target")
+  (let [target (:target-dir config default-target-dir)
         scope (:id build)]
     (->> (cond-> [target "node"]
            scope (conj scope))
@@ -589,7 +685,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
          (.getPath))))
 
 (defn default-output-to* [target & [scope]]
-  (.getPath (io/file (or target "target") "public" "cljs-out"
+  (.getPath (io/file (or target default-target-dir) "public" "cljs-out"
                      (cond->> "main.js"
                        scope (str scope "-")))))
 
@@ -619,7 +715,9 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn process-figwheel-main-edn [{:keys [ring-handler] :as main-edn}]
   (when-not (false? (:validate-config main-edn))
     (log/info "Validating figwheel-main.edn")
-    (validate-config! main-edn "Configuration error in figwheel-main.edn"
+    (validate-config!
+     :figwheel.main.schema.config/edn
+     main-edn "Configuration error in figwheel-main.edn"
                       "figwheel-main.edn is valid!"))
 
   (let [handler (and ring-handler (fw-util/require-resolve-var ring-handler))]
@@ -627,8 +725,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
       (throw (ex-info "Unable to find :ring-handler" {:ring-handler ring-handler})))
     (cond-> main-edn
       handler (assoc :ring-handler handler))))
-
-
 
 ;; use tools reader read-string for better error messages
 #_(redn/read-string)
@@ -670,6 +766,43 @@ classpath. Classpath-relative paths have prefix of @ or @/")
       main-ns (assoc :ns main-ns)       ;; TODO not needed?
       main-ns (assoc-in [:options :main] main-ns))))
 
+(defn warn-that-dir-not-on-classpath [typ dir]
+  (let [[n k] (condp = typ
+                :source ["Source directory" :source-paths]
+                :target ["Target directory" :resource-paths])]
+    (log/warn (ansip/format-str
+               [:yellow n " "
+                (pr-str (str dir))
+                " is not on the classpath"]))
+    (log/warn "Please fix this by adding" (pr-str (str dir))
+              "to your classpath\n"
+              "I.E.\n"
+              "For Clojure CLI Tools in your deps.edn file:\n"
+              "   ensure" (pr-str (str dir))
+              "is in your :paths key\n\n"
+              (when k
+                (format
+                 (str "For Leiningen in your project.clj:\n"
+                      "   add it to the %s key\n")
+                 (pr-str k))))))
+
+;; takes a string or file representation of a directory
+(defn- add-classpath! [dir]
+  (when-not (fw-util/dir-on-classpath? dir)
+    (log/warn (ansip/format-str [:yellow
+                                 (format "Attempting to dynamically add %s to classpath!"
+                                 (pr-str (str dir)))]))
+    (fw-util/add-classpath! (.toURL (io/file dir)))))
+
+(defn- config-main-sourch-path-on-classpath [{:keys [options] :as cfg}]
+  (when-let [main (:ns cfg)]
+    (when-not (fw-util/safe-ns->location main)
+      (when-let [src-dir (fw-util/find-source-dir-for-cljs-ns main)]
+        (when-not (fw-util/dir-on-classpath? src-dir)
+          (add-classpath! src-dir)
+          (warn-that-dir-not-on-classpath :source src-dir)))))
+  cfg)
+
 ;; targets local config
 (defn- config-repl-serve? [{:keys [ns args] :as cfg}]
   (let [rfs      #{"-r" "--repl"}
@@ -696,6 +829,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
             #(not-empty
               (distinct
                (let [ns-watch-dir (and
+                                   (#{:repl :serve} (:mode config))
                                    (not (:watch options))
                                    (empty? %)
                                    (:main options)
@@ -703,6 +837,13 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                  (cond-> %
                    (:watch options) (conj (:watch options))
                    ns-watch-dir (conj ns-watch-dir)))))))
+
+(defn- config-ensure-watch-dirs-on-classpath [{:keys [::config] :as cfg}]
+  (doseq [src-dir (:watch-dirs config)]
+    (when-not (fw-util/dir-on-current-classpath? src-dir)
+      (add-classpath! src-dir)
+      (warn-that-dir-not-on-classpath :source src-dir)))
+  cfg)
 
 ;; needs local config
 (defn figwheel-mode? [{:keys [::config options]}]
@@ -745,7 +886,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (assoc-in [:options :output-dir] (default-output-dir cfg))))
 
 (defn figure-default-asset-path [{:keys [figwheel-options options ::config ::build] :as cfg}]
-
   (if (= :nodejs (:target options))
     (:output-dir options)
     (let [{:keys [output-dir]} options]
@@ -842,16 +982,38 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                  (fn [p]
                    (vec (distinct
                          (concat p '[figwheel.repl.preload])))))
+      conn?
+      (update-in [:options :repl-requires] into '[[figwheel.main :refer-macros [stop-builds start-builds build-once reset clean status]]
+                                                  [figwheel.repl :refer-macros [conns focus]]])
       (and conn? (:client-print-to config))
       (update-in [:options :closure-defines] assoc
                  'figwheel.repl/print-output
                  (string/join "," (distinct (map name (:client-print-to config)))))
+      (and conn? (:client-log-level config))
+      (update-in [:options :closure-defines] assoc
+                 'figwheel.repl/client-log-level
+                 (name (:client-log-level config)))
+      (and conn? (not-empty (:watch-dirs config)))
+      (update-in [:repl-options :analyze-path] (comp vec concat) (:watch-dirs config))
       (and conn? (not-empty connect-id))
       (assoc-in [:repl-env-options :connection-filter]
                 (let [kys (keys connect-id)]
                   (fn [{:keys [query]}]
                     (= (select-keys query kys)
                        connect-id)))))))
+
+(defn config-cljs-devtools [{:keys [::config options] :as cfg}]
+  (if (and
+       (nil? (:target options))
+       (= :none (:optimizations options :none))
+       (:cljs-devtools config true)
+       (try (bapi/ns->location 'devtools.preload) (catch Throwable t false)))
+    (update-in cfg
+               [:options :preloads]
+               (fn [p]
+                 (vec (distinct
+                       (concat p '[devtools.preload])))))
+    cfg))
 
 (defn config-open-file-command [{:keys [::config options] :as cfg}]
   (if-let [setup (and (:open-file-command config)
@@ -887,7 +1049,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                      [`(set! *command-line-args* (list ~@args))])}]
           inits)))
 
-(defn get-repl-env-options [{:keys [repl-env-options ::config] :as cfg}]
+(defn get-repl-env-options [{:keys [repl-env-options ::config options] :as cfg}]
   (let [repl-options (get-repl-options cfg)]
     (merge
      (select-keys config
@@ -900,9 +1062,10 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    :inspect-node
                    :node-command
                    :broadcast
-                   :open-url])
+                   :open-url
+                   :repl-eval-timeout])
      repl-env-options ;; from command line
-     (select-keys repl-options [:output-to :output-dir]))))
+     (select-keys options [:output-to :output-dir :target]))))
 
 (defn config-finalize-repl-options [cfg]
   (let [repl-options (get-repl-options cfg)
@@ -926,6 +1089,18 @@ classpath. Classpath-relative paths have prefix of @ or @/")
     (alter-var-root #'log/*syntax-error-style* (fn [_] (:log-syntax-error-style config))))
   cfg)
 
+(defn- config-warn-resource-directory-not-on-classpath [{:keys [::config options] :as cfg}]
+  ;; this could check for other directories than resources
+  ;; but this is mainly to help newcomers
+  (when (and (nil? (:target options))
+             (#{:repl :serve} (:mode config))
+             (.isFile (io/file "resources/public/index.html"))
+             (not (fw-util/dir-on-classpath? "resources")))
+    (log/warn (ansip/format-str
+               [:yellow "A \"resources/public/index.html\" exists but the \"resources\" directory is not on the classpath\n"
+                "    the default server will not be able to find your index.html"])))
+  cfg)
+
 #_(config-connect-url {::build-name "dev"})
 
 (defn update-config [cfg]
@@ -937,16 +1112,20 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-log-syntax-error-style!
        config-repl-serve?
        config-main-ns
+       config-main-sourch-path-on-classpath
        config-update-watch-dirs
+       config-ensure-watch-dirs-on-classpath
        config-figwheel-mode?
        config-default-dirs
        config-default-asset-path
        config-default-aot-cache-false
        config-repl-connect
+       config-cljs-devtools
        config-open-file-command
        config-watch-css
        config-finalize-repl-options
-       config-clean))
+       config-clean
+       config-warn-resource-directory-not-on-classpath))
 
 ;; ----------------------------------------------------------------------------
 ;; Main action
@@ -954,14 +1133,16 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 
 (defn build [{:keys [watch-dirs mode ::build] :as config} options cenv]
   (let [source (when (and (= :none (:optimizations options :none)) (:main options))
-                 (:uri (bapi/ns->location (symbol (:main options)))))
+                 (:uri (fw-util/ns->location (symbol (:main options)))))
         id (:id (::build *config*) "dev")]
     ;; TODO should probably try obtain a watch path from :main here
     ;; if watch-dirs is empty
     (if-let [paths (and (not= mode :build-once) (not-empty watch-dirs))]
       (do
         (build-cljs id (apply bapi/inputs paths) options cenv)
-        (watch-build id paths options cenv (select-keys config [:reload-clj-files :wait-time-ms])))
+        (watch-build id paths options cenv (select-keys config [:reload-clj-files
+                                                                :wait-time-ms
+                                                                :hawk-options])))
       (cond
         source
         (build-cljs id source options cenv)
@@ -1044,6 +1225,22 @@ This can cause confusion when your are not using Cider."
         #_(clojure.pprint/pprint (Throwable->map err))
         (flush)))))
 
+(def repl-header
+  (str "Figwheel Main Controls:
+          (figwheel.main/stop-builds id ...)  ;; stops Figwheel autobuilder for ids
+          (figwheel.main/start-builds id ...) ;; starts autobuilder focused on ids
+          (figwheel.main/reset)               ;; stops, cleans, reloads config, and starts autobuilder
+          (figwheel.main/build-once id ...)   ;; builds source one time
+          (figwheel.main/clean id ...)        ;; deletes compiled cljs target files
+          (figwheel.main/status)              ;; displays current state of system
+Figwheel REPL Controls:
+          (figwheel.repl/conns)               ;; displays the current connections
+          (figwheel.repl/focus session-name)  ;; choose which session name to focus on
+In the cljs.user ns, controls can be called without ns ie. (conns) instead of (figwheel.repl/conns)
+    Docs: (doc function-name-here)
+    Exit: :cljs/quit
+ Results: Stored in vars *1, *2, *3, *e holds last exception object"))
+
 ;; TODO this needs to work in nrepl as well
 (defn repl [repl-env repl-options]
   (log-server-start repl-env)
@@ -1066,7 +1263,14 @@ This can cause confusion when your are not using Cider."
                            string/trim-newline
                            println)
                       (flush))))]
-    (let [repl-options (assoc repl-options :caught (:caught repl-options repl-caught))]
+    (let [repl-options (-> repl-options
+                           (assoc :caught (:caught repl-options repl-caught)))]
+      (println (ansip/format-str
+                [:bright (format "Prompt will show when REPL connects to evaluation environment (i.e. %s)"
+                                 (if (= :nodejs (:target repl-options))
+                                   "Node"
+                                   "a REPL hosting webpage"))]))
+      (println repl-header)
       (if (in-nrepl?)
         (nrepl-repl repl-env repl-options)
         (let [repl-fn (or (when-not (false? (:rebel-readline (::config *config*)))
@@ -1090,7 +1294,6 @@ This can cause confusion when your are not using Cider."
                              "<cljs repl>"
                              ;; todo allow opts to be added here
                              (first (ana-api/forms-seq (StringReader. eval-str)))))
-
   (when-let [server (and join? @(:server repl-env))]
     (.join server)))
 
@@ -1125,7 +1328,7 @@ This can cause confusion when your are not using Cider."
     (background-build cfg build)))
 
 (defn validate-fix-target-classpath! [{:keys [::config ::build options]}]
-  (when (#{nil :browser} (:target options))
+  (when (nil? (:target options)) ;; browsers need the target classpath to load files
     (when-not (contains? (:ring-stack-options config) :static)
       (when-let [output-to (:output-to options)]
         (when-not (.isAbsolute (io/file output-to))
@@ -1134,67 +1337,73 @@ This can cause confusion when your are not using Cider."
             (when (some #{"public"} parts)
               (when-not (empty? target-dir)
                 (let [target-dir (apply io/file target-dir)]
-                  (when-not (fw-util/dir-on-classpath? target-dir)
-                    (log/warn (ansip/format-str
-                               [:yellow "Target directory " (pr-str (str target-dir))
-                                " is not on the classpath"]))
-                    (log/warn "Please fix this by adding" (pr-str (str target-dir))
-                              "to your classpath\n"
-                              "I.E.\n"
-                              "For Clojure CLI Tools in your deps.edn file:\n"
-                              "   ensure " (pr-str (str target-dir))
-                              "is in your :paths key\n\n"
-                              "For Leiningen in your project.clj:\n"
-                              "   either set your :target key to" (pr-str (str target-dir))
-                              "or add it to the :resource-paths key\n")
-                    (log/warn (ansip/format-str [:yellow "Attempting to dynamically add classpath!!"]))
-                    (.mkdirs target-dir)
-                    (fw-util/add-classpath! (.toURL (.toURI target-dir)))))))))))))
+                  (if (and (fw-util/dir-on-classpath? target-dir)
+                           (not (.exists target-dir)))
+                    ;; quietly fix this situation??
+                    (do
+                      (log/warn
+                       (ansip/format-str
+                        [:yellow
+                         "Making target directory "
+                         (pr-str (str target-dir))
+                         " and re-adding it to the classpath"
+                         " (this only needs to be done when the target directory doesn't exist)"]))
+                      (.mkdirs target-dir)
+                      (fw-util/add-classpath! (.toURL target-dir)))
+                    (when-not (fw-util/dir-on-classpath? target-dir)
+                      (.mkdirs target-dir)
+                      (add-classpath! target-dir)
+                      (warn-that-dir-not-on-classpath :target target-dir))))))))))))
+
+;; build-id situations
+;; - temp-dir build id doesn't matter
+;; - target directory build id
+;;   (if unique would ensure clean main compile and run)
+;;   when don't you want it to be unique
+;;   when do you not want a clean compile when running main or repl?
+;;     (when you are running it over and over again)
+;;     for main we can use the main-ns for a build id
+;;   - repl only
+;;   - main only
 
 (defn default-main [repl-env-fn cfg]
-  (let [target-on-classpath?
-        (when-let [target-dir
-                   (:target-dir
-                    (try (read-string (slurp "figwheel-main.edn"))
-                         (catch Throwable t
-                           nil))
-                    "target")]
-          (fw-util/dir-on-classpath? target-dir))
-        temp-dir (when-not (or (= :nodejs (:target (:options cfg)))
-                               target-on-classpath?)
-                   (let [tempf (java.io.File/createTempFile "figwheel" "repl")]
-                     (.delete tempf)
-                     (.mkdirs tempf)
-                     (.deleteOnExit (io/file tempf))
-                     (fw-util/add-classpath! (.toURL (.toURI tempf)))
-                     tempf))
+  (let [cfg (if (should-add-temp-dir? cfg)
+              (add-temp-dir cfg)
+              cfg)
+        cfg (if (get-in cfg [::build :id])
+              cfg
+              (assoc-in cfg [::build :id] "figwheel-main-option-build"))
+        output-to (get-in cfg [:options :output-to]
+                          (default-output-to cfg))
         cfg (-> cfg
-                (cond->
-                    temp-dir (assoc-in [:options :output-dir]
-                                       (default-output-dir* temp-dir))
-                    temp-dir (assoc-in [:options :output-to]
-                                       (default-output-to* temp-dir))
-                    temp-dir (assoc-in [:options :asset-path]  "cljs-out"))
                 (assoc-in [:options :aot-cache] false)
                 (update :options #(assoc % :main
                                          (or (some-> (:main cfg) symbol)
                                              'figwheel.repl.preload)))
-                (assoc-in [:repl-env-options :open-url]
-                          "http://[[server-hostname]]:[[server-port]]/?figwheel-server-force-default-index=true")
-                ;; TODO :default-index-body should be a function that takes the build options as an arg
-                (assoc-in [:repl-env-options :default-index-body] default-main-repl-index-body)
-                (assoc-in [::config :mode] :repl)
-                (assoc-in [::build] {:id "figwheel-main-option-build"}))
-        source (:uri (bapi/ns->location (get-in cfg [:options :main])))]
+                (assoc-in [::config
+                           :ring-stack-options
+                           :figwheel.server.ring/dev
+                           :figwheel.server.ring/system-app-handler]
+                          #(helper-ring-app
+                            %
+                            (str "<br/><br/><center>"
+                                 (if (:main cfg)
+                                   (str "Executing main fn: <code>" (str (:main cfg) "/-main</code>"))
+                                   "Attempting to execute main")
+                                 "</center>")
+                            output-to
+                            true))
+                (assoc-in [::config :mode] :repl))
+        source (:uri (fw-util/ns->location (get-in cfg [:options :main])))]
     (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg}
           (update-config cfg)
-          {:keys [mode pprint-config]} config]
+          {:keys [pprint-config]} config]
       (if pprint-config
         (do
           (log/info ":pprint-config true - printing config:")
           (print-conf b-cfg))
         (cljs.env/ensure
-         (build-cljs "figwheel-main-option-build"
+         (build-cljs (get-in b-cfg [::build :id] "figwheel-main-option-build")
                      source
                      (:options b-cfg) cljs.env/*compiler*)
           (cljs.cli/default-main repl-env-fn b-cfg))))))
@@ -1215,24 +1424,32 @@ This can cause confusion when your are not using Cider."
             (print-conf b-cfg))
           (binding [cljs.repl/*repl-env* repl-env
                     figwheel.core/*config* (select-keys config [:hot-reload-cljs :broadcast-reload])]
-            (let [fw-mode? (figwheel-mode? b-cfg)]
-              (build config options cenv)
-              (when-not (= mode :build-once)
-                (start-background-builds (assoc cfg
-                                                ::start-figwheel-options
-                                                config))
-                (doseq [init-fn (::initializers b-cfg)] (init-fn))
-                (log/trace "Figwheel.core config:" (pr-str figwheel.core/*config*))
-                (figwheel.core/start*)
-                (cond
-                  (= mode :repl)
-                  ;; this forwards command line args
-                  (repl repl-env repl-options)
-                  (= mode :serve)
-                  ;; we need to get the server host:port args
-                  (serve {:repl-env repl-env
-                          :repl-options repl-options
-                          :join? (get b-cfg ::join-server? true)}))))))))))
+            (try
+              (let [fw-mode? (figwheel-mode? b-cfg)]
+                (build config options cenv)
+                (when-not (= mode :build-once)
+                  (start-background-builds (assoc cfg
+                                                  ::start-figwheel-options
+                                                  config))
+                  (doseq [init-fn (::initializers b-cfg)] (init-fn))
+                  (log/trace "Figwheel.core config:" (pr-str figwheel.core/*config*))
+                  (figwheel.core/start*)
+                  (cond
+                    (= mode :repl)
+                    ;; this forwards command line args
+                    (repl repl-env repl-options)
+                    (= mode :serve)
+                    ;; we need to get the server host:port args
+                    (serve {:repl-env repl-env
+                            :repl-options repl-options
+                          :join? (get b-cfg ::join-server? true)})
+                    ;; the final case is compiling without a repl or a server
+                    ;; if there is a watcher running join it
+                    (and (fww/running?) (get b-cfg ::join-server? true))
+                    (fww/join))))
+              (finally
+                (when (get b-cfg ::join-server? true)
+                  (fww/stop!))))))))))
 
 (defn start-build-arg->build-options [build]
   (let [[build-id build-options config]
@@ -1455,7 +1672,7 @@ This can cause confusion when your are not using Cider."
               input (if-let [paths (not-empty (:watch-dirs config))]
                       (apply bapi/inputs paths)
                       (when-let [source (when (:main options)
-                                          (:uri (bapi/ns->location (symbol (:main options)))))]
+                                          (:uri (fw-util/ns->location (symbol (:main options)))))]
                         source))]
           (when input
             (build-cljs i input options
@@ -1489,10 +1706,14 @@ This can cause confusion when your are not using Cider."
            (list)
            args)))
 
-(defn -main [& args]
+(defn -main [& orig-args]
+  ;; todo make this local with-redefs?
   (alter-var-root #'cli/default-commands cli/add-commands figwheel-commands)
+  ;; set log level early
+  (when-let [level (get-edn-file-key "figwheel-main.edn" :log-level)]
+    (log/set-level level))
   (try
-    (let [args       (fix-simple-bool-args #{"-pc" "--pprint-config"} args)
+    (let [args       (fix-simple-bool-args #{"-pc" "--print-config"} orig-args)
           [pre post] (split-with (complement #{"-re" "--repl-env"}) args)
           _          (when (not-empty post)
                        (throw
@@ -1500,21 +1721,24 @@ This can cause confusion when your are not using Cider."
                                       "The figwheel REPL is implicitly used.\n"
                                       "Perhaps you were intending to use the --target option?")
                                  {::error true})))
-          args'      (if (empty? post) (concat ["-re" "figwheel"] args) args)
-          args'      (if (empty? args) (concat args' ["-r"]) args')]
+          _          (validate-cli! (vec orig-args))
+          args'      (concat ["-re" "figwheel"] args)
+          args'      (if (or (empty? args)
+                             (= args ["-pc" "true"])
+                             (= args ["--print-config" "true"]))
+                       (concat args' ["-r"]) args')]
       (with-redefs [cljs.cli/default-compile default-compile
                     cljs.cli/load-edn-opts load-edn-opts]
         (apply cljs.main/-main args')))
     (catch Throwable e
       (let [d (ex-data e)]
-        (if (or (:figwheel.main.schema/error d)
+        (if (or (:figwheel.main.schema.core/error d)
+                (:figwheel.main.schema.cli/error d)
                 (:cljs.main/error d)
                 (::error d))
-          (println (.getMessage e))
-          (throw e))))))
-
-
-))
+          (binding [*out* *err*]
+            (println (.getMessage e)))
+          (throw e))))))))
 
 #_(def test-args
   (concat ["-co" "{:aot-cache false :asset-path \"out\"}" "-b" "dev" "-e" "(figwheel.core/start-from-repl)"]

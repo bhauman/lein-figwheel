@@ -1,57 +1,26 @@
-(ns figwheel.main.schema
+(ns figwheel.main.schema.config
   (:require
    [clojure.java.io :as io]
    [clojure.string :as string]
    [clojure.spec.alpha :as s]
-   [expound.alpha :as exp]))
+   [clojure.set]
+   [figwheel.main.util :as util]
+   [figwheel.main.schema.core
+    :as schema
+    :refer [def-spec-meta non-blank-string? directory-exists?
+            ensure-all-registered-keys-included]]
+   [expound.alpha :as exp]
+   [spell-spec.alpha :as spell]
+   [spell-spec.expound]))
 
-(def ^:dynamic *spec-meta* (atom {}))
-(defn def-spec-meta [k & args]
-  (assert (even? (count args)))
-  (swap! *spec-meta* assoc k (assoc (into {} (map vec (partition 2 args)))
-                                    :position (count (keys @*spec-meta*))
-                                    :key k)))
+(s/def ::watch-dirs
+  (s/coll-of
+   (s/and non-blank-string?
+          directory-exists?
+          ::schema/has-cljs-source-files)))
 
-(defn spec-doc [k doc] (swap! *spec-meta* assoc-in [k :doc] doc))
+#_(exp/expound ::watch-dirs ["/Users/bhauman/workspace/temp/figtest/ouchy"])
 
-(defn file-exists? [s] (and s (.isFile (io/file s))))
-(defn directory-exists? [s] (and s (.isDirectory (io/file s))))
-
-(defn non-blank-string? [x] (and (string? x) (not (string/blank? x))))
-
-(s/def ::edn (s/keys :opt-un
-                     [::watch-dirs
-                      ::css-dirs
-                      ::ring-handler
-                      ::ring-server-options
-                      ::rebel-readline
-                      ::pprint-config
-                      ::open-file-command
-                      ::figwheel-core
-                      ::hot-reload-cljs
-                      ::connect-url
-                      ::reload-clj-files
-                      ::log-file
-                      ::log-level
-                      ::log-syntax-error-style
-                      ::load-warninged-code
-                      ::ansi-color-output
-                      ::validate-config
-                      ::target-dir
-
-                      ::launch-node
-                      ::inspect-node
-                      ::node-command
-
-                      ::client-print-to
-                      ::ring-stack
-                      ::ring-stack-options
-                      ::watch-time-ms
-                      ::mode
-                      ::ring-server]))
-
-(s/def ::watch-dirs (s/coll-of (s/and non-blank-string?
-                                      directory-exists?)))
 (def-spec-meta ::watch-dirs
   :doc
   "A list of ClojureScript source directories to be watched and compiled on change.
@@ -82,7 +51,10 @@ Default: none
     :ring-handler my-project.server/handler"
   :group :common)
 
-(s/def ::ring-server-options (s/keys :opt-un [::port]))
+(s/def ::ring-server-options (s/keys :opt-un
+                                     [::schema/integer-port
+                                      ::schema/host]))
+
 (def-spec-meta ::ring-server-options
   :doc
  "All the options to forward to the `ring-jetty-adapter/run-jetty` function
@@ -164,7 +136,7 @@ and Figwheel will call emacsclient with the correct args."
   :group :common)
 
 (s/def ::hot-reload-cljs boolean?)
-(def-spec-meta :figwheel.core/hot-reload-cljs
+(def-spec-meta ::hot-reload-cljs
   :doc
  "Whether or not figwheel.core should hot reload compiled
 ClojureScript. Only has meaning when :figwheel is true.
@@ -203,14 +175,16 @@ connection will be established. If the url starts with an http scheme
 \"http\" an http long polling connection will be established."
   :group :common)
 
-(s/def ::open-url non-blank-string?)
+(s/def ::open-url (s/or :non-blank-string non-blank-string?
+                        :false false?))
 (def-spec-meta ::open-url
   :doc
- "The url that the figwheel repl will open in the browser after the
-souce code has been compiled.
+ "Either a boolean value `false` or a string that indicates the url
+that the figwheel repl will open in the browser after the source code
+has been compiled. A `false` value will disable this behavior.
 
-This url is actually a template that will be filled in.  For example
-the default `:open-url` is:
+The string value is actually a template that can provide optional
+template variables. For example the default `:open-url` is:
 
     \"http://[[server-hostname]]:[[server-port]]\"
 
@@ -261,6 +235,16 @@ Can be one of: `:error` `:info` `:debug` `:trace` `:all` `:off`
     :log-level :error"
   :group :common)
 
+(s/def ::client-log-level  #{:severe :warning :info :config :fine :finer :finest})
+(def-spec-meta ::client-log-level
+  :doc
+ "The log level to set the client side goog.log.Logger to for
+figwheel.repl and figwheel.core. Can be one of:
+`:severe` `:warning` `:info` `:config` `:fine` `:finer` `:finest`
+
+    :client-log-level :warning"
+  :group :common)
+
 (s/def ::log-syntax-error-style #{:verbose :concise})
 (def-spec-meta ::log-syntax-error-style
   :doc
@@ -302,6 +286,15 @@ to false.  Default: true
 Default: true
 
     :validate-config false"
+  :group :common)
+
+(s/def ::validate-cli boolean?)
+(def-spec-meta ::validate-cli
+  :doc
+ "Whether to validate the figwheel-main command line options
+Default: true
+
+    :validate-cli false"
   :group :common)
 
 (s/def ::target-dir non-blank-string?)
@@ -348,6 +341,16 @@ Defaults to true."
 Defaults to \"node\""
   :group :common)
 
+(s/def ::cljs-devtools boolean?)
+
+(def-spec-meta ::cljs-devtools
+  :doc
+  "A boolean that indicates wether to include binaryage/devtools into
+the your clojurescript build. Defaults to true when the target is a
+browser and the :optimizations level is :none, otherwise it is false.
+
+    :cljs-devtools false"
+  :group :common)
 
 ;; -------------------------------XXXXXXXXXXXX
 
@@ -452,52 +455,72 @@ behavior. Default: false
     :broadcast true"
   :group :un-common)
 
-;; ------------------------------------------------------------
-;; Validate
-;; ------------------------------------------------------------
+(s/def ::repl-eval-timeout integer?)
+(def-spec-meta ::repl-eval-timeout
+  :doc
+  "The time (in milliseconds) it takes for the repl to timeout.
+Evaluating any given expression in cljs can take some time.
+The repl is configured to throw a timeout exception as to not hang forever.
 
-#_(exp/expound ::edn {:watch-dirs ["src"]
-                      :ring-handler "asdfasdf/asdfasdf"
-                      :reload-clj-files [:cljss :clj]})
+This config option will determine how long the repl waits for the result of an eval
+before throwing.
 
-#_(s/valid? ::edn {:watch-dirs ["src"]
-                   :ring-handler "asdfasdf/asdfasdf"
-                   :reload-clj-files [:cljss :clj]})
+Default: 8000
 
-(defn validate-config! [config-data context-msg]
-  (when-not (s/valid? ::edn config-data)
-    (let [explained (exp/expound-str ::edn config-data)]
-      (throw (ex-info (str context-msg "\n" explained)
-                      {::error explained}))))
-  true)
+    :repl-eval-timeout 10000 ;;waits for 10 seconds instead of 8"
+  :group :un-common)
 
-;; ------------------------------------------------------------
-;; Generate docs
-;; ------------------------------------------------------------
+(s/def ::hawk-options (s/map-of #{:watcher} #{:barbary :java :polling}))
 
-(defn markdown-option-docs [key-datas]
-  (string/join
-   "\n\n"
-   (mapv (fn [{:keys [key doc]}]
-           (let [k (keyword (name key))]
-             (format "## %s\n\n%s" (pr-str k) doc)))
-         key-datas)))
+(def-spec-meta ::hawk-options
+  :doc
+  "If you need to watch files with polling instead of FS events. This can
+be useful for certain docker environments.
 
-(defn markdown-docs []
-  (let [{:keys [common un-common]}  (group-by :group (sort-by :position (vals @*spec-meta*)))]
-    (str "# Figwheel Main Configuration Options\n\n"
-         "The following options can be supplied to `figwheel.main` via the `figwheel-main.edn` file.\n\n"
-         "# Commonly used options (in order of importance)\n\n"
-         (markdown-option-docs common)
-         "\n\n"
-         "# Rarely used options\n\n"
-         (markdown-option-docs un-common))))
+    :hawk-options {:watcher :polling}"
+  :group :un-common)
 
-(defn output-docs [output-to]
-  (require 'figwheel.server.ring)
-  (.mkdirs (.getParentFile (io/file output-to)))
-  (spit output-to (markdown-docs)))
 
-#_(output-docs "doc/figwheel-main-options.md")
+(s/def ::edn
+  (ensure-all-registered-keys-included
+   #{::edn}
+   (spell/strict-keys
+    :opt-un
+    [::watch-dirs
+     ::css-dirs
+     ::ring-handler
+     ::ring-server-options
+     ::rebel-readline
+     ::pprint-config
+     ::open-file-command
+     ::figwheel-core
+     ::hot-reload-cljs
+     ::connect-url
+     ::open-url
+     ::reload-clj-files
+     ::log-file
+     ::log-level
+     ::client-log-level
+     ::log-syntax-error-style
+     ::load-warninged-code
+     ::ansi-color-output
+     ::validate-config
+     ::validate-cli
+     ::target-dir
 
-#_(markdown-docs)
+     ::launch-node
+     ::inspect-node
+     ::node-command
+     ::cljs-devtools
+
+     ::client-print-to
+     ::ring-stack
+     ::ring-stack-options
+     ::wait-time-ms
+     ::mode
+     ::ring-server
+     ::broadcast
+     ::broadcast-reload
+     ::repl-eval-timeout
+     ::hawk-options
+     ])))

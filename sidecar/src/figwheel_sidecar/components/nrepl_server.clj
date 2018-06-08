@@ -9,7 +9,12 @@
   (when (:nrepl-port figwheel-options)
     (let [middleware (or
                       (:nrepl-middleware figwheel-options)
-                      ["cemerick.piggieback/wrap-cljs-repl"])
+                      (cond
+                        (utils/require? 'cider.piggieback)
+                        ["cider.piggieback/wrap-cljs-repl"]
+                        (utils/require? 'cemerick.piggieback)
+                        ["cemerick.piggieback/wrap-cljs-repl"]
+                        :else nil))
           resolve-mw (fn [name]
                        (let [s (symbol name)
                              ns (symbol (namespace s))]

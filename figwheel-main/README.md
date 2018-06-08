@@ -1,5 +1,7 @@
 # figwheel-main
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.bhauman/figwheel-main.svg)](https://clojars.org/com.bhauman/figwheel-main)
+
 Figwheel Main is intended to provide a `cljs.main` like command line
 experience for ClojureScript that also provides the many features that
 were first developed in `lein-figwheel` but better.
@@ -27,8 +29,7 @@ above features have been improved significantly.
 The new architecture also makes it trivial to add your own development
 tools that can communicate from the server to your client.
 
-> Currently ONLY works for a browser environment, Node support will be
-> coming next with other targets soon following.
+> Currently ONLY works for a browser and Node environments
 
 > Currently still undergoing heavy development. Stuff will most certainly change.
 
@@ -49,7 +50,7 @@ On Mac OSX with brew:
 Now launch a ClojureScript REPL with:
 
 ```
-clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"}}}}"  -m figwheel.main
+clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0\"}}}}"  -m figwheel.main
 ```
 
 This will first compile browser REPL code to a temp directory, and
@@ -71,7 +72,7 @@ available. So you can get Rebel Readline behavior by simply adding it
 to your dependencies.
 
 ```
-clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0-SNAPSHOT\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
+clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
 ```
 
 As of right now Rebel readline does create some startup overhead
@@ -86,7 +87,7 @@ reload them.
 Ensure your `deps.edn` file has `figwheel.main` dependencies:
 
 ```clojure
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
+{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0"}
         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}
  ;; setup common development paths that you may be used to 
  ;; from lein
@@ -125,7 +126,7 @@ The `-r` or `--repl` flag indicates that a repl should be launched.
 Interesting to note that the above command is equivalent to:
 
 ```
-clojure -m figwheel.main -co dev.cljs.edn -c example.core -r
+clojure -m figwheel.main -co dev.cljs.edn -c -r
 ```
 
 Note: that if you want to add your own `index.html` file to host your
@@ -165,7 +166,7 @@ ClojureScript searches for source files on the Classpath. When you add
 a `re-frame` dependency like so:
 
 ```clojure
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
+{:deps {com.bhauman/figwheel-main {:mvn/version "0.1.0"}
         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}
         ;; adding re-frame
         re-frame {:mvn/version "1.10.5"}}
@@ -224,7 +225,7 @@ Of course if you add `:target :nodejs` to `dev.cljs.edn` like so:
 
 You be able to run the build more simply:
 
-    clojure -m figwheel.main -t node -b dev -r
+    clojure -m figwheel.main -b dev -r
 
 ## Reload hooks
 
@@ -293,10 +294,6 @@ See the `figwheel.main/start` function and the `figwheel.main/start-join` functi
 
 Figwheel Main aims to honor all the flags provided by `cljs.main` as
 of right now your mileage may vary.
-
-## Known issues
-
-* Quiting from rebel-readline REPL requires quiting multiple processes
 
 ## License
 

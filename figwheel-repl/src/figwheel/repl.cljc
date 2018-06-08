@@ -576,7 +576,31 @@
           (.setScheme "http")
           str))))
 
+(goog-define client-log-level "info")
+
+(def log-levels
+  (into {}
+        (map (juxt
+              string/lower-case
+              #(gobj/get goog.debug.Logger.Level %))
+             (map str '(SEVERE WARNING INFO CONFIG FINE FINER FINEST)))))
+
+(defn set-log-level [logger' level]
+  (if-let [lvl (get log-levels level)]
+    (do
+      (.setLevel logger' lvl)
+      (debug (str "setting log level to " level)))
+    (glog/warn (str "Log level " (pr-str level) " doesn't exist must be one of "
+                    (pr-str ("severe" "warning" "info" "config" "fine" "finer" "finest"))))))
+
+(defn init-log-level! []
+  (doseq [logger' (cond-> [logger]
+                    (exists? js/figwheel.core)
+                    (conj js/figwheel.core.logger))]
+    (set-log-level logger' client-log-level)))
+
 (defn connect* [connect-url']
+  (init-log-level!)
   (patch-goog-base)
   (let [url (switch-to-http? (string/trim (or connect-url' connect-url)))]
     (cond
@@ -989,7 +1013,7 @@
 
 (let [timeout-val (Object.)]
   (defn evaluate [{:keys [focus-session-name ;; just here for consideration
-                          repl-timeout
+                          repl-eval-timeout
                           broadcast] :as repl-env} js]
     (reset! (:bound-printer repl-env)
             (bound-fn [stream args]
@@ -997,7 +1021,7 @@
     (wait-for-connection repl-env)
     (let [ev-connections (eval-connections repl-env)
           result (let [v (deref (send-for-eval repl-env ev-connections js)
-                                (or repl-timeout 8000)
+                                (or repl-eval-timeout 8000)
                                 timeout-val)]
                    (cond (= timeout-val v)
                      (do
@@ -1063,12 +1087,12 @@
           (and
            (contains? #{nil :browser} (:target options))
            (:output-to options)
-           (not (get-in (:ring-stack-options options) [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html])))
+           (not (get-in (:ring-stack-options options) [:figwheel.server.ring/dev :figwheel.server.ring/system-app-handler])))
           (assoc-in
-           [:figwheel.server.ring/dev :figwheel.server.ring/default-index-html]
-           (figwheel.server.ring/index-html (cond-> (select-keys options [:output-to])
-                                              (:default-index-body options)
-                                              (assoc :body (:default-index-body options)))))))
+           [:figwheel.server.ring/dev :figwheel.server.ring/system-app-handler]
+           #(figwheel.server.ring/default-index-html
+             %
+             (figwheel.server.ring/index-html (select-keys options [:output-to]))))))
      (assoc (get options :ring-server-options)
             :async-handlers
             {figwheel-connect-path
@@ -1117,9 +1141,9 @@
          (nil? @(:server repl-env)))
     (let [server (run-default-server
                   (merge
-                   (select-keys repl-env [:default-index-body
-                                          :port
+                   (select-keys repl-env [:port
                                           :host
+                                          :target
                                           :output-to
                                           :ring-handler
                                           :ring-server
@@ -1146,31 +1170,33 @@
                         (repl-env-print repl-env stream args))))))))]
       (reset! (:printing-listener repl-env) print-listener)
       (add-listener print-listener)))
+  (let [{:keys [target output-to output-dir]}
+        (apply merge
+               (map #(select-keys % [:target :output-to :output-dir]) [repl-env opts]))]
+    ;; Node REPL
+    (when (and (= :nodejs target)
+               (:launch-node repl-env true)
+               output-to)
+      (let [output-file (io/file output-dir "node.log")]
+        (println "Starting node ... ")
+        (reset! (:node-proc repl-env) (launch-node opts repl-env output-to output-file))
+        (println "Node output being logged to:" output-file)
+        (when (:inspect-node repl-env true)
+          (println "For a better development experience:")
+          (println "  1. Open chrome://inspect/#devices ... (in Chrome)")
+          (println "  2. Click \"Open dedicated DevTools for Node\""))))
 
-  ;; Node REPL
-  (when (and (= :nodejs (:target opts))
-             (:launch-node repl-env true)
-             (:output-to opts))
-    (let [output-file (str (io/file (:output-dir opts) "node.log"))]
-      (println "Starting node ... ")
-      (reset! (:node-proc repl-env) (launch-node opts repl-env (:output-to opts) output-file))
-      (println "Node output being logged to:" output-file)
-      (when (:inspect-node repl-env true)
-        (println "For a better development experience:")
-        (println "  1. Open chrome://inspect/#devices ... (in Chrome)")
-        (println "  2. Click \"Open dedicated DevTools for Node\""))))
-
-  ;; open a url
-  (when-let [open-url
-             (and (not (= :nodejs (:target opts)))
-              (when-let [url (:open-url repl-env)]
-                ;; TODO the host port thing needs to be fixed ealier
-                (fill-server-url-template
-                 url
-                 (merge (select-keys repl-env [:host :port])
-                        (select-keys (:ring-server-options repl-env) [:host :port])))))]
-    (println "Opening URL" open-url)
-    (browse/browse-url open-url)))
+    ;; open a url
+    (when-let [open-url
+               (and (not (= :nodejs target))
+                    (when-let [url (:open-url repl-env)]
+                      ;; TODO the host port thing needs to be fixed ealier
+                      (fill-server-url-template
+                       url
+                       (merge (select-keys repl-env [:host :port])
+                              (select-keys (:ring-server-options repl-env) [:host :port])))))]
+      (println "Opening URL" open-url)
+      (browse/browse-url open-url))))
 
 (defrecord FigwheelReplEnv []
   cljs.repl/IJavaScriptEnv
@@ -1186,17 +1212,15 @@
       (evaluate this js-content)))
   (-tear-down [{:keys [server printing-listener node-proc]}]
     ;; don't shut things down in nrepl
-    (when-not (when-let [v (resolve 'clojure.tools.nrepl.middleware.interruptible-eval/*msg*)]
-                (thread-bound? v))
-      (when-let [svr @server]
-        (reset! server nil)
-        (.stop svr))
-      (when-let [proc @node-proc]
-        (.destroy proc)
-        #_(.waitFor proc) ;; ?
-        )
-      (when-let [listener @printing-listener]
-        (remove-listener listener))))
+    (when-let [svr @server]
+      (reset! server nil)
+      (.stop svr))
+    (when-let [proc @node-proc]
+      (.destroy proc)
+      #_(.waitFor proc) ;; ?
+      )
+    (when-let [listener @printing-listener]
+      (remove-listener listener)))
   cljs.repl/IReplEnvOptions
   (-repl-options [this]
     (let [main-fn (resolve 'figwheel.main/default-main)]

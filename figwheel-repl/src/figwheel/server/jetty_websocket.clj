@@ -77,7 +77,6 @@
               (.setHandled request true)))
           (proxy-super handle target request req res))))))
 
-
 (defn set-log-level! [log-lvl]
   (let [level (or ({:all     StdErrLog/LEVEL_ALL
                     :debug   StdErrLog/LEVEL_DEBUG
@@ -85,10 +84,13 @@
                     :off     StdErrLog/LEVEL_OFF
                     :warn    StdErrLog/LEVEL_WARN } log-lvl)
                   StdErrLog/LEVEL_WARN)]
-    (doto (Log/getRootLogger)
-      (.setLevel level))
-    (doseq [[k v] (Log/getLoggers)]
-      (.setLevel v level))))
+    ;; this only works for the jetty StdErrLog
+    (let [l (Log/getRootLogger)]
+      (when (instance? StdErrLog l)
+        (.setLevel l level)))
+    (doseq [[k l] (Log/getLoggers)]
+      (when (instance? StdErrLog l)
+        (.setLevel l level)))))
 
 (defn async-websocket-configurator [{:keys [websockets async-handlers]}]
   (fn [server]
