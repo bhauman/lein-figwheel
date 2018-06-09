@@ -743,8 +743,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
 (defn- config-figwheel-main-edn [cfg]
   (if-not (.isFile (io/file "figwheel-main.edn"))
     cfg
-    (let [config-edn (or (::start-figwheel-options cfg)
-                         (process-figwheel-main-edn
+    (let [config-edn (process-figwheel-main-edn
+                      (or (::start-figwheel-options cfg)
                           (fetch-figwheel-main-edn cfg)))]
       (-> cfg
           (update ::config #(merge config-edn %))))))

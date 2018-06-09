@@ -26,6 +26,9 @@
 (defn connected-signal []
   (add-class (gdom/getElement "connect-status") "connected"))
 
+;; TODO memoize this into an atom
+;; could probably meoize all the pages into an atom
+;; on start
 (defn get-content [url]
   (Promise.
    (fn [succ e]
@@ -60,8 +63,6 @@
                  (focus-anchor! a)
                  (when-let [content-loc (.-rel (.-target e))]
                    (load-content content-loc "main-content")))))))
-
-#_(init-sidebar-link-actions!)
 
 (defn on-connect [e]
   (init-sidebar-link-actions!)
