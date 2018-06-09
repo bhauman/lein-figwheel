@@ -14,10 +14,17 @@
 #?(:cljs
   (do
 
+(def sidebar-link-class "figwheel_main_content_link")
+(def sidebar-focus-class "figwheel_main_content_link_focus")
+
+(defn add-class [el klass]
+  (.add (gobj/get el "classList") klass))
+
+(defn remove-class [el klass]
+  (.remove (gobj/get el "classList") klass))
+
 (defn connected-signal []
-  (.add (gobj/get (gdom/getElement "connect-status")
-                  "classList")
-        "connected"))
+  (add-class (gdom/getElement "connect-status") "connected"))
 
 (defn get-content [url]
   (Promise.
@@ -36,13 +43,35 @@
            (set! (.-innerHTML (gdom/getElement div-id))
                  content))))
 
+(defn focus-anchor! [anchor-tag]
+  (.forEach (gdom/getElementsByTagNameAndClass "a" sidebar-link-class)
+            (fn [a]
+              (remove-class a sidebar-focus-class)
+              (when (= a anchor-tag)
+                (add-class a sidebar-focus-class)))))
+
+(defn init-sidebar-link-actions! []
+  (.forEach (gdom/getElementsByTagNameAndClass "a" sidebar-link-class)
+            (fn [a]
+              (.addEventListener
+               a "click"
+               (fn [e]
+                 (.preventDefault e)
+                 (focus-anchor! a)
+                 (when-let [content-loc (.-rel (.-target e))]
+                   (load-content content-loc "main-content")))))))
+
+#_(init-sidebar-link-actions!)
+
 (defn on-connect [e]
-  (load-content "com/bhauman/figwheel-helper/repl-host.html" "main-content")
+  (init-sidebar-link-actions!)
+  #_(load-content "com/bhauman/figwheel/helper/content/repl_welcome.html" "main-content")
   (connected-signal))
 
 (defonce initialize
   (.addEventListener js/document.body "figwheel.repl.connected"
                      on-connect))
+
 
 ))
 
@@ -70,7 +99,8 @@
       </header>
       <div class=\"container\">
         <aside>
-          <a href=\"#getting-started\">Getting Started</a>
+          <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/repl_welcome.html\">Welcome</a>
+          <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/creating_a_build_cli_tools.html\">Create a build</a>
         </aside>
         <section id=\"main-content\">
         %s
@@ -83,36 +113,35 @@
 </html>"
          (str header)
          (str body)
-         (when-not (:dev-mode options)
-           "<script src=\"com/bhauman/figwheel/helper.js\"></script>")
+         (str
+          (when-not (:dev-mode options)
+            "<script src=\"com/bhauman/figwheel/helper.js\"></script>"))
          (str
           (when (and output-to
                      (.isFile (io/file output-to)))
             (-> (slurp output-to)
                 (string/replace #"<\/script" "<\\\\/script"))))))
 
+
 (defn main-action [req cfg options]
   {:status 200
    :headers {"Content-Type" "text/html"}
-   :body (main-wrapper {:output-to (:output-to options)
-                        :body nil
-                        :dev-mode true
-                        :header "REPL host page"})})
+   :body (main-wrapper options)})
 
 (defn dev-endpoint [req]
-  (println "HERERE1")
-  (let [method-uri ((juxt :request-method :uri) req)
-        ;cfg (resolve 'figwheel.main/*config*)
-        ]
-    (println "HERERE2")
+  (let [method-uri ((juxt :request-method :uri) req)]
     (when (= method-uri [:get "/"])
-      (main-action req nil nil #_(when cfg
-                             {:output-to (get @cfg [:options :output-to])})))))
+      (main-action req nil {:output-to "target/public/cljs-out/helper-main.js"
+                            :dev-mode true
+                            :header "Dev Mode"
+                            :body (slurp (io/resource "public/com/bhauman/figwheel/helper/content/repl_welcome.html"))
+                            }))))
 
 (defn middleware [handler cfg options]
   (fn [req]
     (let [method-uri ((juxt :request-method :uri) req)]
       (cond
         (= method-uri [:get "/"])
-        (main-action req cfg options)
+        (main-action req cfg {:header "REPL Host page"
+                              })
         :else (handler req)))))))

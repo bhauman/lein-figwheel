@@ -52,8 +52,22 @@ aside {
 aside a {
     color: #888;
     text-decoration: none;
-
+    display: block;
+    line-height: 2.5em;
+    padding-left: 4px;
+    transition: color 0.7s ease, background-color 0.7s ease;
 }
+
+aside a.figwheel_main_content_link_focus {
+    background-color: #eee;
+    color: #555;
+}
+
+aside a:hover {
+    background-color: #eee;
+}
+
+
 
 .container {
     display:flex;

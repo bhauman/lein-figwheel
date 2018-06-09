@@ -1,2 +1,3 @@
-^{:ring-handler figwheel.main.helper/dev-endpoint}
+^{:ring-handler figwheel.main.helper/dev-endpoint
+   :css-dirs ["helper-resources/public/com/bhauman/figwheel/helper/css"]}
 {:main figwheel.main.helper}
