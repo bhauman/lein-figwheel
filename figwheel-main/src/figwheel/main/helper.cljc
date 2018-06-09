@@ -26,6 +26,9 @@
 (defn connected-signal []
   (add-class (gdom/getElement "connect-status") "connected"))
 
+(defn on-disconnect []
+  (remove-class (gdom/getElement "connect-status") "connected"))
+
 ;; TODO memoize this into an atom
 ;; could probably meoize all the pages into an atom
 ;; on start
@@ -69,8 +72,11 @@
   (connected-signal))
 
 (defonce initialize
-  (.addEventListener js/document.body "figwheel.repl.connected"
-                     on-connect))
+  (do
+    (.addEventListener js/document.body "figwheel.repl.connected"
+                       on-connect)
+    (.addEventListener js/document.body "figwheel.repl.disconnected"
+                       on-disconnect)))
 
 
 ))
@@ -83,11 +89,11 @@
          "<!DOCTYPE html>
 <html>
   <head>
-    <link href=\"com/bhauman/figwheel/helper/css/style.css\" rel=\"stylesheet\" type=\"text/css\">
-    <link href=\"com/bhauman/figwheel/helper/css/coderay.css\" rel=\"stylesheet\" type=\"text/css\">
   </head>
   <body>
     <div id=\"app\">
+      <link href=\"com/bhauman/figwheel/helper/css/style.css\" rel=\"stylesheet\" type=\"text/css\">
+      <link href=\"com/bhauman/figwheel/helper/css/coderay.css\" rel=\"stylesheet\" type=\"text/css\">
       <header>
         <div class=\"container\">
           <div id=\"connect-status\">
@@ -105,9 +111,9 @@
         <section id=\"main-content\">
         %s
         </section>
-    </div>
-    </div> <!-- end of app div -->
+      </div>
     %s
+    </div> <!-- end of app div -->
     <script type=\"text/javascript\">%s</script>
   </body>
 </html>"
