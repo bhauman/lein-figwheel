@@ -424,6 +424,14 @@
            (doto (js/Event. "figwheel.repl.connected" target)
              (gobj/add "data" {:url url}))))))
 
+(defn connection-closed! [url]
+  (when (= host-env :html)
+    (let [target (.. goog.global -document -body)]
+      (.dispatchEvent
+       target
+       (doto (js/Event. "figwheel.repl.disconnected" target)
+         (gobj/add "data" {:url url}))))))
+
 (defn get-websocket-class []
   (or
    (gobj/get goog.global "WebSocket")
@@ -471,6 +479,8 @@
                                (connection-established! url)
                                (swap! state assoc :connection {:websocket websocket})
                                (hook-repl-printing-output! {:websocket websocket})))
+          (.addEventListener goog.net.WebSocket.EventType.CLOSED
+                             (fn [e] (connection-closed! url)))
           (.open url))))))
 
 ;; -----------------------------------------------------------
@@ -514,6 +524,7 @@
            (msg-fn msg)
            (js/setTimeout #(poll msg-fn connect-url') 500))
          (fn [e] ;; lost connection
+           (connection-closed! connect-url')
            (http-connect connect-url'))))
 
 (defn long-poll [msg-fn connect-url']
@@ -522,6 +533,7 @@
            (msg-fn msg)
            (long-poll msg-fn connect-url'))
          (fn [e] ;; lost connection
+           (connection-closed! connect-url')
            (http-connect connect-url'))))
 
 (defn http-connect* [attempt connect-url']
