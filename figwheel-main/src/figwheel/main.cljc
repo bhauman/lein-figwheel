@@ -727,27 +727,27 @@ classpath. Classpath-relative paths have prefix of @ or @/")
       handler (assoc :ring-handler handler))))
 
 (defn process-figwheel-main-edn [main-edn]
-  (when-not (false? (:validate-config main-edn))
-    (log/info "Validating figwheel-main.edn")
-    (validate-config!
-     :figwheel.main.schema.config/edn
-     main-edn "Configuration error in figwheel-main.edn"
-                      "figwheel-main.edn is valid!"))
-  (process-main-config main-edn))
+  (when main-edn
+    (when-not (false? (:validate-config main-edn))
+      (log/info "Validating figwheel-main.edn")
+      (validate-config!
+       :figwheel.main.schema.config/edn
+       main-edn "Configuration error in figwheel-main.edn"
+       "figwheel-main.edn is valid!"))
+    (process-main-config main-edn)))
 
 ;; use tools reader read-string for better error messages
 #_(redn/read-string)
 (defn fetch-figwheel-main-edn [cfg]
-  (read-edn-file "figwheel-main.edn"))
+  (when (.isFile (io/file "figwheel-main.edn"))
+    (read-edn-file "figwheel-main.edn")))
 
 (defn- config-figwheel-main-edn [cfg]
-  (if-not (.isFile (io/file "figwheel-main.edn"))
-    cfg
-    (let [config-edn (process-figwheel-main-edn
-                      (or (::start-figwheel-options cfg)
-                          (fetch-figwheel-main-edn cfg)))]
-      (-> cfg
-          (update ::config #(merge config-edn %))))))
+  (let [config-edn (process-figwheel-main-edn
+                    (or (::start-figwheel-options cfg)
+                        (fetch-figwheel-main-edn cfg)))]
+    (cond-> cfg
+      config-edn (update ::config #(merge config-edn %)))))
 
 (defn- config-merge-current-build-conf [{:keys [::extra-config ::build] :as cfg}]
   (update cfg
@@ -1495,7 +1495,6 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
            (assoc ::background-builds (mapv
                                        start-build-arg->build-options
                                        background-builds)))]
-     cfg
      (default-compile cljs.repl.figwheel/repl-env cfg))))
 
 (defn start
