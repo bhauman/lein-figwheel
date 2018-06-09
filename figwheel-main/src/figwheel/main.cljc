@@ -21,6 +21,7 @@
         [figwheel.main.logging :as log]
         [figwheel.main.util :as fw-util]
         [figwheel.main.watching :as fww]
+        [figwheel.main.helper :as helper]
         [figwheel.repl :as fw-repl]
         [figwheel.tools.exceptions :as fig-ex]))
   #?(:clj
@@ -551,7 +552,12 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                     :ring-stack-options
                     :figwheel.server.ring/dev
                     :figwheel.server.ring/system-app-handler]
-                   #(helper-ring-app %
+                   #(helper/middleware
+                     %
+                     {:header "REPL Host page"
+                      :body (slurp (io/resource "public/com/bhauman/figwheel/helper/content/repl_welcome.html"))
+                      :output-to output-to})
+                   #_#(helper-ring-app %
                                      default-main-repl-index-body
                                      output-to
                                      true))
@@ -1276,6 +1282,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                                    "Node"
                                    "a REPL hosting webpage"))]))
       (println repl-header)
+
       (if (in-nrepl?)
         (nrepl-repl repl-env repl-options)
         (let [repl-fn (or (when-not (false? (:rebel-readline (::config *config*)))

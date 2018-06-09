@@ -65,7 +65,6 @@
 
 (defn on-connect [e]
   (init-sidebar-link-actions!)
-  #_(load-content "com/bhauman/figwheel/helper/content/repl_welcome.html" "main-content")
   (connected-signal))
 
 (defonce initialize
@@ -123,7 +122,7 @@
                 (string/replace #"<\/script" "<\\\\/script"))))))
 
 
-(defn main-action [req cfg options]
+(defn main-action [req options]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (main-wrapper options)})
@@ -131,17 +130,15 @@
 (defn dev-endpoint [req]
   (let [method-uri ((juxt :request-method :uri) req)]
     (when (= method-uri [:get "/"])
-      (main-action req nil {:output-to "target/public/cljs-out/helper-main.js"
-                            :dev-mode true
-                            :header "Dev Mode"
-                            :body (slurp (io/resource "public/com/bhauman/figwheel/helper/content/repl_welcome.html"))
-                            }))))
+      (main-action req {:output-to "target/public/cljs-out/helper-main.js"
+                        :dev-mode true
+                        :header "Dev Mode"
+                        :body (slurp (io/resource "public/com/bhauman/figwheel/helper/content/repl_welcome.html"))}))))
 
-(defn middleware [handler cfg options]
+(defn middleware [handler options]
   (fn [req]
     (let [method-uri ((juxt :request-method :uri) req)]
       (cond
         (= method-uri [:get "/"])
-        (main-action req cfg {:header "REPL Host page"
-                              })
+        (main-action req options)
         :else (handler req)))))))
