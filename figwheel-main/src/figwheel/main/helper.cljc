@@ -29,18 +29,21 @@
 (defn on-disconnect []
   (remove-class (gdom/getElement "connect-status") "connected"))
 
-;; TODO memoize this into an atom
-;; could probably meoize all the pages into an atom
-;; on start
+(defonce resource-atom (atom {}))
+
 (defn get-content [url]
   (Promise.
    (fn [succ e]
-     (xhr/send url
-               (fn [resp]
-                 (some-> resp
-                         (gobj/get "currentTarget")
-                         (.getResponseText)
-                         succ))))))
+     (if-let [res (get @resource-atom url)]
+       (succ res)
+       (xhr/send url
+                 (fn [resp]
+                   (some-> resp
+                           (gobj/get "currentTarget")
+                           (.getResponseText)
+                           (#(do (swap! resource-atom assoc url %)
+                                 %))
+                           succ)))))))
 
 (defn load-content [url div-id]
   (.then (get-content url)
@@ -59,13 +62,16 @@
 (defn init-sidebar-link-actions! []
   (.forEach (gdom/getElementsByTagNameAndClass "a" sidebar-link-class)
             (fn [a]
-              (.addEventListener
-               a "click"
-               (fn [e]
-                 (.preventDefault e)
-                 (focus-anchor! a)
-                 (when-let [content-loc (.-rel (.-target e))]
-                   (load-content content-loc "main-content")))))))
+              ;; pre-fetch
+              (when-let [content-loc (.-rel a)]
+                (get-content content-loc)
+                (.addEventListener
+                 a "click"
+                 (fn [e]
+                   (.preventDefault e)
+                   (focus-anchor! a)
+                   (when-let [content-loc (.-rel (.-target e))]
+                     (load-content content-loc "main-content"))))))))
 
 (defn on-connect [e]
   (init-sidebar-link-actions!)
@@ -77,8 +83,6 @@
                        on-connect)
     (.addEventListener js/document.body "figwheel.repl.disconnected"
                        on-disconnect)))
-
-
 ))
 
 #?(:clj
@@ -112,6 +116,30 @@
         %s
         </section>
       </div>
+      <footer>
+        <div class=\"container flex-column\">
+          <div class=\"off-site-resources\">
+             <h6>Figwheel Main</h6>
+             <a href=\"https://github.com/bhauman/lein-figwheel/tree/master/figwheel-main\" target=\"_blank\">Figwheel Main Home / Readme</a>
+             <a href=\"https://github.com/bhauman/lein-figwheel/blob/master/figwheel-main/doc/figwheel-main-options.md\" target=\"_blank\">Config Options</a>
+
+          </div>
+          <div class=\"off-site-resources\">
+             <h6>Clojurescript</h6>
+             <a href=\"https://clojurescript.org\" target=\"_blank\">ClojureScript Home</a>
+             <a href=\"https://cljs.info\" target=\"_blank\">API Cheatsheet</a>
+             <a href=\"https://kanaka.github.io/clojurescript/web/synonym.html\" target=\"_blank\">JavaScript Synonyms</a>
+          </div>
+          <div class=\"off-site-resources\">
+             <h6>Community</h6>
+             <a href=\"http://clojurians.slack.com\" target=\"_blank\">#clojurescript on Slack</a>
+             <a href=\"http://clojurians.slack.com\" target=\"_blank\">#figwheel-main on Slack</a>
+             <a href=\"http://clojurians.net\" target=\"_blank\">get Clojurians Slack invite</a>
+             <a href=\"http://groups.google.com/group/clojurescript\" target=\"_blank\">ClojureScript Google Group</a>
+             <a href=\"https://clojureverse.org/\" target=\"_blank\">ClojureVerse</a>
+          </div>
+        </div>
+      </footer>
     %s
     </div> <!-- end of app div -->
     <script type=\"text/javascript\">%s</script>

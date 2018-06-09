@@ -13,6 +13,15 @@ header {
     color: white;
 }
 
+footer {
+    margin-top: 3em;
+    padding-top: 25px;
+    padding-bottom: 4em;
+    background-color: #292d2e;
+    color: #838383;
+    font-size: 13px;
+}
+
 #connect-status {
     display: flex;
     line-height: 60px;
@@ -40,22 +49,40 @@ header {
 }
 
 #main-content {
-    width: 77%;
+    flex: 1 1 76%;
 }
 
 aside {
     padding-top: 2em;
     margin-right: 20px;
-    width: 198px;
+    flex: 1 1 198px;
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: column;
 }
 
 aside a {
+    flex: 0 0 auto;
     color: #888;
     text-decoration: none;
     display: block;
     line-height: 2.5em;
     padding-left: 4px;
+    padding-right: 4px;
     transition: color 0.7s ease, background-color 0.7s ease;
+}
+
+@media(max-width: 924px){
+    aside {
+        flex-direction: row;
+    }
+    aside a {
+        padding-left: 10px;
+        padding-right: 10px;
+        margin-left: 1px;
+        margin-right: 1px;
+        border-radius: 4px;
+    }
 }
 
 aside a.figwheel_main_content_link_focus {
@@ -67,15 +94,19 @@ aside a:hover {
     background-color: #eee;
 }
 
-
-
 .container {
-    display:flex;
+    display: flex;
+    flex-wrap: wrap;
     margin-left: auto;
     margin-right: auto;
     max-width: 940px;
     padding-right: 0.5em;
     padding-left: 0.5em;
+}
+
+.flex-column {
+  /*  flex-direction: column;
+    height: 200px; */
 }
 
 .logo-text {
@@ -97,4 +128,32 @@ code {
 pre code {
     background-color: #fff;
     padding: 0px;
+}
+
+.off-site-resources {
+    flex: 1 0 auto;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.off-site-resources h6 {
+    display: block;
+    margin-top: 9px;
+    margin-bottom: 3px;
+    color: #ccc;
+    line-height: 25px;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.off-site-resources a {
+    display: block;
+    color: #a6a6a6;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.off-site-resources a:hover {
+    color: white;
+    text-decoration: underline;
 }
