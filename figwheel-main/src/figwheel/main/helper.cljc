@@ -106,7 +106,14 @@
           </div>
           <div class=\"logo-text\">%s</div>
         </div>
+        <div class=\"container top-level-nav\">
+             <a href=\"https://github.com/bhauman/lein-figwheel/tree/master/figwheel-main\" target=\"_blank\">Figwheel Main</a>
+             <a href=\"https://clojurescript.org\" target=\"_blank\">CLJS</a>
+             <a href=\"https://cljs.info\" target=\"_blank\">Cheatsheet</a>
+             <a href=\"https://kanaka.github.io/clojurescript/web/synonym.html\" target=\"_blank\">Synonyms</a>
+        </div>
       </header>
+
       <div class=\"container\">
         <aside>
           <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/repl_welcome.html\">Welcome</a>

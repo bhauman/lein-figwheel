@@ -157,3 +157,33 @@ pre code {
     color: white;
     text-decoration: underline;
 }
+
+.top-level-nav {
+    margin-top: 10px;
+}
+
+.top-level-nav a {
+    text-transform: uppercase;
+    color: rgb(134, 134, 134);
+    text-decoration: none;
+    display: inline-block;
+    padding-right: 10px;
+    padding-left: 10px;
+    transition: color 0.5s ease;
+}
+
+.top-level-nav a:hover {
+   /* background-color: #a12475; */
+    color: white;
+    border-radius: 4px;
+
+}
+
+#reason {
+    margin-top: 10px;
+    padding: 15px;
+    background-color: #ffffb2;
+    font-size: 0.8em;
+    color: #868619;
+    border-left: 4px solid #eaea77;
+}
