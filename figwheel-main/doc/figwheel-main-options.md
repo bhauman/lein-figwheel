@@ -184,6 +184,14 @@ Can be one of: `:error` `:info` `:debug` `:trace` `:all` `:off`
 
     :log-level :error
 
+## :client-log-level
+
+The log level to set the client side goog.log.Logger to for
+figwheel.repl and figwheel.core. Can be one of:
+`:severe` `:warning` `:info` `:config` `:fine` `:finer` `:finest`
+
+    :client-log-level :warning
+
 ## :log-syntax-error-style
 
 figwheel.main logging prints out compile time syntax errors which
@@ -218,6 +226,13 @@ Whether to validate the figwheel-main.edn and build config (i.e.".cljs.edn") fil
 Default: true
 
     :validate-config false
+
+## :validate-cli
+
+Whether to validate the figwheel-main command line options
+Default: true
+
+    :validate-cli false
 
 ## :target-dir
 
@@ -254,6 +269,14 @@ Defaults to true.
 
 A String indicating the Node.js executable to launch Node with.
 Defaults to "node"
+
+## :cljs-devtools
+
+A boolean that indicates wether to include binaryage/devtools into
+the your clojurescript build. Defaults to true when the target is a
+browser and the :optimizations level is :none, otherwise it is false.
+
+    :cljs-devtools false
 
 # Rarely used options
 
@@ -353,3 +376,23 @@ REPL. Setting `:broadcast` to `true` will give you back this legacy
 behavior. Default: false
 
     :broadcast true
+
+## :repl-eval-timeout
+
+The time (in milliseconds) it takes for the repl to timeout.
+Evaluating any given expression in cljs can take some time.
+The repl is configured to throw a timeout exception as to not hang forever.
+
+This config option will determine how long the repl waits for the result of an eval
+before throwing.
+
+Default: 8000
+
+    :repl-eval-timeout 10000 ;;waits for 10 seconds instead of 8
+
+## :hawk-options
+
+If you need to watch files with polling instead of FS events. This can
+be useful for certain docker environments.
+
+    :hawk-options {:watcher :polling}
