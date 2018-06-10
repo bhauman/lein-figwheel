@@ -1,7 +1,8 @@
-<h1 id="setting-up-a-figwheel-build">Setting up a Figwheel build</h1>
+<h1 id="setting-up-a-figwheel-build-with-leiningen">Setting up a Figwheel build with leiningen</h1>
 
-<p>If you are ready to start working on a project with Figwheel Main then
-it will be most helpful to set up a <strong>build</strong>.</p>
+<p>If you are ready to start working on a project with Figwheel Main and
+<a href="https://leiningen.org/">Leiningen</a> then it will be most helpful to
+set up a <strong>build</strong>.</p>
 
 <blockquote>
   <p>A <strong>build</strong> is the configuration of a compile task, that determines
@@ -10,21 +11,24 @@ build also optionally configures the which features Figwheel
 enguages while you are working on your application.</p>
 </blockquote>
 
-<h4 id="depsedn">deps.edn</h4>
+<h4 id="projectclj">project.clj</h4>
 
 <p>First off, it is assumed that if you made it this far you already have
-a <code>deps.edn</code> file in the directory that you launched this REPL from.</p>
+a <code>project.clj</code> file in the directory that you launched this REPL from.</p>
 
-<p>If don’t have a <code>deps.edn</code> file let’s create one now:</p>
+<p>If don’t have a <code>project.clj</code> file let’s create one now:</p>
 
 <div class="language-clojure highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>{<span style="color:#A60">:deps</span>  {com.bhauman/figwheel-main {<span style="color:#A60">:mvn/version</span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">0.1.0-SNAPSHOT</span><span style="color:#710">&quot;</span></span>}
-<span class="line-numbers"><a href="#n2" name="n2">2</a></span>         <span style="color:#777">;; add rebel-readline for advanced REPL readline editing</span>
-<span class="line-numbers"><a href="#n3" name="n3">3</a></span>         com.bhauman/rebel-readline-cljs {<span style="color:#A60">:mvn/version</span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">0.1.3</span><span style="color:#710">&quot;</span></span>}}
-<span class="line-numbers"><a href="#n4" name="n4">4</a></span> <span style="color:#A60">:paths</span> [<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">src</span><span style="color:#710">&quot;</span></span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">target</span><span style="color:#710">&quot;</span></span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">resources</span><span style="color:#710">&quot;</span></span>]}
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>(defproject lein-main <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">0.1.0-SNAPSHOT</span><span style="color:#710">&quot;</span></span>
+<span class="line-numbers"><a href="#n2" name="n2">2</a></span>  <span style="color:#A60">:profiles</span> {<span style="color:#A60">:dev</span> {<span style="color:#A60">:dependencies</span>
+<span class="line-numbers"><a href="#n3" name="n3">3</a></span>                   [[com.bhauman/figwheel-main <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">0.1.1-SNAPSHOT</span><span style="color:#710">&quot;</span></span>]
+<span class="line-numbers"><a href="#n4" name="n4">4</a></span>                    [com.bhauman/rebel-readline-cljs <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">0.1.3</span><span style="color:#710">&quot;</span></span>]]}}
+<span class="line-numbers"><a href="#n5" name="n5">5</a></span>  <span style="color:#A60">:aliases</span> {<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">fig</span><span style="color:#710">&quot;</span></span> [<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">trampoline</span><span style="color:#710">&quot;</span></span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">run</span><span style="color:#710">&quot;</span></span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">-m</span><span style="color:#710">&quot;</span></span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">figwheel.main</span><span style="color:#710">&quot;</span></span>]})
 </pre></div>
 </div>
 </div>
+
+<p>Above we created an alias to help us launch figwheel as a leiningen task.</p>
 
 <h4 id="devcljsedn">dev.cljs.edn</h4>
 
@@ -114,7 +118,7 @@ from the following example.</p>
 execute the following shell command.</p>
 
 <div class="language-shell highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>clojure -m figwheel.main -b dev -r
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>lein fig -- -b dev -r
 </pre></div>
 </div>
 </div>
@@ -126,4 +130,3 @@ is attached to the browser.</p>
 
 <p>From here you will be able to edit the ClojureScript file and have it
 hot loaded into the browser on save.</p>
-

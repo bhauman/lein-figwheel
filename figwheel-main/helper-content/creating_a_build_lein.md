@@ -1,26 +1,30 @@
-# Setting up a Figwheel build
+# Setting up a Figwheel build with leiningen
 
-If you are ready to start working on a project with Figwheel Main then
-it will be most helpful to set up a **build**.
+If you are ready to start working on a project with Figwheel Main and
+[Leiningen](https://leiningen.org/) then it will be most helpful to
+set up a **build**.
 
 > A **build** is the configuration of a compile task, that determines
 > what files get compiled with a certain set of compile options. A
 > build also optionally configures the which features Figwheel
 > enguages while you are working on your application.
 
-#### deps.edn
+#### project.clj
 
 First off, it is assumed that if you made it this far you already have
-a `deps.edn` file in the directory that you launched this REPL from.
+a `project.clj` file in the directory that you launched this REPL from.
 
-If don't have a `deps.edn` file let's create one now:
+If don't have a `project.clj` file let's create one now:
 
 ```clojure
-{:deps  {com.bhauman/figwheel-main {:mvn/version "0.1.0-SNAPSHOT"}
-         ;; add rebel-readline for advanced REPL readline editing
-         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}
- :paths ["src" "target" "resources"]}
+(defproject lein-main "0.1.0-SNAPSHOT"
+  :profiles {:dev {:dependencies
+                   [[com.bhauman/figwheel-main "0.1.1-SNAPSHOT"]
+                    [com.bhauman/rebel-readline-cljs "0.1.3"]]}}
+  :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main" "--"]})
 ```
+
+Above we created an alias to help us launch figwheel as a leiningen task.
 
 #### dev.cljs.edn
 
@@ -102,8 +106,12 @@ In the directory that is the root of the project (the `hello-world` directory),
 execute the following shell command.
 
 ```shell
-clojure -m figwheel.main -b dev -r
+lein fig -- -b dev -r
 ```
+
+> Keep in mind that when you invoke the `fig` alias, you will always
+> want to include `--` after the `fig` and before any figwheel.main
+> args.
 
 This will launch and autobuild process that compiles your code as you
 save it. A browser window will pop open and the terminal that you
@@ -112,34 +120,3 @@ is attached to the browser.
 
 From here you will be able to edit the ClojureScript file and have it
 hot loaded into the browser on save. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

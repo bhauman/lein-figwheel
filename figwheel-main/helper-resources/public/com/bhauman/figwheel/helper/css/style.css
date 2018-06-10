@@ -13,6 +13,24 @@ header {
     color: white;
 }
 
+a {
+    color: #8625b7;
+    text-decoration: none;
+}
+
+a:visited {
+    color: #8625b7;
+}
+
+
+blockquote {
+    background-color: #eee;
+    margin: 0px;
+    padding: 1em 1em;
+    border-left: 3px solid #aaa;
+    font-size: 0.8em;
+}
+
 footer {
     margin-top: 3em;
     padding-top: 25px;
@@ -24,6 +42,7 @@ footer {
 
 #connect-status {
     display: flex;
+    overflow: hidden;
     line-height: 60px;
     border-radius: 30px;
     font-size: 20px;

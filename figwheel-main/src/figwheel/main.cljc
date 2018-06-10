@@ -547,7 +547,6 @@ classpath. Classpath-relative paths have prefix of @ or @/")
          (assoc :args args)
          (update :options (fn [opt] (merge {:main 'figwheel.repl.preload} opt)))
          (assoc-in [:options :aot-cache] true)
-
          (assoc-in [::config
                     :ring-stack-options
                     :figwheel.server.ring/dev
@@ -556,11 +555,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                      %
                      {:header "REPL Host page"
                       :body (slurp (io/resource "public/com/bhauman/figwheel/helper/content/repl_welcome.html"))
-                      :output-to output-to})
-                   #_#(helper-ring-app %
-                                     default-main-repl-index-body
-                                     output-to
-                                     true))
+                      :output-to output-to}))
          (assoc-in [::config :mode] :repl)))))
 
 (declare serve update-config)
@@ -581,6 +576,8 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                   [:ring-stack-options
                    :figwheel.server.ring/dev
                    :figwheel.server.ring/system-app-handler]
+                  ;; not a repl, so just serve instructions on how to create an index.html
+                  ;; page
                   #(helper-ring-app %
                                     ;; TODO helpful instructions on where to put index.html
                                     "<center><h3 style=\"color:red;\">index.html not found</h3></center>"
@@ -1396,6 +1393,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                            :ring-stack-options
                            :figwheel.server.ring/dev
                            :figwheel.server.ring/system-app-handler]
+                          ;; executing a function is slightly different as well
                           #(helper-ring-app
                             %
                             (str "<br/><br/><center>"
@@ -1420,8 +1418,21 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                      (:options b-cfg) cljs.env/*compiler*)
           (cljs.cli/default-main repl-env-fn b-cfg))))))
 
+(defn add-default-system-app-handler [cfg]
+  (update-in
+   cfg
+   [:repl-env-options
+    :ring-stack-options
+    :figwheel.server.ring/dev
+    :figwheel.server.ring/system-app-handler]
+   (fn [sah]
+     (if sah
+       sah
+       #(helper/missing-index % (select-keys (:options cfg) [:output-to]))))))
+
 (defn default-compile [repl-env-fn cfg]
-  (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg} (update-config cfg)
+  (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg}
+        (add-default-system-app-handler (update-config cfg))
         {:keys [mode pprint-config]} config
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))
         cenv (cljs.env/default-compiler-env options)]

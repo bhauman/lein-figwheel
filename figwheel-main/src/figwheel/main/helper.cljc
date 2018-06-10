@@ -4,9 +4,9 @@
        [[goog.dom :as gdom]
        [goog.net.XhrIo :as xhr]
         [goog.object :as gobj]]
-       :clj [[clojure.java.io :as io]])
-   [clojure.string :as string]
-   )
+       :clj [[clojure.java.io :as io]
+             [figwheel.server.ring :refer [best-guess-script-path]]])
+   [clojure.string :as string])
   #?(:cljs
      (:import
       [goog Promise])))
@@ -116,8 +116,10 @@
 
       <div class=\"container\">
         <aside>
-          <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/repl_welcome.html\">Welcome</a>
+          <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"figwheel/helper/welcome\">Welcome</a>
           <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/creating_a_build_cli_tools.html\">Create a build</a>
+          <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/creating_a_build_lein.html\">Create a build (lein)</a>
+          <a class=\"figwheel_main_content_link\" href=\"javascript:\" rel=\"com/bhauman/figwheel/helper/content/css_reloading.html\">Live Reload CSS</a>
         </aside>
         <section id=\"main-content\">
         %s
@@ -181,6 +183,62 @@
   (fn [req]
     (let [method-uri ((juxt :request-method :uri) req)]
       (cond
+        (and (= [:get "/figwheel/helper/welcome"] method-uri) (:body options))
+        {:status 200
+         :headers {"Content-Type" "text/html"}
+         :body (:body options)}
         (= method-uri [:get "/"])
         (main-action req options)
-        :else (handler req)))))))
+        :else (handler req)))))
+
+(defn missing-index-middleware [handler options]
+  (fn [r]
+    (let [method-uri ((juxt :request-method :uri) r)]
+      (cond
+        (and (= [:get "/figwheel/helper/welcome"] method-uri)
+             (:body options))
+        {:status 200
+         :headers {"Content-Type" "text/html"}
+         :body (:body options)}
+        :else
+        (let [res (handler r)]
+          (if (and (= [:get "/"] method-uri)
+                   (= 404 (:status res)))
+            (main-action r options)
+            res))))))
+
+(defn default-index-code [output-to]
+  (let [path (best-guess-script-path output-to)]
+    (str
+     "<div class=\"CodeRay\">"
+     "<div class=\"code\">"
+     "<pre>"
+     "&lt;!DOCTYPE html&gt;\n"
+     "&lt;html&gt;\n"
+     "  &lt;head&gt;\n"
+     "    &lt;meta charset=\"UTF-8\"&gt;\n"
+     "  &lt;/head&gt;\n"
+     "  &lt;body&gt;\n"
+     "    &lt;div id=\"app\"&gt;\n"
+     "    &lt;/div&gt;\n"
+     "    &lt;script src=\""
+     (if path path
+         (str "[correct-path-to "
+              (or output-to "main.js file")
+              "]"))
+     "\" type=\"text/javascript\"&gt;&lt;/script&gt;\n"
+     "  &lt;/body&gt;\n"
+     "&lt;/html&gt;\n"
+     "</pre></div></div>")))
+
+(defn missing-index [handler options]
+  (missing-index-middleware
+   handler
+   (merge
+    {:header "Default Development Page"
+     :body (str
+            (slurp (io/resource "public/com/bhauman/figwheel/helper/content/missing_index.html"))
+            (default-index-code (:output-to options)))}
+    options)))
+
+)) ;; clj conditional reader end

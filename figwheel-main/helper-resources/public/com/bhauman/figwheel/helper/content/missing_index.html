@@ -1,0 +1,52 @@
+<h1 id="welcome-to-figwheels-default-development-page">Welcome to Figwheel's default development page</h1>
+
+<blockquote>
+  <p><strong>TLDR</strong>: you can use your own <code>index.html</code> page instead of this helper page
+by adding creating a <code>resources/public/index.html</code> file as detailed
+<a href="#providing-your-own-indexhtml">here</a></p>
+</blockquote>
+
+<p>This page is currently hosting your application code and REPL (Read
+Eval Print Loop). As you change your code and save it, the
+changed code will be hot loaded into this browser page.</p>
+
+<p>If you return to the terminal where you launched <code>figwheel</code> and enter
+valid ClojureScript code at the <code>cljs.user=&gt;</code> prompt, the code will be
+compiled to Javascript and evaluated in the JavaScript environment on
+this page.</p>
+
+<p>If you close this page the REPL will cease to function.</p>
+
+<h1 id="indexhtml-not-provided">Index.html not provided</h1>
+
+<p>You are here because you have not provided your own <code>index.html</code> page
+to host your application yet.</p>
+
+<p>There is nothing wrong with this. You can use this page as a scaffold
+to develop your project on for as long as its helpful.</p>
+
+<p>If your code needs to work with HTML elements on this page there is a
+convenient <code>&lt;div id="app"&gt;</code> provided for this purpose. When you
+replace the contents of the <code>app</code> element it will remove all the
+current content and style from this page.</p>
+
+<blockquote>
+  <p>An file named <code>index.html</code> does not have to be provided. You can
+provide any other html file as a host page. For example
+<code>resources/public/app.html</code>. In this case, you may want to change
+<code>:open-url</code> to
+<code>"http://[[server-hostname]]/[[server-port]]/app.html"</code> in order to
+change the launch page.</p>
+</blockquote>
+
+<h1 id="providing-your-own-indexhtml">Providing your own index.html</h1>
+
+<p>You can create your own <code>index.html</code> and place it in
+<code>resources/public/index.html</code> and it will be displayed instead of this
+page.</p>
+
+<p>The most important part of creating your <code>index.html</code> page is ensuring
+that your compiled ClojureScript gets loaded onto the page.</p>
+
+<p>To get started place the following HTML code at <code>resources/public/index.html</code>:</p>
+
