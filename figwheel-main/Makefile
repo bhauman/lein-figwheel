@@ -1,7 +1,9 @@
+# makefile for figwheel.main
 PROJECT_FILES=../figwheel-core/project.clj ../figwheel-repl/project.clj project.clj
 DOC_FILES=README.md helper-content/*.md
 DEPS_FILES=deps.edn
 
+# sed commands for changing version strings
 CHANGE_LEIN_DEPS=sed -i '' -e "s|\[com.bhauman/figwheel-\([^[:space:]]*\) \".*\"\]|[com.bhauman/figwheel-\1 \"$(VERSION)\"]|g"
 CHANGE_TOOLS_DEPS=sed -i '' -e "s|com.bhauman/figwheel-\([^[:space:]]*\) {:mvn/version \".*\"}|com.bhauman/figwheel-\1 {:mvn/version \"$(VERSION)\"}|g"
 MARKDOWN=ruby scripts/kram.rb
