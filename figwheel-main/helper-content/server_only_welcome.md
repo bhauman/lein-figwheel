@@ -3,14 +3,14 @@
 You are here because you launched `figwheel.main` in server only mode
 **and** you have not provided a default `index.html` file.
 
-**Server only mode** is entered when you only specify `--server` or
+**Server only mode** is entered when specify `--server` or
 `-s` as the only **main option** to `figwheel.main`.
 
 **Server only mode** only serve files and ring endpoints defined
 `:ring-handler`. This mode does not compile your source code or create
 a REPL connection to this web page. If you are wanting to compile
 ClojureScript source files as well as create a REPL connection to the
-Browser you will probably want to use the `--build` or `-b` option.
+browser you will probably want to use the `--build` or `-b` option.
 
 # Index.html not provided
 
