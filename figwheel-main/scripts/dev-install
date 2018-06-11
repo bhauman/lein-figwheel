@@ -1,4 +1,4 @@
 #!/bin/bash
 ruby scripts/kram.rb helper-content/*
-clojure -e "(build-option-docs)"
+clojure -Adocs
 pushd ../figwheel-core; lein install; popd; pushd ../figwheel-repl; lein install; popd; lein install
