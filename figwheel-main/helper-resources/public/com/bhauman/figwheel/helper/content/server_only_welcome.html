@@ -1,0 +1,61 @@
+<h1 id="server-only-mode">Server Only mode</h1>
+
+<p>You are here because you launched <code>figwheel.main</code> in server only mode <strong>and</strong> you have not provided a default <code>index.html</code> file.</p>
+
+<h1 id="indexhtml-not-provided">Index.html not provided</h1>
+
+<p>You are here because you have not provided your own <code>index.html</code> page
+to host your application yet.</p>
+
+<p>There is nothing wrong with this. You can use this page as a scaffold
+to develop your project on for as long as its helpful.</p>
+
+<p>If your code needs to work with HTML elements on this page there is a
+convenient <code>&lt;div id="app"&gt;</code> provided for this purpose. When you
+replace the contents of the <code>app</code> element it will remove all the
+current content and style from this page.</p>
+
+<blockquote>
+  <p>An file named <code>index.html</code> does not have to be provided. You can
+provide any other html file as a host page. For example
+<code>resources/public/app.html</code>. In this case, you may want to change
+<code>:open-url</code> to
+<code>"http://[[server-hostname]]/[[server-port]]/app.html"</code> in order to
+change the launch page.</p>
+</blockquote>
+
+<h1 id="providing-your-own-indexhtml">Providing your own index.html</h1>
+
+<p>You can create your own <code>index.html</code> and place it in
+<code>resources/public/index.html</code> and it will be displayed instead of this
+page.</p>
+
+<p>The most important part of creating your <code>index.html</code> page is ensuring
+that your compiled ClojureScript gets loaded onto the page.</p>
+
+<p>If you are compiling a build named <code>dev</code> then you are probably going
+to want to include this script tag right before <code>&lt;/body&gt;</code>.</p>
+
+<div class="language-html highlighter-coderay"><div class="CodeRay">
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span><span style="color:#070;font-weight:bold">&lt;script</span> <span style="color:#b48">src</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">cljs-out/dev-main.js</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">type</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">text/javascript</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span><span style="color:#070;font-weight:bold">&lt;/script&gt;</span>
+</pre></div>
+</div>
+</div>
+
+<p>To get started, place the following HTML code at <code>resources/public/index.html</code>:</p>
+
+<div class="language-html highlighter-coderay"><div class="CodeRay">
+  <div class="code"><pre><span class="line-numbers"> <a href="#n1" name="n1">1</a></span><span style="color:#34b">&lt;!DOCTYPE html&gt;</span>
+<span class="line-numbers"> <a href="#n2" name="n2">2</a></span><span style="color:#070;font-weight:bold">&lt;html&gt;</span>
+<span class="line-numbers"> <a href="#n3" name="n3">3</a></span>  <span style="color:#070;font-weight:bold">&lt;head&gt;</span>
+<span class="line-numbers"> <a href="#n4" name="n4">4</a></span>    <span style="color:#070;font-weight:bold">&lt;meta</span> <span style="color:#b48">charset</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">UTF-8</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
+<span class="line-numbers"> <a href="#n5" name="n5">5</a></span>  <span style="color:#070;font-weight:bold">&lt;/head&gt;</span>
+<span class="line-numbers"> <a href="#n6" name="n6">6</a></span>  <span style="color:#070;font-weight:bold">&lt;body&gt;</span>
+<span class="line-numbers"> <a href="#n7" name="n7">7</a></span>    <span style="color:#070;font-weight:bold">&lt;div</span> <span style="color:#b48">id</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">app</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span><span style="color:#070;font-weight:bold">&lt;/div&gt;</span>
+<span class="line-numbers"> <a href="#n8" name="n8">8</a></span>    <span style="color:#070;font-weight:bold">&lt;script</span> <span style="color:#b48">src</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">cljs-out/[build-id]-main.js</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">type</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">text/javascript</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span><span style="color:#070;font-weight:bold">&lt;/script&gt;</span>
+<span class="line-numbers"> <a href="#n9" name="n9">9</a></span>  <span style="color:#070;font-weight:bold">&lt;/body&gt;</span>
+<span class="line-numbers"><strong><a href="#n10" name="n10">10</a></strong></span><span style="color:#070;font-weight:bold">&lt;/html&gt;</span>
+</pre></div>
+</div>
+</div>
+

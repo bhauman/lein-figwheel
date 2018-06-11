@@ -241,4 +241,12 @@
             (default-index-code (:output-to options)))}
     options)))
 
+(defn serve-only-middleware [handler options]
+  (missing-index-middleware
+   handler
+   (merge
+    {:header "Server Only Page"
+     :body (slurp (io/resource "public/com/bhauman/figwheel/helper/content/server_only_welcome.html"))}
+    options)))
+
 )) ;; clj conditional reader end

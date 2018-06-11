@@ -572,16 +572,15 @@ classpath. Classpath-relative paths have prefix of @ or @/")
             (assoc :args args)
             update-config)
         repl-env-options
-        (assoc-in repl-env-options
-                  [:ring-stack-options
-                   :figwheel.server.ring/dev
-                   :figwheel.server.ring/system-app-handler]
-                  ;; not a repl, so just serve instructions on how to create an index.html
-                  ;; page
-                  #(helper-ring-app %
-                                    ;; TODO helpful instructions on where to put index.html
-                                    "<center><h3 style=\"color:red;\">index.html not found</h3></center>"
-                                    (:output-to options)))
+        (update-in
+         repl-env-options
+         [:ring-stack-options
+          :figwheel.server.ring/dev
+          :figwheel.server.ring/system-app-handler]
+         (fn [sah]
+           (if sah
+             sah
+             #(helper/serve-only-middleware % {}))))
         {:keys [pprint-config]} (::config cfg)
         repl-env (apply repl-env-fn (mapcat identity repl-env-options))]
     (log/trace "Verbose config:" (with-out-str (pprint cfg)))

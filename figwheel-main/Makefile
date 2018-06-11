@@ -27,13 +27,16 @@ helper-docs:
 opt-docs:
 	clojure -Adocs
 
-gen-docs: helper-docs opt-docs
+docs: helper-docs opt-docs
 
-install: gen-docs
+helper:
+	clojure -Abuild-helper
+
+install: docs
 	pushd ../figwheel-core; lein install; popd; pushd ../figwheel-repl; lein install; popd; lein install
 
 testit:
 	lein test
 
-deploy: gen-docs install test
+deploy: docs helper install test
 	pushd ../figwheel-core; lein deploy clojars; popd; pushd ../figwheel-repl; lein deploy clojars; popd; lein deploy clojars
