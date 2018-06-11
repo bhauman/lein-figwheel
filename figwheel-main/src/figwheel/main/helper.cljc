@@ -235,7 +235,7 @@
   (missing-index-middleware
    handler
    (merge
-    {:header "Default Development Page"
+    {:header "Figwheel Default Dev Page"
      :body (str
             (slurp (io/resource "public/com/bhauman/figwheel/helper/content/missing_index.html"))
             (default-index-code (:output-to options)))}

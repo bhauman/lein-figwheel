@@ -1,4 +1,4 @@
-# Welcome to Figwheel&apos;s default development page
+# Welcome to Figwheel&apos;s default dev page
 
 > **TLDR**: you can use your own `index.html` page instead of this helper page
 > by adding creating a `resources/public/index.html` file as detailed
