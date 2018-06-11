@@ -603,7 +603,7 @@
       (.setLevel logger' lvl)
       (debug (str "setting log level to " level)))
     (glog/warn (str "Log level " (pr-str level) " doesn't exist must be one of "
-                    (pr-str ("severe" "warning" "info" "config" "fine" "finer" "finest"))))))
+                    (pr-str '("severe" "warning" "info" "config" "fine" "finer" "finest"))))))
 
 (defn init-log-level! []
   (doseq [logger' (cond-> [logger]
