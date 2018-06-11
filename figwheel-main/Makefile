@@ -38,5 +38,5 @@ install: docs
 testit:
 	lein test
 
-deploy: docs helper install test
+deploy: docs helper install testit
 	pushd ../figwheel-core; lein deploy clojars; popd; pushd ../figwheel-repl; lein deploy clojars; popd; lein deploy clojars
