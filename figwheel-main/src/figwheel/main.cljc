@@ -1383,6 +1383,7 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
               (assoc-in cfg [::build :id] "figwheel-main-option-build"))
         output-to (get-in cfg [:options :output-to]
                           (default-output-to cfg))
+        main (:main cfg)
         cfg (-> cfg
                 (assoc-in [:options :aot-cache] false)
                 (update :options #(assoc % :main
@@ -1393,15 +1394,14 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                            :figwheel.server.ring/dev
                            :figwheel.server.ring/system-app-handler]
                           ;; executing a function is slightly different as well
-                          #(helper-ring-app
+                          #(helper/middleware
                             %
-                            (str "<br/><br/><center>"
-                                 (if (:main cfg)
-                                   (str "Executing main fn: <code>" (str (:main cfg) "/-main</code>"))
-                                   "Attempting to execute main")
-                                 "</center>")
-                            output-to
-                            true))
+                            {:header "Main fn exec page"
+                             :body (str
+                                    (format "<blockquote class=\"action-box\">Invoked main function: <code>%s/-main</code></blockquote>" (str main))
+                                    (slurp
+                                     (io/resource "public/com/bhauman/figwheel/helper/content/welcome_main_exec.html")))
+                             :output-to output-to}))
                 (assoc-in [::config :mode] :repl))
         source (:uri (fw-util/ns->location (get-in cfg [:options :main])))]
     (let [{:keys [options repl-options repl-env-options ::config] :as b-cfg}

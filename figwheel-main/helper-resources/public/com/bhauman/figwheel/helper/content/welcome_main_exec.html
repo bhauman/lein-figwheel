@@ -1,0 +1,58 @@
+<h1 id="the-main-function">The Main Function</h1>
+
+<p>You are here because you executed a <code>-main</code> function by supplying
+<code>figwheel.main</code> with a <code>--main</code> or <code>-m</code> arg.</p>
+
+<blockquote>
+  <p>a main function is a good way to kick of a task that you need to run
+in ClojureScript (i.e. run some tests)</p>
+</blockquote>
+
+<p>If there were problems, you may want to open the DevTools console and
+see if any errors occurred.</p>
+
+<p>The function should be named <code>-main</code> and that the initial <code>-</code> is
+required.</p>
+
+<p>For example:</p>
+
+<div class="language-clojure highlighter-coderay"><div class="CodeRay">
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>(<span style="color:#080;font-weight:bold">ns</span> <span style="color:#707;font-weight:bold">example.core</span>)
+<span class="line-numbers"><a href="#n2" name="n2">2</a></span>
+<span class="line-numbers"><a href="#n3" name="n3">3</a></span>(<span style="color:#080;font-weight:bold">defn</span> <span style="color:#06B;font-weight:bold">-main</span> []
+<span class="line-numbers"><a href="#n4" name="n4">4</a></span>  (<span style="color:#080;font-weight:bold">println</span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">Hello</span><span style="color:#710">&quot;</span></span>))
+</pre></div>
+</div>
+</div>
+
+<p>You can invoke the above function via:</p>
+
+<div class="language-shell highlighter-coderay"><div class="CodeRay">
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>clojure -m figwheel.main -m example.core
+</pre></div>
+</div>
+</div>
+
+<p>Keep in mind that any extra command line args supplied after
+specifying the namespace will be available via <code>*command-line-args*</code>.</p>
+
+<p>For example given the following ClojureScript:</p>
+
+<div class="language-clojure highlighter-coderay"><div class="CodeRay">
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>(<span style="color:#080;font-weight:bold">ns</span> <span style="color:#707;font-weight:bold">example.main</span>)
+<span class="line-numbers"><a href="#n2" name="n2">2</a></span>
+<span class="line-numbers"><a href="#n3" name="n3">3</a></span>(<span style="color:#080;font-weight:bold">defn</span> <span style="color:#06B;font-weight:bold">-main</span> []
+<span class="line-numbers"><a href="#n4" name="n4">4</a></span>  (<span style="color:#080;font-weight:bold">prn</span> <span style="color:#069">*command-line-args*</span>))
+</pre></div>
+</div>
+</div>
+
+<p>If the above is invoked with:</p>
+
+<div class="language-shell highlighter-coderay"><div class="CodeRay">
+  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>clojure -m figwheel.main -m example.core 1 2 3
+</pre></div>
+</div>
+</div>
+
+<p>It should print out <code>(1 2 3)</code></p>

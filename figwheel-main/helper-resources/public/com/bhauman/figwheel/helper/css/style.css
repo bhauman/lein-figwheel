@@ -206,3 +206,10 @@ pre code {
     color: #868619;
     border-left: 4px solid #eaea77;
 }
+
+.action-box {
+    margin-top: 3em;
+    background-color: #c5ffcf;
+    font-size: 14px;
+    border-left: 4px solid #b0eaba;
+}
