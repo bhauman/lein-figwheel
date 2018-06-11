@@ -1,4 +1,0 @@
-#!/bin/bash
-ruby scripts/kram.rb helper-content/*
-clojure -Adocs
-pushd ../figwheel-core; lein install; popd; pushd ../figwheel-repl; lein install; popd; lein install
