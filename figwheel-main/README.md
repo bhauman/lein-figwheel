@@ -267,8 +267,7 @@ Will output:
 
 ```clojure
 ---------------------- Figwheel options ----------------------
-{:ring-handler #'exproj.server/handler,
- :ring-server-options {:port 9550},
+{:ring-server-options {:port 9550},
  :client-print-to [:repl :console],
  :pprint-config true,
  :watch-dirs ("src"),
@@ -290,10 +289,63 @@ Will output:
 
 See the `figwheel.main/start` function and the `figwheel.main/start-join` functions.
 
+## Contributing to the Helper App
+
+Figwheel main comes with a helper Ring app that is served when there
+is no other html page to host the REPL JavaScript env.
+
+If you are interested in contributing to this app:
+
+First hit me up in #figwheel-main channel on the clojurians Slack so
+that we can coordinate a bit.
+
+To work on the helper app:
+
+Checkout this repository and change directory to the `figwheel-main`
+directory where this README is located.
+
+Then the command 
+
+```shell
+clj -m figwheel.main -b helper -r 
+```
+
+should launch a live development workflow for the Helper application. 
+
+**tweaking the CSS**
+
+The **CSS** files for the helper app are located at
+`helper-resources/public/com/bhauman/figwheel/helper/css` and you
+should be able to edit them live.
+
+**working on the app itself**
+
+Both the server-side and client side code are located in
+`src/figwheel/main/helper.cljc` and you should be able to work on them
+live.
+
+If you change the behavior of the CLJS in
+`src/figwheel/main/helper.cljc` it will not be reflected in the actual
+helper app until you compile with `make helper`
+
+**editing helper content**
+
+The helper app content is generated from the Markdown files in the
+`helper-content` directory. You must compile the markdown with `make
+helper-docs` this currently requires `ruby` and **kramdown** (`gem
+install kramdown`)
+
+**keep it simple**
+
+The helper app is intended to be very simple in structure. We do not want to
+add more dependencies and slow the startup time of `figwheel.main`,
+and we also do not want to do anything that will interfere with the
+users running code.
+
 ## More to come ...
 
-Figwheel Main aims to honor all the flags provided by `cljs.main` as
-of right now your mileage may vary.
+Figwheel Main aims to honor all the flags provided by `cljs.main`, as
+of right now, your mileage may vary.
 
 ## License
 
