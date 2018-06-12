@@ -44,8 +44,15 @@ clean-m2:
 install: clean
 	pushd ../figwheel-core; lein install; popd; pushd ../figwheel-repl; lein install; popd; lein install
 
+test10: clean
+	jenv local 10.0
+	lein test
+	jenv local 1.8
+
 testit: clean
 	lein test
 
-deploy: clean install docs helper testit
+testall: testit test10
+
+deploy: clean install docs helper testall
 	pushd ../figwheel-core; lein deploy clojars; popd; pushd ../figwheel-repl; lein deploy clojars; popd; lein deploy clojars

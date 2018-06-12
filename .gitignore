@@ -64,3 +64,5 @@ figwheel-main/figwheel.log.lck
 figwheel-main/output.log.lck
 
 figwheel-main/.ruby-version
+
+figwheel-main/.java-version

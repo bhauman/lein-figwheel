@@ -52,11 +52,13 @@
                  (java.util.regex.Pattern/compile (System/getProperty "path.separator")))))
 
 (defn dynamic-classpath []
-    (mapv
-     #(.getCanonicalPath (io/file (.getFile %)))
-     (mapcat
-      #(seq (.getURLs %))
-      (take-while some? (iterate #(.getParent %) (.getContextClassLoader (Thread/currentThread)))))))
+  (mapv
+   #(.getCanonicalPath (io/file (.getFile %)))
+   (mapcat
+    #(try (.getURLs %)
+          (catch Throwable t
+            nil))
+    (take-while some? (iterate #(.getParent %) (.getContextClassLoader (Thread/currentThread)))))))
 
 #_((set (dynamic-classpath)) (.getCanonicalPath (io/file "src")))
 #_(add-classpath! (.toURL (io/file "src")))
@@ -65,7 +67,10 @@
   ((set (static-classpath)) (.getCanonicalPath (io/file dir))))
 
 (defn dir-on-current-classpath? [dir]
-  ((set (dynamic-classpath)) (.getCanonicalPath (io/file dir))))
+  ((into #{}
+         (concat
+          (static-classpath)
+          (dynamic-classpath))) (.getCanonicalPath (io/file dir))))
 
 (defn root-dynclass-loader []
   (last
