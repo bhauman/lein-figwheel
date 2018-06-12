@@ -19,9 +19,9 @@ If don't have a `project.clj` file let's create one now:
 ```clojure
 (defproject lein-main "0.1.0-SNAPSHOT"
   :profiles {:dev {:dependencies
-                   [[com.bhauman/figwheel-main "0.1.1-SNAPSHOT"]
+                   [[com.bhauman/figwheel-main "0.1.1"]
                     [com.bhauman/rebel-readline-cljs "0.1.3"]]}}
-  :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main" "--"]})
+  :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main"]})
 ```
 
 Above we created an alias to help us launch figwheel as a leiningen task.

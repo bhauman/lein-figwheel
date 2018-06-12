@@ -35,11 +35,15 @@ helper:
 clean:
 	rm -rf target
 
-install: clean docs
+clean-m2:
+	rm -rf ~/.m2/repository/com/bhauman
+	rm -rf .cpcache
+
+install: clean
 	pushd ../figwheel-core; lein install; popd; pushd ../figwheel-repl; lein install; popd; lein install
 
 testit: clean
 	lein test
 
-deploy: clean docs helper install testit
+deploy: clean install docs helper testit
 	pushd ../figwheel-core; lein deploy clojars; popd; pushd ../figwheel-repl; lein deploy clojars; popd; lein deploy clojars
