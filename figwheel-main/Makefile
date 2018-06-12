@@ -32,11 +32,14 @@ docs: helper-docs opt-docs
 helper:
 	clojure -Abuild-helper
 
-install: docs
+clean:
+	rm -rf target
+
+install: clean docs
 	pushd ../figwheel-core; lein install; popd; pushd ../figwheel-repl; lein install; popd; lein install
 
-testit:
+testit: clean
 	lein test
 
-deploy: docs helper install testit
+deploy: clean docs helper install testit
 	pushd ../figwheel-core; lein deploy clojars; popd; pushd ../figwheel-repl; lein deploy clojars; popd; lein deploy clojars

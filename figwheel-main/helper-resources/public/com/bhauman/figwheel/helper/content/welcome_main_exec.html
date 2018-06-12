@@ -17,10 +17,10 @@ required.</p>
 <p>For example:</p>
 
 <div class="language-clojure highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>(<span style="color:#080;font-weight:bold">ns</span> <span style="color:#707;font-weight:bold">example.core</span>)
-<span class="line-numbers"><a href="#n2" name="n2">2</a></span>
-<span class="line-numbers"><a href="#n3" name="n3">3</a></span>(<span style="color:#080;font-weight:bold">defn</span> <span style="color:#06B;font-weight:bold">-main</span> []
-<span class="line-numbers"><a href="#n4" name="n4">4</a></span>  (<span style="color:#080;font-weight:bold">println</span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">Hello</span><span style="color:#710">&quot;</span></span>))
+  <div class="code"><pre>(<span style="color:#080;font-weight:bold">ns</span> <span style="color:#707;font-weight:bold">example.core</span>)
+
+(<span style="color:#080;font-weight:bold">defn</span> <span style="color:#06B;font-weight:bold">-main</span> []
+  (<span style="color:#080;font-weight:bold">println</span> <span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">Hello</span><span style="color:#710">&quot;</span></span>))
 </pre></div>
 </div>
 </div>
@@ -28,7 +28,7 @@ required.</p>
 <p>You can invoke the above function via:</p>
 
 <div class="language-shell highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>clojure -m figwheel.main -m example.core
+  <div class="code"><pre>clojure -m figwheel.main -m example.core
 </pre></div>
 </div>
 </div>
@@ -39,10 +39,10 @@ specifying the namespace will be available via <code>*command-line-args*</code>.
 <p>For example given the following ClojureScript:</p>
 
 <div class="language-clojure highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>(<span style="color:#080;font-weight:bold">ns</span> <span style="color:#707;font-weight:bold">example.main</span>)
-<span class="line-numbers"><a href="#n2" name="n2">2</a></span>
-<span class="line-numbers"><a href="#n3" name="n3">3</a></span>(<span style="color:#080;font-weight:bold">defn</span> <span style="color:#06B;font-weight:bold">-main</span> []
-<span class="line-numbers"><a href="#n4" name="n4">4</a></span>  (<span style="color:#080;font-weight:bold">prn</span> <span style="color:#069">*command-line-args*</span>))
+  <div class="code"><pre>(<span style="color:#080;font-weight:bold">ns</span> <span style="color:#707;font-weight:bold">example.main</span>)
+
+(<span style="color:#080;font-weight:bold">defn</span> <span style="color:#06B;font-weight:bold">-main</span> []
+  (<span style="color:#080;font-weight:bold">prn</span> <span style="color:#069">*command-line-args*</span>))
 </pre></div>
 </div>
 </div>
@@ -50,7 +50,7 @@ specifying the namespace will be available via <code>*command-line-args*</code>.
 <p>If the above is invoked with:</p>
 
 <div class="language-shell highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>clojure -m figwheel.main -m example.core 1 2 3
+  <div class="code"><pre>clojure -m figwheel.main -m example.core 1 2 3
 </pre></div>
 </div>
 </div>

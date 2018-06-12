@@ -19,8 +19,8 @@ has included valid links to your CSS files.</p>
 
 <p>Example CSS file at <code>resources/public/css/style.css</code>:</p>
 <div class="language-css highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span><span style="color:#777">/* hot stuff */</span>
-<span class="line-numbers"><a href="#n2" name="n2">2</a></span><span style="color:#070;font-weight:bold">h1</span> { <span style="color:#606">color</span>: <span style="color:#088">red</span>; }
+  <div class="code"><pre><span style="color:#777">/* hot stuff */</span>
+<span style="color:#070;font-weight:bold">h1</span> { <span style="color:#606">color</span>: <span style="color:#088">red</span>; }
 </pre></div>
 </div>
 </div>
@@ -29,19 +29,19 @@ has included valid links to your CSS files.</p>
 <code>resources/public/index.html</code> page like so:</p>
 
 <div class="language-html highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"> <a href="#n1" name="n1">1</a></span><span style="color:#34b">&lt;!DOCTYPE html&gt;</span>
-<span class="line-numbers"> <a href="#n2" name="n2">2</a></span><span style="color:#070;font-weight:bold">&lt;html&gt;</span>
-<span class="line-numbers"> <a href="#n3" name="n3">3</a></span>  <span style="color:#070;font-weight:bold">&lt;head&gt;</span>
-<span class="line-numbers"> <a href="#n4" name="n4">4</a></span>    <span style="color:#070;font-weight:bold">&lt;meta</span> <span style="color:#b48">charset</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">UTF-8</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
-<span class="line-numbers"> <a href="#n5" name="n5">5</a></span>    <span style="color:#777">&lt;!-- we are including the CSS here --&gt;</span>
-<span class="line-numbers"> <a href="#n6" name="n6">6</a></span>    <span style="color:#070;font-weight:bold">&lt;link</span> <span style="color:#b48">href</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">css/style.css</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">rel</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">stylesheet</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">type</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">text/css</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
-<span class="line-numbers"> <a href="#n7" name="n7">7</a></span>  <span style="color:#070;font-weight:bold">&lt;/head&gt;</span>
-<span class="line-numbers"> <a href="#n8" name="n8">8</a></span>  <span style="color:#070;font-weight:bold">&lt;body&gt;</span>
-<span class="line-numbers"> <a href="#n9" name="n9">9</a></span>    <span style="color:#070;font-weight:bold">&lt;div</span> <span style="color:#b48">id</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">app</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
-<span class="line-numbers"><strong><a href="#n10" name="n10">10</a></strong></span>    <span style="color:#070;font-weight:bold">&lt;/div&gt;</span>
-<span class="line-numbers"><a href="#n11" name="n11">11</a></span>    <span style="color:#070;font-weight:bold">&lt;script</span> <span style="color:#b48">src</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">cljs-out/dev-main.js</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">type</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">text/javascript</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span><span style="color:#070;font-weight:bold">&lt;/script&gt;</span>
-<span class="line-numbers"><a href="#n12" name="n12">12</a></span>  <span style="color:#070;font-weight:bold">&lt;/body&gt;</span>
-<span class="line-numbers"><a href="#n13" name="n13">13</a></span><span style="color:#070;font-weight:bold">&lt;/html&gt;</span>
+  <div class="code"><pre><span style="color:#34b">&lt;!DOCTYPE html&gt;</span>
+<span style="color:#070;font-weight:bold">&lt;html&gt;</span>
+  <span style="color:#070;font-weight:bold">&lt;head&gt;</span>
+    <span style="color:#070;font-weight:bold">&lt;meta</span> <span style="color:#b48">charset</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">UTF-8</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
+    <span style="color:#777">&lt;!-- we are including the CSS here --&gt;</span>
+    <span style="color:#070;font-weight:bold">&lt;link</span> <span style="color:#b48">href</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">css/style.css</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">rel</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">stylesheet</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">type</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">text/css</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
+  <span style="color:#070;font-weight:bold">&lt;/head&gt;</span>
+  <span style="color:#070;font-weight:bold">&lt;body&gt;</span>
+    <span style="color:#070;font-weight:bold">&lt;div</span> <span style="color:#b48">id</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">app</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span>
+    <span style="color:#070;font-weight:bold">&lt;/div&gt;</span>
+    <span style="color:#070;font-weight:bold">&lt;script</span> <span style="color:#b48">src</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">cljs-out/dev-main.js</span><span style="color:#710">&quot;</span></span> <span style="color:#b48">type</span>=<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">text/javascript</span><span style="color:#710">&quot;</span></span><span style="color:#070;font-weight:bold">&gt;</span><span style="color:#070;font-weight:bold">&lt;/script&gt;</span>
+  <span style="color:#070;font-weight:bold">&lt;/body&gt;</span>
+<span style="color:#070;font-weight:bold">&lt;/html&gt;</span>
 </pre></div>
 </div>
 </div>
@@ -59,8 +59,8 @@ file. You can add <code>:css-dirs</code> config to the meta-data in the build
 file like so:</p>
 
 <div class="language-clojure highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>^{<span style="color:#A60">:css-dirs</span> [<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">resources/public/css</span><span style="color:#710">&quot;</span></span>]}
-<span class="line-numbers"><a href="#n2" name="n2">2</a></span>{<span style="color:#A60">:main</span> example.core}
+  <div class="code"><pre>^{<span style="color:#A60">:css-dirs</span> [<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">resources/public/css</span><span style="color:#710">&quot;</span></span>]}
+{<span style="color:#A60">:main</span> example.core}
 </pre></div>
 </div>
 </div>
@@ -68,9 +68,9 @@ file like so:</p>
 <p>Or you can set it for all builds and compiles in the <code>figwheel-main.edn</code>:</p>
 
 <div class="language-clojure highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>{<span style="color:#A60">:css-dirs</span> [<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">resources/public/css</span><span style="color:#710">&quot;</span></span>]
-<span class="line-numbers"><a href="#n2" name="n2">2</a></span> <span style="color:#777">;; rest of the config</span>
-<span class="line-numbers"><a href="#n3" name="n3">3</a></span> }
+  <div class="code"><pre>{<span style="color:#A60">:css-dirs</span> [<span style="background-color:hsla(0,100%,50%,0.05)"><span style="color:#710">&quot;</span><span style="color:#D20">resources/public/css</span><span style="color:#710">&quot;</span></span>]
+ <span style="color:#777">;; rest of the config</span>
+ }
 </pre></div>
 </div>
 </div>
@@ -78,7 +78,7 @@ file like so:</p>
 <p>Then you restart your build:</p>
 
 <div class="language-shell highlighter-coderay"><div class="CodeRay">
-  <div class="code"><pre><span class="line-numbers"><a href="#n1" name="n1">1</a></span>cljs -m figwheel.main -b dev -r
+  <div class="code"><pre>cljs -m figwheel.main -b dev -r
 </pre></div>
 </div>
 </div>
