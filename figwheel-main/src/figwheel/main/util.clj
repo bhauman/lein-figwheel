@@ -115,19 +115,21 @@
 ;; only called when ns isn't on classpath
 (defn find-source-dir-for-cljs-ns [ns]
   (let [cljs-path (cljs.util/ns->relpath ns :cljs)
-        cljc-path (cljs.util/ns->relpath ns :cljc)
-        candidate (find-ns-source-in-local-dir ns)
-        rel-source-path (if (string/ends-with? candidate "s")
-                          cljs-path
-                          cljc-path)
-        candidate'
-        (when candidate
-          (let [path (string/replace candidate rel-source-path "")]
-            (-> path
-                (subs 0 (dec (count path)))
-                (subs 2))))]
-    (when (.isFile (io/file candidate' rel-source-path))
-      candidate')))
+        cljc-path (cljs.util/ns->relpath ns :cljc)]
+    (when-let [candidate (find-ns-source-in-local-dir ns)]
+      (let [rel-source-path (if (string/ends-with? candidate "s")
+                              cljs-path
+                              cljc-path)
+            candidate'
+            (when candidate
+              (let [path (string/replace candidate rel-source-path "")]
+                (-> path
+                    (subs 0 (dec (count path)))
+                    (subs 2))))]
+        (when (.isFile (io/file candidate' rel-source-path))
+          candidate')))))
+
+#_(find-source-dir-for-cljs-ns 'expro)
 
 #_(find-source-dir-for-cljs-ns 'exproj.core)
 

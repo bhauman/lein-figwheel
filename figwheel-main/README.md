@@ -7,13 +7,13 @@ experience for ClojureScript that also provides the many features that
 were first developed in `lein-figwheel` but better.
 
 * Hot Code Reloading
-* Stable best of class REPL connection
+* Stable multiplexing REPL connection
 * CSS reloading
 * Heads-up display for compile time errors
 * Pop to editor from heads-up display
 * Built in ring development server
 
-`figwheel-main` is a complete rewrite of original figwheel. All of the
+`figwheel-main` is a **complete rewrite** of original figwheel. All of the
 above features have been improved significantly.
 
 * Hot code reloading has been significantly revamped.
