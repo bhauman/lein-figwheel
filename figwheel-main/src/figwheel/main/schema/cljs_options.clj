@@ -29,7 +29,7 @@
 (s/def ::output-to non-blank-string?)
 
 (def-spec-meta ::output-to
-  :doc 
+  :doc
   "After your ClojureScript has been compiled to JavaScript, this
 specifies the name of the JavaScript output file.  The contents of
 this file will differ based on the :optimizations setting.
@@ -45,8 +45,8 @@ output file will contain all the compiled code.
 
 (s/def ::output-dir non-blank-string?)
 
-(def-spec-meta ::output-dir 
-  :doc 
+(def-spec-meta ::output-dir
+  :doc
   "Sets the output directory for output files generated during
 compilation.
 
@@ -78,9 +78,10 @@ Defaults to :none. Note: lein cljsbuild 1.0.5 will supply :whitespace.
 
   :optimizations :none")
 
+;; TODO should exist!!
 (s/def ::main                      ::string-or-symbol)
 (def-spec-meta ::main
-  :doc 
+  :doc
   "Specifies an entry point namespace. When combined with optimization
 level :none, :main will cause the compiler to emit a single JavaScript
 file that will import goog/base.js, the JavaScript file for the
@@ -93,7 +94,7 @@ Also see :asset-path.
 
 (s/def ::asset-path                string?)
 (def-spec-meta ::asset-path
-  :doc 
+  :doc
   "When using :main it is often necessary to control where the entry
 point script attempts to load scripts from due to the configuration of
 the web server. :asset-path is a relative URL path not a file system
@@ -106,7 +107,7 @@ scripts from \"js/compiled/out\".
 
 (s/def ::source-map                (some-fn boolean? non-blank-string?))
 (def-spec-meta ::source-map
-  :doc 
+  :doc
   "See https://github.com/clojure/clojurescript/wiki/Source-maps. Under
 optimizations :none the valid values are true and false, with the
 default being true. Under all other optimization settings must specify
@@ -117,7 +118,7 @@ Under :simple, :whitespace, or :advanced
 
 (s/def ::preloads                  (s/every symbol? :min-count 1 :into [] :kind sequential?))
 (def-spec-meta ::preloads
-  :doc 
+  :doc
   "Developing ClojureScript commonly requires development time only
 side effects such as enabling printing, logging, spec instrumentation,
 and connecting REPLs. :preloads permits loading such side effect
@@ -140,14 +141,14 @@ existing namespaces discoverable on the classpath.")
 
 (s/def ::verbose                   boolean?)
 (def-spec-meta ::verbose
-  :doc 
+  :doc
   "Emit details and measurements from compiler activity.
 
   :verbose true")
 
 (s/def ::pretty-print              boolean?)
 (def-spec-meta ::pretty-print
-  :doc 
+  :doc
   "Determines whether the JavaScript output will be tabulated in a
 human-readable manner. Defaults to true.
 
@@ -155,7 +156,7 @@ human-readable manner. Defaults to true.
 
 (s/def ::target                    #{:nodejs :webworker})
 (def-spec-meta ::target
-  :doc 
+  :doc
   "If targeting nodejs add this line. Takes no other options at the
 moment. The default (no :target specified) implies browsers are being
 targeted. Have a look here for more information on how to run your
@@ -166,7 +167,7 @@ code in nodejs.
 
 (s/def ::infer-externs boolean?)
 (def-spec-meta ::infer-externs
-  :doc 
+  :doc
   "Experimental externs inference.
 
   :infer-externs true
