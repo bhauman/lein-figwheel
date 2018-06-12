@@ -17,7 +17,7 @@ deps-version:
 docs-version:
 	$(CHANGE_LEIN_DEPS) $(DOC_FILES)
 	$(CHANGE_TOOLS_DEPS) $(DOC_FILES)
-	$(CHANGE_TOOLS_DEPS_ESC) README.md
+	$(CHANGE_TOOLS_DEPS_ESC) $(DOC_FILES)
 
 snapshot-version: deps-version
 
