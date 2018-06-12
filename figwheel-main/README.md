@@ -50,7 +50,7 @@ On Mac OSX with brew:
 Now launch a ClojureScript REPL with:
 
 ```
-clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0\"}}}}"  -m figwheel.main
+clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.1\"}}}}"  -m figwheel.main
 ```
 
 This will first compile browser REPL code to a temp directory, and
@@ -72,7 +72,7 @@ available. So you can get Rebel Readline behavior by simply adding it
 to your dependencies.
 
 ```
-clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.0\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
+clojure -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.1\"} com.bhauman/rebel-readline-cljs {:mvn/version \"0.1.3\"}}}}"  -m figwheel.main
 ```
 
 As of right now Rebel readline does create some startup overhead

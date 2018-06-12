@@ -4,8 +4,9 @@ DOC_FILES=README.md helper-content/*.md
 DEPS_FILES=deps.edn
 
 # sed commands for changing version strings
-CHANGE_LEIN_DEPS=sed -i '' -e "s|\[com.bhauman/figwheel-\([^[:space:]]*\) \".*\"\]|[com.bhauman/figwheel-\1 \"$(VERSION)\"]|g"
-CHANGE_TOOLS_DEPS=sed -i '' -e "s|com.bhauman/figwheel-\([^[:space:]]*\) {:mvn/version \".*\"}|com.bhauman/figwheel-\1 {:mvn/version \"$(VERSION)\"}|g"
+CHANGE_LEIN_DEPS=sed -i '' -e "s|\[com.bhauman/figwheel-\([^[:space:]]*\) \"[^\"]*\"\]|[com.bhauman/figwheel-\1 \"$(VERSION)\"]|g"
+CHANGE_TOOLS_DEPS=sed -i '' -e "s|com.bhauman/figwheel-\([^[:space:]]*\) {:mvn/version \"[^\"]*\"}|com.bhauman/figwheel-\1 {:mvn/version \"$(VERSION)\"}|g"
+CHANGE_TOOLS_DEPS_ESC=sed -i '' -e "s|com.bhauman/figwheel-\([^[:space:]]*\) {:mvn/version \\\\\"[^\"]*\\\\\"}|com.bhauman/figwheel-\1 {:mvn/version \\\\\"$(VERSION)\\\\\"}|g"
 MARKDOWN=ruby scripts/kram.rb
 
 deps-version:
@@ -14,8 +15,9 @@ deps-version:
 	$(CHANGE_TOOLS_DEPS) $(DEPS_FILES)
 
 docs-version:
-	$(CHANGE_LEIN_DEPS) $(DOC_FILES)
-	$(CHANGE_TOOLS_DEPS) $(DOC_FILES)
+#	$(CHANGE_LEIN_DEPS) $(DOC_FILES)
+#	$(CHANGE_TOOLS_DEPS) $(DOC_FILES)
+	$(CHANGE_TOOLS_DEPS_ESC) README.md
 
 snapshot-version: deps-version
 
