@@ -10,13 +10,13 @@ CHANGE_TOOLS_DEPS_ESC=sed -i '' -e "s|com.bhauman/figwheel-\([^[:space:]]*\) {:m
 MARKDOWN=ruby scripts/kram.rb
 
 deps-version:
-	sed -i '' -e "s|defproject com.bhauman/figwheel-\([^[:space:]]*\) \".*\"|defproject com.bhauman/figwheel-\1 \"$(VERSION)\"|g" $(PROJECT_FILES)
+	sed -i '' -e "s|defproject com.bhauman/figwheel-\([^[:space:]]*\) \"[^\"]*\"|defproject com.bhauman/figwheel-\1 \"$(VERSION)\"|g" $(PROJECT_FILES)
 	$(CHANGE_LEIN_DEPS) $(PROJECT_FILES)
 	$(CHANGE_TOOLS_DEPS) $(DEPS_FILES)
 
 docs-version:
-#	$(CHANGE_LEIN_DEPS) $(DOC_FILES)
-#	$(CHANGE_TOOLS_DEPS) $(DOC_FILES)
+	$(CHANGE_LEIN_DEPS) $(DOC_FILES)
+	$(CHANGE_TOOLS_DEPS) $(DOC_FILES)
 	$(CHANGE_TOOLS_DEPS_ESC) README.md
 
 snapshot-version: deps-version
