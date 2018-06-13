@@ -2,14 +2,21 @@
   (:require
    [spell-spec.alpha :as spell]
    [clojure.spec.alpha :as s]
-   [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?]]
+   [figwheel.main.schema.core :refer [def-spec-meta non-blank-string? directory-exists?]
+    :as schema]
    [clojure.string :as string]))
 
 ;; * Specification for ClojureScript
 ;; ** Top level util specs
 
-(s/def ::string-or-symbol (some-fn string? symbol?))
-(s/def ::string-or-named  (some-fn string? symbol? keyword?))
+(s/def ::string-or-symbol (s/or
+                           :symbol ::schema/unquoted-symbol
+                           :string non-blank-string?))
+
+(s/def ::string-or-named  (s/or
+                           :symbol ::schema/unquoted-symbol
+                           :string non-blank-string?
+                           :keyword keyword?))
 
 ;; ** CLJS Compiler Options
 ;; *** Commonly used Compiler Options
@@ -116,7 +123,7 @@ a path to where the source map will be written.
 Under :simple, :whitespace, or :advanced
   :source-map \"path/to/source/map.js.map\"")
 
-(s/def ::preloads                  (s/every symbol? :min-count 1 :into [] :kind sequential?))
+(s/def ::preloads                  (s/every ::schema/unquoted-symbol :min-count 1 :into [] :kind sequential?))
 (def-spec-meta ::preloads
   :doc
   "Developing ClojureScript commonly requires development time only

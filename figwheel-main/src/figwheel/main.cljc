@@ -800,7 +800,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                                  (pr-str (str dir)))]))
     (fw-util/add-classpath! (.toURL (io/file dir)))))
 
-(defn- config-main-sourch-path-on-classpath [{:keys [options] :as cfg}]
+(defn- config-main-source-path-on-classpath [{:keys [options] :as cfg}]
   (when-let [main (:ns cfg)]
     (when-not (fw-util/safe-ns->location main)
       (when-let [src-dir (fw-util/find-source-dir-for-cljs-ns main)]
@@ -1118,7 +1118,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-log-syntax-error-style!
        config-repl-serve?
        config-main-ns
-       config-main-sourch-path-on-classpath
+       config-main-source-path-on-classpath
        config-update-watch-dirs
        config-ensure-watch-dirs-on-classpath
        config-figwheel-mode?

@@ -38,7 +38,7 @@
   :group :common)
 
 (s/def ::ring-handler (s/or :non-blank-string non-blank-string?
-                            :symbol symbol?))
+                            :symbol ::schema/unquoted-symbol))
 (def-spec-meta ::ring-handler
   :doc
   "A symbol or string indicating a ring-handler to embed in the
@@ -366,7 +366,7 @@ Default: [:console :repl]
   :group :un-common)
 
 (s/def ::ring-stack (s/or :non-blank-string non-blank-string?
-                          :symbol symbol?))
+                          :symbol ::schema/unquoted-symbol))
 
 (def-spec-meta ::ring-stack
   :doc

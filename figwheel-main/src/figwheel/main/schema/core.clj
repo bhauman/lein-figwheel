@@ -34,6 +34,10 @@
   (and (string? x)
        (not (flag-arg? x))))
 
+(defn unquoted-symbol? [a]
+  (and (symbol? a)
+       (not (string/starts-with? (str a) "'"))))
+
 ;; ------------------------------------------------------------
 ;; Shared specs
 ;; ------------------------------------------------------------
@@ -54,6 +58,13 @@
 
 (exp/def ::has-cljs-source-files has-cljs-source-files?
   "directory should contain cljs or cljc source files")
+
+(exp/def ::unquoted-symbol unquoted-symbol?
+  "should be a symbol WITHOUT an initial quote. Quoted symbols are not needed in EDN")
+
+(exp/def ::has-cljs-source-files has-cljs-source-files?
+  "directory should contain cljs or cljc source files")
+
 
 ;; ------------------------------------------------------------
 ;; Validate
