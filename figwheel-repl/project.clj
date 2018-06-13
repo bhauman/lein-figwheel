@@ -1,4 +1,4 @@
-(defproject com.bhauman/figwheel-repl "0.1.2-SNAPSHOT"
+(defproject com.bhauman/figwheel-repl "0.1.2"
   :description  "Figwheel REPL provides a stable multiplexing REPL for ClojureScript"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.10.238"]

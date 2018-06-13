@@ -1,3 +1,8 @@
+# 0.1.2 Fix for Java 9/10 
+
+* fix classloader bug that prevented figwheel.main from starting Java 9/10
+* fix NPE when nonexistant namespace is provided as main ns
+
 # 0.1.1 Classpath Repair, Devtools and Helper App
 
 * add helper app to provide contextual information when launching `figwheel.main`
