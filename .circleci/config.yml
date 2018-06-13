@@ -5,6 +5,7 @@ defaults: &defaults
     JVM_OPTS: -Xmx3200m
   steps:
     - checkout
+    - run: scripts/install-lein
     - run: scripts/dependency-checksum
     - restore_cache:
         key: figwheel-v1-{{ checksum "checksum.tmp" }}
@@ -14,16 +15,27 @@ defaults: &defaults
     - save_cache:
         paths:
           - ~/.m2
+          - ~/.lein/self-installs
         key: figwheel-v1-{{ checksum "checksum.tmp" }}
 
 version: 2
 jobs:
-  build-lein-2.7.1:
+  build-jdk-8:
     <<: *defaults
     docker:
-      - image: circleci/clojure:lein-2.7.1
+      - image: circleci/openjdk:8-node
+  build-jdk-10:
+    <<: *defaults
+    docker:
+      - image: circleci/openjdk:10-node
+  build-jdk-11:
+    <<: *defaults
+    docker:
+      - image: circleci/openjdk:11-ea-node-browsers
 workflows:
   version: 2
   build-all:
     jobs:
-      - build-lein-2.7.1
+      - build-jdk-8
+      - build-jdk-10
+      - build-jdk-11
