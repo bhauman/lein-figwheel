@@ -2,7 +2,8 @@
 
 set -ex
 
-for project in "figwheel-core" "figwheel-main" "figwheel-repl" "plugin" "sidecar" "support"; do
+# "figwheel-core" "figwheel-main" "figwheel-repl" "plugin" "sidecar" "support"
+for project in "plugin" "sidecar" "support"; do
   pushd ${project}
   lein test
   popd

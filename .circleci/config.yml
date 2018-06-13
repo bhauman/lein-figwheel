@@ -1,21 +1,29 @@
+defaults: &defaults
+  working_directory: ~/lein-figwheel
+  environment:
+    LEIN_ROOT: nbd
+    JVM_OPTS: -Xmx3200m
+  steps:
+    - checkout
+    - run: scripts/dependency-checksum
+    - restore_cache:
+        key: figwheel-v1-{{ checksum "checksum.tmp" }}
+    - run:
+        name: Test all projects
+        command: scripts/test-all
+    - save_cache:
+        paths:
+          - ~/.m2
+        key: figwheel-v1-{{ checksum "checksum.tmp" }}
+
 version: 2
 jobs:
-  build:
-    working_directory: ~/lein-figwheel
+  build-lein-2.7.1:
+    <<: *defaults
     docker:
       - image: circleci/clojure:lein-2.7.1
-    environment:
-      LEIN_ROOT: nbd
-      JVM_OPTS: -Xmx3200m
-    steps:
-      - checkout
-      - run: scripts/dependency-checksum
-      - restore_cache:
-          key: figwheel-v1-{{ checksum "checksum.tmp" }}
-      - run:
-          name: Test all projects
-          command: scripts/test-all
-      - save_cache:
-          paths:
-            - ~/.m2
-          key: figwheel-v1-{{ checksum "checksum.tmp" }}
+workflows:
+  version: 2
+  build-all:
+    jobs:
+      - build-lein-2.7.1
