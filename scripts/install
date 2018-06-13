@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -ex
+
+# We install all JARs so that cross project dependencies work correctly.
+for project in "figwheel-core" "figwheel-main" "figwheel-repl" "plugin" "sidecar" "support"; do
+  pushd ${project}
+  lein install
+  popd
+done

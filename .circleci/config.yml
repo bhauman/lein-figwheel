@@ -10,6 +10,9 @@ defaults: &defaults
     - restore_cache:
         key: figwheel-v1-{{ checksum "checksum.tmp" }}
     - run:
+        name: Install all JARs
+        command: scripts/install
+    - run:
         name: Test all projects
         command: scripts/test-all
     - save_cache:
