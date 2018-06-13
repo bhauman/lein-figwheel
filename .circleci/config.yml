@@ -9,25 +9,13 @@ jobs:
       JVM_OPTS: -Xmx3200m
     steps:
       - checkout
-      # See https://discuss.circleci.com/t/cant-checksum-multiple-files-with-slashes-in-the-file-path/20667 for why we do this:
-      - run: shasum sidecar/project.clj plugin/project.clj support/project.clj > checksum.tmp
+      - run: scripts/dependency-checksum
       - restore_cache:
-          key: figwheel-{{ checksum "checksum.tmp" }}
-      - run: scripts/install
+          key: figwheel-v1-{{ checksum "checksum.tmp" }}
+      - run:
+          name: Test all projects
+          command: scripts/test-all
       - save_cache:
           paths:
             - ~/.m2
-          key: figwheel-{{ checksum "checksum.tmp" }}
-      - run:
-          name: Test plugin
-          command: lein test
-          working_directory: plugin
-      - run:
-          name: Test sidecar
-          command: lein test
-          working_directory: sidecar
-      - run:
-          name: Test support
-          command: lein test
-          working_directory: support
-
+          key: figwheel-v1-{{ checksum "checksum.tmp" }}

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -ex
+
+for project in "figwheel-core" "figwheel-main" "figwheel-repl" "plugin" "sidecar" "support"; do
+  pushd ${project}
+  lein test
+  popd
+done
