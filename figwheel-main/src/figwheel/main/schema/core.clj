@@ -56,9 +56,6 @@
                #{"cljs" "cljc"}
                (util/source-file-types-in-dir dir))))
 
-(exp/def ::has-cljs-source-files has-cljs-source-files?
-  "directory should contain cljs or cljc source files")
-
 (exp/def ::unquoted-symbol unquoted-symbol?
   "should be a symbol WITHOUT an initial quote. Quoted symbols are not needed in EDN")
 
