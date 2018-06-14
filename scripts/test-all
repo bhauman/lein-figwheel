@@ -2,14 +2,8 @@
 
 set -ex
 
-for project in "figwheel-main"; do
-  pushd ${project}
-  make testit
-  popd
-done
-
-# TODO: add "figwheel-core"
-for project in "figwheel-repl" "plugin" "sidecar" "support"; do
+# TODO: add "figwheel-core" "figwheel-main"
+for project in  "figwheel-repl" "plugin" "sidecar" "support"; do
   pushd ${project}
   lein test
   popd
