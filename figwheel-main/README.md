@@ -36,6 +36,10 @@ tools that can communicate from the server to your client.
 > This documentation is incomplete and intended to help you take the new figwheel
 > for a spin before its official release.
 
+## Get started with the template
+
+Get a working example up and running quickly with the [figwheel.main template](http://rigsomelight.com/figwheel-main-template/)
+
 ## Quick Usage
 
 > It is assumed that you have perused https://clojurescript.org/guides/quick-start
