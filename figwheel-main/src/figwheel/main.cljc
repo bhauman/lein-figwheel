@@ -1259,17 +1259,18 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                           cljs.analyzer/*cljs-warning-handlers*)
                   (fn [warning-type env extra]
                     (when (get cljs.analyzer/*cljs-warnings* warning-type)
-                      (->> {:warning-type warning-type
-                            :env env
-                            :extra extra
-                            :path ana/*cljs-file*}
-                           figwheel.core/warning-info
-                           (fig-ex/root-source->file-excerpt (:root-source-info env))
-                           log/format-ex
-                           ansip/format-str
-                           string/trim-newline
-                           println)
-                      (flush))))]
+                      (binding [*out* *err*]
+                        (->> {:warning-type warning-type
+                              :env env
+                              :extra extra
+                              :path ana/*cljs-file*}
+                             figwheel.core/warning-info
+                             (fig-ex/root-source->file-excerpt (:root-source-info env))
+                             log/format-ex
+                             ansip/format-str
+                             string/trim-newline
+                             println)
+                        (flush)))))]
     (let [repl-options (-> repl-options
                            (assoc :caught (:caught repl-options repl-caught)))]
       (println (ansip/format-str
