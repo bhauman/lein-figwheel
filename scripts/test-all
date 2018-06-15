@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -ex
+
+# TODO: add "figwheel-core" "figwheel-main"
+for project in  "figwheel-repl" "plugin" "sidecar" "support"; do
+  pushd ${project}
+  lein test
+  popd
+done

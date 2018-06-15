@@ -1,33 +1,44 @@
+defaults: &defaults
+  working_directory: ~/lein-figwheel
+  environment:
+    LEIN_ROOT: nbd
+    JVM_OPTS: -Xmx3200m
+  steps:
+    - checkout
+    - run: scripts/install-lein
+    - run: scripts/dependency-checksum
+    - restore_cache:
+        key: figwheel-v1-{{ checksum "checksum.tmp" }}
+    - run:
+        name: Install all JARs
+        command: scripts/install
+    - run:
+        name: Test all projects
+        command: scripts/test-all
+    - save_cache:
+        paths:
+          - ~/.m2
+          - ~/.lein/self-installs
+        key: figwheel-v1-{{ checksum "checksum.tmp" }}
+
 version: 2
 jobs:
-  build:
-    working_directory: ~/lein-figwheel
+  build-jdk-8:
+    <<: *defaults
     docker:
-      - image: circleci/clojure:lein-2.7.1
-    environment:
-      LEIN_ROOT: nbd
-      JVM_OPTS: -Xmx3200m
-    steps:
-      - checkout
-      # See https://discuss.circleci.com/t/cant-checksum-multiple-files-with-slashes-in-the-file-path/20667 for why we do this:
-      - run: shasum sidecar/project.clj plugin/project.clj support/project.clj > checksum.tmp
-      - restore_cache:
-          key: figwheel-{{ checksum "checksum.tmp" }}
-      - run: scripts/install
-      - save_cache:
-          paths:
-            - ~/.m2
-          key: figwheel-{{ checksum "checksum.tmp" }}
-      - run:
-          name: Test plugin
-          command: lein test
-          working_directory: plugin
-      - run:
-          name: Test sidecar
-          command: lein test
-          working_directory: sidecar
-      - run:
-          name: Test support
-          command: lein test
-          working_directory: support
-
+      - image: circleci/openjdk:8-node
+  build-jdk-10:
+    <<: *defaults
+    docker:
+      - image: circleci/openjdk:10-node
+  build-jdk-11:
+    <<: *defaults
+    docker:
+      - image: circleci/openjdk:11-ea-node-browsers
+workflows:
+  version: 2
+  build-all:
+    jobs:
+      - build-jdk-8
+      - build-jdk-10
+      - build-jdk-11
