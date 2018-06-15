@@ -2,8 +2,8 @@
 
 set -ex
 
-# TODO: add "figwheel-core" "figwheel-main"
-for project in  "figwheel-repl" "plugin" "sidecar" "support"; do
+# TODO: add  "figwheel-main"
+for project in figwheel-core figwheel-repl plugin sidecar support; do
   pushd ${project}
   lein test
   popd

@@ -33,6 +33,13 @@
       (catch Throwable e
         (Throwable->map e)))))
 
+(defn anonymise-ex
+  "Remove system specific information from exceptions
+  so that tests produce the same results on different
+  systems."
+  [ex-map]
+  (update ex-map :data dissoc :file))
+
 (deftest exception-parsing-test
   (is (= {:tag :cljs/analysis-error,
           :line 2,
@@ -63,11 +70,9 @@
           :data
           {:type :reader-exception,
            :ex-kind :eof,
-           :file
-           "/Users/bhauman/workspace/lein-figwheel/figwheel-core/dev/example/except.cljs",
            :line 2,
            :col 7}}
-         (parse-exception (fetch-exception "(defn "))))
+         (anonymise-ex (parse-exception (fetch-exception "(defn ")))))
 
   (is (= {:tag :tools.reader/reader-exception,
           :message "Unmatched delimiter ).",
