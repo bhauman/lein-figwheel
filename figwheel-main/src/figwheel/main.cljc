@@ -1259,7 +1259,17 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
                           cljs.analyzer/*cljs-warning-handlers*)
                   (fn [warning-type env extra]
                     (when (get cljs.analyzer/*cljs-warnings* warning-type)
-                      (binding [*out* *err*]
+                      ;; warnings happen during compile so we must
+                      ;; output to *err* but when rebel readline is
+                      ;; available we will use the the root value of
+                      ;; out which is bound to a special printer this
+                      ;; is a bit tricky, its best just to handle
+                      ;; *err* correctly in rebel-readline
+                      (binding [*out*
+                                (if (some-> (resolve 'rebel-readline.jline-api/*line-reader*)
+                                            deref)
+                                  (.getRawRoot #'*out*)
+                                  *err*)]
                         (->> {:warning-type warning-type
                               :env env
                               :extra extra
