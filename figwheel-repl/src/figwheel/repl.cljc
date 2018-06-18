@@ -334,8 +334,6 @@
 
 (defmethod message "ping" [msg] (respond-to msg {:pong true}))
 
-(def ^:dynamic *eval-js* js/eval)
-
 (let [ua-product-fn
       ;; TODO make sure this works on other platforms
       #(cond
@@ -352,7 +350,7 @@
           ;; TODO capture err as well?
           (binding [cljs.core/*print-newline* true
                     cljs.core/*print-fn* (fn [x] (.append sb x))]
-            (let [result-value (*eval-js* code)
+            (let [result-value (js/eval code)
                   ;; the result needs to be readable
                   result-value (if-not (string? result-value)
                                  (pr-str result-value)
