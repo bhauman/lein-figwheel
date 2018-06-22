@@ -57,7 +57,8 @@
       (log/info (str "Compiling build"
                      (when id? (str " " id?))
                      " to \""
-                     (or output-to output-dir)))
+                     (or output-to output-dir)
+                     "\""))
       (try
         (let [warnings (volatile! [])
               out *out*
