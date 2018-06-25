@@ -1,8 +1,9 @@
-(ns ^:figwheel-hooks exproj.core
+(ns exproj.core
   (:require
    [goog.events]
    [goog.object :as gobj]
-   [clojure.string :as string]))
+   [clojure.string :as string]
+   [cljs.test :refer [deftest is]]))
 
 (enable-console-print!)
 
@@ -15,6 +16,12 @@
 (defn ^:before-load befor-hook [& args]
   (js/console.log "Called the before hook!!!"))
 
+(deftest this-is-a-test
+  (prn "hello")
+  (is false))
+
+
+
 #_(d)
 
 ;; stable reference
@@ -25,8 +32,6 @@
 #_(defonce before-load (fn [e] (prn :before (.. e -data))))
 ;; idempotent with stable reference
 #_(.addEventListener js/document.body "figwheel.before-load" before-load)
-
-
 
 #_(defonce after-css-load (fn [e] (prn :after-css-load (.. e -data))))
 ;; idempotent with stable reference
