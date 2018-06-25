@@ -1032,6 +1032,15 @@ classpath. Classpath-relative paths have prefix of @ or @/")
                    (fn [p] (vec (distinct (conj p 'figwheel.main.editor))))))
     cfg))
 
+(defn config-eval-back [{:keys [::config options] :as cfg}]
+  (if-let [setup (and (repl-connection? cfg)
+                      (fw-util/require-resolve-var 'figwheel.main.evalback/setup))]
+    (-> cfg
+        (update ::initializers (fnil conj []) #(setup))
+        (update-in [:options :preloads]
+                   (fn [p] (vec (distinct (concat p '[figwheel.main.evalback figwheel.main.testing]))))))
+    cfg))
+
 (defn watch-css [css-dirs]
   (when-let [css-dirs (not-empty css-dirs)]
     (when-let [start-css (fw-util/require-resolve-var 'figwheel.main.css-reload/start*)]
@@ -1129,6 +1138,7 @@ classpath. Classpath-relative paths have prefix of @ or @/")
        config-repl-connect
        config-cljs-devtools
        config-open-file-command
+       config-eval-back
        config-watch-css
        config-finalize-repl-options
        config-clean
