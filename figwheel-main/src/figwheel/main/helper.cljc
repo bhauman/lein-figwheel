@@ -2,7 +2,8 @@
   (:require
    #?@(:cljs
        [[goog.dom :as gdom]
-       [goog.net.XhrIo :as xhr]
+        [goog.dom.classlist :as classlist]
+        [goog.net.XhrIo :as xhr]
         [goog.object :as gobj]]
        :clj [[clojure.java.io :as io]
              [figwheel.server.ring :refer [best-guess-script-path]]])
@@ -17,17 +18,13 @@
 (def sidebar-link-class "figwheel_main_content_link")
 (def sidebar-focus-class "figwheel_main_content_link_focus")
 
-(defn add-class [el klass]
-  (.add (gobj/get el "classList") klass))
-
-(defn remove-class [el klass]
-  (.remove (gobj/get el "classList") klass))
-
 (defn connected-signal []
-  (add-class (gdom/getElement "connect-status") "connected"))
+  (some-> (gdom/getElement "connect-status")
+          (classlist/add "connected")))
 
 (defn on-disconnect []
-  (remove-class (gdom/getElement "connect-status") "connected"))
+  (some-> (gdom/getElement "connect-status")
+          (classlist/remove "connected")))
 
 (defonce resource-atom (atom {}))
 
@@ -55,9 +52,9 @@
 (defn focus-anchor! [anchor-tag]
   (.forEach (gdom/getElementsByTagNameAndClass "a" sidebar-link-class)
             (fn [a]
-              (remove-class a sidebar-focus-class)
+              (classlist/remove a sidebar-focus-class)
               (when (= a anchor-tag)
-                (add-class a sidebar-focus-class)))))
+                (classlist/add a sidebar-focus-class)))))
 
 (defn init-sidebar-link-actions! []
   (.forEach (gdom/getElementsByTagNameAndClass "a" sidebar-link-class)
