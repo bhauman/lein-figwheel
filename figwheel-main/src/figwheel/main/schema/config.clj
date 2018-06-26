@@ -145,6 +145,17 @@ Default: true
     :hot-reload-cljs false"
   :group :common)
 
+(s/def ::reload-dependents boolean?)
+(def-spec-meta ::reload-dependents
+  :doc
+ "Whether or not figwheel.core should reload reload the namespaces
+that `depend` on the changed namespaces in addition to the changed
+namespaces themselves. Only has meaning when :figwheel is true.
+Default:true
+
+    :reload-dependents false"
+  :group :common)
+
 (s/def ::connect-url non-blank-string?)
 (def-spec-meta ::connect-url
   :doc
@@ -495,6 +506,7 @@ be useful for certain docker environments.
      ::open-file-command
      ::figwheel-core
      ::hot-reload-cljs
+     ::reload-dependents
      ::connect-url
      ::open-url
      ::reload-clj-files

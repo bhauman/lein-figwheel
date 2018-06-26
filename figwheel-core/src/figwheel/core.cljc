@@ -467,7 +467,6 @@
   (distinct
    (concat
     (figwheel-always-namespaces (find-figwheel-meta))
-    (map :ns (filter :source-file sources))
     (map symbol
      (mapcat :provides (filter :url sources))))))
 
@@ -629,7 +628,6 @@
     (client-eval (compiler-warnings-code warns))))
 
 (comment
-  (reset! scratch {})
   (def x
     (first
      (filter (comp cljs.analyzer/*cljs-warnings* :warning-type) (:warnings @scratch))))

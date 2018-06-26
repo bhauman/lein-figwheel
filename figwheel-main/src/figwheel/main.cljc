@@ -1350,7 +1350,10 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
           (binding [cljs.repl/*repl-env* (figwheel.repl/repl-env*
                                           (select-keys repl-env-options
                                                        [:connection-filter]))
-                    figwheel.core/*config* (select-keys config [:hot-reload-cljs :broadcast-reload])]
+                    figwheel.core/*config*
+                    (select-keys config [:hot-reload-cljs
+                                         :broadcast-reload
+                                         :reload-dependents])]
             (figwheel.core/start*)))))))
 
 (defn start-background-builds [{:keys [::background-builds] :as cfg}]
@@ -1467,7 +1470,9 @@ In the cljs.user ns, controls can be called without ns ie. (conns) instead of (f
             (log/info ":pprint-config true - printing config:")
             (print-conf b-cfg))
           (binding [cljs.repl/*repl-env* repl-env
-                    figwheel.core/*config* (select-keys config [:hot-reload-cljs :broadcast-reload])]
+                    figwheel.core/*config* (select-keys config [:hot-reload-cljs
+                                                                :broadcast-reload
+                                                                :reload-dependents])]
             (try
               (let [fw-mode? (figwheel-mode? b-cfg)]
                 (build config options cenv)
