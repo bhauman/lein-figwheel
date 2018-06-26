@@ -173,7 +173,7 @@ a `re-frame` dependency like so:
 {:deps {com.bhauman/figwheel-main {:mvn/version "0.1.2"}
         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.4"}
         ;; adding re-frame
-        re-frame {:mvn/version "1.10.5"}}
+        re-frame {:mvn/version "0.10.5"}}
  :paths ["src" "target" "resources"]}
 ```
 
