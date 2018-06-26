@@ -20,6 +20,6 @@
    [expound "0.7.0"]]
   :resource-paths ["helper-resources"]
   :profiles {:dev {:dependencies [[cider/piggieback "0.3.5"]
-                                  #_[com.bhauman/rebel-readline-cljs "0.1.2"]]
+                                  #_[com.bhauman/rebel-readline-cljs "0.1.4"]]
                    :source-paths ["src" "devel" "dev"]
                    :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}}})
