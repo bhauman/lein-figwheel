@@ -3,6 +3,7 @@
    [goog.events]
    [goog.object :as gobj]
    [clojure.string :as string]
+   [exproj.other]
    [cljs.test :refer [deftest is]]))
 
 (enable-console-print!)
