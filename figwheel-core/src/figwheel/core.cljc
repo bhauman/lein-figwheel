@@ -347,7 +347,8 @@
    (do
 
 (def ^:dynamic *config* {:hot-reload-cljs true
-                         :broadcast-reload true})
+                         :broadcast-reload true
+                         :reload-dependents true})
 
 (defn debug-prn [& args]
   (binding [*out* *err*]
@@ -464,11 +465,15 @@
         figwheel-ns-meta))
 
 (defn sources->namespaces-to-reload [sources]
-  (distinct
-   (concat
-    (figwheel-always-namespaces (find-figwheel-meta))
-    (map symbol
-     (mapcat :provides (filter :url sources))))))
+  (let [namespace-syms (map :ns (filter :source-file sources))]
+    (distinct
+     (concat
+      (cond-> namespace-syms
+        (and (not-empty namespace-syms)
+             (:reload-dependents *config* true))
+        expand-to-dependents)
+      (map symbol
+           (mapcat :provides (filter :url sources)))))))
 
 (defn paths->namespaces-to-reload [paths]
   (let [cljs-paths (filter #(or (.endsWith % ".cljs")
@@ -628,6 +633,13 @@
     (client-eval (compiler-warnings-code warns))))
 
 (comment
+
+  (binding [cljs.env/*compiler* (atom (second (first @last-compiler-env)))]
+    (let [paths (:paths @scratch)]
+      (expand-to-dependents (paths->namespaces-to-reload paths))
+      #_(sources-with-paths paths (:sources @cljs.env/*compiler*))
+      ))
+
   (def x
     (first
      (filter (comp cljs.analyzer/*cljs-warnings* :warning-type) (:warnings @scratch))))
@@ -828,10 +840,7 @@
   (defmacro hook-cljs-build []
     (hook-cljs-closure-build)
     nil)
-
   )
-
-
 
 (comment
 

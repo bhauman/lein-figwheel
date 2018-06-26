@@ -1,3 +1,15 @@
+# 0.1.3
+
+* enable reloading of dependents, configurable with :reload-dependents
+* bump rebel-readline-cljs dep to latest
+* fix the helper app so that it only attempts to operate on a DOM node if it is present
+* added new evalback functionality which gives the client the ability to evaluate cljs
+  through the figwheel REPL connection
+* fixed a problem where js/require couldn't be invoked from the REPL in Node
+* ensure that repl warnings don't make it into the source code for a required ns
+* added some helper content for the new figwheel-main-template
+* validate that symbols in config don't start with quotes (a very common mistake)
+
 # 0.1.2 Fix for Java 9/10 
 
 * fix classloader bug that prevented figwheel.main from starting Java 9/10
