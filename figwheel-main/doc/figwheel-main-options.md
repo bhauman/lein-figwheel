@@ -106,6 +106,15 @@ Default: true
 
     :hot-reload-cljs false
 
+## :reload-dependents
+
+Whether or not figwheel.core should reload reload the namespaces
+that `depend` on the changed namespaces in addition to the changed
+namespaces themselves. Only has meaning when :figwheel is true.
+Default:true
+
+    :reload-dependents false
+
 ## :connect-url
 
 The url that the figwheel repl client will use to connect back to
