@@ -1,0 +1,3 @@
+^{:watch-dirs ["src"]}
+{:main exproj.core
+ :hi 1}
