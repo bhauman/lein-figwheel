@@ -18,7 +18,7 @@ If don't have a `deps.edn` file let's create one now:
 ```clojure
 {:deps  {com.bhauman/figwheel-main {:mvn/version "0.1.3"}
          ;; add rebel-readline for advanced REPL readline editing
-         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.3"}}
+         com.bhauman/rebel-readline-cljs {:mvn/version "0.1.4"}}
  :paths ["src" "target" "resources"]}
 ```
 

@@ -20,7 +20,7 @@ If don't have a `project.clj` file let's create one now:
 (defproject lein-main "0.1.0-SNAPSHOT"
   :profiles {:dev {:dependencies
                    [[com.bhauman/figwheel-main "0.1.3"]
-                    [com.bhauman/rebel-readline-cljs "0.1.3"]]}}
+                    [com.bhauman/rebel-readline-cljs "0.1.4"]]}}
   :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main"]})
 ```
 
