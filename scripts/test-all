@@ -3,7 +3,7 @@
 set -ex
 
 # TODO: add  "figwheel-main"
-for project in figwheel-core figwheel-repl plugin sidecar support; do
+for project in plugin sidecar support; do
   pushd ${project}
   lein test
   popd
