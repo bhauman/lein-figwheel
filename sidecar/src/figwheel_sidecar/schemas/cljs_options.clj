@@ -1108,6 +1108,8 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::closure-variable-map-in
      ::use-only-custom-externs
 
+     ;; not defined
+     ::ghostwheel
 
      ]
     )))
