@@ -3,7 +3,7 @@
 set -ex
 
 # We install all JARs so that cross project dependencies work correctly.
-for project in figwheel-repl figwheel-core figwheel-main plugin sidecar support; do
+for project in plugin sidecar support; do
   pushd ${project}
   lein install
   popd
