@@ -5,4 +5,4 @@ set -ex
 # See https://discuss.circleci.com/t/cant-checksum-multiple-files-with-slashes-in-the-file-path/20667 for why we do this:
 # Calculates checksums for all Figwheel project dependencies.
 
-shasum sidecar/project.clj plugin/project.clj support/project.clj figwheel-core/deps.edn figwheel-main/deps.edn figwheel-repl/deps.edn /usr/local/bin/lein > checksum.tmp
+shasum sidecar/project.clj plugin/project.clj support/project.clj /usr/local/bin/lein > checksum.tmp
