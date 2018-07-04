@@ -465,27 +465,53 @@ Defaults to false.
   :compiler-stats true")
 
 (s/def ::closure-language-in-out-opts
-  #{:ecmascript3 :ecmascript5 :ecmascript5-strict
-    :ecmascript6 :ecmascript6-typed :ecmascript6-strict
+  #{:ecmascript-next    :es-next
+    :ecmascript-2017    :es-2017
+    :ecmascript-2016    :es-2016
+    :ecmascript-2015    :es-2015
+    :ecmascript6        :es6
+    :ecmascript6-strict :es6-strict
+    :ecmascript6-typed  :es6-typed
+    :ecmascript5        :es5
+    :ecmascript5-strict :es5-strict
+    :ecmascript3        :es3
     :no-transpile})
 
 (def-key ::language-in         ::closure-language-in-out-opts
+  "Configure the input and output languages for the closure library. May be:
 
-  "Configure the input and output languages for the closure library. May
-be :ecmascript3, ecmascript5, ecmascript5-strict, :ecmascript6-typed,
-:ecmascript6-strict, :ecmascript6 or :no-transpile.
+* :ecmascript-next identical to :es-next
+* :ecmascript-2017 identical to :es-2017
+* :ecmascript-2016 identical to :es-2016
+* :ecmascript-2015 identical to :es-2015
+* :ecmascript6 :es6
+* :ecmascript6-strict :es6-strict
+* :ecmascript6-typed identical to :es6-typed
+* :ecmascript5 identical to :es5
+* :ecmascript5-strict identical to :es5-strict
+* :ecmascript3 identical to :es3
+* :no-transpile
 
-Defaults to :ecmascript3
+Defaults to :ecmascript5
 
   :language-in  :ecmascript3")
 
 (def-key ::language-out        ::closure-language-in-out-opts
+  "Configure the input and output languages for the closure library. May be:
 
-  "Configure the input and output languages for the closure library. May
-be :ecmascript3, ecmascript5, ecmascript5-strict, :ecmascript6-typed,
-:ecmascript6-strict, :ecmascript6 or :no-transpile.
+* :ecmascript-next identical to :es-next
+* :ecmascript-2017 identical to :es-2017
+* :ecmascript-2016 identical to :es-2016
+* :ecmascript-2015 identical to :es-2015
+* :ecmascript6 :es6
+* :ecmascript6-strict :es6-strict
+* :ecmascript6-typed identical to :es6-typed
+* :ecmascript5 identical to :es5
+* :ecmascript5-strict identical to :es5-strict
+* :ecmascript3 identical to :es3
+* :no-transpile
 
-Defaults to :ecmascript3
+Defaults to :no-transpile
 
   :language-out  :ecmascript3")
 
