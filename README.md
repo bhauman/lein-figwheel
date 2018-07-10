@@ -4,6 +4,21 @@
 
 Figwheel builds your ClojureScript code and hot loads it into the browser as you are coding!
 
+# A new Figwheel!!
+
+There is a new Fighweel in town!
+
+[Figwheel Main](https://github.com/bhauman/figwheel-main) is a
+complete re-write of Figwheel and represents the latest and greatest
+version of Figwheel. It works great with Leiningen or the new Clojure
+CLI Tools.
+
+So head over to
+[Figwheel Main](https://github.com/bhauman/figwheel-main) to give it a
+try.
+
+# lein-figwheel
+
 Get a quick idea of what figwheel does by watching the
 6 minute [flappy bird demo of figwheel](https://www.youtube.com/watch?v=KZjFVdU8VLI).
 
@@ -838,17 +853,9 @@ a great deal of programming complexity stems from complex interactions
 (side effecting events) between things that have local state, it is my
 belief that reloadable code is often simply better code.
 
-
-## More React Advocacy
-
-If you want to do less thinking and write more reliable front end code
-you should really be looking at React, Om etc.
-
-OK enough.
-
 ## License
 
-Copyright © 2014 Bruce Hauman
+Copyright © 2018 Bruce Hauman
 
 Distributed under the Eclipse Public License either version 1.0 or any
 later version.
