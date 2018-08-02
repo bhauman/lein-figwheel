@@ -9,13 +9,11 @@
    [clojure.java.io :as io]
    [clojure.pprint :as pp]
    [clojure.string :as string]
-   [clojure.tools.nrepl.middleware.interruptible-eval :as nrepl-eval]
-
    [figwheel-sidecar.cljs-utils.exception-parsing :as cljs-ex]
    [figwheel-sidecar.components.figwheel-server :as server]
    [figwheel-sidecar.utils :refer [require?]]
    [figwheel-sidecar.config :as config]
-   [strictly-specking-standalone.ansi-util :refer [with-color-when color]]   )
+   [strictly-specking-standalone.ansi-util :refer [with-color-when color]])
   (:import [clojure.lang IExceptionInfo]))
 
 (let [timeout-val (Object.)]
@@ -158,6 +156,10 @@
 
 ;; add some repl functions for reloading local clj code
 
+(defn bound-var? [sym]
+  (when-let [v (resolve sym)]
+    (thread-bound? v)))
+
 (defmulti start-cljs-repl (fn [protocol figwheel-env]
                             protocol))
 
@@ -166,14 +168,12 @@
   (try
     (cond
       (and (require? 'cider.piggieback)
-           (when-let [present-var (resolve 'cider.piggieback/*cljs-repl-env*)]
-             (thread-bound? present-var)))
+           (bound-var? 'cider.piggieback/*cljs-repl-env*))
       (let [cljs-repl (resolve 'cider.piggieback/cljs-repl)
             opts' (:repl-opts figwheel-env)]
         (apply cljs-repl figwheel-env (apply concat opts')))
       (and (require? 'cemerick.piggieback)
-           (when-let [present-var (resolve 'cemerick.piggieback/*cljs-repl-env*)]
-             (thread-bound? present-var)))
+           (bound-var? 'cemerick.piggieback/*cljs-repl-env*))
       (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
             opts' (:repl-opts figwheel-env)]
         (apply cljs-repl figwheel-env (apply concat opts')))
@@ -226,7 +226,9 @@ This can cause confusion when your are not using Cider."]
           (cljs.repl/repl* figwheel-env (:repl-opts figwheel-env)))))
 
 (defn in-nrepl-env? []
-  (thread-bound? #'nrepl-eval/*msg*))
+  (or
+   (bound-var? 'nrepl.middleware.interruptible-eval/*msg*)
+   (bound-var? 'clojure.tools.nrepl.middleware.interruptible-eval/*msg*)))
 
 (defn catch-exception
   ([e repl-env opts form env]
