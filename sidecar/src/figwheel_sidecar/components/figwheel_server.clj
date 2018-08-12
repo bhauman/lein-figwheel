@@ -39,7 +39,10 @@
 
 (defn read-msg [data]
   (try
-    (let [msg (edn/read-string data)]
+    (let [msg
+          (binding [*read-eval* false
+                    *default-data-reader-fn* (fn [tag res] res)]
+            (read-string data))]
       (if (and (map? msg) (:figwheel-event msg)) msg {}))
     (catch Exception e
       (println "Figwheel: message from client couldn't be read!")
