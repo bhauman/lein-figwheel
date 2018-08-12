@@ -195,7 +195,10 @@
       (let [sb (js/goog.string.StringBuffer.)]
         (binding [cljs.core/*print-newline* true
                   cljs.core/*print-fn* (fn [x] (.append sb x))]
-          (let [result-value (utils/eval-helper code opts)]
+          (let [result-value (utils/eval-helper code opts)
+                result-value (if-not (string? result-value)
+                               (pr-str result-value)
+                               result-value)]
             (result-handler
              {:status :success
               :out (str sb)
