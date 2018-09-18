@@ -50,7 +50,7 @@
       false)))
 
 (defn illegal-argument [& error-parts]
-  (throw (IllegalArgumentException. (apply str error-parts))))
+  (throw (IllegalArgumentException. (string/join " " error-parts))))
 
 (defn require-resolve-handler [handler]
   (when handler
@@ -61,9 +61,9 @@
           (if (require? (symbol ns))
             (if-let [handler-var (resolve h)]
               handler-var
-              (illegal-argument "unable to resolve the var of :ring-handler " h))
-            (illegal-argument "unable to require the namespace of :ring-handler " h))
-          (illegal-argument "unable to resolve the namespace of :ring-handler " h))))))
+              (illegal-argument "unable to resolve handler var" h))
+            (illegal-argument "unable to require the namespace of the handler" h))
+          (illegal-argument "unable to resolve the namespace of the handler" h))))))
 
 #_(require-resolve-handler figwheel-sidecar.components.cljs-autobuild/figwheel-build)
 

@@ -317,7 +317,10 @@
         :ring-handler ring-handler
         ;; TODO handle this better
         :resolved-ring-handler (or resolved-ring-handler
-                                   (utils/require-resolve-handler ring-handler))
+                                   (try
+                                     (utils/require-resolve-handler ring-handler)
+                                     (catch IllegalArgumentException e
+                                       (utils/illegal-argument (.getMessage e) "for :ring-handler"))))
 
         :open-file-command open-file-command
         :compile-wait-time (or compile-wait-time 10)
