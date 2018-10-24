@@ -1,3 +1,11 @@
+## 0.5.17 new nREPL compatablity
+
+Releasing this to support nREPL changes
+
+* fix how nREPL is required to support the new nrepl codebase
+* fix repl eval of namespace
+* some updated schmema validations
+
 ## 0.5.16 Caching improvements & no trampoline on windows
 
 Daniel Compton did some great work solving the caching issues.
