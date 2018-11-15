@@ -12,7 +12,7 @@
    [leiningen.figwheel.fuzzy :as fuz]
    [simple-lein-profile-merge.core :as lm]))
 
-(def _figwheel-version_ "0.5.17")
+(def _figwheel-version_ "0.5.18-SNAPSHOT")
 (def _rebel-readline-cljs-version_ "0.1.4")
 
 (defn make-subproject [project paths-to-add]
