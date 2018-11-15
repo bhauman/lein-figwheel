@@ -13,8 +13,7 @@
    ;; to support repl doc
    [cljs.repl])
   (:require-macros
-   [cljs.core.async.macros :refer [go go-loop]])
-  (:import [goog]))
+   [cljs.core.async.macros :refer [go go-loop]]))
 
 (def _figwheel-version_ "0.5.18-SNAPSHOT")
 
