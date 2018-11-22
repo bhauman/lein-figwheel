@@ -25,10 +25,9 @@
    [co.deps/ring-etag-middleware "0.2.0"]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.18-SNAPSHOT"
-      :exclusions [org.clojure/tools.reader]]
+    :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.11" :exclusions [org.clojure/clojure]]
 
-   [org.clojure/tools.nrepl "0.2.13"]
    ;; for config validation
    [simple-lein-profile-merge "0.1.4"]
    [strictly-specking-standalone "0.1.1"]]
@@ -46,31 +45,24 @@
                     :resource-paths ["resources" "dev-resources"]
                     :repl-options {:init-ns figwheel-sidecar.repl-api}}}
 
-  :cljsbuild {
-             :builds
+  :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["cljs_src" "../support/src"]
                 :compiler {:main figwheel-helper.core
                            :asset-path "js/out"
                            :output-to  "dev-resources/public/js/figwheel-helper.js"
-                           :output-dir "dev-resources/public/js/out"}
-                }
+                           :output-dir "dev-resources/public/js/out"}}
                {:id "deploy"
                 :source-paths ["cljs_src"]
                 :compiler {:main figwheel-helper.core
                            :asset-path "js/out"
                            :output-to  "dev-resources/public/js/figwheel-helper-deploy.js"
                            :output-dir "target/deploy/out"
-                           :optimizations :simple}
-                }
+                           :optimizations :simple}}
                {:id "deploy-prod"
                 :source-paths ["cljs_src"]
                 :compiler {:main figwheel-helper.core
                            :asset-path "js/out"
                            :output-to  "resources/compiled-utils/figwheel-helper-deploy.js"
                            :output-dir "target/deploy-prod/out"
-                           :optimizations :simple}
-               }]
-              }
-
-  )
+                           :optimizations :simple}}]})
