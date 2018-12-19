@@ -14,7 +14,8 @@
    [strictly-specking-standalone.core :as speck]
    [figwheel-sidecar.schemas.config :as config-spec]
    [strictly-specking-standalone.spec :as s]
-   [strictly-specking-standalone.strict-keys :as strictk]))
+   [strictly-specking-standalone.strict-keys :as strictk]
+   [clojure.string :as str]))
 
 #_(remove-ns 'figwheel-sidecar.config)
 
@@ -70,15 +71,40 @@
   `(when-not (friendly-assert ~v ~msg)
     (java.lang.System/exit 1)))
 
+(defn semver->map
+  [version]
+  (let [[_ major minor patch] (first (re-seq #"^(\d+)\.(\d+)\.(\d+)" version))]
+    {:major (some-> major (Integer/parseInt))
+     :minor (some-> minor (Integer/parseInt))
+     :patch (some-> patch (Integer/parseInt))}))
+
+(defn compare-semver
+  "A naive implementation of version comparison.
+  Doesn't handle all of semver, but good enough for
+  basic version checking of the major/minor/patch levels
+  of version numbers."
+  [version-1 version-2]
+  (let [semver-1 (semver->map version-1)
+        semver-2 (semver->map version-2)]
+    (cond
+      (not= (:major semver-1) (:major semver-2))
+      (compare (:major semver-1) (:major semver-2))
+
+      (not= (:minor semver-1) (:minor semver-2))
+      (compare (:minor semver-1) (:minor semver-2))
+
+      :else
+      (compare (:patch semver-1) (:patch semver-2)))))
+
 (defn system-asserts []
   (let [java-version (System/getProperty "java.version")]
-    (friendly-assert (>= (compare java-version "1.8.0") 0)
+    (friendly-assert (>= (compare-semver java-version "1.8.0") 0)
                      (str "Java >= 1.8.0 - Figwheel requires Java 1.8.0 at least. Current version  "
                           java-version
                           "\n  Please install Java 1.8.0 at least.\n"
                           "  This may only be occuring in the Leiningen (bootstrapping) process but still something to be aware of.\n"
                           "  Especially if this message is immediately followed by an strange stack trace.\n" ))
-    (when-not (>= (compare (clojure-version) "1.7.0") 0)
+    (when-not (>= (compare-semver (clojure-version) "1.7.0") 0)
       (println
        (str
         "System Warning: Detected Clojure Version " (clojure-version) "\n"
