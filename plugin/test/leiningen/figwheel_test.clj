@@ -7,7 +7,7 @@
    [clojure.test.check.properties :as prop]
    [clojure.test.check.clojure-test :refer [defspec]]))
 
-(def iterations 50)
+(def iterations 10)
 
 (defspec command-like?-handles-arbitrary-data
   iterations
