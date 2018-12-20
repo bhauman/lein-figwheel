@@ -15,7 +15,7 @@
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
-(def _figwheel-version_ "0.5.18-SNAPSHOT")
+(def _figwheel-version_ "0.5.18")
 
 (def js-stringify
   (if (and (exists? js/JSON) (some? js/JSON.stringify))

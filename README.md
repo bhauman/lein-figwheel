@@ -206,7 +206,7 @@ Then include `lein-figwheel` in the `:plugins`
 section of your project.clj.
 
 ```clojure
-[lein-figwheel "0.5.17"]
+[lein-figwheel "0.5.18"]
 ```
 
 #### Configure your builds
@@ -591,7 +591,7 @@ Figwheel has a Clojure
 that makes it easy to start, stop and control Figwheel from Clojure.
 
 In order for the following examples to work, you will need to have
-`[figwheel-sidecar "0.5.17"]` and
+`[figwheel-sidecar "0.5.18"]` and
 `[com.bhauman/rebel-readline "0.1.4"]` in your dependencies.
 
 To start Figwheel from a script, you will need to require the

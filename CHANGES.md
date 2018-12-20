@@ -1,3 +1,13 @@
+## 0.5.18 maintenance release
+
+* if the new nrepl is available start the server with it
+* only load nREPL dep if an :nrepl-port has been specified
+* remove single segment ns in namespace forms forms
+* allow `:npm-deps` to be `true` as well as `false`
+* added better error checking for missing ring handler
+* Clojure version comparison logic fix
+* change client side logging of a compile exception to a console.warning to support React Native better
+
 ## 0.5.17 new nREPL compatibility 
 
 Releasing this to support nREPL changes
