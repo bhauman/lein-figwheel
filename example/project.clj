@@ -22,7 +22,7 @@
 
   :plugins [[lein-ring "0.8.13" :exclusions [org.clojure/clojure]]
             #_[lein-cljsbuild "1.1.2"]
-            [lein-figwheel "0.5.18"]
+            [lein-figwheel "0.5.19-SNAPSHOT"]
             #_[lein-npm "0.4.0"]]
 
   :node-dependencies [[source-map-support "0.2.8"]
@@ -116,7 +116,7 @@
 
   :profiles { :dev { :dependencies [;[cider/piggieback "0.2.1"]
 
-                                    [figwheel-sidecar "0.5.18"]
+                                    [figwheel-sidecar "0.5.19-SNAPSHOT"]
                                     [org.clojure/tools.namespace "0.2.11"]
                                     #_[org.clojure/tools.nrepl "0.2.12"]
                                     #_[leiningen-core "2.6.1"]
