@@ -3,11 +3,11 @@
    [figwheel-sidecar.utils :as utils]
    [com.stuartsierra.component :as component]))
 
-(if (utils/require? 'clojure.tools.nrepl.server)
+(if (utils/require? 'nrepl.server)
   (require
-   '[clojure.tools.nrepl.server :as nrepl-serv])
+   '[nrepl.server :as nrepl-serv])
   (require
-   '[nrepl.server :as nrepl-serv]))
+   '[clojure.tools.nrepl.server :as nrepl-serv]))
 
 (defn start-nrepl-server
   [figwheel-options autobuild-options]
