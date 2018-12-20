@@ -71,6 +71,4 @@
                            :output-dir "target/deploy-prod/out"
                            :optimizations :simple}
                }]
-              }
-
-  )
+              })

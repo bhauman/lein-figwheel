@@ -4,8 +4,6 @@
    [figwheel-sidecar.build-utils :as butils]
    [figwheel-sidecar.config :as config]
    [figwheel-sidecar.repl :as frepl]
-
-   [figwheel-sidecar.components.nrepl-server    :as nrepl-comp]
    [figwheel-sidecar.components.css-watcher     :as css-watch]
    [figwheel-sidecar.components.cljs-autobuild  :as autobuild]
    [figwheel-sidecar.components.figwheel-server :as server]
@@ -28,8 +26,6 @@
   (component/using
    (css-watch/css-watcher opts)
    {:figwheel-server :figwheel-system}))
-
-(def nrep-server-component nrepl-comp/nrepl-server-component)
 
 (declare build-config->key)
 
@@ -57,10 +53,19 @@
     system))
 
 (defn add-nrepl-server [system {:keys [nrepl-port] :as options}]
+  (when nrepl-port
+    (try
+      (require 'figwheel-sidecar.components.nrepl-server)
+      (catch Throwable e
+        (throw
+         (ex-info
+          "You must supply an nREPL dependency in order to start an nREPL server" {})))))
   (if nrepl-port
-    (assoc system :nrepl-server (nrepl-comp/nrepl-server-component options))
+    (if-let [comp
+             (resolve 'figwheel-sidecar.components.nrepl-server/nrepl-server-component)]
+      (assoc system :nrepl-server (comp options))
+      system)
     system))
-
 
 ;; Initially I really wanted a bunch of top level components that
 ;; relied on a figwheel server. I wanted this to be simple and
