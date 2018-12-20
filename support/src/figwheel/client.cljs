@@ -352,12 +352,11 @@
     line (str " at line " line)
     (and line column) (str ", column " column)))
 
-(defn default-on-compile-fail [{:keys [formatted-exception exception-data cause] :as ed}]
-  (utils/log :debug "Figwheel: Compile Exception")
-  (doseq [msg (format-messages exception-data)]
-    (utils/log :info msg))
-  (if cause
-    (utils/log :info (str "Error on " (file-line-column ed))))
+(defn default-on-compile-fail [{:keys [exception-data cause] :as ed}]
+  (let [message (cond-> (apply str "Figwheel: Compile Exception " (format-messages exception-data))
+                  (:file exception-data)
+                  (str " Error on " (file-line-column exception-data)))]
+    (utils/log :warn message))
   ed)
 
 (defn default-on-compile-warning [{:keys [message] :as w}]
