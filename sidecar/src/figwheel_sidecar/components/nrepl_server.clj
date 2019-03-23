@@ -17,8 +17,8 @@
                       (cond
                         (utils/require? 'cider.piggieback)
                         ["cider.piggieback/wrap-cljs-repl"]
-                        (utils/require? 'cemerick.piggieback)
-                        ["cemerick.piggieback/wrap-cljs-repl"]
+                        (utils/require? 'cider.piggieback)
+                        ["cider.piggieback/wrap-cljs-repl"]
                         :else nil))
           resolve-mw (fn [name]
                        (let [s (symbol name)
@@ -66,7 +66,7 @@
   :nrepl-middleware a optional list of nREPL middleware to include
 
   This function will attempt to require/load the
-  cemerick.piggieback/wrap-cljs-repl middleware which is needed to
+  cider.piggieback/wrap-cljs-repl middleware which is needed to
   start a ClojureSript REPL over nREPL."
   [options]
   (map->NreplComponent options))

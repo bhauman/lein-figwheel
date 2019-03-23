@@ -37,7 +37,7 @@
 
   :jvm-opts ^:replace ["-Xms256m" "-Xmx2g"]
 
-  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
+  :profiles {:dev {:dependencies [[cider/piggieback "0.4.0"]]
                    :source-paths ["cljs_src" "src" "dev"]
                    :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
                              [lein-ancient "0.6.15"]]}
