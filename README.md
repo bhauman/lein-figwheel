@@ -6,7 +6,7 @@ Figwheel builds your ClojureScript code and hot loads it into the browser as you
 
 # A new Figwheel!!
 
-There is a new Fighweel in town!
+There is a new Figwheel in town!
 
 [Figwheel Main](https://figwheel.org) is a
 complete re-write of Figwheel and represents the latest and greatest
@@ -258,7 +258,7 @@ Start the figwheel server. (This will get the first `:optimizations`
 You also have the option to specify one or more builds
 
     $ lein figwheel example
-    $ lein fighweel example example-devcards
+    $ lein figwheel example example-devcards
 
 This will start a server at `http://localhost:3449` with your
 resources being served via the compojure `resources` ring handler.
