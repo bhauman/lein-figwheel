@@ -28,7 +28,7 @@
       :exclusions [org.clojure/tools.reader]]
    [hawk "0.2.11" :exclusions [org.clojure/clojure]]
 
-   [org.clojure/tools.nrepl "0.2.13"]
+   [nrepl "0.5.3"]
    ;; for config validation
    [simple-lein-profile-merge "0.1.4"]
    [strictly-specking-standalone "0.1.1"]]
@@ -37,12 +37,10 @@
 
   :jvm-opts ^:replace ["-Xms256m" "-Xmx2g"]
 
-  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.2"]]
+  :profiles {:dev {:dependencies [[cider/piggieback "0.4.0"]]
                    :source-paths ["cljs_src" "src" "dev"]
-                   :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]
-                             [lein-ancient "0.6.15"]]}
-             :repl {:plugins [[cider/cider-nrepl "0.11.0"]]
-                    :source-paths ["cljs_src" "src"]
+                   :plugins [[lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]}
+             :repl {:source-paths ["cljs_src" "src"]
                     :resource-paths ["resources" "dev-resources"]
                     :repl-options {:init-ns figwheel-sidecar.repl-api}}}
 
