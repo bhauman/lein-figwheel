@@ -73,7 +73,7 @@
 
 (defn semver->map
   [version]
-  (let [[_ major minor patch] (first (re-seq #"^(\d+)\.(\d+)\.(\d+)" version))]
+  (let [[major minor patch] (re-seq #"\d+" version)]
     {:major (some-> major (Integer/parseInt))
      :minor (some-> minor (Integer/parseInt))
      :patch (some-> patch (Integer/parseInt))}))
@@ -84,6 +84,7 @@
   basic version checking of the major/minor/patch levels
   of version numbers."
   [version-1 version-2]
+  ;; this relies on (compare 0 nil) => 1
   (let [semver-1 (semver->map version-1)
         semver-2 (semver->map version-2)]
     (cond

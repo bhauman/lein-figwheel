@@ -13,6 +13,10 @@
   (is (neg? (config/compare-semver "1" "1.7.0")))
   (is (neg? (config/compare-semver "1.7" "1.7.0")))
 
+  (is (pos? (config/compare-semver "12" "1.8.0")))
+  (is (neg? (config/compare-semver "1.8.0" "12")))
+  (is (zero? (config/compare-semver "12" "12")))
+
   (is (neg? (config/compare-semver "1.2.3-alpha1" "1.2.4")))
   (is (zero? (config/compare-semver "1.2.3-alpha1" "1.2.3")))
   (is (pos? (config/compare-semver "1.2.3-alpha1" "1.2.2")))
