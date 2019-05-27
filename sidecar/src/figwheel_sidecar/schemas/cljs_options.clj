@@ -671,6 +671,13 @@ This setting does not apply if :optimizations is set to :advanced.
 
   :checked-arrays :warn")
 
+(def-key ::fingerprint boolean?
+  "Append content SHA to output file names.
+A manifest.edn file is emitted to :output-dir for mapping to fingerprinted filenames.
+Defaults to false.
+
+  :fingerprint true")
+
 ;; ** ClojureScript Compiler Warnings
 
 (def-key ::warnings
@@ -1115,6 +1122,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::rewrite-polyfills
      ::checked-arrays
      ::aot-cache
+     ::fingerprint
 
      ;; these need definitions above
      ::closure-variable-map-out
