@@ -317,7 +317,13 @@ to false.  Default: true
 
   :ansi-color-output false")
 
-(def-key ::hawk-options (s/map-of #{:watcher} #{:barbary :java :polling})
+(def-key ::hawk-options
+  (s/every
+    (fn [[k v]]
+      (contains?
+        (-> {:watcher #{:barbary :java :polling}
+             :sensitivity #{:low :medium :high}})
+        v)))
 
   "If you need to watch files with polling instead of FS events. This can
 be useful for certain docker environments.
