@@ -322,7 +322,8 @@ to false.  Default: true
     (fn [[k v]]
       (contains?
         (-> {:watcher #{:barbary :java :polling}
-             :sensitivity #{:low :medium :high}})
+             :sensitivity #{:low :medium :high}}
+          (get k))
         v)))
 
   "If you need to watch files with polling instead of FS events. This can
