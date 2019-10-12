@@ -31,7 +31,7 @@
                    (safe-js->ns js-file-path))]
     (if-not (empty? provs)
       provs
-      (let [out-file (cljs-target-file-from-foreign (:output-dir state) js-file-path)]
+      (if-let [out-file (cljs-target-file-from-foreign (:output-dir state) js-file-path)]
         (and (.exists out-file)
              (safe-js->ns out-file))))))
 
