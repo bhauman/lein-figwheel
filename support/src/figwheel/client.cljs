@@ -454,7 +454,9 @@
 
 (defn start
   ([opts]
-   (when-not (nil? goog/dependencies_)
+   (when (or (some? goog/dependencies_)
+             (and (some? goog/debugLoader_)
+                  (some? goog/debugLoader_.dependencies_)))
        (defonce __figwheel-start-once__
          (js/setTimeout
           #(let [plugins' (:plugins opts) ;; plugins replaces all plugins

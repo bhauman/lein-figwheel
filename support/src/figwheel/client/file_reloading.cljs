@@ -2,7 +2,6 @@
   (:require
    [figwheel.client.utils :as utils :refer-macros [dev-assert]]
    [goog.Uri :as guri]
-   [goog.string]
    [goog.object :as gobj]
    [goog.net.jsloader :as loader]
    [goog.html.legacyconversions :as conv]
@@ -18,6 +17,9 @@
 
 (defonce figwheel-meta-pragmas (atom {}))
 
+(defn debug-loader? []
+  (some? goog/debugLoader_))
+
 ;; you can listen to this event easily like so:
 ;; document.body.addEventListener("figwheel.js-reload", function (e) {console.log(e.detail);} );
 (defn on-jsload-custom-event [url]
@@ -32,10 +34,6 @@
 ;; document.body.addEventListener("figwheel.css-reload", function (e) {console.log(e.detail);} );
 (defn on-cssload-custom-event [files]
   (utils/dispatch-custom-event "figwheel.css-reload" files))
-
-
-#_(defn all? [pred coll]
-  (reduce #(and %1 %2) true (map pred coll)))
 
 (defn namespace-file-map? [m]
   (or
@@ -54,61 +52,102 @@
   (dev-assert (string? url))
   (.makeUnique (guri/parse url)))
 
-(defn name->path [ns]
-  (dev-assert (string? ns))
-  (gobj/get js/goog.dependencies_.nameToPath ns))
+(def name->path
+  (if (debug-loader?)
+    (fn [ns]
+      (dev-assert (string? ns))
+      (.getPathFromDeps_ goog/debugLoader_ ns))
+    (fn [ns]
+      (dev-assert (string? ns))
+      (gobj/get js/goog.dependencies_.nameToPath ns))))
 
-(defn provided? [ns]
-  (gobj/get js/goog.dependencies_.written (name->path ns)))
+(def provided?
+  (if (debug-loader?)
+    (fn [ns]
+      (goog/getObjectByName ns))
+    (fn [ns]
+      (gobj/get js/goog.dependencies_.written (name->path ns)))))
 
-(defn immutable-ns? [name]
-  (or (#{"goog" "cljs.core" "cljs.nodejs"} name)
-      (goog.string/startsWith "clojure." name)
-      (goog.string/startsWith "goog." name)))
+(defn immutable-ns? [ns]
+  (or (= "goog" ns)
+      (= "cljs.core" ns)
+      (= "cljs.nodejs" ns)
+      (gstring/startsWith ns "clojure." )
+      (gstring/startsWith ns "goog.")))
+
+(def base-requires-for-ns-path
+  (if (debug-loader?)
+    (fn [path]
+      (some-> (gobj/get goog/debugLoader_.dependencies_ path)
+              (gobj/get "requires")))
+    (fn [path]
+      (some-> (gobj/get js/goog.dependencies_.requires path)
+              (gobj/getKeys)))))
 
 (defn get-requires [ns]
-  (->> ns
-    name->path
-    (gobj/get js/goog.dependencies_.requires)
-    (gobj/getKeys)
-    (filter #(not (immutable-ns? %)))
-    set))
+  (-> ns
+      name->path
+      base-requires-for-ns-path
+      (->> (filter #(not (immutable-ns? %))))
+      set))
 
 (defonce dependency-data (atom {:pathToName {} :dependents {}}))
 
-(defn path-to-name! [path name]
-  (swap! dependency-data update-in [:pathToName path] (fnil clojure.set/union #{}) #{name}))
+(def path-to-name!
+  (if (debug-loader?)
+    (fn [_ _])
+    (fn [path name]
+      (swap! dependency-data update-in [:pathToName path] (fnil clojure.set/union #{}) #{name}))))
 
-(defn setup-path->name!
-  "Setup a path to name dependencies map.
-   That goes from path -> #{ ns-names }"
-  []
-  ;; we only need this for dependents
-  (let [nameToPath (gobj/filter js/goog.dependencies_.nameToPath
-                                (fn [v k o] (gstring/startsWith v "../")))]
-    (gobj/forEach nameToPath (fn [v k o] (path-to-name! v k)))))
+;; Setup a path to name dependencies map.
+;; That goes from path -> #{ ns-names }  ""
+(def setup-path->name!
+  (if (debug-loader?)
+    (fn [])
+    (fn []
+      (let [nameToPath (gobj/filter js/goog.dependencies_.nameToPath
+                                    (fn [v k o] (gstring/startsWith v "../")))]
+        (gobj/forEach nameToPath (fn [v k o] (path-to-name! v k)))))))
 
-(defn path->name
-  "returns a set of namespaces defined by a path"
-  [path]
-  (get-in @dependency-data [:pathToName path]))
+;; returns a set of namespaces defined by a path
+(def path->name
+  (if (debug-loader?)
+    (fn [path]
+      (some-> (gobj/get goog/debugLoader_.dependencies_ path)
+              (gobj/get "provides")
+              set))
+    (fn [path]
+      (get-in @dependency-data [:pathToName path]))))
 
 (defn name-to-parent! [ns parent-ns]
-  (swap! dependency-data update-in [:dependents ns] (fnil clojure.set/union #{}) #{parent-ns}))
+  (swap! dependency-data update-in [:dependents ns] (fnil conj #{}) parent-ns))
 
-(defn setup-ns->dependents!
-  "This reverses the goog.dependencies_.requires for looking up ns-dependents."
-  []
-  (let [requires (gobj/filter js/goog.dependencies_.requires
-                              (fn [v k o] (gstring/startsWith k "../")))]
-    (gobj/forEach
-     requires
-     (fn [v k _]
-       (gobj/forEach
-        v
-        (fn [v' k' _]
-          (doseq [n (path->name k)]
-            (name-to-parent! k' n))))))))
+;; This reverses the goog.dependencies_.requires for looking up ns-dependents.
+(def setup-ns->dependents!
+  (if (debug-loader?)
+    (fn []
+      (gobj/forEach
+       (gobj/filter goog/debugLoader_.dependencies_
+                    (fn [dep path _]
+                      (not (some immutable-ns? (gobj/get dep "provides")))))
+       (fn [dep path _]
+         (let [provides (gobj/get dep "provides")
+               requires (gobj/get dep "requires")]
+           (doseq [prov provides]
+             (doseq [req requires]
+               (name-to-parent! req prov)))))))
+    (fn []
+      (let [requires (gobj/filter js/goog.dependencies_.requires
+                                  (fn [v k o] (gstring/startsWith k "../")))]
+        (gobj/forEach
+         requires
+         (fn [deps path _]
+           ;; this normally loops only one time
+           (doseq [prov (path->name path)]
+             (gobj/forEach
+              deps
+              (fn [_ req _]
+                (name-to-parent! req prov))))))))))
 
 (defn ns->dependents [ns]
   (get-in @dependency-data [:dependents ns]))
@@ -153,15 +192,24 @@
 
 #_(time (get-all-dependents [ "example.core" "figwheel.client.file_reloading" "cljs.core"]))
 
-(defn unprovide! [ns]
-  (let [path (name->path ns)]
-    (gobj/remove js/goog.dependencies_.visited path)
-    (gobj/remove js/goog.dependencies_.written path)
-    (gobj/remove js/goog.dependencies_.written (str js/goog.basePath path))))
+(def unprovide!
+  (if (debug-loader?)
+    (fn [ns]
+      (let [path (name->path ns)]
+        (gobj/remove (.-written_ goog/debugLoader_) path)
+        (gobj/remove (.-written_ goog/debugLoader_) (str js/goog.basePath path))))
+    (fn [ns]
+      (let [path (name->path ns)]
+        (gobj/remove js/goog.dependencies_.visited path)
+        (gobj/remove js/goog.dependencies_.written path)
+        (gobj/remove js/goog.dependencies_.written (str js/goog.basePath path))))))
 
 ;; this matches goog behavior in url resolution should actually just
 ;; use that code
-(defn resolve-ns [ns] (str goog/basePath (name->path ns)))
+(def resolve-ns
+  (if (debug-loader?)
+    name->path
+    #(str goog/basePath (name->path %))))
 
 (defn addDependency [path provides requires]
   (doseq [prov provides]
@@ -435,8 +483,6 @@
           all-files (if (or reload-dependents recompile-dependents)
                       (expand-files all-files)
                       (sort-files all-files))
-          ;_       (prn "expand-files" (expand-files all-files))
-          ;_       (prn "sort-files" (sort-files all-files))
           res'    (<! (load-all-js-files all-files))
           res     (filter :loaded-file res')
           files-not-loaded  (filter #(not (:loaded-file %)) res')
