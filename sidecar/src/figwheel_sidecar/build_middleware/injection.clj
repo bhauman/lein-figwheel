@@ -11,6 +11,10 @@
   (when-let [target (get-in build [:build-options :target])]
     (= target :nodejs)))
 
+(defn- bundle? [build]
+  (when-let [target (get-in build [:build-options :target])]
+    (= target :bundle)))
+
 (defn- webworker? [build]
   (when-let [target (get-in build [:build-options :target])]
     (= target :webworker)))
@@ -44,6 +48,7 @@
           (update-in [:build-options :preloads]
                      (fnil conj [])
                      (if (and (has-main? build)
+                              (not (bundle? build))
                               (not (has-modules? build))
                               (not (node? build))
                               (not (webworker? build)))
@@ -84,6 +89,7 @@
 (defn append-connection-init! [build]
   (when (and (config/figwheel-build? build)
              (has-main? build)
+             (not (bundle? build))
              (not (has-modules? build))
              (not (node? build))
              (not (webworker? build)))

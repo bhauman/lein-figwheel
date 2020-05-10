@@ -159,7 +159,7 @@ human-readable manner. Defaults to true.
 
   :pretty-print false")
 
-(def-key ::target                    #{:nodejs :webworker}
+(def-key ::target                    #{:nodejs :webworker :bundle}
 
   "If targeting nodejs add this line. Takes no other options at the
 moment. The default (no :target specified) implies browsers are being
@@ -678,6 +678,41 @@ Defaults to false.
 
   :fingerprint true")
 
+(def-key ::none    (s/every non-blank-string? :min-count 1 :into [] :kind sequential?))
+(def-key ::default (s/every non-blank-string? :min-count 1 :into [] :kind sequential?))
+
+(def-key ::bundle-cmd (strict-keys
+                       :req-un [::none]
+                       :opt-un [::default])
+  "When using :target :bundle, set shell commands to be run after a
+build. This command is not parameterizable. You should provide
+both :none which will be run after dev builds, and :default which
+will be run after builds passed through Closure Compiler. The
+command should be one that exits, i.e. you cannot use this to launch
+a watcher.
+
+  :bundle-cmd {:none [\"npx\" \"webpack\" \"--mode=development\"]
+               :default [\"npx\" \"webpack\"]}")
+
+(def-key ::closure-variable-map-out any?)
+(def-key ::closure-generate-exports any?)
+(def-key ::closure-module-roots any?)
+(def-key ::rename-prefix any?)
+(def-key ::closure-property-map-in any?)
+(def-key ::ignore-js-module-exts any?)
+(def-key ::closure-property-map-out any?)
+(def-key ::stable-names any?)
+(def-key ::watch-error-fn any?)
+(def-key ::browser-repl any?)
+(def-key ::opts-cache any?)
+(def-key ::watch any?)
+(def-key ::cache-analysis-format any?)
+(def-key ::rename-prefix-namespace any?)
+(def-key ::closure-variable-map-in any?)
+(def-key ::use-only-custom-externs any?)
+
+(def-key ::ghostwheel any?)
+
 ;; ** ClojureScript Compiler Warnings
 
 (def-key ::warnings
@@ -1123,6 +1158,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::checked-arrays
      ::aot-cache
      ::fingerprint
+     ::bundle-cmd
 
      ;; these need definitions above
      ::closure-variable-map-out
