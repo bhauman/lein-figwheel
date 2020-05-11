@@ -12,17 +12,17 @@
     :exclusions [org.apache.ant/ant]]
    [org.clojure/core.async "0.4.474"
     :exclusions [org.clojure/tools.reader]]
-   [com.stuartsierra/component "0.3.2"]
+   [com.stuartsierra/component "1.0.0"]
    [suspendable "0.1.1"
     :exclusions [org.clojure/clojure com.stuartsierra/component]]
-   [http-kit "2.3.0"]
-   [ring-cors "0.1.12"
+   [http-kit "2.3.0"] ;; tested and works with 2.4.0-alpha-6
+   [ring-cors "0.1.13"
     :exclusions [ring/ring-core org.clojure/clojure]]
-   [ring/ring-core "1.6.3"
+   [ring/ring-core "1.6.3" ;; tested and works with 1.8.3
     :exclusions
     [org.clojure/tools.reader
      org.clojure/clojure]]
-   [co.deps/ring-etag-middleware "0.2.0"]
+   [co.deps/ring-etag-middleware "0.2.1"]
    [clj-stacktrace "0.2.8"]
    [figwheel "0.5.20-SNAPSHOT"
       :exclusions [org.clojure/tools.reader]]
