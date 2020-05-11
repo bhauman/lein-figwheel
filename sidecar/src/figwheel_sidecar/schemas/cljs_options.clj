@@ -25,6 +25,8 @@
 ;; * Specification for ClojureScript
 ;; ** Top level util specs
 
+(defn anything? [x] true)
+
 (def-key ::string-or-symbol (some-fn string? symbol?))
 (def-key ::string-or-named  (some-fn string? symbol? keyword?))
 
@@ -694,24 +696,26 @@ a watcher.
   :bundle-cmd {:none [\"npx\" \"webpack\" \"--mode=development\"]
                :default [\"npx\" \"webpack\"]}")
 
-(def-key ::closure-variable-map-out any?)
-(def-key ::closure-generate-exports any?)
-(def-key ::closure-module-roots any?)
-(def-key ::rename-prefix any?)
-(def-key ::closure-property-map-in any?)
-(def-key ::ignore-js-module-exts any?)
-(def-key ::closure-property-map-out any?)
-(def-key ::stable-names any?)
-(def-key ::watch-error-fn any?)
-(def-key ::browser-repl any?)
-(def-key ::opts-cache any?)
-(def-key ::watch any?)
-(def-key ::cache-analysis-format any?)
-(def-key ::rename-prefix-namespace any?)
-(def-key ::closure-variable-map-in any?)
-(def-key ::use-only-custom-externs any?)
 
-(def-key ::ghostwheel any?)
+
+(def-key ::closure-variable-map-out anything?)
+(def-key ::closure-generate-exports anything?)
+(def-key ::closure-module-roots anything?)
+(def-key ::rename-prefix anything?)
+(def-key ::closure-property-map-in anything?)
+(def-key ::ignore-js-module-exts anything?)
+(def-key ::closure-property-map-out anything?)
+(def-key ::stable-names anything?)
+(def-key ::watch-error-fn anything?)
+(def-key ::browser-repl anything?)
+(def-key ::opts-cache anything?)
+(def-key ::watch anything?)
+(def-key ::cache-analysis-format anything?)
+(def-key ::rename-prefix-namespace anything?)
+(def-key ::closure-variable-map-in anything?)
+(def-key ::use-only-custom-externs anything?)
+
+(def-key ::ghostwheel anything?)
 
 ;; ** ClojureScript Compiler Warnings
 
