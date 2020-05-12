@@ -19,7 +19,7 @@
 
 #_(remove-ns 'figwheel-sidecar.config)
 
-(def _figwheel-version_ "0.5.20")
+(def _figwheel-version_ "0.5.21-SNAPSHOT")
 
 ;; needed to determine the default color setting because windows
 ;; obtained these detection patterns from Jline3
