@@ -23,4 +23,4 @@
   [obj feature]
   `(try (and (cljs.core/exists? ~obj)
              (cljs.core/exists? (goog.object/get ~obj ~feature)))
-        (catch :default _ false)))
+        (catch :default e# false)))
