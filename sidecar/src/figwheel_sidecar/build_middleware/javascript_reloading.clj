@@ -19,24 +19,28 @@
   (let [path (cljs.closure/lib-rel-path {:provides [namesp]})]
     (io/file output-dir path)))
 
-(defn safe-js->ns [file-path]
+(defn safe-js->ns [foreign-libs file-path]
   (:provides
-   (try (bapi/parse-js-ns file-path)
-        (catch Throwable e
-          ;; couldn't parse js for namespace
-          {}))))
+   ;; first check if a foreign-lib addresses this file
+   (or (some->> foreign-libs
+                (filter #(.endsWith file-path (:file %)))
+                first)
+       (try (bapi/parse-js-ns file-path)
+            (catch Throwable e
+              ;; couldn't parse js for namespace
+              {})))))
 
-(defn best-try-js-ns [state js-file-path]
+(defn best-try-js-ns [state foreign-libs js-file-path]
   (let [provs (and (.exists (io/file js-file-path))
-                   (safe-js->ns js-file-path))]
+                   (safe-js->ns foreign-libs js-file-path))]
     (if-not (empty? provs)
       provs
       (if-let [out-file (cljs-target-file-from-foreign (:output-dir state) js-file-path)]
         (and (.exists out-file)
-             (safe-js->ns out-file))))))
+             (safe-js->ns foreign-libs out-file))))))
 
 (defn js-file->namespaces [{:keys [foreign-libs output-dir] :as state} js-file-path]
-  (best-try-js-ns state js-file-path))
+  (best-try-js-ns state foreign-libs js-file-path))
 
 (defn hook [build-fn]
   (fn [{:keys [figwheel-server build-config changed-files] :as build-state}]
