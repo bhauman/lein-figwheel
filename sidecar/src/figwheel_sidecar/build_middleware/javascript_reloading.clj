@@ -19,25 +19,31 @@
   (let [path (cljs.closure/lib-rel-path {:provides [namesp]})]
     (io/file output-dir path)))
 
-(defn safe-js->ns [foreign-libs file-path]
-  (:provides
-   ;; first check if a foreign-lib addresses this file
-   (or (some->> foreign-libs
-                (filter #(.endsWith file-path (:file %)))
-                first)
-       (try (bapi/parse-js-ns file-path)
-            (catch Throwable e
-              ;; couldn't parse js for namespace
-              {})))))
+(defn foreign-libs-provides [foreign-libs file-path]
+  (some->> foreign-libs
+           (filter #(.endsWith file-path (:file %)))
+           first
+           :provides
+           not-empty))
+
+(defn safe-js->ns [file-path]
+  (try (some-> (bapi/parse-js-ns file-path)
+               :provides
+               not-empty)
+       (catch Throwable e
+         ;; couldn't parse js for namespace
+         nil)))
 
 (defn best-try-js-ns [state foreign-libs js-file-path]
-  (let [provs (and (.exists (io/file js-file-path))
-                   (safe-js->ns foreign-libs js-file-path))]
-    (if-not (empty? provs)
+  (letfn [(get-provides [js-path]
+            (and (.exists (io/file js-path))
+                 (or
+                  (safe-js->ns js-path)
+                  (foreign-libs-provides foreign-libs js-path))))]
+    (if-let [provs (get-provides js-file-path)]
       provs
       (if-let [out-file (cljs-target-file-from-foreign (:output-dir state) js-file-path)]
-        (and (.exists out-file)
-             (safe-js->ns foreign-libs out-file))))))
+        (get-provides out-file)))))
 
 (defn js-file->namespaces [{:keys [foreign-libs output-dir] :as state} js-file-path]
   (best-try-js-ns state foreign-libs js-file-path))
