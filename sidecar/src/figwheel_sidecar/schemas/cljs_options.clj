@@ -170,6 +170,16 @@ code in nodejs.
 
   :target :nodejs")
 
+(def-key ::deps-cmd
+  
+  "Set the command to install node_modules.
+
+Only \"npm\" and \"yarn\" supported.
+
+  :deps-cmd \"yarn\"")
+
+
+
 (def-key ::infer-externs boolean?
   "Experimental externs inference.
 
@@ -1116,6 +1126,7 @@ See the Closure Compiler Warning wiki for detailed descriptions.")
      ::verbose
      ::pretty-print
      ::target
+     ::deps-cmd
      ::infer-externs
      ::foreign-libs
      ::externs
