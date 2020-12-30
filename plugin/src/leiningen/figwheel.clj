@@ -10,7 +10,8 @@
    [clojure.set :refer [intersection]]
    [clojure.string :as string]
    [leiningen.figwheel.fuzzy :as fuz]
-   [simple-lein-profile-merge.core :as lm]))
+   [simple-lein-profile-merge.core :as lm])
+  (:import (java.util Locale)))
 
 (def _figwheel-version_ "0.5.21-SNAPSHOT")
 (def _rebel-readline-cljs-version_ "0.1.4")
@@ -455,6 +456,21 @@
   (println "Figwheel: Cutting some fruit, just a sec ...")
   (fig-dispatch command project build-ids))
 
+(defn- warn-about-broken-trampoline-on-windows []
+  (when-let [os (System/getProperty "os.name")]
+    (when (.contains (.toLowerCase os Locale/ENGLISH) "windows")
+      (println " ---------------------------------- WARNING ----------------------------------- ")
+      (println "| Figwheel is invoking lein trampoline which doesn't always work on Windows    |")
+      (println "| due to a bug in leiningen. If you see issues around missing dependencies,    |")
+      (println "| corrupt JVM properties or any other strange behaviour then you can disable   |")
+      (println "| trampoline by adding `:readline false` to your server-side `:figwheel`       |")
+      (println "| config in the root of your project.clj                                       |")
+      (println "|                                                                              |")
+      (println "| For more details:                                                            |")
+      (println "|   https://github.com/technomancy/leiningen/issues/982                        |")
+      (println "|   https://github.com/bhauman/lein-figwheel/issues/682                        |")
+      (println " ------------------------------------------------------------------------------ "))))
+
 (defn figwheel
 "Figwheel - a tool that helps you compile and reload ClojureScript.
 
@@ -553,8 +569,9 @@ Configuration:
              ;; https://github.com/bhauman/lein-figwheel/issues/682
              (not windows?)
              (get-in project [:figwheel :repl] true)
-             (get-in project [:figwheel :readline] true))
-          (if tramp/*trampoline?*
-            (launch-figwheel command project build-ids)
+             (get-in project [:figwheel :readline] true)
+             (not tramp/*trampoline?*))
+          (do
+            (warn-about-broken-trampoline-on-windows)
             (apply tramp/trampoline project "figwheel" command-and-or-build-ids))
           (launch-figwheel command project build-ids))))))
