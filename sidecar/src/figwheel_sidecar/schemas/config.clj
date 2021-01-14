@@ -265,7 +265,7 @@ specifies which local network interface you want to launch the server on.
   "A vector of strings indicating the nREPL middleware you want included
 when nREPL launches.
 
-  :nrepl-middleware [\"cider.nrepl/cider-middleware\" \"cemerick.piggieback/wrap-cljs-repl\"]")
+  :nrepl-middleware [\"cider.nrepl/cider-middleware\" \"cider.piggieback/wrap-cljs-repl\"]")
 
 (def-key ::validate-config   (some-fn boolean? #{:warn-unknown-keys :ignore-unknown-keys})
 

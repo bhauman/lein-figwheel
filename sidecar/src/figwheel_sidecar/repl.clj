@@ -172,9 +172,9 @@
       (let [cljs-repl (resolve 'cider.piggieback/cljs-repl)
             opts' (:repl-opts figwheel-env)]
         (apply cljs-repl figwheel-env (apply concat opts')))
-      (and (require? 'cemerick.piggieback)
-           (bound-var? 'cemerick.piggieback/*cljs-repl-env*))
-      (let [cljs-repl (resolve 'cemerick.piggieback/cljs-repl)
+      (and (require? 'cider.piggieback)
+           (bound-var? 'cider.piggieback/*cljs-repl-env*))
+      (let [cljs-repl (resolve 'cider.piggieback/cljs-repl)
             opts' (:repl-opts figwheel-env)]
         (apply cljs-repl figwheel-env (apply concat opts')))
       :else (throw (ex-info "Unable to load a ClojureScript nREPL middleware library" {})))
