@@ -461,7 +461,7 @@ meta-data to the namespace declaration like so:
 
 Figwheel will not load or reload files that haven't been required by
 your application. If you want to force a file to be loaded when it
-changes add the follwoing meta-data the namespace declaration of the file:
+changes add the following meta-data the namespace declaration of the file:
 
 ```clojure
 (ns ^:figwheel-load example.core)
