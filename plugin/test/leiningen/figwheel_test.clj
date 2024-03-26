@@ -184,12 +184,12 @@
                                    {:id             "prod"
                                     :source-paths   ["src/cljs" "src/cljc" "prod"]
                                     :resource-paths ["resources"]}]}}
-             ["checkouts/util-lib/src"])
+             ["../util-lib/src"])
            {:cljsbuild {:builds [{:id             "dev"
-                                  :source-paths   ["src/cljs" "src/cljc" "dev" "checkouts/util-lib/src"]
+                                  :source-paths   ["src/cljs" "src/cljc" "dev" "../util-lib/src"]
                                   :resource-paths ["resources"]}
                                  {:id             "prod"
-                                  :source-paths   ["src/cljs" "src/cljc" "prod" "checkouts/util-lib/src"]
+                                  :source-paths   ["src/cljs" "src/cljc" "prod" "../util-lib/src"]
                                   :resource-paths ["resources"]}]}}))))
 
 (deftest checkout-source-paths-test
@@ -204,7 +204,7 @@
                                                              :output-to     "resources/public/js/example.js"
                                                              :output-dir    "resources/public/js/out"
                                                              :optimizations :none}}}}})
-             ["checkouts/utils-lib/src"])))
+             ["../utils-lib/src"])))
     (testing "test project with no checkouts"
       (is (= (f/checkout-source-paths
                {:root         (str cwd "/test-resources/test-project-with-no-checkouts")
